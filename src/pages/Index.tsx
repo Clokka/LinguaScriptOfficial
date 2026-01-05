@@ -75,7 +75,11 @@ const Index = () => {
           </div>
           <div className="flex items-center gap-4">
             <StreakBadge streak={7} showAnimation={false} />
-            <Button variant="hero" size="lg">
+            <Button
+              variant="hero"
+              size="lg"
+              onClick={() => window.open("https://chromewebstore.google.com/", "_blank")}
+            >
               <Chrome className="w-5 h-5" />
               Add to Chrome
             </Button>
@@ -251,7 +255,11 @@ const Index = () => {
             Join thousands of language learners who've discovered the joy of learning through
             entertainment.
           </p>
-          <Button variant="hero" size="xl">
+          <Button
+            variant="hero"
+            size="xl"
+            onClick={() => window.open("https://chromewebstore.google.com/", "_blank")}
+          >
             <Chrome className="w-5 h-5" />
             Add Ligua to Chrome — It's Free
           </Button>
