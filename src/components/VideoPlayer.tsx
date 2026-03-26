@@ -54,7 +54,7 @@ export const VideoPlayer = ({ className }: VideoPlayerProps) => {
   const [showControls, setShowControls] = useState(true);
 
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    let interval: ReturnType<typeof setInterval>;
     if (isPlaying) {
       interval = setInterval(() => {
         setCurrentTime((prev) => {
