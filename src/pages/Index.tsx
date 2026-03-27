@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Play,
   Subtitles,
@@ -9,83 +9,79 @@ import {
   Chrome,
   Layers,
   Zap,
+  Film,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { VideoPlayer } from "@/components/VideoPlayer";
 import { SettingsPanel } from "@/components/SettingsPanel";
 import { FlashcardReview } from "@/components/FlashcardReview";
 import { FeatureCard } from "@/components/FeatureCard";
-import { StreakBadge } from "@/components/StreakBadge";
 import { XPProgress } from "@/components/XPProgress";
+import { NavBar } from "@/components/NavBar";
+import { supabase } from "@/integrations/supabase/client";
+import { getLanguageLabel, getLanguageFlag } from "@/lib/languages";
 
 const mockFlashcards = [
-  {
-    id: "1",
-    word: "Cómo",
-    translation: "How / What",
-    pronunciation: "KOH-moh",
-    ipa: "/ˈko.mo/",
-    context: "¿Cómo te llamas?",
-  },
-  {
-    id: "2",
-    word: "llamas",
-    translation: "are called",
-    pronunciation: "YAH-mahs",
-    ipa: "/ˈʎa.mas/",
-    context: "¿Cómo te llamas?",
-  },
-  {
-    id: "3",
-    word: "gusto",
-    translation: "pleasure",
-    pronunciation: "GOOS-toh",
-    ipa: "/ˈɡus.to/",
-    context: "Mucho gusto",
-  },
-  {
-    id: "4",
-    word: "dónde",
-    translation: "where",
-    pronunciation: "DOHN-deh",
-    ipa: "/ˈdon.de/",
-    context: "¿De dónde eres?",
-  },
+  { id: "1", word: "Cómo", translation: "How / What", pronunciation: "KOH-moh", ipa: "/ˈko.mo/", context: "¿Cómo te llamas?" },
+  { id: "2", word: "llamas", translation: "are called", pronunciation: "YAH-mahs", ipa: "/ˈʎa.mas/", context: "¿Cómo te llamas?" },
+  { id: "3", word: "gusto", translation: "pleasure", pronunciation: "GOOS-toh", ipa: "/ˈɡus.to/", context: "Mucho gusto" },
+  { id: "4", word: "dónde", translation: "where", pronunciation: "DOHN-deh", ipa: "/ˈdon.de/", context: "¿De dónde eres?" },
 ];
+
+interface FilmData {
+  id: string;
+  title: string;
+  url: string;
+  language: string | null;
+  thumbnail_url: string | null;
+}
 
 const Index = () => {
   const [showFlashcards, setShowFlashcards] = useState(false);
   const [activeSection, setActiveSection] = useState<"demo" | "features" | "flashcards">("demo");
+  const [film, setFilm] = useState<FilmData | null>(null);
+
+  useEffect(() => {
+    supabase
+      .from("films")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .then(({ data }) => {
+        if (data && data.length > 0) setFilm(data[0]);
+      });
+  }, []);
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
-      {/* Background effects */}
       <div className="absolute inset-0 bg-gradient-hero pointer-events-none" />
       <div className="absolute top-1/4 -left-1/4 w-1/2 h-1/2 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-1/4 -right-1/4 w-1/2 h-1/2 bg-accent/5 rounded-full blur-3xl pointer-events-none" />
 
-      {/* Header */}
-      <header className="relative z-10 px-6 py-4">
-        <nav className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-primary flex items-center justify-center shadow-glow-primary">
-              <Layers className="w-5 h-5 text-primary-foreground" />
+      <NavBar />
+
+      {/* Film Banner */}
+      {film && (
+        <section className="relative z-10 px-6 pt-6">
+          <div className="max-w-7xl mx-auto">
+            <div className="glass-panel-strong p-4 flex items-center gap-4">
+              <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
+              <Film className="w-5 h-5 text-primary" />
+              <div className="flex-1 min-w-0">
+                <p className="text-foreground font-medium truncate">
+                  Now Available: <span className="gradient-text">{film.title}</span>
+                </p>
+                <p className="text-muted-foreground text-xs">
+                  {getLanguageFlag(film.language ?? "es")} {getLanguageLabel(film.language ?? "es")}
+                </p>
+              </div>
+              <span className="text-xs text-muted-foreground bg-secondary/50 px-2 py-1 rounded-lg">
+                1 film available
+              </span>
             </div>
-            <span className="text-xl font-bold gradient-text">Ligua Overlay</span>
           </div>
-          <div className="flex items-center gap-4">
-            <StreakBadge streak={7} showAnimation={false} />
-            <Button
-              variant="hero"
-              size="lg"
-              onClick={() => window.open("https://chromewebstore.google.com/", "_blank")}
-            >
-              <Chrome className="w-5 h-5" />
-              Add to Chrome
-            </Button>
-          </div>
-        </nav>
-      </header>
+        </section>
+      )}
 
       {/* Hero Section */}
       <section className="relative z-10 px-6 pt-12 pb-8">
@@ -106,7 +102,6 @@ const Index = () => {
             flashcards, and gamification—without pausing the fun.
           </p>
 
-          {/* Navigation tabs */}
           <div className="flex justify-center gap-2 mb-8">
             {[
               { id: "demo", label: "Live Demo", icon: Play },
@@ -145,45 +140,14 @@ const Index = () => {
           {activeSection === "features" && (
             <div className="animate-fade-in">
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <FeatureCard
-                  icon={Subtitles}
-                  title="Interactive Subtitles"
-                  description="Click any word to see translations, pronunciations, and save to flashcards. Dual subtitle mode shows both languages."
-                  gradient="primary"
-                />
-                <FeatureCard
-                  icon={BookOpen}
-                  title="Smart Flashcards"
-                  description="Spaced repetition system auto-generates cards from saved words. Review before or after watching."
-                  gradient="success"
-                />
-                <FeatureCard
-                  icon={Flame}
-                  title="Daily Streaks"
-                  description="Build habits with streak tracking. Watch 10+ minutes and interact with content to maintain your streak."
-                  gradient="accent"
-                />
-                <FeatureCard
-                  icon={Sparkles}
-                  title="XP & Levels"
-                  description="Earn XP from watching, clicking words, and reviewing flashcards. Level up with satisfying animations."
-                  gradient="primary"
-                />
-                <FeatureCard
-                  icon={Star}
-                  title="AI Difficulty Rating"
-                  description="Content is automatically rated 1-5 stars based on speech speed, vocabulary, and sentence complexity."
-                  gradient="accent"
-                />
-                <FeatureCard
-                  icon={Layers}
-                  title="Works Everywhere"
-                  description="Seamless overlay on Netflix, YouTube, Prime Video, Disney+, and any HTML5 video player."
-                  gradient="success"
-                />
+                <FeatureCard icon={Subtitles} title="Interactive Subtitles" description="Click any word to see translations, pronunciations, and save to flashcards." gradient="primary" />
+                <FeatureCard icon={BookOpen} title="Smart Flashcards" description="Spaced repetition system auto-generates cards from saved words." gradient="success" />
+                <FeatureCard icon={Flame} title="Daily Streaks" description="Build habits with streak tracking. Watch and interact to maintain your streak." gradient="accent" />
+                <FeatureCard icon={Sparkles} title="XP & Levels" description="Earn XP from watching, clicking words, and reviewing flashcards." gradient="primary" />
+                <FeatureCard icon={Star} title="AI Difficulty Rating" description="Content is automatically rated 1-5 stars based on speech speed and complexity." gradient="accent" />
+                <FeatureCard icon={Layers} title="Works Everywhere" description="Seamless overlay on Netflix, YouTube, Prime Video, Disney+, and more." gradient="success" />
               </div>
 
-              {/* Stats section */}
               <div className="mt-12 glass-panel-strong p-8">
                 <div className="grid md:grid-cols-4 gap-8 text-center">
                   <div>
@@ -213,28 +177,18 @@ const Index = () => {
           {activeSection === "flashcards" && (
             <div className="animate-fade-in">
               {showFlashcards ? (
-                <FlashcardReview
-                  cards={mockFlashcards}
-                  onClose={() => setShowFlashcards(false)}
-                />
+                <FlashcardReview cards={mockFlashcards} onClose={() => setShowFlashcards(false)} />
               ) : (
                 <div className="text-center py-12">
                   <div className="glass-panel-strong inline-block p-8 max-w-md">
                     <div className="w-16 h-16 rounded-2xl bg-gradient-success flex items-center justify-center mx-auto mb-6 shadow-glow-success">
                       <BookOpen className="w-8 h-8 text-success-foreground" />
                     </div>
-                    <h2 className="text-2xl font-bold text-foreground mb-2">
-                      Ready for Review?
-                    </h2>
+                    <h2 className="text-2xl font-bold text-foreground mb-2">Ready for Review?</h2>
                     <p className="text-muted-foreground mb-6">
-                      You have {mockFlashcards.length} cards saved from your recent watching
-                      sessions.
+                      You have {mockFlashcards.length} cards saved from your recent sessions.
                     </p>
-                    <Button
-                      variant="hero"
-                      size="lg"
-                      onClick={() => setShowFlashcards(true)}
-                    >
+                    <Button variant="hero" size="lg" onClick={() => setShowFlashcards(true)}>
                       Start Review
                     </Button>
                   </div>
@@ -252,8 +206,7 @@ const Index = () => {
             Start learning while you watch
           </h2>
           <p className="text-muted-foreground mb-8 max-w-xl mx-auto">
-            Join thousands of language learners who've discovered the joy of learning through
-            entertainment.
+            Join thousands of language learners who've discovered the joy of learning through entertainment.
           </p>
           <Button
             variant="hero"
