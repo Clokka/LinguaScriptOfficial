@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Play,
   Subtitles,
@@ -37,6 +38,7 @@ interface FilmData {
 }
 
 const Index = () => {
+  const navigate = useNavigate();
   const [showFlashcards, setShowFlashcards] = useState(false);
   const [activeSection, setActiveSection] = useState<"demo" | "features" | "flashcards">("demo");
   const [film, setFilm] = useState<FilmData | null>(null);
@@ -64,7 +66,10 @@ const Index = () => {
       {film && (
         <section className="relative z-10 px-6 pt-6">
           <div className="max-w-7xl mx-auto">
-            <div className="glass-panel-strong p-4 flex items-center gap-4">
+            <div
+              className="glass-panel-strong p-4 flex items-center gap-4 cursor-pointer hover:bg-secondary/30 transition-colors"
+              onClick={() => navigate(`/watch/${film.id}`)}
+            >
               <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
               <Film className="w-5 h-5 text-primary" />
               <div className="flex-1 min-w-0">
