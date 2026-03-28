@@ -38,6 +38,7 @@ interface FilmData {
 }
 
 const Index = () => {
+  const navigate = useNavigate();
   const [showFlashcards, setShowFlashcards] = useState(false);
   const [activeSection, setActiveSection] = useState<"demo" | "features" | "flashcards">("demo");
   const [film, setFilm] = useState<FilmData | null>(null);
