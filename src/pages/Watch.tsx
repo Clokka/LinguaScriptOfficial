@@ -107,62 +107,62 @@ const Watch = () => {
         return;
       }
 
-        // Fallback: fetch from YouTube via edge function
-        const ytId = getYouTubeId(film.url);
-        if (!ytId) {
-          setCaptionsLoading(false);
-          setCaptionsError("No subtitles available");
-          return;
-        }
+      // Fallback: fetch from YouTube via edge function
+      const ytId = getYouTubeId(film.url);
+      if (!ytId) {
+        setCaptionsLoading(false);
+        setCaptionsError("No subtitles available");
+        return;
+      }
 
-        supabase.functions
-          .invoke("fetch-captions", {
-            body: { videoId: ytId, language: film.language || "fr" },
-          })
-          .then(async ({ data, error }) => {
-            if (error) {
-              setCaptionsLoading(false);
-              setCaptionsError("Could not load captions");
-              return;
-            }
-            if (data?.subtitles?.length) {
-              const display: DisplaySubtitle[] = data.subtitles.map(
-                (c: any, i: number) => ({
-                  start: c.start,
-                  end: c.end,
-                  primary: c.text,
-                  secondary: "",
-                  words: textToWords(c.text, i),
+      supabase.functions
+        .invoke("fetch-captions", {
+          body: { videoId: ytId, language: film.language || "fr" },
+        })
+        .then(async ({ data, error }) => {
+          if (error) {
+            setCaptionsLoading(false);
+            setCaptionsError("Could not load captions");
+            return;
+          }
+          if (data?.subtitles?.length) {
+            const display: DisplaySubtitle[] = data.subtitles.map(
+              (c: any, i: number) => ({
+                start: c.start,
+                end: c.end,
+                primary: c.text,
+                secondary: "",
+                words: textToWords(c.text, i),
+              })
+            );
+            setSubtitles(display);
+            setCaptionsLoading(false);
+
+            // Translate in background
+            const filmLangLabel = getLanguageLabel(film.language || "fr");
+            const userLang = "English";
+            if (filmLangLabel.toLowerCase() !== userLang.toLowerCase()) {
+              supabase.functions
+                .invoke("translate-subtitles", {
+                  body: { subtitles: data.subtitles, fromLanguage: filmLangLabel, toLanguage: userLang },
                 })
-              );
-              setSubtitles(display);
-              setCaptionsLoading(false);
-
-              // Translate in background
-              const filmLang = getLanguageLabel(film.language || "fr");
-              const userLang = "English"; // TODO: use profile's native_language
-              if (filmLang.toLowerCase() !== userLang.toLowerCase()) {
-                supabase.functions
-                  .invoke("translate-subtitles", {
-                    body: { subtitles: data.subtitles, fromLanguage: filmLang, toLanguage: userLang },
-                  })
-                  .then(({ data: transData }) => {
-                    if (transData?.translations) {
-                      setSubtitles((prev) =>
-                        prev.map((s, i) => ({
-                          ...s,
-                          secondary: transData.translations[i]?.translation || "",
-                        }))
-                      );
-                    }
-                  });
-              }
-            } else {
-              setCaptionsLoading(false);
-              setCaptionsError("No captions available for this video");
+                .then(({ data: transData }) => {
+                  if (transData?.translations) {
+                    setSubtitles((prev) =>
+                      prev.map((s, i) => ({
+                        ...s,
+                        secondary: transData.translations[i]?.translation || "",
+                      }))
+                    );
+                  }
+                });
             }
-          });
-      });
+          } else {
+            setCaptionsLoading(false);
+            setCaptionsError("No captions available for this video");
+          }
+        });
+    });
   }, [film]);
 
   // Load YouTube IFrame API
