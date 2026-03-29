@@ -69,37 +69,37 @@ async function fetchViaInnerTube(videoId: string, lang: string): Promise<{ subti
         continue;
       }
 
-    const data = await res.json();
-    const captionTracks = data?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
-    
-    if (!captionTracks || captionTracks.length === 0) {
-      console.log('InnerTube: no caption tracks found');
-      return null;
-    }
+      const data = await res.json();
+      const captionTracks = data?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
+      
+      if (!captionTracks || captionTracks.length === 0) {
+        console.log(`InnerTube ${client.name}: no caption tracks`);
+        continue;
+      }
 
-    console.log('InnerTube: found tracks:', captionTracks.map((t: any) => `${t.languageCode} (${t.kind || 'manual'})`));
+      console.log(`InnerTube ${client.name}: found tracks:`, captionTracks.map((t: any) => `${t.languageCode} (${t.kind || 'manual'})`));
 
-    // Find best track
-    let track = captionTracks.find((t: any) => t.languageCode === lang)
-      || captionTracks.find((t: any) => t.languageCode.startsWith(lang))
-      || captionTracks.find((t: any) => t.languageCode === 'en')
-      || captionTracks[0];
+      let track = captionTracks.find((t: any) => t.languageCode === lang)
+        || captionTracks.find((t: any) => t.languageCode.startsWith(lang))
+        || captionTracks.find((t: any) => t.languageCode === 'en')
+        || captionTracks[0];
 
-    let captionUrl = track.baseUrl;
-    if (!captionUrl.includes('fmt=')) captionUrl += '&fmt=srv3';
+      let captionUrl = track.baseUrl;
+      if (!captionUrl.includes('fmt=')) captionUrl += '&fmt=srv3';
 
-    console.log('InnerTube: downloading captions for', track.languageCode);
-    const captionRes = await fetch(captionUrl);
-    if (!captionRes.ok) {
-      console.error('InnerTube: caption download failed:', captionRes.status);
-      await captionRes.text();
-      return null;
-    }
+      console.log(`InnerTube ${client.name}: downloading captions for`, track.languageCode);
+      const captionRes = await fetch(captionUrl);
+      if (!captionRes.ok) {
+        console.error(`InnerTube ${client.name}: download failed:`, captionRes.status);
+        await captionRes.text();
+        continue;
+      }
 
-    const xmlText = await captionRes.text();
-    const subtitles = parseXmlSubtitles(xmlText);
-    if (subtitles.length > 0) {
-      return { subtitles, source: track.kind === 'asr' ? 'auto-generated' : 'manual' };
+      const xmlText = await captionRes.text();
+      const subtitles = parseXmlSubtitles(xmlText);
+      if (subtitles.length > 0) {
+        return { subtitles, source: track.kind === 'asr' ? 'auto-generated' : 'manual' };
+      }
     }
     return null;
   } catch (e) {
