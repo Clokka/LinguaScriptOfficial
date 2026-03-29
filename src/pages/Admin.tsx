@@ -37,11 +37,8 @@ const Admin = () => {
   const [srtFileFr, setSrtFileFr] = useState<File | null>(null);
   const [srtFileEn, setSrtFileEn] = useState<File | null>(null);
   const [uploadingSubsFor, setUploadingSubsFor] = useState<string | null>(null);
-  const [uploadingLang, setUploadingLang] = useState<string | null>(null);
   const fileInputRefFr = useRef<HTMLInputElement>(null);
   const fileInputRefEn = useRef<HTMLInputElement>(null);
-  const existingFileInputRef = useRef<HTMLInputElement>(null);
-  const [existingUploadLang, setExistingUploadLang] = useState<string>("fr");
   const navigate = useNavigate();
   const { toast } = useToast();
 
