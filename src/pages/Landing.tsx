@@ -1,5 +1,5 @@
-import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
 import {
   Play,
   Languages,
@@ -7,45 +7,22 @@ import {
   BookOpen,
   Sparkles,
   Subtitles,
-  Chrome,
   Film,
   ArrowRight,
+  MousePointerClick,
+  Eye,
+  Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { NavBar } from "@/components/NavBar";
-import { FeatureCard } from "@/components/FeatureCard";
-import { SettingsPanel } from "@/components/SettingsPanel";
-import { SubtitleOverlay } from "@/components/SubtitleOverlay";
-import { StreakBadge } from "@/components/StreakBadge";
-import { DifficultyStars } from "@/components/DifficultyStars";
-import { FlashcardReview } from "@/components/FlashcardReview";
 import { supabase } from "@/integrations/supabase/client";
-import { useEffect } from "react";
-
-type Tab = "demo" | "features" | "flashcards";
-
-const demoWords = [
-  { id: "1", text: "¿Cómo", translation: "How", pronunciation: "KOH-moh", ipa: "/ˈko.mo/" },
-  { id: "2", text: "te", translation: "yourself", pronunciation: "teh", ipa: "/te/" },
-  { id: "3", text: "llamas?", translation: "do you call?", pronunciation: "YAH-mahs", ipa: "/ˈʎa.mas/" },
-];
+import { motion } from "framer-motion";
 
 const Landing = () => {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<Tab>("demo");
-  const [latestFilm, setLatestFilm] = useState<{ title: string; language: string } | null>(null);
   const [filmCount, setFilmCount] = useState(0);
 
   useEffect(() => {
-    supabase
-      .from("films")
-      .select("title, language")
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .then(({ data }) => {
-        if (data && data.length > 0) setLatestFilm(data[0]);
-      });
-
     supabase
       .from("films")
       .select("id", { count: "exact", head: true })
@@ -54,15 +31,68 @@ const Landing = () => {
       });
   }, []);
 
-  const languageFlags: Record<string, string> = {
-    french: "🇫🇷",
-    spanish: "🇪🇸",
-    german: "🇩🇪",
-    italian: "🇮🇹",
+  const fadeUp = {
+    hidden: { opacity: 0, y: 30 },
+    visible: (i: number) => ({
+      opacity: 1,
+      y: 0,
+      transition: { delay: i * 0.1, duration: 0.6, ease: [0.22, 1, 0.36, 1] },
+    }),
   };
 
+  const steps = [
+    {
+      icon: Film,
+      title: "Pick a Film",
+      description: "Browse our catalog of YouTube videos and films in your target language.",
+      color: "from-primary to-[hsl(280,100%,60%)]",
+      glow: "shadow-glow-primary",
+    },
+    {
+      icon: Eye,
+      title: "Watch & Read",
+      description: "Dual subtitles show the original language and your native translation simultaneously.",
+      color: "from-accent to-[hsl(45,100%,60%)]",
+      glow: "shadow-glow-accent",
+    },
+    {
+      icon: MousePointerClick,
+      title: "Learn Words",
+      description: "Click any word for instant pronunciation, translation, and flashcard creation.",
+      color: "from-success to-[hsl(160,70%,50%)]",
+      glow: "shadow-glow-success",
+    },
+  ];
+
+  const features = [
+    {
+      icon: Subtitles,
+      title: "Dual Subtitles",
+      description: "See the original language and your translation side by side in real time.",
+      gradient: "from-primary/20 to-primary/5",
+      border: "border-primary/30",
+      iconBg: "bg-gradient-primary shadow-glow-primary",
+    },
+    {
+      icon: Mic,
+      title: "Pronunciation",
+      description: "Hear any word spoken aloud in the correct accent with one click.",
+      gradient: "from-accent/20 to-accent/5",
+      border: "border-accent/30",
+      iconBg: "bg-gradient-accent shadow-glow-accent",
+    },
+    {
+      icon: BookOpen,
+      title: "Flashcards",
+      description: "Save words and review them later with spaced-repetition flashcards.",
+      gradient: "from-success/20 to-success/5",
+      border: "border-success/30",
+      iconBg: "bg-gradient-success shadow-glow-success",
+    },
+  ];
+
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background overflow-hidden">
       {/* Nav */}
       <nav className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-lg">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
@@ -70,219 +100,199 @@ const Landing = () => {
             <div className="w-9 h-9 rounded-xl bg-gradient-primary flex items-center justify-center shadow-glow-primary">
               <Languages className="w-5 h-5 text-primary-foreground" />
             </div>
-            <span className="text-xl font-bold text-foreground">Ligua Overlay</span>
+            <span className="text-xl font-bold text-foreground">LinguaScript</span>
           </button>
           <NavBar />
         </div>
       </nav>
 
-      {/* Now Available Banner */}
-      {latestFilm && (
-        <div className="max-w-7xl mx-auto px-6 mt-4">
-          <button
-            onClick={() => navigate("/browse")}
-            className="w-full glass-panel p-4 flex items-center gap-4 hover:border-primary/40 transition-colors"
-          >
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
-              <Film className="w-5 h-5 text-muted-foreground" />
-            </div>
-            <div className="flex-1 text-left">
-              <span className="text-sm text-muted-foreground">Now Available: </span>
-              <span className="text-sm font-semibold text-primary">{latestFilm.title}</span>
-              <div className="text-xs text-muted-foreground mt-0.5">
-                {languageFlags[latestFilm.language?.toLowerCase() ?? ""] ?? "🌍"}{" "}
-                {latestFilm.language ? latestFilm.language.charAt(0).toUpperCase() + latestFilm.language.slice(1) : ""}
-              </div>
-            </div>
-            <span className="text-xs text-muted-foreground">{filmCount} film{filmCount !== 1 ? "s" : ""} available</span>
-          </button>
-        </div>
-      )}
-
       {/* Hero */}
-      <header className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-accent/5" />
-        <div className="relative max-w-5xl mx-auto px-6 pt-16 pb-12 text-center">
-          <div className="inline-flex items-center gap-2 bg-primary/10 border border-primary/20 rounded-full px-4 py-1.5 mb-8">
-            <Sparkles className="w-4 h-4 text-primary" />
-            <span className="text-sm text-primary font-medium">Turn any movie into a language lesson</span>
-          </div>
+      <section className="relative">
+        {/* Animated background blobs */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute -top-40 -left-40 w-[600px] h-[600px] rounded-full bg-primary/10 blur-[120px] animate-pulse" />
+          <div className="absolute top-20 -right-40 w-[500px] h-[500px] rounded-full bg-accent/8 blur-[100px] animate-pulse" style={{ animationDelay: "1s" }} />
+          <div className="absolute -bottom-20 left-1/3 w-[400px] h-[400px] rounded-full bg-success/6 blur-[80px] animate-pulse" style={{ animationDelay: "2s" }} />
+        </div>
 
-          <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight mb-6">
-            <span className="text-foreground">Learn languages while</span>
+        <div className="relative max-w-5xl mx-auto px-6 pt-20 pb-16 text-center">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5 }}
+            className="inline-flex items-center gap-2 bg-primary/10 border border-primary/30 rounded-full px-5 py-2 mb-8"
+          >
+            <Zap className="w-4 h-4 text-accent" />
+            <span className="text-sm text-primary font-semibold tracking-wide">Early Access</span>
+          </motion.div>
+
+          <motion.h1
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.1 }}
+            className="text-5xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight mb-6 leading-[1.1]"
+          >
+            <span className="text-foreground">Learn Languages</span>
             <br />
-            <span className="gradient-text">streaming your favorites</span>
-          </h1>
+            <span className="bg-gradient-to-r from-primary via-accent to-success bg-clip-text text-transparent">
+              By Watching Films
+            </span>
+          </motion.h1>
 
-          <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto mb-10 leading-relaxed">
-            A Chrome extension that overlays Netflix, YouTube, and more with
-            interactive subtitles, flashcards, and gamification—without pausing the fun.
-          </p>
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.2 }}
+            className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto mb-10 leading-relaxed"
+          >
+            LinguaScript overlays interactive subtitles on real films and videos.
+            Click any word to hear pronunciation, see translations, and build vocabulary — naturally.
+          </motion.p>
 
-          {/* Tab Buttons */}
-          <div className="flex items-center justify-center gap-2 mb-12">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.3 }}
+            className="flex flex-col sm:flex-row items-center justify-center gap-4"
+          >
             <Button
-              variant={activeTab === "demo" ? "default" : "ghost"}
-              onClick={() => setActiveTab("demo")}
-              className="gap-2"
+              size="lg"
+              onClick={() => navigate("/browse")}
+              className="h-14 px-10 text-lg rounded-full bg-gradient-to-r from-primary via-[hsl(280,100%,60%)] to-accent shadow-glow-primary hover:shadow-glow-accent transition-all duration-500 hover:scale-105 gap-3 text-primary-foreground font-semibold"
             >
-              <Play className="w-4 h-4" />
-              Live Demo
+              <Play className="w-5 h-5" />
+              Learn with LinguaScript
+              <ArrowRight className="w-5 h-5" />
             </Button>
-            <Button
-              variant={activeTab === "features" ? "default" : "ghost"}
-              onClick={() => setActiveTab("features")}
-              className="gap-2"
+            {filmCount > 0 && (
+              <span className="text-sm text-muted-foreground">
+                <span className="text-accent font-bold">{filmCount}</span> films available now
+              </span>
+            )}
+          </motion.div>
+        </div>
+      </section>
+
+      {/* How It Works */}
+      <section className="relative max-w-5xl mx-auto px-6 py-20">
+        <motion.div
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-100px" }}
+          className="text-center mb-16"
+        >
+          <motion.div variants={fadeUp} custom={0} className="inline-flex items-center gap-2 bg-accent/10 border border-accent/20 rounded-full px-4 py-1.5 mb-4">
+            <Sparkles className="w-4 h-4 text-accent" />
+            <span className="text-sm text-accent font-medium">How It Works</span>
+          </motion.div>
+          <motion.h2 variants={fadeUp} custom={1} className="text-3xl sm:text-4xl font-bold text-foreground mb-3">
+            Three simple steps to start learning
+          </motion.h2>
+          <motion.p variants={fadeUp} custom={2} className="text-muted-foreground max-w-lg mx-auto">
+            Start learning with real content in minutes
+          </motion.p>
+        </motion.div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {steps.map((step, i) => (
+            <motion.div
+              key={step.title}
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true }}
+              variants={fadeUp}
+              custom={i + 1}
+              className="relative group"
             >
-              <Sparkles className="w-4 h-4" />
-              Features
-            </Button>
-            <Button
-              variant={activeTab === "flashcards" ? "default" : "ghost"}
-              onClick={() => setActiveTab("flashcards")}
-              className="gap-2"
-            >
-              <BookOpen className="w-4 h-4" />
-              Flashcards
-            </Button>
+              <div className="glass-panel p-8 rounded-2xl h-full transition-all duration-500 hover:scale-[1.03] hover:-translate-y-2 border border-border hover:border-primary/30">
+                {/* Step number */}
+                <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${step.color} ${step.glow} flex items-center justify-center mb-6 transition-transform duration-500 group-hover:rotate-6`}>
+                  <span className="text-xl font-bold text-primary-foreground">{i + 1}</span>
+                </div>
+                <h3 className="text-xl font-bold text-foreground mb-3">{step.title}</h3>
+                <p className="text-muted-foreground leading-relaxed">{step.description}</p>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </section>
+
+      {/* Features */}
+      <section className="relative py-20">
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-primary/3 to-transparent pointer-events-none" />
+        <div className="relative max-w-5xl mx-auto px-6">
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-100px" }}
+            className="text-center mb-16"
+          >
+            <motion.div variants={fadeUp} custom={0} className="inline-flex items-center gap-2 bg-success/10 border border-success/20 rounded-full px-4 py-1.5 mb-4">
+              <Sparkles className="w-4 h-4 text-success" />
+              <span className="text-sm text-success font-medium">Features</span>
+            </motion.div>
+            <motion.h2 variants={fadeUp} custom={1} className="text-3xl sm:text-4xl font-bold text-foreground">
+              Everything you need to learn naturally
+            </motion.h2>
+          </motion.div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {features.map((feature, i) => (
+              <motion.div
+                key={feature.title}
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true }}
+                variants={fadeUp}
+                custom={i + 1}
+                className="group"
+              >
+                <div className={`glass-panel p-8 rounded-2xl h-full bg-gradient-to-br ${feature.gradient} border ${feature.border} transition-all duration-500 hover:scale-[1.03] hover:-translate-y-2`}>
+                  <div className={`w-14 h-14 rounded-2xl ${feature.iconBg} flex items-center justify-center mb-6 transition-transform duration-500 group-hover:scale-110`}>
+                    <feature.icon className="w-7 h-7 text-primary-foreground" />
+                  </div>
+                  <h3 className="text-xl font-bold text-foreground mb-3">{feature.title}</h3>
+                  <p className="text-muted-foreground leading-relaxed">{feature.description}</p>
+                </div>
+              </motion.div>
+            ))}
           </div>
         </div>
-      </header>
-
-      {/* Tab Content */}
-      <section className="max-w-7xl mx-auto px-6 pb-20">
-        {activeTab === "demo" && (
-          <div className="flex flex-col lg:flex-row gap-8 items-start">
-            {/* Video Player Mock */}
-            <div className="flex-1 w-full">
-              <div className="glass-panel-strong rounded-2xl overflow-hidden">
-                {/* Video Area */}
-                <div className="relative aspect-video bg-muted/30 flex items-center justify-center">
-                  <div className="absolute top-4 right-4">
-                    <StreakBadge streak={7} showAnimation={false} />
-                  </div>
-                  <div className="text-center">
-                    <div className="w-20 h-20 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-4 hover:bg-muted/70 transition-colors cursor-pointer">
-                      <Play className="w-8 h-8 text-muted-foreground ml-1" />
-                    </div>
-                    <p className="text-muted-foreground font-medium">Demo Video Player</p>
-                    <p className="text-sm text-muted-foreground/60">Click play to see subtitles</p>
-                  </div>
-                  <div className="absolute top-4 left-4">
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <span>Difficulty:</span>
-                      <DifficultyStars difficulty={2} maxStars={5} />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Subtitle Overlay */}
-                <div className="p-4">
-                  <SubtitleOverlay
-                    primaryText="¿Cómo te llamas?"
-                    secondaryText="What is your name?"
-                    words={demoWords}
-                    mode="dual"
-                  />
-                </div>
-
-                {/* Fake playbar */}
-                <div className="px-4 pb-4 flex items-center gap-3 text-xs text-muted-foreground">
-                  <span>0:00</span>
-                  <div className="flex-1 h-1 bg-muted rounded-full overflow-hidden">
-                    <div className="h-full w-0 bg-primary rounded-full" />
-                  </div>
-                  <span>0:09</span>
-                  <Button variant="ghost" size="sm" className="h-6 text-xs">
-                    Dual
-                  </Button>
-                </div>
-              </div>
-            </div>
-
-            {/* Settings Panel */}
-            <SettingsPanel className="hidden lg:block" />
-          </div>
-        )}
-
-        {activeTab === "features" && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-4xl mx-auto">
-            <FeatureCard
-              icon={Subtitles}
-              title="Dual Subtitles"
-              description="See the original language and your translation side by side in real time."
-              gradient="primary"
-            />
-            <FeatureCard
-              icon={Mic}
-              title="Pronunciation"
-              description="Hear any word spoken aloud in the correct accent with one click."
-              gradient="accent"
-            />
-            <FeatureCard
-              icon={BookOpen}
-              title="Flashcards"
-              description="Save words and review them later with spaced-repetition flashcards."
-              gradient="success"
-            />
-            <FeatureCard
-              icon={Languages}
-              title="Multi-Language"
-              description="Switch between French, Spanish, German, and Italian with one tap."
-              gradient="primary"
-            />
-            <FeatureCard
-              icon={Film}
-              title="Works Everywhere"
-              description="Overlay on Netflix, YouTube, Prime Video, Disney+, and more."
-              gradient="accent"
-            />
-            <FeatureCard
-              icon={Sparkles}
-              title="Gamification"
-              description="Earn XP, maintain streaks, and level up as you watch and learn."
-              gradient="success"
-            />
-          </div>
-        )}
-
-        {activeTab === "flashcards" && (
-          <div className="max-w-md mx-auto">
-            <FlashcardReview
-              cards={[
-                { id: "1", word: "Bonjour", translation: "Hello", pronunciation: "bohn-ZHOOR", ipa: "/bɔ̃.ʒuʁ/", context: "Bonjour, comment allez-vous?" },
-                { id: "2", word: "Merci", translation: "Thank you", pronunciation: "mair-SEE", ipa: "/mɛʁ.si/", context: "Merci beaucoup!" },
-                { id: "3", word: "S'il vous plaît", translation: "Please", pronunciation: "seel voo PLEH", ipa: "/sil vu plɛ/", context: "Un café, s'il vous plaît." },
-              ]}
-              onClose={() => setActiveTab("demo")}
-            />
-          </div>
-        )}
       </section>
 
       {/* CTA */}
-      <section className="border-t border-border">
-        <div className="max-w-3xl mx-auto px-6 py-20 text-center">
-          <h2 className="text-3xl font-bold text-foreground mb-4">
-            Start learning while you watch
-          </h2>
-          <p className="text-muted-foreground mb-8 max-w-xl mx-auto">
-            Join thousands of language learners who've discovered the joy of learning through entertainment.
-          </p>
-          <Button
-            size="lg"
-            onClick={() => navigate("/browse")}
-            className="h-14 px-8 text-lg rounded-full bg-gradient-primary shadow-glow-primary hover:opacity-90 transition-opacity gap-3"
-          >
-            <Chrome className="w-5 h-5" />
-            Add Ligua to Chrome — It's Free
-            <ArrowRight className="w-5 h-5" />
-          </Button>
-          <p className="text-xs text-muted-foreground mt-4">
-            Works with Netflix, YouTube, Prime Video, Disney+, and more
-          </p>
+      <section className="relative py-20">
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] rounded-full bg-primary/8 blur-[120px]" />
         </div>
+        <motion.div
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true }}
+          className="relative max-w-3xl mx-auto px-6 text-center"
+        >
+          <motion.h2 variants={fadeUp} custom={0} className="text-3xl sm:text-4xl font-bold text-foreground mb-4">
+            Ready to Start?
+          </motion.h2>
+          <motion.p variants={fadeUp} custom={1} className="text-muted-foreground mb-10 max-w-xl mx-auto text-lg">
+            Jump in and explore our growing catalog of language-learning content.
+          </motion.p>
+          <motion.div variants={fadeUp} custom={2}>
+            <Button
+              size="lg"
+              onClick={() => navigate("/browse")}
+              className="h-14 px-10 text-lg rounded-full bg-gradient-to-r from-accent to-[hsl(45,100%,60%)] shadow-glow-accent hover:shadow-glow-primary transition-all duration-500 hover:scale-105 gap-3 text-accent-foreground font-semibold"
+            >
+              Browse Catalog
+              <ArrowRight className="w-5 h-5" />
+            </Button>
+          </motion.div>
+          {filmCount > 0 && (
+            <motion.p variants={fadeUp} custom={3} className="text-sm text-muted-foreground mt-6">
+              🎬 {filmCount} film{filmCount !== 1 ? "s" : ""} and growing
+            </motion.p>
+          )}
+        </motion.div>
       </section>
     </div>
   );
