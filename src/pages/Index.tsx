@@ -2,32 +2,18 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Play,
-  Subtitles,
-  BookOpen,
-  Flame,
+  Search,
+  Home,
+  Compass,
+  Library,
+  Calendar,
   Star,
-  Sparkles,
-  Chrome,
-  Layers,
-  Zap,
-  Film,
+  Settings,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { VideoPlayer } from "@/components/VideoPlayer";
-import { SettingsPanel } from "@/components/SettingsPanel";
-import { FlashcardReview } from "@/components/FlashcardReview";
-import { FeatureCard } from "@/components/FeatureCard";
-import { XPProgress } from "@/components/XPProgress";
 import { NavBar } from "@/components/NavBar";
 import { supabase } from "@/integrations/supabase/client";
 import { getLanguageLabel, getLanguageFlag } from "@/lib/languages";
-
-const mockFlashcards = [
-  { id: "1", word: "Cómo", translation: "How / What", pronunciation: "KOH-moh", ipa: "/ˈko.mo/", context: "¿Cómo te llamas?" },
-  { id: "2", word: "llamas", translation: "are called", pronunciation: "YAH-mahs", ipa: "/ˈʎa.mas/", context: "¿Cómo te llamas?" },
-  { id: "3", word: "gusto", translation: "pleasure", pronunciation: "GOOS-toh", ipa: "/ˈɡus.to/", context: "Mucho gusto" },
-  { id: "4", word: "dónde", translation: "where", pronunciation: "DOHN-deh", ipa: "/ˈdon.de/", context: "¿De dónde eres?" },
-];
+import { cn } from "@/lib/utils";
 
 interface FilmData {
   id: string;
@@ -37,197 +23,198 @@ interface FilmData {
   thumbnail_url: string | null;
 }
 
+const SIDEBAR_ITEMS = [
+  { icon: Home, label: "Home", active: true },
+  { icon: Compass, label: "Discover", active: false },
+  { icon: Library, label: "Library", active: false },
+  { icon: Calendar, label: "Calendar", active: false },
+  { icon: Star, label: "Favorites", active: false },
+  { icon: Settings, label: "Settings", active: false },
+];
+
 const Index = () => {
   const navigate = useNavigate();
-  const [showFlashcards, setShowFlashcards] = useState(false);
-  const [activeSection, setActiveSection] = useState<"demo" | "features" | "flashcards">("demo");
-  const [film, setFilm] = useState<FilmData | null>(null);
+  const [films, setFilms] = useState<FilmData[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     supabase
       .from("films")
       .select("*")
       .order("created_at", { ascending: false })
-      .limit(1)
       .then(({ data }) => {
-        if (data && data.length > 0) setFilm(data[0]);
+        if (data) setFilms(data);
       });
   }, []);
 
+  const filteredFilms = films.filter((f) =>
+    f.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
-    <div className="min-h-screen bg-background relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-hero pointer-events-none" />
-      <div className="absolute top-1/4 -left-1/4 w-1/2 h-1/2 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-1/4 -right-1/4 w-1/2 h-1/2 bg-accent/5 rounded-full blur-3xl pointer-events-none" />
-
-      <NavBar />
-
-      {/* Film Banner */}
-      {film && (
-        <section className="relative z-10 px-6 pt-6">
-          <div className="max-w-7xl mx-auto">
-            <div
-              className="glass-panel-strong p-4 flex items-center gap-4 cursor-pointer hover:bg-secondary/30 transition-colors"
-              onClick={() => navigate(`/watch/${film.id}`)}
-            >
-              <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
-              <Film className="w-5 h-5 text-primary" />
-              <div className="flex-1 min-w-0">
-                <p className="text-foreground font-medium truncate">
-                  Now Available: <span className="gradient-text">{film.title}</span>
-                </p>
-                <p className="text-muted-foreground text-xs">
-                  {getLanguageFlag(film.language ?? "es")} {getLanguageLabel(film.language ?? "es")}
-                </p>
-              </div>
-              <span className="text-xs text-muted-foreground bg-secondary/50 px-2 py-1 rounded-lg">
-                1 film available
-              </span>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* Hero Section */}
-      <section className="relative z-10 px-6 pt-12 pb-8">
-        <div className="max-w-7xl mx-auto text-center">
-          <div className="inline-flex items-center gap-2 glass-panel px-4 py-2 mb-6">
-            <Sparkles className="w-4 h-4 text-primary" />
-            <span className="text-sm text-muted-foreground">
-              Turn any movie into a language lesson
-            </span>
-          </div>
-          <h1 className="text-5xl md:text-7xl font-bold text-foreground mb-6 leading-tight">
-            Learn languages while
-            <br />
-            <span className="gradient-text">streaming your favorites</span>
-          </h1>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-8">
-            A Chrome extension that overlays Netflix, YouTube, and more with interactive subtitles,
-            flashcards, and gamification—without pausing the fun.
-          </p>
-
-          <div className="flex justify-center gap-2 mb-8">
-            {[
-              { id: "demo", label: "Live Demo", icon: Play },
-              { id: "features", label: "Features", icon: Zap },
-              { id: "flashcards", label: "Flashcards", icon: BookOpen },
-            ].map(({ id, label, icon: Icon }) => (
-              <Button
-                key={id}
-                variant={activeSection === id ? "default" : "glass"}
-                onClick={() => setActiveSection(id as typeof activeSection)}
-                className="gap-2"
-              >
-                <Icon className="w-4 h-4" />
-                {label}
-              </Button>
-            ))}
-          </div>
+    <div className="min-h-screen bg-background flex">
+      {/* Sidebar */}
+      <aside className="hidden md:flex flex-col w-16 lg:w-[72px] bg-card border-r border-border items-center py-6 gap-6 shrink-0">
+        <div className="w-9 h-9 rounded-xl bg-gradient-primary flex items-center justify-center shadow-glow-primary mb-4">
+          <Play className="w-4 h-4 text-primary-foreground ml-0.5" />
         </div>
-      </section>
-
-      {/* Content Sections */}
-      <section className="relative z-10 px-6 pb-20">
-        <div className="max-w-7xl mx-auto">
-          {activeSection === "demo" && (
-            <div className="animate-fade-in">
-              <div className="grid lg:grid-cols-[1fr,320px] gap-6">
-                <VideoPlayer />
-                <SettingsPanel className="hidden lg:block" />
-              </div>
-              <div className="lg:hidden mt-6">
-                <SettingsPanel />
-              </div>
-            </div>
-          )}
-
-          {activeSection === "features" && (
-            <div className="animate-fade-in">
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <FeatureCard icon={Subtitles} title="Interactive Subtitles" description="Click any word to see translations, pronunciations, and save to flashcards." gradient="primary" />
-                <FeatureCard icon={BookOpen} title="Smart Flashcards" description="Spaced repetition system auto-generates cards from saved words." gradient="success" />
-                <FeatureCard icon={Flame} title="Daily Streaks" description="Build habits with streak tracking. Watch and interact to maintain your streak." gradient="accent" />
-                <FeatureCard icon={Sparkles} title="XP & Levels" description="Earn XP from watching, clicking words, and reviewing flashcards." gradient="primary" />
-                <FeatureCard icon={Star} title="AI Difficulty Rating" description="Content is automatically rated 1-5 stars based on speech speed and complexity." gradient="accent" />
-                <FeatureCard icon={Layers} title="Works Everywhere" description="Seamless overlay on Netflix, YouTube, Prime Video, Disney+, and more." gradient="success" />
-              </div>
-
-              <div className="mt-12 glass-panel-strong p-8">
-                <div className="grid md:grid-cols-4 gap-8 text-center">
-                  <div>
-                    <p className="text-4xl font-bold gradient-text">847</p>
-                    <p className="text-muted-foreground mt-1">Words Learned</p>
-                  </div>
-                  <div>
-                    <p className="text-4xl font-bold gradient-text-accent">42h</p>
-                    <p className="text-muted-foreground mt-1">Watch Time</p>
-                  </div>
-                  <div>
-                    <p className="text-4xl font-bold text-success">7</p>
-                    <p className="text-muted-foreground mt-1">Day Streak</p>
-                  </div>
-                  <div>
-                    <p className="text-4xl font-bold gradient-text">Level 12</p>
-                    <p className="text-muted-foreground mt-1">Current Level</p>
-                  </div>
-                </div>
-                <div className="mt-8 max-w-md mx-auto">
-                  <XPProgress level={12} currentXP={2340} levelXP={3000} />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {activeSection === "flashcards" && (
-            <div className="animate-fade-in">
-              {showFlashcards ? (
-                <FlashcardReview cards={mockFlashcards} onClose={() => setShowFlashcards(false)} />
-              ) : (
-                <div className="text-center py-12">
-                  <div className="glass-panel-strong inline-block p-8 max-w-md">
-                    <div className="w-16 h-16 rounded-2xl bg-gradient-success flex items-center justify-center mx-auto mb-6 shadow-glow-success">
-                      <BookOpen className="w-8 h-8 text-success-foreground" />
-                    </div>
-                    <h2 className="text-2xl font-bold text-foreground mb-2">Ready for Review?</h2>
-                    <p className="text-muted-foreground mb-6">
-                      You have {mockFlashcards.length} cards saved from your recent sessions.
-                    </p>
-                    <Button variant="hero" size="lg" onClick={() => setShowFlashcards(true)}>
-                      Start Review
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="relative z-10 px-6 py-16 border-t border-border">
-        <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
-            Start learning while you watch
-          </h2>
-          <p className="text-muted-foreground mb-8 max-w-xl mx-auto">
-            Join thousands of language learners who've discovered the joy of learning through entertainment.
-          </p>
-          <Button
-            variant="hero"
-            size="xl"
-            onClick={() => window.open("https://chromewebstore.google.com/", "_blank")}
+        {SIDEBAR_ITEMS.map(({ icon: Icon, label, active }) => (
+          <button
+            key={label}
+            className={cn(
+              "w-10 h-10 rounded-xl flex items-center justify-center transition-colors",
+              active
+                ? "bg-primary/20 text-primary"
+                : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
+            )}
+            title={label}
           >
-            <Chrome className="w-5 h-5" />
-            Add Ligua to Chrome — It's Free
-          </Button>
-          <p className="text-xs text-muted-foreground mt-4">
-            Works with Netflix, YouTube, Prime Video, Disney+, and more
-          </p>
+            <Icon className="w-5 h-5" />
+          </button>
+        ))}
+      </aside>
+
+      {/* Main content */}
+      <main className="flex-1 min-w-0 overflow-y-auto">
+        {/* Top bar */}
+        <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-xl border-b border-border">
+          <div className="flex items-center justify-between px-6 py-3">
+            <h1 className="text-lg font-bold gradient-text hidden sm:block">LinguaScript</h1>
+            <div className="flex-1 max-w-lg mx-auto px-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <input
+                  type="text"
+                  placeholder="Search or paste link"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full h-9 pl-10 pr-4 rounded-full bg-secondary/50 border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                />
+              </div>
+            </div>
+            <NavBar />
+          </div>
+        </header>
+
+        {/* Content area */}
+        <div className="px-6 py-6 space-y-10">
+          {/* Your Library */}
+          <CatalogRow
+            title="Your Library"
+            films={filteredFilms}
+            onFilmClick={(film) => navigate(`/watch/${film.id}`)}
+          />
+
+          {/* Coming Soon sections */}
+          <ComingSoonRow title="Popular on LinguaScript" />
+          <ComingSoonRow title="Recently Added" />
+          <ComingSoonRow title="French Cinema" />
         </div>
-      </section>
+
+        {/* Footer */}
+        <footer className="px-6 py-8 border-t border-border text-center">
+          <p className="text-xs text-muted-foreground">
+            More content coming soon — LinguaScript is in early access
+          </p>
+        </footer>
+      </main>
     </div>
   );
 };
+
+/* ── Catalog Row with horizontal scrolling ── */
+const CatalogRow = ({
+  title,
+  films,
+  onFilmClick,
+}: {
+  title: string;
+  films: FilmData[];
+  onFilmClick: (film: FilmData) => void;
+}) => (
+  <section>
+    <div className="flex items-center justify-between mb-4">
+      <h2 className="text-lg font-semibold text-foreground">{title}</h2>
+      {films.length > 6 && (
+        <button className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+          See All →
+        </button>
+      )}
+    </div>
+    {films.length === 0 ? (
+      <p className="text-muted-foreground text-sm">No films yet. Add some from the Admin panel.</p>
+    ) : (
+      <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin">
+        {films.map((film) => (
+          <FilmCard key={film.id} film={film} onClick={() => onFilmClick(film)} />
+        ))}
+      </div>
+    )}
+  </section>
+);
+
+/* ── Single film poster card ── */
+const FilmCard = ({
+  film,
+  onClick,
+}: {
+  film: FilmData;
+  onClick: () => void;
+}) => (
+  <button
+    onClick={onClick}
+    className="group shrink-0 w-[180px] focus:outline-none"
+  >
+    <div className="relative rounded-xl overflow-hidden aspect-[2/3] bg-secondary mb-2 border border-border group-hover:border-primary/50 transition-all group-hover:shadow-glow-primary">
+      {film.thumbnail_url ? (
+        <img
+          src={film.thumbnail_url}
+          alt={film.title}
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+        />
+      ) : (
+        <div className="w-full h-full flex items-center justify-center bg-gradient-card">
+          <Play className="w-10 h-10 text-muted-foreground" />
+        </div>
+      )}
+      {/* Play overlay on hover */}
+      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+        <div className="w-12 h-12 rounded-full bg-primary/90 flex items-center justify-center shadow-glow-primary">
+          <Play className="w-5 h-5 text-primary-foreground ml-0.5" />
+        </div>
+      </div>
+      {/* Language badge */}
+      <div className="absolute bottom-2 left-2 bg-black/70 backdrop-blur text-xs px-2 py-0.5 rounded-md text-foreground">
+        {getLanguageFlag(film.language ?? "fr")}
+      </div>
+    </div>
+    <p className="text-sm text-foreground truncate text-left">{film.title}</p>
+    <p className="text-xs text-muted-foreground text-left">
+      {getLanguageLabel(film.language ?? "fr")}
+    </p>
+  </button>
+);
+
+/* ── Coming Soon placeholder row ── */
+const ComingSoonRow = ({ title }: { title: string }) => (
+  <section>
+    <div className="flex items-center justify-between mb-4">
+      <h2 className="text-lg font-semibold text-foreground">{title}</h2>
+      <span className="text-xs text-muted-foreground bg-secondary/50 px-2 py-1 rounded-lg">
+        Coming Soon
+      </span>
+    </div>
+    <div className="flex gap-4 overflow-x-auto pb-2">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div key={i} className="shrink-0 w-[180px]">
+          <div className="rounded-xl aspect-[2/3] bg-secondary/30 border border-border/50 flex items-center justify-center mb-2">
+            <Play className="w-8 h-8 text-muted-foreground/20" />
+          </div>
+          <div className="h-3 w-24 rounded bg-secondary/30" />
+        </div>
+      ))}
+    </div>
+  </section>
+);
 
 export default Index;

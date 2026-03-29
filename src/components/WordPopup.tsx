@@ -1,6 +1,7 @@
 import { X, Volume2, BookmarkPlus, RotateCcw } from "lucide-react";
 import { Button } from "./ui/button";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface Word {
   id: string;
@@ -18,6 +19,7 @@ interface WordPopupProps {
 }
 
 export const WordPopup = ({ word, position, onClose, onSave }: WordPopupProps) => {
+  const { speak } = useLanguage();
   return (
     <>
       {/* Backdrop */}
@@ -54,12 +56,7 @@ export const WordPopup = ({ word, position, onClose, onSave }: WordPopupProps) =
             <Button
               variant="glass"
               size="icon-sm"
-              onClick={() => {
-                // Play pronunciation
-                const utterance = new SpeechSynthesisUtterance(word.text);
-                utterance.lang = "es-ES";
-                speechSynthesis.speak(utterance);
-              }}
+              onClick={() => speak(word.text)}
             >
               <Volume2 className="w-4 h-4" />
             </Button>
