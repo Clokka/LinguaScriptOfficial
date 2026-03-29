@@ -294,47 +294,53 @@ const Admin = () => {
                     <Trash2 className="w-4 h-4 text-destructive" />
                   </Button>
                 </div>
-                {/* Subtitle status + upload */}
-                <div className="flex items-center justify-between pl-20">
-                  <span className="text-xs text-muted-foreground">
-                    {(film.subtitle_count ?? 0) > 0 ? (
-                      <span className="text-primary">✓ {film.subtitle_count} subtitles loaded</span>
+                {/* Subtitle status + per-language upload */}
+                <div className="flex flex-col gap-2 pl-20">
+                  <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                    {(film.subtitle_languages ?? []).length > 0 ? (
+                      <span className="text-primary">
+                        ✓ Subtitles: {(film.subtitle_languages ?? []).map(l => l.toUpperCase()).join(", ")}
+                      </span>
                     ) : (
                       "No subtitles uploaded"
                     )}
-                  </span>
-                  <div>
-                    <input
-                      ref={existingFileInputRef}
-                      type="file"
-                      accept=".srt"
-                      className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) handleUploadSubsForExisting(film.id, file);
-                        e.target.value = "";
-                      }}
-                    />
-                    <Button
-                      variant="glass"
-                      size="sm"
-                      className="gap-1 text-xs"
-                      disabled={uploadingSubsFor === film.id}
-                      onClick={() => {
-                        existingFileInputRef.current?.click();
-                        // Store film ID for the handler
-                        if (existingFileInputRef.current) {
-                          existingFileInputRef.current.dataset.filmId = film.id;
-                        }
-                      }}
-                    >
-                      {uploadingSubsFor === film.id ? (
-                        <Loader2 className="w-3 h-3 animate-spin" />
-                      ) : (
-                        <Upload className="w-3 h-3" />
-                      )}
-                      {(film.subtitle_count ?? 0) > 0 ? "Replace SRT" : "Upload SRT"}
-                    </Button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {["fr", "en"].map((lang) => {
+                      const hasLang = (film.subtitle_languages ?? []).includes(lang);
+                      const langLabel = lang === "fr" ? "🇫🇷 FR" : "🇬🇧 EN";
+                      return (
+                        <div key={lang}>
+                          <input
+                            type="file"
+                            accept=".srt"
+                            className="hidden"
+                            id={`srt-${film.id}-${lang}`}
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) handleUploadSubsForExisting(film.id, file, lang);
+                              e.target.value = "";
+                            }}
+                          />
+                          <Button
+                            variant="glass"
+                            size="sm"
+                            className="gap-1 text-xs"
+                            disabled={uploadingSubsFor === film.id}
+                            onClick={() => {
+                              document.getElementById(`srt-${film.id}-${lang}`)?.click();
+                            }}
+                          >
+                            {uploadingSubsFor === film.id ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : (
+                              <Upload className="w-3 h-3" />
+                            )}
+                            {hasLang ? `Replace ${langLabel}` : `Upload ${langLabel}`}
+                          </Button>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
