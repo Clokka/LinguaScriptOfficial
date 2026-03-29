@@ -105,7 +105,7 @@ async function fetchViaTimedtext(videoId: string, lang: string): Promise<{ subti
   // Try auto-generated
   const url2 = `https://www.youtube.com/api/timedtext?v=${videoId}&lang=${lang}&fmt=srv3&kind=asr`;
   console.log('Timedtext: trying ASR captions for', lang);
-  const res2 = await fetch(url2);
+  const res2 = await fetch(url2, { headers });
   if (res2.ok) {
     const xml = await res2.text();
     const subs = parseXmlSubtitles(xml);
