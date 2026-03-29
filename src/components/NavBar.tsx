@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Layers, LogOut, User, Shield } from "lucide-react";
 import { StreakBadge } from "./StreakBadge";
+import { LanguageSelector } from "./LanguageSelector";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useState } from "react";
 
