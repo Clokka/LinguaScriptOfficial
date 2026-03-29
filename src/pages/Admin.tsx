@@ -51,17 +51,21 @@ const Admin = () => {
   const fetchFilms = async () => {
     const { data } = await supabase.from("films").select("*").order("created_at", { ascending: false });
     if (data) {
-      // Get subtitle counts
       const filmsWithCounts = await Promise.all(
         data.map(async (film) => {
-          const { count } = await supabase
+          const { data: langCounts } = await supabase
             .from("subtitles")
-            .select("*", { count: "exact", head: true })
+            .select("language")
             .eq("film_id", film.id);
-          return { ...film, subtitle_count: count ?? 0 };
+          const langs = new Set((langCounts || []).map((s: { language: string }) => s.language));
+          return {
+            ...film,
+            subtitle_count: langCounts?.length ?? 0,
+            subtitle_languages: Array.from(langs),
+          };
         })
       );
-      setFilms(filmsWithCounts);
+      setFilms(filmsWithCounts as any);
     }
     setLoading(false);
   };
