@@ -77,26 +77,35 @@ const Watch = () => {
     setCaptionsLoading(true);
     setCaptionsError(null);
 
-    // Try DB subtitles first
-    supabase
-      .from("subtitles")
-      .select("*")
-      .eq("film_id", film.id)
-      .order("sort_order", { ascending: true })
-      .then(({ data: dbSubs, error: dbErr }) => {
-        if (!dbErr && dbSubs && dbSubs.length > 0) {
-          // Use database subtitles
-          const display: DisplaySubtitle[] = dbSubs.map((s, i) => ({
+    // Try DB subtitles first - get primary (film language) and secondary (English) tracks
+    const filmLang = film.language || "fr";
+    const secondaryLang = "en";
+
+    Promise.all([
+      supabase.from("subtitles").select("*").eq("film_id", film.id).eq("language", filmLang).order("sort_order", { ascending: true }),
+      supabase.from("subtitles").select("*").eq("film_id", film.id).eq("language", secondaryLang).order("sort_order", { ascending: true }),
+    ]).then(([primaryRes, secondaryRes]) => {
+      const primarySubs = primaryRes.data || [];
+      const secondarySubs = secondaryRes.data || [];
+
+      if (primarySubs.length > 0) {
+        const display: DisplaySubtitle[] = primarySubs.map((s, i) => {
+          // Find matching secondary subtitle by time overlap
+          const match = secondarySubs.find(
+            (t) => Math.abs(t.start_time - s.start_time) < 1.5
+          );
+          return {
             start: s.start_time,
             end: s.end_time,
             primary: s.text,
-            secondary: s.translation || "",
+            secondary: match?.text || s.translation || "",
             words: textToWords(s.text, i),
-          }));
-          setSubtitles(display);
-          setCaptionsLoading(false);
-          return;
-        }
+          };
+        });
+        setSubtitles(display);
+        setCaptionsLoading(false);
+        return;
+      }
 
         // Fallback: fetch from YouTube via edge function
         const ytId = getYouTubeId(film.url);
