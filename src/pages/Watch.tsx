@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SubtitleOverlay } from "@/components/SubtitleOverlay";
-import { DifficultyStars } from "@/components/DifficultyStars";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { getLanguageLabel, getLanguageFlag } from "@/lib/languages";
 
 interface FilmData {
@@ -38,6 +39,24 @@ function textToWords(text: string, index: number) {
   }));
 }
 
+function subtitlesToSrt(subtitles: DisplaySubtitle[], textKey: "primary" | "secondary"): string {
+  return subtitles
+    .map((s, i) => {
+      const text = textKey === "primary" ? s.primary : s.secondary;
+      if (!text) return null;
+      const formatTime = (t: number) => {
+        const h = Math.floor(t / 3600);
+        const m = Math.floor((t % 3600) / 60);
+        const sec = Math.floor(t % 60);
+        const ms = Math.round((t % 1) * 1000);
+        return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}:${sec.toString().padStart(2, "0")},${ms.toString().padStart(3, "0")}`;
+      };
+      return `${i + 1}\n${formatTime(s.start)} --> ${formatTime(s.end)}\n${text}\n`;
+    })
+    .filter(Boolean)
+    .join("\n");
+}
+
 declare global {
   interface Window {
     YT: any;
@@ -48,8 +67,9 @@ declare global {
 const Watch = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { learningLanguage } = useLanguage();
   const playerRef = useRef<any>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval>>();
 
   const [film, setFilm] = useState<FilmData | null>(null);
@@ -61,7 +81,10 @@ const Watch = () => {
   const [captionsLoading, setCaptionsLoading] = useState(false);
   const [captionsError, setCaptionsError] = useState<string | null>(null);
 
-  // Load film data
+  // Track watch time
+  const watchStartRef = useRef<number | null>(null);
+
+  // Load film
   useEffect(() => {
     if (!id) return;
     supabase.from("films").select("*").eq("id", id).single().then(({ data }) => {
@@ -70,15 +93,13 @@ const Watch = () => {
     });
   }, [id]);
 
-  // Fetch subtitles: DB first, then YouTube fallback
+  // Fetch subtitles
   useEffect(() => {
     if (!film) return;
-
     setCaptionsLoading(true);
     setCaptionsError(null);
 
-    // Try DB subtitles first - get primary (film language) and secondary (English) tracks
-    const filmLang = film.language || "fr";
+    const filmLang = film.language || learningLanguage || "fr";
     const secondaryLang = "en";
 
     Promise.all([
@@ -90,10 +111,7 @@ const Watch = () => {
 
       if (primarySubs.length > 0) {
         const display: DisplaySubtitle[] = primarySubs.map((s, i) => {
-          // Find matching secondary subtitle by time overlap
-          const match = secondarySubs.find(
-            (t) => Math.abs(t.start_time - s.start_time) < 1.5
-          );
+          const match = secondarySubs.find((t) => Math.abs(t.start_time - s.start_time) < 1.5);
           return {
             start: s.start_time,
             end: s.end_time,
@@ -107,7 +125,7 @@ const Watch = () => {
         return;
       }
 
-      // Fallback: fetch from YouTube via edge function
+      // Fallback: fetch from YouTube
       const ytId = getYouTubeId(film.url);
       if (!ytId) {
         setCaptionsLoading(false);
@@ -116,9 +134,7 @@ const Watch = () => {
       }
 
       supabase.functions
-        .invoke("fetch-captions", {
-          body: { videoId: ytId, language: film.language || "fr" },
-        })
+        .invoke("fetch-captions", { body: { videoId: ytId, language: filmLang } })
         .then(async ({ data, error }) => {
           if (error) {
             setCaptionsLoading(false);
@@ -126,20 +142,18 @@ const Watch = () => {
             return;
           }
           if (data?.subtitles?.length) {
-            const display: DisplaySubtitle[] = data.subtitles.map(
-              (c: any, i: number) => ({
-                start: c.start,
-                end: c.end,
-                primary: c.text,
-                secondary: "",
-                words: textToWords(c.text, i),
-              })
-            );
+            const display: DisplaySubtitle[] = data.subtitles.map((c: any, i: number) => ({
+              start: c.start,
+              end: c.end,
+              primary: c.text,
+              secondary: "",
+              words: textToWords(c.text, i),
+            }));
             setSubtitles(display);
             setCaptionsLoading(false);
 
             // Translate in background
-            const filmLangLabel = getLanguageLabel(film.language || "fr");
+            const filmLangLabel = getLanguageLabel(filmLang);
             const userLang = "English";
             if (filmLangLabel.toLowerCase() !== userLang.toLowerCase()) {
               supabase.functions
@@ -163,9 +177,9 @@ const Watch = () => {
           }
         });
     });
-  }, [film]);
+  }, [film, learningLanguage]);
 
-  // Load YouTube IFrame API
+  // Load YouTube API
   useEffect(() => {
     if (window.YT?.Player) { setApiReady(true); return; }
     const tag = document.createElement("script");
@@ -188,6 +202,7 @@ const Watch = () => {
       events: {
         onStateChange: (event: any) => {
           if (event.data === window.YT.PlayerState.PLAYING) {
+            watchStartRef.current = Date.now();
             intervalRef.current = setInterval(() => {
               if (playerRef.current?.getCurrentTime) {
                 setCurrentTime(playerRef.current.getCurrentTime());
@@ -195,6 +210,14 @@ const Watch = () => {
             }, 250);
           } else {
             clearInterval(intervalRef.current);
+            // Log watch time
+            if (watchStartRef.current && user) {
+              const minutesWatched = Math.round((Date.now() - watchStartRef.current) / 60000);
+              if (minutesWatched > 0) {
+                logWatchTime(minutesWatched);
+              }
+              watchStartRef.current = null;
+            }
           }
         },
       },
@@ -203,14 +226,49 @@ const Watch = () => {
     return () => { clearInterval(intervalRef.current); };
   }, [apiReady, film]);
 
-  const currentSubtitle = subtitles.find(
-    (s) => currentTime >= s.start && currentTime < s.end
-  );
+  const logWatchTime = async (minutes: number) => {
+    if (!user) return;
+    const today = new Date().toISOString().split("T")[0];
+    const { data: existing } = await supabase
+      .from("activity_log")
+      .select("id, minutes_watched")
+      .eq("user_id", user.id)
+      .eq("date", today)
+      .maybeSingle();
+
+    if (existing) {
+      await supabase.from("activity_log")
+        .update({ minutes_watched: (existing.minutes_watched || 0) + minutes })
+        .eq("id", existing.id);
+    } else {
+      await supabase.from("activity_log").insert({
+        user_id: user.id,
+        date: today,
+        minutes_watched: minutes,
+        videos_watched: 1,
+      });
+    }
+  };
+
+  const downloadSrt = (type: "primary" | "secondary") => {
+    const srtContent = subtitlesToSrt(subtitles, type);
+    if (!srtContent) return;
+    const blob = new Blob([srtContent], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    const langSuffix = type === "primary" ? (film?.language || "original") : "en";
+    a.download = `${film?.title || "subtitles"}_${langSuffix}.srt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const currentSubtitle = subtitles.find((s) => currentTime >= s.start && currentTime < s.end);
 
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-muted-foreground">Loading film...</div>
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
   }
@@ -220,7 +278,7 @@ const Watch = () => {
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <p className="text-muted-foreground mb-4">Film not found</p>
-          <Button variant="ghost" onClick={() => navigate("/")}>Go Home</Button>
+          <Button variant="ghost" onClick={() => navigate("/browse")}>Go Home</Button>
         </div>
       </div>
     );
@@ -229,7 +287,7 @@ const Watch = () => {
   return (
     <div className="min-h-screen bg-black flex flex-col">
       <div className="flex items-center gap-3 p-4 bg-black/80 backdrop-blur z-20">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/")} className="text-white hover:bg-white/10">
+        <Button variant="ghost" size="icon" onClick={() => navigate("/browse")} className="text-white hover:bg-white/10">
           <ArrowLeft className="w-5 h-5" />
         </Button>
         <div className="flex-1 min-w-0">
@@ -246,13 +304,34 @@ const Watch = () => {
             onClick={() => setSubtitleMode(subtitleMode === "dual" ? "single" : "dual")}
             className={subtitleMode !== "dual" ? "text-white hover:bg-white/10" : ""}
           >
-            {subtitleMode === "dual" ? "Dual Subs" : "Single Sub"}
+            {subtitleMode === "dual" ? "Dual" : "Single"}
           </Button>
-          <DifficultyStars difficulty={2} />
+          {subtitles.length > 0 && (
+            <div className="flex gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => downloadSrt("primary")}
+                className="text-white/70 hover:bg-white/10 gap-1 text-xs"
+              >
+                <Download className="w-3 h-3" />
+                Original
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => downloadSrt("secondary")}
+                className="text-white/70 hover:bg-white/10 gap-1 text-xs"
+              >
+                <Download className="w-3 h-3" />
+                Translation
+              </Button>
+            </div>
+          )}
         </div>
       </div>
 
-      <div ref={containerRef} className="relative flex-1 flex flex-col items-center justify-center bg-black">
+      <div className="relative flex-1 flex flex-col items-center justify-center bg-black">
         <div className="w-full max-w-5xl aspect-video relative">
           <div id="yt-player" className="w-full h-full" />
 

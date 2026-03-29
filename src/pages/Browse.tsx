@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Play,
@@ -6,74 +6,295 @@ import {
   Home,
   Compass,
   Library,
-  Calendar,
-  Puzzle,
+  Calendar as CalendarIcon,
   Settings,
+  Link as LinkIcon,
+  Loader2,
+  Trash2,
+  Clock,
+  Flame,
+  Languages,
+  Download,
 } from "lucide-react";
-import { NavBar } from "@/components/NavBar";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
-import { getLanguageLabel, getLanguageFlag } from "@/lib/languages";
+import { useAuth } from "@/hooks/useAuth";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { useToast } from "@/hooks/use-toast";
+import { getLanguageLabel, getLanguageFlag, LANGUAGES } from "@/lib/languages";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
-interface FilmData {
+interface UserLesson {
   id: string;
+  youtube_id: string;
   title: string;
-  url: string;
-  language: string | null;
   thumbnail_url: string | null;
+  duration_seconds: number;
+  original_language: string;
+  progress_percent: number;
+  last_watched_at: string;
+  created_at: string;
 }
 
-const SIDEBAR_ITEMS = [
-  { icon: Home, label: "Home" },
-  { icon: Compass, label: "Discover" },
-  { icon: Library, label: "Library" },
-  { icon: Calendar, label: "Calendar" },
-  { icon: Puzzle, label: "Addons" },
-  { icon: Settings, label: "Settings" },
+interface ActivityDay {
+  date: string;
+  minutes_watched: number;
+  videos_watched: number;
+}
+
+type TabKey = "home" | "discover" | "calendar" | "settings";
+
+const SIDEBAR_ITEMS: { icon: typeof Home; label: string; key: TabKey }[] = [
+  { icon: Home, label: "Home", key: "home" },
+  { icon: Compass, label: "Discover", key: "discover" },
+  { icon: CalendarIcon, label: "Calendar", key: "calendar" },
+  { icon: Settings, label: "Settings", key: "settings" },
 ];
+
+function getYouTubeId(url: string): string | null {
+  const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?.*v=|embed\/|v\/|shorts\/))([^&?\s#]+)/);
+  return match ? match[1] : null;
+}
+
+function formatDuration(seconds: number): string {
+  if (!seconds) return "";
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
 
 const Browse = () => {
   const navigate = useNavigate();
-  const [films, setFilms] = useState<FilmData[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [activeItem, setActiveItem] = useState("Home");
+  const { user } = useAuth();
+  const { learningLanguage, setLearningLanguage } = useLanguage();
+  const { toast } = useToast();
+
+  const [activeTab, setActiveTab] = useState<TabKey>("home");
+  const [lessons, setLessons] = useState<UserLesson[]>([]);
+  const [loadingLessons, setLoadingLessons] = useState(true);
+  const [pasteUrl, setPasteUrl] = useState("");
+  const [creating, setCreating] = useState(false);
+
+  // Settings state
+  const [nativeLanguage, setNativeLanguage] = useState("en");
+  const [settingsLearning, setSettingsLearning] = useState(learningLanguage);
+  const [displayName, setDisplayName] = useState("");
+  const [savingSettings, setSavingSettings] = useState(false);
+
+  // Calendar state
+  const [activityData, setActivityData] = useState<ActivityDay[]>([]);
+  const [currentStreak, setCurrentStreak] = useState(0);
+
+  // Discover - public films
+  const [discoverFilms, setDiscoverFilms] = useState<any[]>([]);
+
+  const fetchLessons = useCallback(async () => {
+    if (!user) { setLoadingLessons(false); return; }
+    const { data } = await supabase
+      .from("user_lessons")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("last_watched_at", { ascending: false });
+    setLessons((data as UserLesson[]) || []);
+    setLoadingLessons(false);
+  }, [user]);
+
+  const fetchActivity = useCallback(async () => {
+    if (!user) return;
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const { data } = await supabase
+      .from("activity_log")
+      .select("date, minutes_watched, videos_watched")
+      .eq("user_id", user.id)
+      .gte("date", thirtyDaysAgo.toISOString().split("T")[0])
+      .order("date", { ascending: false });
+    setActivityData((data as ActivityDay[]) || []);
+
+    // Calculate streak
+    let streak = 0;
+    const today = new Date();
+    const dates = new Set((data || []).map((d: any) => d.date));
+    for (let i = 0; i < 365; i++) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().split("T")[0];
+      if (dates.has(dateStr)) {
+        streak++;
+      } else if (i > 0) {
+        break;
+      }
+    }
+    setCurrentStreak(streak);
+  }, [user]);
+
+  const fetchProfile = useCallback(async () => {
+    if (!user) return;
+    const { data } = await supabase.from("profiles").select("*").eq("user_id", user.id).single();
+    if (data) {
+      setNativeLanguage(data.native_language || "en");
+      setSettingsLearning(data.learning_language || "fr");
+      setDisplayName(data.display_name || "");
+    }
+  }, [user]);
 
   useEffect(() => {
-    supabase
-      .from("films")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .then(({ data }) => {
-        if (data) setFilms(data);
-      });
-  }, []);
+    fetchLessons();
+    fetchActivity();
+    fetchProfile();
+    supabase.from("films").select("*").order("created_at", { ascending: false }).then(({ data }) => {
+      setDiscoverFilms(data || []);
+    });
+  }, [fetchLessons, fetchActivity, fetchProfile]);
 
-  const filteredFilms = films.filter((f) =>
-    f.title.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const createLesson = async () => {
+    if (!user) {
+      toast({ title: "Sign in required", description: "Please sign in to save lessons.", variant: "destructive" });
+      navigate("/auth");
+      return;
+    }
+    const ytId = getYouTubeId(pasteUrl);
+    if (!ytId) {
+      toast({ title: "Invalid URL", description: "Please paste a valid YouTube URL.", variant: "destructive" });
+      return;
+    }
+
+    setCreating(true);
+
+    try {
+      // Fetch video info via oEmbed (no API key needed)
+      const oembedRes = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${ytId}&format=json`);
+      let title = "YouTube Video";
+      if (oembedRes.ok) {
+        const oembedData = await oembedRes.json();
+        title = oembedData.title || title;
+      }
+
+      const thumbnail = `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`;
+
+      // Check if lesson already exists
+      const { data: existing } = await supabase
+        .from("user_lessons")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("youtube_id", ytId)
+        .maybeSingle();
+
+      if (existing) {
+        toast({ title: "Already saved!", description: "This video is already in your library." });
+        setPasteUrl("");
+        setCreating(false);
+        return;
+      }
+
+      // Also insert into films table for the system catalog
+      const filmUrl = `https://www.youtube.com/watch?v=${ytId}`;
+      const { data: existingFilm } = await supabase.from("films").select("id").eq("url", filmUrl).maybeSingle();
+      let filmId: string;
+      if (existingFilm) {
+        filmId = existingFilm.id;
+      } else {
+        const { data: newFilm } = await supabase.from("films").insert({
+          title,
+          url: filmUrl,
+          thumbnail_url: thumbnail,
+          language: learningLanguage,
+        }).select("id").single();
+        filmId = newFilm?.id || "";
+      }
+
+      // Create user lesson
+      await supabase.from("user_lessons").insert({
+        user_id: user.id,
+        youtube_id: ytId,
+        title,
+        thumbnail_url: thumbnail,
+        original_language: learningLanguage,
+      });
+
+      // Log activity
+      const today = new Date().toISOString().split("T")[0];
+      const { data: existingActivity } = await supabase
+        .from("activity_log")
+        .select("id, videos_watched")
+        .eq("user_id", user.id)
+        .eq("date", today)
+        .maybeSingle();
+
+      if (existingActivity) {
+        await supabase.from("activity_log")
+          .update({ videos_watched: (existingActivity.videos_watched || 0) + 1 })
+          .eq("id", existingActivity.id);
+      } else {
+        await supabase.from("activity_log").insert({
+          user_id: user.id,
+          date: today,
+          videos_watched: 1,
+          minutes_watched: 0,
+        });
+      }
+
+      toast({ title: "Lesson created! 🎬", description: `"${title}" is ready to watch.` });
+      setPasteUrl("");
+      fetchLessons();
+      fetchActivity();
+
+      // Navigate to watch
+      if (filmId) {
+        navigate(`/watch/${filmId}`);
+      }
+    } catch (err: any) {
+      toast({ title: "Error creating lesson", description: err.message, variant: "destructive" });
+    }
+    setCreating(false);
+  };
+
+  const deleteLesson = async (lessonId: string) => {
+    await supabase.from("user_lessons").delete().eq("id", lessonId);
+    fetchLessons();
+    toast({ title: "Lesson removed" });
+  };
+
+  const saveSettings = async () => {
+    if (!user) return;
+    setSavingSettings(true);
+    await supabase.from("profiles").update({
+      native_language: nativeLanguage,
+      learning_language: settingsLearning,
+      display_name: displayName,
+    }).eq("user_id", user.id);
+    setLearningLanguage(settingsLearning);
+    toast({ title: "Settings saved!" });
+    setSavingSettings(false);
+  };
 
   return (
     <div className="min-h-screen bg-background flex">
-      {/* Sidebar with labels */}
-      <aside className="hidden md:flex flex-col w-48 bg-card border-r border-border py-6 shrink-0">
-        <button
-          onClick={() => navigate("/")}
-          className="flex items-center gap-3 px-5 mb-6"
-        >
+      {/* Sidebar */}
+      <aside className="hidden md:flex flex-col w-52 bg-card border-r border-border py-6 shrink-0">
+        <button onClick={() => navigate("/")} className="flex items-center gap-3 px-5 mb-8">
           <div className="w-9 h-9 rounded-xl bg-gradient-primary flex items-center justify-center shadow-glow-primary">
-            <Play className="w-4 h-4 text-primary-foreground ml-0.5" />
+            <Languages className="w-4 h-4 text-primary-foreground" />
           </div>
           <span className="text-sm font-bold gradient-text">LinguaScript</span>
         </button>
 
-        <nav className="flex flex-col gap-1 px-3">
-          {SIDEBAR_ITEMS.map(({ icon: Icon, label }) => (
+        <nav className="flex flex-col gap-1 px-3 flex-1">
+          {SIDEBAR_ITEMS.map(({ icon: Icon, label, key }) => (
             <button
-              key={label}
-              onClick={() => setActiveItem(label)}
+              key={key}
+              onClick={() => setActiveTab(key)}
               className={cn(
                 "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors",
-                activeItem === label
+                activeTab === key
                   ? "bg-primary/15 text-primary"
                   : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
               )}
@@ -83,140 +304,477 @@ const Browse = () => {
             </button>
           ))}
         </nav>
+
+        {currentStreak > 0 && (
+          <div className="mx-3 mt-auto p-3 rounded-xl bg-accent/10 border border-accent/20">
+            <div className="flex items-center gap-2 text-accent">
+              <Flame className="w-5 h-5" />
+              <span className="font-bold text-sm">{currentStreak} day streak!</span>
+            </div>
+          </div>
+        )}
       </aside>
 
-      {/* Main content */}
+      {/* Main */}
       <main className="flex-1 min-w-0 overflow-y-auto">
         {/* Top bar */}
         <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-xl border-b border-border">
           <div className="flex items-center justify-between px-6 py-3">
-            <h1 className="text-lg font-bold gradient-text hidden sm:block md:hidden">LinguaScript</h1>
-            <div className="flex-1 max-w-lg mx-auto px-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <input
-                  type="text"
-                  placeholder="Search or paste link"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full h-9 pl-10 pr-4 rounded-full bg-secondary/50 border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-                />
-              </div>
+            {/* Mobile tabs */}
+            <div className="flex md:hidden gap-1">
+              {SIDEBAR_ITEMS.map(({ icon: Icon, key }) => (
+                <button
+                  key={key}
+                  onClick={() => setActiveTab(key)}
+                  className={cn(
+                    "p-2 rounded-lg transition-colors",
+                    activeTab === key ? "bg-primary/15 text-primary" : "text-muted-foreground"
+                  )}
+                >
+                  <Icon className="w-5 h-5" />
+                </button>
+              ))}
             </div>
-            <NavBar />
+            <div className="flex-1" />
+            <div className="flex items-center gap-3">
+              {user ? (
+                <Button variant="ghost" size="sm" onClick={() => navigate("/profile")} className="text-muted-foreground">
+                  Profile
+                </Button>
+              ) : (
+                <Button size="sm" onClick={() => navigate("/auth")}>Sign In</Button>
+              )}
+            </div>
           </div>
         </header>
 
-        {/* Content area */}
-        <div className="px-6 py-6 space-y-10">
-          <CatalogRow
-            title="Your Library"
-            films={filteredFilms}
-            onFilmClick={(film) => navigate(`/watch/${film.id}`)}
-          />
-          <ComingSoonRow title="Popular on LinguaScript" />
-          <ComingSoonRow title="Recently Added" />
-          <ComingSoonRow title="French Cinema" />
+        <div className="px-6 py-6">
+          {activeTab === "home" && (
+            <HomeTab
+              lessons={lessons}
+              loading={loadingLessons}
+              pasteUrl={pasteUrl}
+              setPasteUrl={setPasteUrl}
+              creating={creating}
+              createLesson={createLesson}
+              deleteLesson={deleteLesson}
+              navigate={navigate}
+              discoverFilms={discoverFilms}
+            />
+          )}
+          {activeTab === "discover" && (
+            <DiscoverTab films={discoverFilms} navigate={navigate} />
+          )}
+          {activeTab === "calendar" && (
+            <CalendarTab
+              activityData={activityData}
+              streak={currentStreak}
+              totalMinutes={activityData.reduce((a, d) => a + d.minutes_watched, 0)}
+              totalVideos={activityData.reduce((a, d) => a + d.videos_watched, 0)}
+            />
+          )}
+          {activeTab === "settings" && (
+            <SettingsTab
+              nativeLanguage={nativeLanguage}
+              setNativeLanguage={setNativeLanguage}
+              learningLanguage={settingsLearning}
+              setLearningLanguage={setSettingsLearning}
+              displayName={displayName}
+              setDisplayName={setDisplayName}
+              saving={savingSettings}
+              onSave={saveSettings}
+              user={user}
+              navigate={navigate}
+            />
+          )}
         </div>
-
-        <footer className="px-6 py-8 border-t border-border text-center">
-          <p className="text-xs text-muted-foreground">
-            More content coming soon — LinguaScript is in early access
-          </p>
-        </footer>
       </main>
     </div>
   );
 };
 
-/* ── Catalog Row ── */
-const CatalogRow = ({
-  title,
-  films,
-  onFilmClick,
+/* ── HOME TAB ── */
+const HomeTab = ({
+  lessons, loading, pasteUrl, setPasteUrl, creating, createLesson, deleteLesson, navigate, discoverFilms,
 }: {
-  title: string;
-  films: FilmData[];
-  onFilmClick: (film: FilmData) => void;
+  lessons: UserLesson[];
+  loading: boolean;
+  pasteUrl: string;
+  setPasteUrl: (v: string) => void;
+  creating: boolean;
+  createLesson: () => void;
+  deleteLesson: (id: string) => void;
+  navigate: (path: string) => void;
+  discoverFilms: any[];
 }) => (
-  <section>
-    <div className="flex items-center justify-between mb-4">
-      <h2 className="text-lg font-semibold text-foreground">{title}</h2>
-      {films.length > 6 && (
-        <button className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-          See All →
-        </button>
+  <div className="space-y-8">
+    {/* Paste YouTube Link */}
+    <div className="glass-panel-strong p-6 rounded-2xl">
+      <h2 className="text-lg font-bold text-foreground mb-1">Paste a YouTube Link</h2>
+      <p className="text-sm text-muted-foreground mb-4">
+        We'll fetch subtitles, translate them, and create an interactive lesson.
+      </p>
+      <div className="flex gap-3">
+        <div className="relative flex-1">
+          <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="https://youtube.com/watch?v=..."
+            value={pasteUrl}
+            onChange={(e) => setPasteUrl(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && createLesson()}
+            className="pl-10 h-12 bg-secondary/50 border-border rounded-xl"
+          />
+        </div>
+        <Button
+          onClick={createLesson}
+          disabled={creating || !pasteUrl.trim()}
+          className="h-12 px-6 rounded-xl bg-gradient-to-r from-primary to-[hsl(280,100%,60%)] text-primary-foreground font-semibold gap-2"
+        >
+          {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+          Create Lesson
+        </Button>
+      </div>
+    </div>
+
+    {/* Saved Lessons */}
+    <section>
+      <h2 className="text-lg font-semibold text-foreground mb-4">Your Lessons</h2>
+      {loading ? (
+        <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
+      ) : lessons.length === 0 ? (
+        <div className="glass-panel p-12 text-center rounded-2xl">
+          <Play className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+          <p className="text-muted-foreground">No lessons yet. Paste a YouTube link above to start!</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+          {lessons.map((lesson) => (
+            <LessonCard key={lesson.id} lesson={lesson} onDelete={deleteLesson} navigate={navigate} />
+          ))}
+        </div>
       )}
+    </section>
+
+    {/* Discover row */}
+    {discoverFilms.length > 0 && (
+      <section>
+        <h2 className="text-lg font-semibold text-foreground mb-4">From the Catalog</h2>
+        <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin">
+          {discoverFilms.map((film) => (
+            <button
+              key={film.id}
+              onClick={() => navigate(`/watch/${film.id}`)}
+              className="group shrink-0 w-[180px]"
+            >
+              <div className="relative rounded-xl overflow-hidden aspect-video bg-secondary mb-2 border border-border group-hover:border-primary/50 transition-all">
+                {film.thumbnail_url ? (
+                  <img src={film.thumbnail_url} alt={film.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center"><Play className="w-8 h-8 text-muted-foreground" /></div>
+                )}
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-full bg-primary/90 flex items-center justify-center">
+                    <Play className="w-4 h-4 text-primary-foreground ml-0.5" />
+                  </div>
+                </div>
+              </div>
+              <p className="text-sm text-foreground truncate text-left">{film.title}</p>
+              <p className="text-xs text-muted-foreground text-left">{getLanguageFlag(film.language ?? "fr")} {getLanguageLabel(film.language ?? "fr")}</p>
+            </button>
+          ))}
+        </div>
+      </section>
+    )}
+  </div>
+);
+
+/* ── LESSON CARD ── */
+const LessonCard = ({
+  lesson, onDelete, navigate,
+}: {
+  lesson: UserLesson;
+  onDelete: (id: string) => void;
+  navigate: (path: string) => void;
+}) => {
+  // Find film by youtube_id to navigate
+  const handleClick = async () => {
+    const filmUrl = `https://www.youtube.com/watch?v=${lesson.youtube_id}`;
+    const { data } = await supabase.from("films").select("id").eq("url", filmUrl).maybeSingle();
+    if (data) {
+      navigate(`/watch/${data.id}`);
+    }
+  };
+
+  const lastWatched = new Date(lesson.last_watched_at);
+  const timeAgo = getTimeAgo(lastWatched);
+
+  return (
+    <div className="group relative">
+      <button onClick={handleClick} className="w-full text-left">
+        <div className="relative rounded-xl overflow-hidden aspect-video bg-secondary mb-2 border border-border group-hover:border-primary/50 transition-all">
+          {lesson.thumbnail_url ? (
+            <img src={lesson.thumbnail_url} alt={lesson.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center"><Play className="w-8 h-8 text-muted-foreground" /></div>
+          )}
+          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+            <div className="w-10 h-10 rounded-full bg-primary/90 flex items-center justify-center shadow-glow-primary">
+              <Play className="w-4 h-4 text-primary-foreground ml-0.5" />
+            </div>
+          </div>
+          {lesson.progress_percent > 0 && (
+            <div className="absolute bottom-0 left-0 right-0 h-1 bg-muted">
+              <div className="h-full bg-primary" style={{ width: `${lesson.progress_percent}%` }} />
+            </div>
+          )}
+        </div>
+        <p className="text-sm text-foreground truncate font-medium">{lesson.title}</p>
+        <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+          <Clock className="w-3 h-3" />
+          <span>{timeAgo}</span>
+        </div>
+      </button>
+      <button
+        onClick={(e) => { e.stopPropagation(); onDelete(lesson.id); }}
+        className="absolute top-2 right-2 p-1.5 rounded-lg bg-black/60 text-white/60 hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+      >
+        <Trash2 className="w-3.5 h-3.5" />
+      </button>
+    </div>
+  );
+};
+
+/* ── DISCOVER TAB ── */
+const DiscoverTab = ({ films, navigate }: { films: any[]; navigate: (p: string) => void }) => (
+  <div className="space-y-6">
+    <div>
+      <h2 className="text-2xl font-bold text-foreground mb-2">Discover</h2>
+      <p className="text-muted-foreground">Browse our curated catalog of language-learning content.</p>
     </div>
     {films.length === 0 ? (
-      <p className="text-muted-foreground text-sm">No films yet. Add some from the Admin panel.</p>
+      <div className="glass-panel p-12 text-center rounded-2xl">
+        <Compass className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+        <p className="text-muted-foreground">More content coming soon!</p>
+      </div>
     ) : (
-      <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
         {films.map((film) => (
-          <FilmCard key={film.id} film={film} onClick={() => onFilmClick(film)} />
+          <button key={film.id} onClick={() => navigate(`/watch/${film.id}`)} className="group text-left">
+            <div className="relative rounded-xl overflow-hidden aspect-video bg-secondary mb-2 border border-border group-hover:border-primary/50 transition-all">
+              {film.thumbnail_url ? (
+                <img src={film.thumbnail_url} alt={film.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center"><Play className="w-8 h-8 text-muted-foreground" /></div>
+              )}
+              <div className="absolute bottom-2 left-2 bg-black/70 backdrop-blur text-xs px-2 py-0.5 rounded-md text-foreground">
+                {getLanguageFlag(film.language ?? "fr")}
+              </div>
+            </div>
+            <p className="text-sm text-foreground truncate font-medium">{film.title}</p>
+            <p className="text-xs text-muted-foreground">{getLanguageLabel(film.language ?? "fr")}</p>
+          </button>
         ))}
       </div>
     )}
-  </section>
+  </div>
 );
 
-/* ── Film Card ── */
-const FilmCard = ({
-  film,
-  onClick,
+/* ── CALENDAR TAB ── */
+const CalendarTab = ({
+  activityData, streak, totalMinutes, totalVideos,
 }: {
-  film: FilmData;
-  onClick: () => void;
-}) => (
-  <button onClick={onClick} className="group shrink-0 w-[180px] focus:outline-none">
-    <div className="relative rounded-xl overflow-hidden aspect-[2/3] bg-secondary mb-2 border border-border group-hover:border-primary/50 transition-all group-hover:shadow-glow-primary">
-      {film.thumbnail_url ? (
-        <img
-          src={film.thumbnail_url}
-          alt={film.title}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-        />
-      ) : (
-        <div className="w-full h-full flex items-center justify-center bg-gradient-card">
-          <Play className="w-10 h-10 text-muted-foreground" />
+  activityData: ActivityDay[];
+  streak: number;
+  totalMinutes: number;
+  totalVideos: number;
+}) => {
+  // Generate last 30 days
+  const days: { date: string; active: boolean; minutes: number }[] = [];
+  const today = new Date();
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    const dateStr = d.toISOString().split("T")[0];
+    const activity = activityData.find((a) => a.date === dateStr);
+    days.push({
+      date: dateStr,
+      active: !!activity,
+      minutes: activity?.minutes_watched || 0,
+    });
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold text-foreground mb-2">Activity Calendar</h2>
+        <p className="text-muted-foreground">Track your daily learning progress.</p>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-3 gap-4">
+        <div className="glass-panel-strong p-5 rounded-2xl text-center">
+          <Flame className="w-8 h-8 text-accent mx-auto mb-2" />
+          <p className="text-2xl font-bold text-foreground">{streak}</p>
+          <p className="text-xs text-muted-foreground">Day Streak</p>
+        </div>
+        <div className="glass-panel-strong p-5 rounded-2xl text-center">
+          <Clock className="w-8 h-8 text-primary mx-auto mb-2" />
+          <p className="text-2xl font-bold text-foreground">{totalMinutes}</p>
+          <p className="text-xs text-muted-foreground">Minutes Watched</p>
+        </div>
+        <div className="glass-panel-strong p-5 rounded-2xl text-center">
+          <Play className="w-8 h-8 text-success mx-auto mb-2" />
+          <p className="text-2xl font-bold text-foreground">{totalVideos}</p>
+          <p className="text-xs text-muted-foreground">Videos Watched</p>
+        </div>
+      </div>
+
+      {/* Streak message */}
+      {streak > 0 && (
+        <div className="glass-panel p-4 rounded-2xl border-accent/30 bg-accent/5 text-center">
+          <p className="text-accent font-semibold">
+            🔥 You've used LinguaScript {streak} day{streak !== 1 ? "s" : ""} in a row!
+          </p>
         </div>
       )}
-      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-        <div className="w-12 h-12 rounded-full bg-primary/90 flex items-center justify-center shadow-glow-primary">
-          <Play className="w-5 h-5 text-primary-foreground ml-0.5" />
-        </div>
-      </div>
-      <div className="absolute bottom-2 left-2 bg-black/70 backdrop-blur text-xs px-2 py-0.5 rounded-md text-foreground">
-        {getLanguageFlag(film.language ?? "fr")}
-      </div>
-    </div>
-    <p className="text-sm text-foreground truncate text-left">{film.title}</p>
-    <p className="text-xs text-muted-foreground text-left">
-      {getLanguageLabel(film.language ?? "fr")}
-    </p>
-  </button>
-);
 
-/* ── Coming Soon Row ── */
-const ComingSoonRow = ({ title }: { title: string }) => (
-  <section>
-    <div className="flex items-center justify-between mb-4">
-      <h2 className="text-lg font-semibold text-foreground">{title}</h2>
-      <span className="text-xs text-muted-foreground bg-secondary/50 px-2 py-1 rounded-lg">
-        Coming Soon
-      </span>
-    </div>
-    <div className="flex gap-4 overflow-x-auto pb-2">
-      {Array.from({ length: 6 }).map((_, i) => (
-        <div key={i} className="shrink-0 w-[180px]">
-          <div className="rounded-xl aspect-[2/3] bg-secondary/30 border border-border/50 flex items-center justify-center mb-2">
-            <Play className="w-8 h-8 text-muted-foreground/20" />
-          </div>
-          <div className="h-3 w-24 rounded bg-secondary/30" />
+      {/* Calendar grid */}
+      <div className="glass-panel-strong p-6 rounded-2xl">
+        <h3 className="text-sm font-medium text-muted-foreground mb-4">Last 30 Days</h3>
+        <div className="grid grid-cols-7 gap-2">
+          {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => (
+            <div key={day} className="text-xs text-muted-foreground text-center py-1">{day}</div>
+          ))}
+          {/* Pad first week */}
+          {(() => {
+            const firstDate = new Date(days[0].date);
+            const dayOfWeek = (firstDate.getDay() + 6) % 7; // Monday = 0
+            return Array.from({ length: dayOfWeek }).map((_, i) => (
+              <div key={`pad-${i}`} />
+            ));
+          })()}
+          {days.map((day) => (
+            <div
+              key={day.date}
+              className={cn(
+                "aspect-square rounded-lg flex items-center justify-center text-xs font-medium transition-colors",
+                day.active
+                  ? "bg-primary/20 text-primary border border-primary/30"
+                  : "bg-secondary/30 text-muted-foreground/50"
+              )}
+              title={`${day.date}: ${day.minutes}m watched`}
+            >
+              {new Date(day.date).getDate()}
+            </div>
+          ))}
         </div>
-      ))}
+      </div>
     </div>
-  </section>
-);
+  );
+};
+
+/* ── SETTINGS TAB ── */
+const SettingsTab = ({
+  nativeLanguage, setNativeLanguage,
+  learningLanguage, setLearningLanguage,
+  displayName, setDisplayName,
+  saving, onSave, user, navigate,
+}: {
+  nativeLanguage: string;
+  setNativeLanguage: (v: string) => void;
+  learningLanguage: string;
+  setLearningLanguage: (v: string) => void;
+  displayName: string;
+  setDisplayName: (v: string) => void;
+  saving: boolean;
+  onSave: () => void;
+  user: any;
+  navigate: (p: string) => void;
+}) => {
+  if (!user) {
+    return (
+      <div className="space-y-6">
+        <h2 className="text-2xl font-bold text-foreground">Settings</h2>
+        <div className="glass-panel p-12 text-center rounded-2xl">
+          <p className="text-muted-foreground mb-4">Sign in to access settings.</p>
+          <Button onClick={() => navigate("/auth")}>Sign In</Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6 max-w-lg">
+      <div>
+        <h2 className="text-2xl font-bold text-foreground mb-2">Settings</h2>
+        <p className="text-muted-foreground">Configure your language preferences.</p>
+      </div>
+
+      <div className="glass-panel-strong p-6 rounded-2xl space-y-6">
+        <div>
+          <label className="text-sm font-medium text-foreground mb-2 block">Display Name</label>
+          <Input
+            value={displayName}
+            onChange={(e) => setDisplayName(e.target.value)}
+            className="bg-secondary/50 border-border"
+          />
+        </div>
+
+        <div>
+          <label className="text-sm font-medium text-foreground mb-2 block">Your Native Language</label>
+          <p className="text-xs text-muted-foreground mb-2">Translations will appear in this language.</p>
+          <Select value={nativeLanguage} onValueChange={setNativeLanguage}>
+            <SelectTrigger className="bg-secondary/50 border-border">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {LANGUAGES.map((lang) => (
+                <SelectItem key={lang.code} value={lang.code}>{lang.flag} {lang.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div>
+          <label className="text-sm font-medium text-foreground mb-2 block">Language You're Learning</label>
+          <p className="text-xs text-muted-foreground mb-2">This determines which subtitles are fetched and which pronunciation voice is used.</p>
+          <Select value={learningLanguage} onValueChange={setLearningLanguage}>
+            <SelectTrigger className="bg-secondary/50 border-border">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {LANGUAGES.filter((l) => l.code !== nativeLanguage).map((lang) => (
+                <SelectItem key={lang.code} value={lang.code}>{lang.flag} {lang.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <Button
+          onClick={onSave}
+          disabled={saving}
+          className="w-full bg-gradient-to-r from-primary to-[hsl(280,100%,60%)] text-primary-foreground font-semibold gap-2"
+        >
+          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+          Save Settings
+        </Button>
+      </div>
+    </div>
+  );
+};
+
+/* ── Helpers ── */
+function getTimeAgo(date: Date): string {
+  const now = new Date();
+  const diff = now.getTime() - date.getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "Just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d ago`;
+  return date.toLocaleDateString();
+}
 
 export default Browse;

@@ -14,6 +14,54 @@ export type Database = {
   }
   public: {
     Tables: {
+      activity_log: {
+        Row: {
+          created_at: string
+          date: string
+          id: string
+          minutes_watched: number | null
+          user_id: string
+          videos_watched: number | null
+          words_learned: number | null
+        }
+        Insert: {
+          created_at?: string
+          date?: string
+          id?: string
+          minutes_watched?: number | null
+          user_id: string
+          videos_watched?: number | null
+          words_learned?: number | null
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          id?: string
+          minutes_watched?: number | null
+          user_id?: string
+          videos_watched?: number | null
+          words_learned?: number | null
+        }
+        Relationships: []
+      }
+      email_signups: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+        }
+        Relationships: []
+      }
       films: {
         Row: {
           created_at: string
@@ -117,6 +165,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_lessons: {
+        Row: {
+          created_at: string
+          duration_seconds: number | null
+          id: string
+          last_watched_at: string | null
+          original_language: string | null
+          progress_percent: number | null
+          thumbnail_url: string | null
+          title: string
+          user_id: string
+          youtube_id: string
+        }
+        Insert: {
+          created_at?: string
+          duration_seconds?: number | null
+          id?: string
+          last_watched_at?: string | null
+          original_language?: string | null
+          progress_percent?: number | null
+          thumbnail_url?: string | null
+          title: string
+          user_id: string
+          youtube_id: string
+        }
+        Update: {
+          created_at?: string
+          duration_seconds?: number | null
+          id?: string
+          last_watched_at?: string | null
+          original_language?: string | null
+          progress_percent?: number | null
+          thumbnail_url?: string | null
+          title?: string
+          user_id?: string
+          youtube_id?: string
+        }
+        Relationships: []
       }
     }
     Views: {

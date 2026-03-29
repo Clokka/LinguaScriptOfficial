@@ -2,9 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { LogOut, User, Shield } from "lucide-react";
-import { StreakBadge } from "./StreakBadge";
-import { LanguageSelector } from "./LanguageSelector";
+import { LogOut, User } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useState } from "react";
 
@@ -32,14 +30,6 @@ export const NavBar = () => {
 
   return (
     <div className="flex items-center gap-3">
-      <LanguageSelector />
-      <StreakBadge streak={7} showAnimation={false} />
-
-      <Button variant="ghost" size="sm" onClick={() => navigate("/admin")} className="gap-2 text-muted-foreground hover:text-foreground">
-        <Shield className="w-4 h-4" />
-        <span className="hidden sm:inline">Admin</span>
-      </Button>
-
       {user ? (
         <>
           <button
