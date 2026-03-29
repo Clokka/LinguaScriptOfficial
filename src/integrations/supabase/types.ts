@@ -74,6 +74,47 @@ export type Database = {
         }
         Relationships: []
       }
+      subtitles: {
+        Row: {
+          created_at: string
+          end_time: number
+          film_id: string
+          id: string
+          sort_order: number
+          start_time: number
+          text: string
+          translation: string | null
+        }
+        Insert: {
+          created_at?: string
+          end_time: number
+          film_id: string
+          id?: string
+          sort_order?: number
+          start_time: number
+          text: string
+          translation?: string | null
+        }
+        Update: {
+          created_at?: string
+          end_time?: number
+          film_id?: string
+          id?: string
+          sort_order?: number
+          start_time?: number
+          text?: string
+          translation?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subtitles_film_id_fkey"
+            columns: ["film_id"]
+            isOneToOne: false
+            referencedRelation: "films"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
