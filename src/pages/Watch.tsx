@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Play, Pause, Volume2, VolumeX, Maximize, Minimize, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SubtitleOverlay } from "@/components/SubtitleOverlay";
 import { DifficultyStars } from "@/components/DifficultyStars";
 import { supabase } from "@/integrations/supabase/client";
+import { cn } from "@/lib/utils";
 import { getLanguageLabel, getLanguageFlag } from "@/lib/languages";
 
 interface FilmData {
@@ -15,120 +16,134 @@ interface FilmData {
   thumbnail_url: string | null;
 }
 
-interface SubtitleEntry {
-  start: number;
-  end: number;
-  primary: string;
-  secondary: string;
-}
-
-function getYouTubeId(url: string): string | null {
-  const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?.*v=|embed\/|v\/))([^&?\s]+)/);
-  return match ? match[1] : null;
-}
-
-declare global {
-  interface Window {
-    YT: any;
-    onYouTubeIframeAPIReady: () => void;
-  }
-}
+const mockSubtitles = [
+  {
+    time: 0,
+    primary: "¿Cómo te llamas?",
+    secondary: "What is your name?",
+    words: [
+      { id: "1", text: "Cómo", translation: "How/What", pronunciation: "KOH-moh", ipa: "/ˈko.mo/" },
+      { id: "2", text: "te", translation: "yourself", pronunciation: "teh", ipa: "/te/" },
+      { id: "3", text: "llamas", translation: "are called", pronunciation: "YAH-mahs", ipa: "/ˈʎa.mas/" },
+    ],
+  },
+  {
+    time: 3,
+    primary: "Me llamo Carlos. Mucho gusto.",
+    secondary: "My name is Carlos. Nice to meet you.",
+    words: [
+      { id: "4", text: "Me", translation: "Myself", pronunciation: "meh", ipa: "/me/" },
+      { id: "5", text: "llamo", translation: "am called", pronunciation: "YAH-moh", ipa: "/ˈʎa.mo/" },
+      { id: "6", text: "Mucho", translation: "Much/A lot", pronunciation: "MOO-choh", ipa: "/ˈmu.tʃo/" },
+      { id: "7", text: "gusto", translation: "pleasure", pronunciation: "GOOS-toh", ipa: "/ˈɡus.to/" },
+    ],
+  },
+  {
+    time: 6,
+    primary: "El gusto es mío. ¿De dónde eres?",
+    secondary: "The pleasure is mine. Where are you from?",
+    words: [
+      { id: "8", text: "gusto", translation: "pleasure", pronunciation: "GOOS-toh", ipa: "/ˈɡus.to/" },
+      { id: "9", text: "mío", translation: "mine", pronunciation: "MEE-oh", ipa: "/ˈmi.o/" },
+      { id: "10", text: "dónde", translation: "where", pronunciation: "DOHN-deh", ipa: "/ˈdon.de/" },
+      { id: "11", text: "eres", translation: "are (you)", pronunciation: "EH-rehs", ipa: "/ˈe.ɾes/" },
+    ],
+  },
+];
 
 const Watch = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const playerRef = useRef<any>(null);
-  const intervalRef = useRef<ReturnType<typeof setInterval>>();
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const [film, setFilm] = useState<FilmData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [showControls, setShowControls] = useState(true);
   const [subtitleMode, setSubtitleMode] = useState<"single" | "dual">("dual");
-  const [apiReady, setApiReady] = useState(!!window.YT?.Player);
-  const [subtitles, setSubtitles] = useState<SubtitleEntry[]>([]);
-  const [captionsLoading, setCaptionsLoading] = useState(false);
-  const [captionsError, setCaptionsError] = useState<string | null>(null);
+  const [currentSubtitle, setCurrentSubtitle] = useState(mockSubtitles[0]);
 
-  // Load film data
   useEffect(() => {
     if (!id) return;
-    supabase.from("films").select("*").eq("id", id).single().then(({ data }) => {
-      if (data) setFilm(data);
-      setLoading(false);
-    });
+    supabase
+      .from("films")
+      .select("*")
+      .eq("id", id)
+      .single()
+      .then(({ data, error }) => {
+        if (data) setFilm(data);
+        setLoading(false);
+      });
   }, [id]);
 
-  // Fetch real captions from edge function
+  // Update subtitle based on video time
   useEffect(() => {
-    if (!film) return;
-    setCaptionsLoading(true);
-    setCaptionsError(null);
+    const subtitleIndex = Math.floor(currentTime / 3) % mockSubtitles.length;
+    setCurrentSubtitle(mockSubtitles[subtitleIndex]);
+  }, [currentTime]);
 
-    const fetchCaptions = async () => {
-      try {
-        const { data, error } = await supabase.functions.invoke("fetch-captions", {
-          body: { videoUrl: film.url, language: film.language || "fr" },
-        });
-
-        if (error) throw error;
-        if (data?.subtitles?.length > 0) {
-          setSubtitles(data.subtitles);
-        } else {
-          setCaptionsError("No captions available for this video");
-        }
-      } catch (err: any) {
-        console.error("Caption fetch error:", err);
-        setCaptionsError("Failed to load captions");
-      } finally {
-        setCaptionsLoading(false);
-      }
-    };
-
-    fetchCaptions();
-  }, [film]);
-
-  // Load YouTube IFrame API
+  // Hide controls after inactivity
   useEffect(() => {
-    if (window.YT?.Player) { setApiReady(true); return; }
-    const tag = document.createElement("script");
-    tag.src = "https://www.youtube.com/iframe_api";
-    document.head.appendChild(tag);
-    window.onYouTubeIframeAPIReady = () => setApiReady(true);
-  }, []);
+    let timeout: ReturnType<typeof setTimeout>;
+    if (isPlaying && showControls) {
+      timeout = setTimeout(() => setShowControls(false), 3000);
+    }
+    return () => clearTimeout(timeout);
+  }, [isPlaying, showControls]);
 
-  // Create player
-  useEffect(() => {
-    if (!apiReady || !film) return;
-    const ytId = getYouTubeId(film.url);
-    if (!ytId) return;
+  const togglePlay = () => {
+    if (!videoRef.current) return;
+    if (isPlaying) {
+      videoRef.current.pause();
+    } else {
+      videoRef.current.play();
+    }
+    setIsPlaying(!isPlaying);
+  };
 
-    playerRef.current = new window.YT.Player("yt-player", {
-      videoId: ytId,
-      width: "100%",
-      height: "100%",
-      playerVars: { autoplay: 0, controls: 1, modestbranding: 1, rel: 0 },
-      events: {
-        onStateChange: (event: any) => {
-          if (event.data === window.YT.PlayerState.PLAYING) {
-            intervalRef.current = setInterval(() => {
-              if (playerRef.current?.getCurrentTime) {
-                setCurrentTime(playerRef.current.getCurrentTime());
-              }
-            }, 250);
-          } else {
-            clearInterval(intervalRef.current);
-          }
-        },
-      },
-    });
+  const toggleMute = () => {
+    if (!videoRef.current) return;
+    videoRef.current.muted = !isMuted;
+    setIsMuted(!isMuted);
+  };
 
-    return () => { clearInterval(intervalRef.current); };
-  }, [apiReady, film]);
+  const toggleFullscreen = () => {
+    if (!containerRef.current) return;
+    if (!isFullscreen) {
+      containerRef.current.requestFullscreen?.();
+    } else {
+      document.exitFullscreen?.();
+    }
+    setIsFullscreen(!isFullscreen);
+  };
 
-  // Find current subtitle
-  const currentSubtitle = subtitles.find(
-    (s) => currentTime >= s.start && currentTime < s.end
-  );
+  const handleTimeUpdate = () => {
+    if (!videoRef.current) return;
+    setCurrentTime(videoRef.current.currentTime);
+  };
+
+  const handleLoadedMetadata = () => {
+    if (!videoRef.current) return;
+    setDuration(videoRef.current.duration);
+  };
+
+  const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!videoRef.current || !duration) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const ratio = (e.clientX - rect.left) / rect.width;
+    videoRef.current.currentTime = ratio * duration;
+  };
+
+  const formatTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = Math.floor(seconds % 60);
+    return `${m}:${s.toString().padStart(2, "0")}`;
+  };
 
   if (loading) {
     return (
@@ -143,7 +158,7 @@ const Watch = () => {
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <p className="text-muted-foreground mb-4">Film not found</p>
-          <Button variant="ghost" onClick={() => navigate("/")}>Go Home</Button>
+          <Button variant="glass" onClick={() => navigate("/")}>Go Home</Button>
         </div>
       </div>
     );
@@ -159,57 +174,102 @@ const Watch = () => {
         <div className="flex-1 min-w-0">
           <h1 className="text-white font-semibold truncate">{film.title}</h1>
           <p className="text-white/60 text-sm">
-            {getLanguageFlag(film.language ?? "fr")} {getLanguageLabel(film.language ?? "fr")}
+            {getLanguageFlag(film.language ?? "es")} {getLanguageLabel(film.language ?? "es")}
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            variant={subtitleMode === "dual" ? "default" : "ghost"}
-            size="sm"
-            onClick={() => setSubtitleMode(subtitleMode === "dual" ? "single" : "dual")}
-            className={subtitleMode !== "dual" ? "text-white hover:bg-white/10" : ""}
-          >
-            {subtitleMode === "dual" ? "Dual Subs" : "Single Sub"}
-          </Button>
           <DifficultyStars difficulty={2} />
         </div>
       </div>
 
       {/* Video container */}
-      <div className="relative flex-1 flex flex-col items-center justify-center bg-black">
-        <div className="w-full max-w-5xl aspect-video relative">
-          <div id="yt-player" className="w-full h-full" />
+      <div
+        ref={containerRef}
+        className="relative flex-1 flex items-center justify-center bg-black cursor-pointer"
+        onMouseMove={() => setShowControls(true)}
+        onClick={togglePlay}
+      >
+        <video
+          ref={videoRef}
+          src={film.url}
+          className="w-full h-full object-contain"
+          onTimeUpdate={handleTimeUpdate}
+          onLoadedMetadata={handleLoadedMetadata}
+          onEnded={() => setIsPlaying(false)}
+          onPlay={() => setIsPlaying(true)}
+          onPause={() => setIsPlaying(false)}
+        />
 
-          {/* Caption loading state */}
-          {captionsLoading && (
-            <div className="absolute bottom-16 left-0 right-0 flex justify-center">
-              <div className="bg-black/70 text-white/70 px-4 py-2 rounded-lg flex items-center gap-2 text-sm">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Loading captions...
-              </div>
+        {/* Play overlay when paused */}
+        {!isPlaying && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/30 pointer-events-none">
+            <div className="w-20 h-20 rounded-full bg-white/20 backdrop-blur flex items-center justify-center">
+              <Play className="w-10 h-10 text-white ml-1" fill="white" />
             </div>
-          )}
+          </div>
+        )}
 
-          {/* Caption error */}
-          {captionsError && !captionsLoading && (
-            <div className="absolute bottom-16 left-0 right-0 flex justify-center">
-              <div className="bg-black/70 text-yellow-400/80 px-4 py-2 rounded-lg text-sm">
-                {captionsError}
-              </div>
-            </div>
-          )}
+        {/* Subtitle overlay */}
+        <div className="absolute bottom-24 left-0 right-0 px-4 z-10" onClick={(e) => e.stopPropagation()}>
+          <SubtitleOverlay
+            primaryText={currentSubtitle.primary}
+            secondaryText={currentSubtitle.secondary}
+            words={currentSubtitle.words}
+            mode={subtitleMode}
+          />
+        </div>
 
-          {/* Subtitle overlay */}
-          {currentSubtitle && (
-            <div className="absolute bottom-2 left-0 right-0 px-4 z-10 pointer-events-auto">
-              <SubtitleOverlay
-                primaryText={currentSubtitle.primary}
-                secondaryText={currentSubtitle.secondary}
-                words={[]}
-                mode={subtitleMode}
-              />
-            </div>
+        {/* Bottom gradient */}
+        <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-black/80 to-transparent pointer-events-none" />
+
+        {/* Controls */}
+        <div
+          className={cn(
+            "absolute bottom-0 left-0 right-0 p-4 transition-opacity duration-300 z-10",
+            showControls ? "opacity-100" : "opacity-0"
           )}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Progress bar */}
+          <div
+            className="h-1 bg-white/20 rounded-full mb-4 cursor-pointer group/progress hover:h-2 transition-all"
+            onClick={handleSeek}
+          >
+            <div
+              className="h-full bg-primary rounded-full relative transition-all"
+              style={{ width: duration ? `${(currentTime / duration) * 100}%` : "0%" }}
+            >
+              <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-primary rounded-full opacity-0 group-hover/progress:opacity-100 transition-opacity" />
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" size="icon" onClick={togglePlay} className="text-white hover:bg-white/10">
+                {isPlaying ? <Pause className="w-5 h-5" fill="white" /> : <Play className="w-5 h-5 ml-0.5" fill="white" />}
+              </Button>
+              <Button variant="ghost" size="icon" onClick={toggleMute} className="text-white hover:bg-white/10">
+                {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+              </Button>
+              <span className="text-sm text-white/60 ml-2">
+                {formatTime(currentTime)} / {formatTime(duration || 0)}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button
+                variant={subtitleMode === "dual" ? "default" : "ghost"}
+                size="sm"
+                onClick={() => setSubtitleMode(subtitleMode === "dual" ? "single" : "dual")}
+                className={subtitleMode !== "dual" ? "text-white hover:bg-white/10" : ""}
+              >
+                {subtitleMode === "dual" ? "Dual" : "Single"}
+              </Button>
+              <Button variant="ghost" size="icon" onClick={toggleFullscreen} className="text-white hover:bg-white/10">
+                {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
