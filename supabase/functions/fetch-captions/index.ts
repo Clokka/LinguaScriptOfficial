@@ -43,109 +43,75 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: 'videoId required' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    const apiKey = Deno.env.get('YOUTUBE_API_KEY');
-    if (!apiKey) {
-      return new Response(JSON.stringify({ error: 'YouTube API key not configured' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
-
     const lang = language || 'fr';
 
-    // Step 1: List available captions
-    const listUrl = `https://www.googleapis.com/youtube/v3/captions?part=snippet&videoId=${videoId}&key=${apiKey}`;
-    const listRes = await fetch(listUrl);
-    const listData = await listRes.json();
+    const parseXmlSubtitles = (xmlText: string): { start: number; end: number; text: string }[] => {
+      const subtitles: { start: number; end: number; text: string }[] = [];
+      const regex = /<text start="([\d.]+)" dur="([\d.]+)"[^>]*>(.*?)<\/text>/gs;
+      let match;
+      while ((match = regex.exec(xmlText)) !== null) {
+        const start = parseFloat(match[1]);
+        const dur = parseFloat(match[2]);
+        const text = match[3]
+          .replace(/&amp;/g, '&')
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&#39;/g, "'")
+          .replace(/&quot;/g, '"')
+          .replace(/<[^>]+>/g, '')
+          .trim();
+        if (text) {
+          subtitles.push({ start, end: start + dur, text });
+        }
+      }
+      return subtitles;
+    };
 
-    if (!listRes.ok) {
-      console.error('YouTube API error:', JSON.stringify(listData));
-      return new Response(JSON.stringify({ error: 'Failed to list captions', details: listData }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
-
-    // Try to find caption track for the target language
-    const captions = listData.items || [];
-    let captionTrack = captions.find((c: any) => c.snippet.language === lang);
-    
-    // Fallback: try any available track
-    if (!captionTrack && captions.length > 0) {
-      captionTrack = captions[0];
-    }
-
-    // Alternative approach: Use timedtext API (works without OAuth)
-    // YouTube's timedtext endpoint is publicly accessible for videos with captions
+    // Try public timedtext endpoint FIRST (no API key needed)
     const timedtextUrl = `https://www.youtube.com/api/timedtext?v=${videoId}&lang=${lang}&fmt=srv3`;
+    console.log('Trying timedtext:', timedtextUrl);
     const ttRes = await fetch(timedtextUrl);
     
     if (ttRes.ok) {
       const xmlText = await ttRes.text();
-      if (xmlText && xmlText.includes('<text')) {
-        // Parse the XML subtitle format
-        const subtitles: { start: number; end: number; text: string }[] = [];
-        const regex = /<text start="([\d.]+)" dur="([\d.]+)"[^>]*>(.*?)<\/text>/gs;
-        let match;
-        while ((match = regex.exec(xmlText)) !== null) {
-          const start = parseFloat(match[1]);
-          const dur = parseFloat(match[2]);
-          const text = match[3]
-            .replace(/&amp;/g, '&')
-            .replace(/&lt;/g, '<')
-            .replace(/&gt;/g, '>')
-            .replace(/&#39;/g, "'")
-            .replace(/&quot;/g, '"')
-            .replace(/<[^>]+>/g, '')
-            .trim();
-          if (text) {
-            subtitles.push({ start, end: start + dur, text });
-          }
-        }
-
-        if (subtitles.length > 0) {
-          return new Response(JSON.stringify({ subtitles, language: lang, source: 'timedtext' }), {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          });
-        }
+      const subtitles = parseXmlSubtitles(xmlText);
+      if (subtitles.length > 0) {
+        return new Response(JSON.stringify({ subtitles, language: lang, source: 'timedtext' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
       }
     }
 
-    // Try auto-generated captions (asr=1)
+    // Try auto-generated captions
     const asrUrl = `https://www.youtube.com/api/timedtext?v=${videoId}&lang=${lang}&fmt=srv3&kind=asr`;
+    console.log('Trying ASR:', asrUrl);
     const asrRes = await fetch(asrUrl);
     
     if (asrRes.ok) {
       const xmlText = await asrRes.text();
-      if (xmlText && xmlText.includes('<text')) {
-        const subtitles: { start: number; end: number; text: string }[] = [];
-        const regex = /<text start="([\d.]+)" dur="([\d.]+)"[^>]*>(.*?)<\/text>/gs;
-        let match;
-        while ((match = regex.exec(xmlText)) !== null) {
-          const start = parseFloat(match[1]);
-          const dur = parseFloat(match[2]);
-          const text = match[3]
-            .replace(/&amp;/g, '&')
-            .replace(/&lt;/g, '<')
-            .replace(/&gt;/g, '>')
-            .replace(/&#39;/g, "'")
-            .replace(/&quot;/g, '"')
-            .replace(/<[^>]+>/g, '')
-            .trim();
-          if (text) {
-            subtitles.push({ start, end: start + dur, text });
-          }
-        }
-
-        if (subtitles.length > 0) {
-          return new Response(JSON.stringify({ subtitles, language: lang, source: 'auto-generated' }), {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          });
-        }
+      const subtitles = parseXmlSubtitles(xmlText);
+      if (subtitles.length > 0) {
+        return new Response(JSON.stringify({ subtitles, language: lang, source: 'auto-generated' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
       }
     }
 
-    return new Response(JSON.stringify({ 
-      subtitles: [], 
-      language: lang, 
-      source: 'none',
-      message: 'No captions found for this video',
-      availableTracks: captions.map((c: any) => ({ language: c.snippet.language, name: c.snippet.name }))
-    }), {
+    // Last resort: try YouTube Data API if key is available
+    const apiKey = Deno.env.get('YOUTUBE_API_KEY');
+    if (apiKey) {
+      const listUrl = `https://www.googleapis.com/youtube/v3/captions?part=snippet&videoId=${videoId}&key=${apiKey}`;
+      const listRes = await fetch(listUrl);
+      if (listRes.ok) {
+        const listData = await listRes.json();
+        const tracks = (listData.items || []).map((c: any) => ({ language: c.snippet.language, name: c.snippet.name }));
+        return new Response(JSON.stringify({ subtitles: [], language: lang, source: 'none', message: 'Tracks found but cannot download without OAuth', availableTracks: tracks }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+    }
+
+    return new Response(JSON.stringify({ subtitles: [], language: lang, source: 'none', message: 'No captions found for this video' }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
 
