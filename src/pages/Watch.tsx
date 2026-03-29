@@ -110,9 +110,9 @@ const Watch = () => {
           .invoke("fetch-captions", {
             body: { videoId: ytId, language: film.language || "fr" },
           })
-          .then(({ data, error }) => {
-            setCaptionsLoading(false);
+          .then(async ({ data, error }) => {
             if (error) {
+              setCaptionsLoading(false);
               setCaptionsError("Could not load captions");
               return;
             }
@@ -127,7 +127,29 @@ const Watch = () => {
                 })
               );
               setSubtitles(display);
+              setCaptionsLoading(false);
+
+              // Translate in background
+              const filmLang = getLanguageLabel(film.language || "fr");
+              const userLang = "English"; // TODO: use profile's native_language
+              if (filmLang.toLowerCase() !== userLang.toLowerCase()) {
+                supabase.functions
+                  .invoke("translate-subtitles", {
+                    body: { subtitles: data.subtitles, fromLanguage: filmLang, toLanguage: userLang },
+                  })
+                  .then(({ data: transData }) => {
+                    if (transData?.translations) {
+                      setSubtitles((prev) =>
+                        prev.map((s, i) => ({
+                          ...s,
+                          secondary: transData.translations[i]?.translation || "",
+                        }))
+                      );
+                    }
+                  });
+              }
             } else {
+              setCaptionsLoading(false);
               setCaptionsError("No captions available for this video");
             }
           });
