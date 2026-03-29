@@ -118,7 +118,7 @@ async function fetchViaTimedtext(videoId: string, lang: string): Promise<{ subti
   if (lang !== 'en') {
     const url3 = `https://www.youtube.com/api/timedtext?v=${videoId}&lang=en&fmt=srv3`;
     console.log('Timedtext: trying English fallback');
-    const res3 = await fetch(url3);
+    const res3 = await fetch(url3, { headers });
     if (res3.ok) {
       const xml = await res3.text();
       const subs = parseXmlSubtitles(xml);
