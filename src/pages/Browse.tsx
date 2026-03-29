@@ -23,6 +23,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
 import { getLanguageLabel, getLanguageFlag, LANGUAGES } from "@/lib/languages";
+import { ensureSubtitleTracks } from "@/lib/subtitleSync";
 import {
   Select,
   SelectContent,
@@ -220,6 +221,15 @@ const Browse = () => {
         original_language: learningLanguage,
       });
 
+      if (filmId) {
+        await ensureSubtitleTracks({
+          filmId,
+          videoId: ytId,
+          primaryLanguage: learningLanguage,
+          secondaryLanguage: nativeLanguage,
+        });
+      }
+
       // Log activity
       const today = new Date().toISOString().split("T")[0];
       const { data: existingActivity } = await supabase
@@ -411,8 +421,8 @@ const HomeTab = ({
     {/* Paste YouTube Link */}
     <div className="glass-panel-strong p-6 rounded-2xl">
       <h2 className="text-lg font-bold text-foreground mb-1">Paste a YouTube Link</h2>
-      <p className="text-sm text-muted-foreground mb-4">
-        We'll fetch subtitles, translate them, and create an interactive lesson.
+       <p className="text-sm text-muted-foreground mb-4">
+         We'll fetch the source and learning-language subtitle tracks, save them, and create an interactive lesson.
       </p>
       <div className="flex gap-3">
         <div className="relative flex-1">
