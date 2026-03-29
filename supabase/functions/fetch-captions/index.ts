@@ -128,7 +128,7 @@ async function fetchViaTimedtext(videoId: string, lang: string): Promise<{ subti
     }
 
     const url4 = `https://www.youtube.com/api/timedtext?v=${videoId}&lang=en&fmt=srv3&kind=asr`;
-    const res4 = await fetch(url4);
+    const res4 = await fetch(url4, { headers });
     if (res4.ok) {
       const xml = await res4.text();
       const subs = parseXmlSubtitles(xml);
