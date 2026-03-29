@@ -15,12 +15,6 @@ interface FilmData {
   thumbnail_url: string | null;
 }
 
-interface CaptionEntry {
-  start: number;
-  end: number;
-  text: string;
-}
-
 interface DisplaySubtitle {
   start: number;
   end: number;
@@ -34,24 +28,14 @@ function getYouTubeId(url: string): string | null {
   return match ? match[1] : null;
 }
 
-function captionsToSubtitles(captions: CaptionEntry[]): DisplaySubtitle[] {
-  return captions.map((c, i) => {
-    const textWords = c.text.split(/\s+/).filter(Boolean);
-    const words = textWords.map((w, wi) => ({
-      id: `${i}-${wi}`,
-      text: w.replace(/[.,!?;:]/g, ""),
-      translation: "",
-      pronunciation: "",
-      ipa: "",
-    }));
-    return {
-      start: c.start,
-      end: c.end,
-      primary: c.text,
-      secondary: "",
-      words,
-    };
-  });
+function textToWords(text: string, index: number) {
+  return text.split(/\s+/).filter(Boolean).map((w, wi) => ({
+    id: `${index}-${wi}`,
+    text: w.replace(/[.,!?;:]/g, ""),
+    translation: "",
+    pronunciation: "",
+    ipa: "",
+  }));
 }
 
 declare global {
@@ -86,30 +70,68 @@ const Watch = () => {
     });
   }, [id]);
 
-  // Fetch captions when film loads
+  // Fetch subtitles: DB first, then YouTube fallback
   useEffect(() => {
     if (!film) return;
-    const ytId = getYouTubeId(film.url);
-    if (!ytId) return;
 
     setCaptionsLoading(true);
     setCaptionsError(null);
 
-    supabase.functions.invoke("fetch-captions", {
-      body: { videoId: ytId, language: film.language || "fr" },
-    }).then(({ data, error }) => {
-      setCaptionsLoading(false);
-      if (error) {
-        console.error("Caption fetch error:", error);
-        setCaptionsError("Could not load captions");
-        return;
-      }
-      if (data?.subtitles?.length) {
-        setSubtitles(captionsToSubtitles(data.subtitles));
-      } else {
-        setCaptionsError("No captions available for this video");
-      }
-    });
+    // Try DB subtitles first
+    supabase
+      .from("subtitles")
+      .select("*")
+      .eq("film_id", film.id)
+      .order("sort_order", { ascending: true })
+      .then(({ data: dbSubs, error: dbErr }) => {
+        if (!dbErr && dbSubs && dbSubs.length > 0) {
+          // Use database subtitles
+          const display: DisplaySubtitle[] = dbSubs.map((s, i) => ({
+            start: s.start_time,
+            end: s.end_time,
+            primary: s.text,
+            secondary: s.translation || "",
+            words: textToWords(s.text, i),
+          }));
+          setSubtitles(display);
+          setCaptionsLoading(false);
+          return;
+        }
+
+        // Fallback: fetch from YouTube via edge function
+        const ytId = getYouTubeId(film.url);
+        if (!ytId) {
+          setCaptionsLoading(false);
+          setCaptionsError("No subtitles available");
+          return;
+        }
+
+        supabase.functions
+          .invoke("fetch-captions", {
+            body: { videoId: ytId, language: film.language || "fr" },
+          })
+          .then(({ data, error }) => {
+            setCaptionsLoading(false);
+            if (error) {
+              setCaptionsError("Could not load captions");
+              return;
+            }
+            if (data?.subtitles?.length) {
+              const display: DisplaySubtitle[] = data.subtitles.map(
+                (c: any, i: number) => ({
+                  start: c.start,
+                  end: c.end,
+                  primary: c.text,
+                  secondary: "",
+                  words: textToWords(c.text, i),
+                })
+              );
+              setSubtitles(display);
+            } else {
+              setCaptionsError("No captions available for this video");
+            }
+          });
+      });
   }, [film]);
 
   // Load YouTube IFrame API
@@ -121,7 +143,7 @@ const Watch = () => {
     window.onYouTubeIframeAPIReady = () => setApiReady(true);
   }, []);
 
-  // Create player when API ready and film loaded
+  // Create player
   useEffect(() => {
     if (!apiReady || !film) return;
     const ytId = getYouTubeId(film.url);
@@ -150,7 +172,6 @@ const Watch = () => {
     return () => { clearInterval(intervalRef.current); };
   }, [apiReady, film]);
 
-  // Find current subtitle
   const currentSubtitle = subtitles.find(
     (s) => currentTime >= s.start && currentTime < s.end
   );
@@ -176,7 +197,6 @@ const Watch = () => {
 
   return (
     <div className="min-h-screen bg-black flex flex-col">
-      {/* Top bar */}
       <div className="flex items-center gap-3 p-4 bg-black/80 backdrop-blur z-20">
         <Button variant="ghost" size="icon" onClick={() => navigate("/")} className="text-white hover:bg-white/10">
           <ArrowLeft className="w-5 h-5" />
@@ -201,19 +221,16 @@ const Watch = () => {
         </div>
       </div>
 
-      {/* Video container */}
       <div ref={containerRef} className="relative flex-1 flex flex-col items-center justify-center bg-black">
         <div className="w-full max-w-5xl aspect-video relative">
           <div id="yt-player" className="w-full h-full" />
 
-          {/* Caption status */}
           {captionsError && (
             <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-destructive/80 text-destructive-foreground text-sm px-4 py-2 rounded-lg">
               {captionsError}
             </div>
           )}
 
-          {/* Subtitle overlay */}
           {currentSubtitle && (
             <div className="absolute bottom-2 left-0 right-0 px-4 z-10 pointer-events-auto">
               <SubtitleOverlay
