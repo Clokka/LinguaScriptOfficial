@@ -80,6 +80,7 @@ export type Database = {
           end_time: number
           film_id: string
           id: string
+          language: string
           sort_order: number
           start_time: number
           text: string
@@ -90,6 +91,7 @@ export type Database = {
           end_time: number
           film_id: string
           id?: string
+          language?: string
           sort_order?: number
           start_time: number
           text: string
@@ -100,6 +102,7 @@ export type Database = {
           end_time?: number
           film_id?: string
           id?: string
+          language?: string
           sort_order?: number
           start_time?: number
           text?: string
