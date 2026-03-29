@@ -204,27 +204,48 @@ const Admin = () => {
             </SelectContent>
           </Select>
 
-          {/* SRT Upload */}
+          {/* French SRT Upload */}
           <div className="space-y-2">
             <label className="text-sm text-muted-foreground flex items-center gap-2">
-              <FileText className="w-4 h-4" /> Subtitle File (.srt) — optional
+              <FileText className="w-4 h-4" /> 🇫🇷 French Subtitles (.srt) — optional
             </label>
             <div className="flex items-center gap-3">
               <Input
-                ref={fileInputRef}
+                ref={fileInputRefFr}
                 type="file"
                 accept=".srt"
-                onChange={(e) => setSrtFile(e.target.files?.[0] ?? null)}
+                onChange={(e) => setSrtFileFr(e.target.files?.[0] ?? null)}
                 className="bg-secondary/50 border-border"
               />
-              {srtFile && (
+              {srtFileFr && (
                 <span className="text-xs text-primary flex items-center gap-1 whitespace-nowrap">
-                  <Check className="w-3 h-3" /> {srtFile.name}
+                  <Check className="w-3 h-3" /> {srtFileFr.name}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* English SRT Upload */}
+          <div className="space-y-2">
+            <label className="text-sm text-muted-foreground flex items-center gap-2">
+              <FileText className="w-4 h-4" /> 🇬🇧 English Subtitles (.srt) — optional
+            </label>
+            <div className="flex items-center gap-3">
+              <Input
+                ref={fileInputRefEn}
+                type="file"
+                accept=".srt"
+                onChange={(e) => setSrtFileEn(e.target.files?.[0] ?? null)}
+                className="bg-secondary/50 border-border"
+              />
+              {srtFileEn && (
+                <span className="text-xs text-primary flex items-center gap-1 whitespace-nowrap">
+                  <Check className="w-3 h-3" /> {srtFileEn.name}
                 </span>
               )}
             </div>
             <p className="text-xs text-muted-foreground">
-              Upload an .srt file for accurate subtitles. If not provided, we'll try to fetch from YouTube.
+              Upload .srt files per language. If not provided, we'll try to fetch from YouTube.
             </p>
           </div>
 
