@@ -8,7 +8,6 @@ import Landing from "./pages/Landing";
 import Browse from "./pages/Browse";
 import Auth from "./pages/Auth";
 import Profile from "./pages/Profile";
-import Admin from "./pages/Admin";
 import Watch from "./pages/Watch";
 import NotFound from "./pages/NotFound";
 
@@ -26,7 +25,6 @@ const App = () => (
             <Route path="/browse" element={<Browse />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/profile" element={<Profile />} />
-            <Route path="/admin" element={<Admin />} />
             <Route path="/watch/:id" element={<Watch />} />
             <Route path="*" element={<NotFound />} />
           </Routes>

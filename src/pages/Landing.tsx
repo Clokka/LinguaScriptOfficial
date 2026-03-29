@@ -12,15 +12,22 @@ import {
   MousePointerClick,
   Eye,
   Zap,
+  Mail,
+  Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { NavBar } from "@/components/NavBar";
+import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { motion } from "framer-motion";
+import { useToast } from "@/hooks/use-toast";
 
 const Landing = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [filmCount, setFilmCount] = useState(0);
+  const [email, setEmail] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
 
   useEffect(() => {
     supabase
@@ -30,6 +37,25 @@ const Landing = () => {
         if (count !== null) setFilmCount(count);
       });
   }, []);
+
+  const handleEmailSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim()) return;
+    setSubmitting(true);
+    const { error } = await supabase.from("email_signups").insert({ email: email.trim().toLowerCase() });
+    if (error) {
+      if (error.code === "23505") {
+        toast({ title: "You're already on the list! 🎉" });
+        setSubmitted(true);
+      } else {
+        toast({ title: "Something went wrong", description: error.message, variant: "destructive" });
+      }
+    } else {
+      toast({ title: "You're in! 🚀", description: "We'll notify you when LinguaScript launches." });
+      setSubmitted(true);
+    }
+    setSubmitting(false);
+  };
 
   const fadeUp = {
     hidden: { opacity: 0, y: 30 },
@@ -44,7 +70,7 @@ const Landing = () => {
     {
       icon: Film,
       title: "Pick a Film",
-      description: "Browse our catalog of YouTube videos and films in your target language.",
+      description: "Paste any YouTube URL and LinguaScript fetches subtitles automatically.",
       color: "from-primary to-[hsl(280,100%,60%)]",
       glow: "shadow-glow-primary",
     },
@@ -102,13 +128,19 @@ const Landing = () => {
             </div>
             <span className="text-xl font-bold text-foreground">LinguaScript</span>
           </button>
-          <NavBar />
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="sm" onClick={() => navigate("/auth")} className="text-muted-foreground hover:text-foreground">
+              Sign In
+            </Button>
+            <Button size="sm" onClick={() => navigate("/browse")} className="bg-gradient-to-r from-primary to-[hsl(280,100%,60%)] text-primary-foreground">
+              Open App
+            </Button>
+          </div>
         </div>
       </nav>
 
       {/* Hero */}
       <section className="relative">
-        {/* Animated background blobs */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute -top-40 -left-40 w-[600px] h-[600px] rounded-full bg-primary/10 blur-[120px] animate-pulse" />
           <div className="absolute top-20 -right-40 w-[500px] h-[500px] rounded-full bg-accent/8 blur-[100px] animate-pulse" style={{ animationDelay: "1s" }} />
@@ -149,24 +181,63 @@ const Landing = () => {
             Click any word to hear pronunciation, see translations, and build vocabulary — naturally.
           </motion.p>
 
+          {/* Email Capture */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.3 }}
-            className="flex flex-col sm:flex-row items-center justify-center gap-4"
+            className="max-w-lg mx-auto mb-6"
+          >
+            {submitted ? (
+              <div className="flex items-center justify-center gap-3 h-14 rounded-full bg-success/10 border border-success/30 px-6">
+                <Check className="w-5 h-5 text-success" />
+                <span className="text-success font-medium">You're on the list! We'll be in touch.</span>
+              </div>
+            ) : (
+              <form onSubmit={handleEmailSubmit} className="flex gap-2">
+                <div className="relative flex-1">
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                  <Input
+                    type="email"
+                    placeholder="Enter your email for early access..."
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    className="h-14 pl-12 pr-4 rounded-full bg-secondary/50 border-border text-foreground placeholder:text-muted-foreground text-base"
+                  />
+                </div>
+                <Button
+                  type="submit"
+                  disabled={submitting}
+                  className="h-14 px-8 rounded-full bg-gradient-to-r from-primary via-[hsl(280,100%,60%)] to-accent shadow-glow-primary hover:shadow-glow-accent transition-all duration-500 hover:scale-105 text-primary-foreground font-semibold whitespace-nowrap"
+                >
+                  {submitting ? "..." : "Notify Me"}
+                </Button>
+              </form>
+            )}
+            <p className="text-xs text-muted-foreground mt-3">
+              Be first to know when LinguaScript officially launches. No spam, ever.
+            </p>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.5 }}
+            className="flex items-center justify-center gap-6 text-sm text-muted-foreground"
           >
             <Button
-              size="lg"
+              variant="ghost"
               onClick={() => navigate("/browse")}
-              className="h-14 px-10 text-lg rounded-full bg-gradient-to-r from-primary via-[hsl(280,100%,60%)] to-accent shadow-glow-primary hover:shadow-glow-accent transition-all duration-500 hover:scale-105 gap-3 text-primary-foreground font-semibold"
+              className="gap-2 text-primary hover:text-primary"
             >
-              <Play className="w-5 h-5" />
-              Learn with LinguaScript
-              <ArrowRight className="w-5 h-5" />
+              <Play className="w-4 h-4" />
+              Try the Demo
+              <ArrowRight className="w-4 h-4" />
             </Button>
             {filmCount > 0 && (
-              <span className="text-sm text-muted-foreground">
-                <span className="text-accent font-bold">{filmCount}</span> films available now
+              <span>
+                <span className="text-accent font-bold">{filmCount}</span> films available
               </span>
             )}
           </motion.div>
@@ -205,7 +276,6 @@ const Landing = () => {
               className="relative group"
             >
               <div className="glass-panel p-8 rounded-2xl h-full transition-all duration-500 hover:scale-[1.03] hover:-translate-y-2 border border-border hover:border-primary/30">
-                {/* Step number */}
                 <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${step.color} ${step.glow} flex items-center justify-center mb-6 transition-transform duration-500 group-hover:rotate-6`}>
                   <span className="text-xl font-bold text-primary-foreground">{i + 1}</span>
                 </div>
@@ -272,28 +342,31 @@ const Landing = () => {
           className="relative max-w-3xl mx-auto px-6 text-center"
         >
           <motion.h2 variants={fadeUp} custom={0} className="text-3xl sm:text-4xl font-bold text-foreground mb-4">
-            Ready to Start?
+            Ready to Start Learning?
           </motion.h2>
           <motion.p variants={fadeUp} custom={1} className="text-muted-foreground mb-10 max-w-xl mx-auto text-lg">
-            Jump in and explore our growing catalog of language-learning content.
+            Paste any YouTube link, get interactive subtitles instantly.
           </motion.p>
-          <motion.div variants={fadeUp} custom={2}>
+          <motion.div variants={fadeUp} custom={2} className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button
               size="lg"
               onClick={() => navigate("/browse")}
               className="h-14 px-10 text-lg rounded-full bg-gradient-to-r from-accent to-[hsl(45,100%,60%)] shadow-glow-accent hover:shadow-glow-primary transition-all duration-500 hover:scale-105 gap-3 text-accent-foreground font-semibold"
             >
-              Browse Catalog
+              <Play className="w-5 h-5" />
+              Open LinguaScript
               <ArrowRight className="w-5 h-5" />
             </Button>
           </motion.div>
-          {filmCount > 0 && (
-            <motion.p variants={fadeUp} custom={3} className="text-sm text-muted-foreground mt-6">
-              🎬 {filmCount} film{filmCount !== 1 ? "s" : ""} and growing
-            </motion.p>
-          )}
         </motion.div>
       </section>
+
+      {/* Footer */}
+      <footer className="border-t border-border py-8">
+        <div className="max-w-7xl mx-auto px-6 text-center text-sm text-muted-foreground">
+          © {new Date().getFullYear()} LinguaScript. Learn languages by watching films.
+        </div>
+      </footer>
     </div>
   );
 };
