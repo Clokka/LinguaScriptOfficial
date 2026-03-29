@@ -24,6 +24,7 @@ export const Flashcard = ({
   onIncorrect,
 }: FlashcardProps) => {
   const [isFlipped, setIsFlipped] = useState(false);
+  const { speak } = useLanguage();
 
   const handleFlip = () => setIsFlipped(!isFlipped);
 
