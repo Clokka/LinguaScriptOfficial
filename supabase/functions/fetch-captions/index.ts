@@ -10,12 +10,6 @@ function getYouTubeId(url: string): string | null {
   return match ? match[1] : null;
 }
 
-function parseTimestamp(ts: string): number {
-  // YouTube caption timestamps: "PT1M23.456S" or "12.345" or "00:01:23.456"
-  // timedtext XML uses seconds like "1.234"
-  return parseFloat(ts) || 0;
-}
-
 interface CaptionEntry {
   start: number;
   dur: number;
