@@ -62,7 +62,7 @@ const Admin = () => {
     setLoading(false);
   };
 
-  const parseSrtAndUpload = async (filmId: string, file: File) => {
+  const parseSrtAndUpload = async (filmId: string, file: File, lang: string) => {
     const content = await file.text();
     const entries = parseSrt(content);
 
@@ -71,8 +71,8 @@ const Admin = () => {
       return false;
     }
 
-    // Delete existing subtitles for this film
-    await supabase.from("subtitles").delete().eq("film_id", filmId);
+    // Delete existing subtitles for this film + language
+    await supabase.from("subtitles").delete().eq("film_id", filmId).eq("language", lang);
 
     // Insert in batches of 100
     for (let i = 0; i < entries.length; i += 100) {
@@ -82,6 +82,7 @@ const Admin = () => {
         end_time: entry.endTime,
         text: entry.text,
         sort_order: i + idx,
+        language: lang,
       }));
       const { error } = await supabase.from("subtitles").insert(batch);
       if (error) {
@@ -90,7 +91,7 @@ const Admin = () => {
       }
     }
 
-    toast({ title: `${entries.length} subtitles uploaded!` });
+    toast({ title: `${entries.length} ${lang.toUpperCase()} subtitles uploaded!` });
     return true;
   };
 
