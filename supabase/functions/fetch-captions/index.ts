@@ -33,7 +33,11 @@ async function fetchViaYouTubeAPI(videoId: string, lang: string, apiKey: string)
     // List captions for the video
     const listUrl = `https://www.googleapis.com/youtube/v3/captions?part=snippet&videoId=${videoId}&key=${apiKey}`;
     console.log('YouTube API: listing captions for', videoId);
-    const listRes = await fetch(listUrl);
+    const listRes = await fetch(listUrl, {
+      headers: {
+        'Referer': 'https://subtitle-mastery.lovable.app',
+      },
+    });
     
     if (!listRes.ok) {
       const errText = await listRes.text();
