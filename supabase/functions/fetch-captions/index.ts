@@ -44,30 +44,6 @@ async function fetchCaptionsFromTimedText(videoId: string, lang: string): Promis
   return entries;
 }
 
-async function fetchCaptionsViaAPI(videoId: string, lang: string, apiKey: string): Promise<CaptionEntry[]> {
-  // Step 1: List available caption tracks
-  const listUrl = `https://www.googleapis.com/youtube/v3/captions?part=snippet&videoId=${videoId}&key=${apiKey}`;
-  const listRes = await fetch(listUrl);
-  if (!listRes.ok) {
-    console.error("Caption list failed:", await listRes.text());
-    return [];
-  }
-  const listData = await listRes.json();
-  
-  // Find matching language track
-  const track = listData.items?.find((item: any) => 
-    item.snippet.language === lang || item.snippet.language.startsWith(lang)
-  );
-  
-  if (!track) {
-    console.log("No caption track found for language:", lang, "Available:", listData.items?.map((i: any) => i.snippet.language));
-    return [];
-  }
-
-  // Note: Downloading captions requires OAuth, so we fall back to timedtext
-  return [];
-}
-
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
