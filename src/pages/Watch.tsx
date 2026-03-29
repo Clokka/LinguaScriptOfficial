@@ -1,11 +1,10 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SubtitleOverlay } from "@/components/SubtitleOverlay";
 import { DifficultyStars } from "@/components/DifficultyStars";
 import { supabase } from "@/integrations/supabase/client";
-import { cn } from "@/lib/utils";
 import { getLanguageLabel, getLanguageFlag } from "@/lib/languages";
 
 interface FilmData {
@@ -16,7 +15,13 @@ interface FilmData {
   thumbnail_url: string | null;
 }
 
-interface SubtitleEntry {
+interface CaptionEntry {
+  start: number;
+  end: number;
+  text: string;
+}
+
+interface DisplaySubtitle {
   start: number;
   end: number;
   primary: string;
@@ -24,10 +29,29 @@ interface SubtitleEntry {
   words: { id: string; text: string; translation: string; pronunciation: string; ipa: string }[];
 }
 
-
 function getYouTubeId(url: string): string | null {
   const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?.*v=|embed\/|v\/))([^&?\s]+)/);
   return match ? match[1] : null;
+}
+
+function captionsToSubtitles(captions: CaptionEntry[]): DisplaySubtitle[] {
+  return captions.map((c, i) => {
+    const textWords = c.text.split(/\s+/).filter(Boolean);
+    const words = textWords.map((w, wi) => ({
+      id: `${i}-${wi}`,
+      text: w.replace(/[.,!?;:]/g, ""),
+      translation: "",
+      pronunciation: "",
+      ipa: "",
+    }));
+    return {
+      start: c.start,
+      end: c.end,
+      primary: c.text,
+      secondary: "",
+      words,
+    };
+  });
 }
 
 declare global {
@@ -49,6 +73,9 @@ const Watch = () => {
   const [currentTime, setCurrentTime] = useState(0);
   const [subtitleMode, setSubtitleMode] = useState<"single" | "dual">("dual");
   const [apiReady, setApiReady] = useState(!!window.YT?.Player);
+  const [subtitles, setSubtitles] = useState<DisplaySubtitle[]>([]);
+  const [captionsLoading, setCaptionsLoading] = useState(false);
+  const [captionsError, setCaptionsError] = useState<string | null>(null);
 
   // Load film data
   useEffect(() => {
@@ -58,6 +85,32 @@ const Watch = () => {
       setLoading(false);
     });
   }, [id]);
+
+  // Fetch captions when film loads
+  useEffect(() => {
+    if (!film) return;
+    const ytId = getYouTubeId(film.url);
+    if (!ytId) return;
+
+    setCaptionsLoading(true);
+    setCaptionsError(null);
+
+    supabase.functions.invoke("fetch-captions", {
+      body: { videoId: ytId, language: film.language || "fr" },
+    }).then(({ data, error }) => {
+      setCaptionsLoading(false);
+      if (error) {
+        console.error("Caption fetch error:", error);
+        setCaptionsError("Could not load captions");
+        return;
+      }
+      if (data?.subtitles?.length) {
+        setSubtitles(captionsToSubtitles(data.subtitles));
+      } else {
+        setCaptionsError("No captions available for this video");
+      }
+    });
+  }, [film]);
 
   // Load YouTube IFrame API
   useEffect(() => {
@@ -98,7 +151,7 @@ const Watch = () => {
   }, [apiReady, film]);
 
   // Find current subtitle
-  const currentSubtitle = frenchSubtitles.find(
+  const currentSubtitle = subtitles.find(
     (s) => currentTime >= s.start && currentTime < s.end
   );
 
@@ -135,6 +188,7 @@ const Watch = () => {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {captionsLoading && <Loader2 className="w-4 h-4 text-white/60 animate-spin" />}
           <Button
             variant={subtitleMode === "dual" ? "default" : "ghost"}
             size="sm"
@@ -151,6 +205,13 @@ const Watch = () => {
       <div ref={containerRef} className="relative flex-1 flex flex-col items-center justify-center bg-black">
         <div className="w-full max-w-5xl aspect-video relative">
           <div id="yt-player" className="w-full h-full" />
+
+          {/* Caption status */}
+          {captionsError && (
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-destructive/80 text-destructive-foreground text-sm px-4 py-2 rounded-lg">
+              {captionsError}
+            </div>
+          )}
 
           {/* Subtitle overlay */}
           {currentSubtitle && (
