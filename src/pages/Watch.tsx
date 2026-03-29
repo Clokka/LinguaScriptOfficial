@@ -77,83 +77,92 @@ const Watch = () => {
     setCaptionsLoading(true);
     setCaptionsError(null);
 
-    // Try DB subtitles first
-    supabase
-      .from("subtitles")
-      .select("*")
-      .eq("film_id", film.id)
-      .order("sort_order", { ascending: true })
-      .then(({ data: dbSubs, error: dbErr }) => {
-        if (!dbErr && dbSubs && dbSubs.length > 0) {
-          // Use database subtitles
-          const display: DisplaySubtitle[] = dbSubs.map((s, i) => ({
+    // Try DB subtitles first - get primary (film language) and secondary (English) tracks
+    const filmLang = film.language || "fr";
+    const secondaryLang = "en";
+
+    Promise.all([
+      supabase.from("subtitles").select("*").eq("film_id", film.id).eq("language", filmLang).order("sort_order", { ascending: true }),
+      supabase.from("subtitles").select("*").eq("film_id", film.id).eq("language", secondaryLang).order("sort_order", { ascending: true }),
+    ]).then(([primaryRes, secondaryRes]) => {
+      const primarySubs = primaryRes.data || [];
+      const secondarySubs = secondaryRes.data || [];
+
+      if (primarySubs.length > 0) {
+        const display: DisplaySubtitle[] = primarySubs.map((s, i) => {
+          // Find matching secondary subtitle by time overlap
+          const match = secondarySubs.find(
+            (t) => Math.abs(t.start_time - s.start_time) < 1.5
+          );
+          return {
             start: s.start_time,
             end: s.end_time,
             primary: s.text,
-            secondary: s.translation || "",
+            secondary: match?.text || s.translation || "",
             words: textToWords(s.text, i),
-          }));
-          setSubtitles(display);
-          setCaptionsLoading(false);
-          return;
-        }
+          };
+        });
+        setSubtitles(display);
+        setCaptionsLoading(false);
+        return;
+      }
 
-        // Fallback: fetch from YouTube via edge function
-        const ytId = getYouTubeId(film.url);
-        if (!ytId) {
-          setCaptionsLoading(false);
-          setCaptionsError("No subtitles available");
-          return;
-        }
+      // Fallback: fetch from YouTube via edge function
+      const ytId = getYouTubeId(film.url);
+      if (!ytId) {
+        setCaptionsLoading(false);
+        setCaptionsError("No subtitles available");
+        return;
+      }
 
-        supabase.functions
-          .invoke("fetch-captions", {
-            body: { videoId: ytId, language: film.language || "fr" },
-          })
-          .then(async ({ data, error }) => {
-            if (error) {
-              setCaptionsLoading(false);
-              setCaptionsError("Could not load captions");
-              return;
-            }
-            if (data?.subtitles?.length) {
-              const display: DisplaySubtitle[] = data.subtitles.map(
-                (c: any, i: number) => ({
-                  start: c.start,
-                  end: c.end,
-                  primary: c.text,
-                  secondary: "",
-                  words: textToWords(c.text, i),
+      supabase.functions
+        .invoke("fetch-captions", {
+          body: { videoId: ytId, language: film.language || "fr" },
+        })
+        .then(async ({ data, error }) => {
+          if (error) {
+            setCaptionsLoading(false);
+            setCaptionsError("Could not load captions");
+            return;
+          }
+          if (data?.subtitles?.length) {
+            const display: DisplaySubtitle[] = data.subtitles.map(
+              (c: any, i: number) => ({
+                start: c.start,
+                end: c.end,
+                primary: c.text,
+                secondary: "",
+                words: textToWords(c.text, i),
+              })
+            );
+            setSubtitles(display);
+            setCaptionsLoading(false);
+
+            // Translate in background
+            const filmLangLabel = getLanguageLabel(film.language || "fr");
+            const userLang = "English";
+            if (filmLangLabel.toLowerCase() !== userLang.toLowerCase()) {
+              supabase.functions
+                .invoke("translate-subtitles", {
+                  body: { subtitles: data.subtitles, fromLanguage: filmLangLabel, toLanguage: userLang },
                 })
-              );
-              setSubtitles(display);
-              setCaptionsLoading(false);
-
-              // Translate in background
-              const filmLang = getLanguageLabel(film.language || "fr");
-              const userLang = "English"; // TODO: use profile's native_language
-              if (filmLang.toLowerCase() !== userLang.toLowerCase()) {
-                supabase.functions
-                  .invoke("translate-subtitles", {
-                    body: { subtitles: data.subtitles, fromLanguage: filmLang, toLanguage: userLang },
-                  })
-                  .then(({ data: transData }) => {
-                    if (transData?.translations) {
-                      setSubtitles((prev) =>
-                        prev.map((s, i) => ({
-                          ...s,
-                          secondary: transData.translations[i]?.translation || "",
-                        }))
-                      );
-                    }
-                  });
-              }
-            } else {
-              setCaptionsLoading(false);
-              setCaptionsError("No captions available for this video");
+                .then(({ data: transData }) => {
+                  if (transData?.translations) {
+                    setSubtitles((prev) =>
+                      prev.map((s, i) => ({
+                        ...s,
+                        secondary: transData.translations[i]?.translation || "",
+                      }))
+                    );
+                  }
+                });
             }
-          });
-      });
+          } else {
+            setCaptionsLoading(false);
+            setCaptionsError("No captions available for this video");
+          }
+        });
+    });
   }, [film]);
 
   // Load YouTube IFrame API

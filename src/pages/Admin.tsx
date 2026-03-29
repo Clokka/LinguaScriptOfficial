@@ -23,6 +23,7 @@ interface FilmRow {
   thumbnail_url: string | null;
   created_at: string;
   subtitle_count?: number;
+  subtitle_languages?: string[];
 }
 
 const Admin = () => {
@@ -33,10 +34,11 @@ const Admin = () => {
   const [thumbnailUrl, setThumbnailUrl] = useState("");
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
-  const [srtFile, setSrtFile] = useState<File | null>(null);
+  const [srtFileFr, setSrtFileFr] = useState<File | null>(null);
+  const [srtFileEn, setSrtFileEn] = useState<File | null>(null);
   const [uploadingSubsFor, setUploadingSubsFor] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const existingFileInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRefFr = useRef<HTMLInputElement>(null);
+  const fileInputRefEn = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -47,22 +49,26 @@ const Admin = () => {
   const fetchFilms = async () => {
     const { data } = await supabase.from("films").select("*").order("created_at", { ascending: false });
     if (data) {
-      // Get subtitle counts
       const filmsWithCounts = await Promise.all(
         data.map(async (film) => {
-          const { count } = await supabase
+          const { data: langCounts } = await supabase
             .from("subtitles")
-            .select("*", { count: "exact", head: true })
+            .select("language")
             .eq("film_id", film.id);
-          return { ...film, subtitle_count: count ?? 0 };
+          const langs = new Set((langCounts || []).map((s: { language: string }) => s.language));
+          return {
+            ...film,
+            subtitle_count: langCounts?.length ?? 0,
+            subtitle_languages: Array.from(langs),
+          };
         })
       );
-      setFilms(filmsWithCounts);
+      setFilms(filmsWithCounts as any);
     }
     setLoading(false);
   };
 
-  const parseSrtAndUpload = async (filmId: string, file: File) => {
+  const parseSrtAndUpload = async (filmId: string, file: File, lang: string) => {
     const content = await file.text();
     const entries = parseSrt(content);
 
@@ -71,8 +77,8 @@ const Admin = () => {
       return false;
     }
 
-    // Delete existing subtitles for this film
-    await supabase.from("subtitles").delete().eq("film_id", filmId);
+    // Delete existing subtitles for this film + language
+    await supabase.from("subtitles").delete().eq("film_id", filmId).eq("language", lang);
 
     // Insert in batches of 100
     for (let i = 0; i < entries.length; i += 100) {
@@ -82,6 +88,7 @@ const Admin = () => {
         end_time: entry.endTime,
         text: entry.text,
         sort_order: i + idx,
+        language: lang,
       }));
       const { error } = await supabase.from("subtitles").insert(batch);
       if (error) {
@@ -90,7 +97,7 @@ const Admin = () => {
       }
     }
 
-    toast({ title: `${entries.length} subtitles uploaded!` });
+    toast({ title: `${entries.length} ${lang.toUpperCase()} subtitles uploaded!` });
     return true;
   };
 
@@ -117,24 +124,28 @@ const Admin = () => {
     if (error) {
       toast({ title: "Error adding film", description: error.message, variant: "destructive" });
     } else {
-      // Upload SRT if provided
-      if (srtFile && data) {
-        await parseSrtAndUpload(data.id, srtFile);
+      if (srtFileFr && data) {
+        await parseSrtAndUpload(data.id, srtFileFr, "fr");
+      }
+      if (srtFileEn && data) {
+        await parseSrtAndUpload(data.id, srtFileEn, "en");
       }
       toast({ title: "Film added!" });
       setTitle("");
       setUrl("");
       setThumbnailUrl("");
-      setSrtFile(null);
-      if (fileInputRef.current) fileInputRef.current.value = "";
+      setSrtFileFr(null);
+      setSrtFileEn(null);
+      if (fileInputRefFr.current) fileInputRefFr.current.value = "";
+      if (fileInputRefEn.current) fileInputRefEn.current.value = "";
       fetchFilms();
     }
     setAdding(false);
   };
 
-  const handleUploadSubsForExisting = async (filmId: string, file: File) => {
+  const handleUploadSubsForExisting = async (filmId: string, file: File, lang: string) => {
     setUploadingSubsFor(filmId);
-    await parseSrtAndUpload(filmId, file);
+    await parseSrtAndUpload(filmId, file, lang);
     setUploadingSubsFor(null);
     fetchFilms();
   };
@@ -193,27 +204,48 @@ const Admin = () => {
             </SelectContent>
           </Select>
 
-          {/* SRT Upload */}
+          {/* French SRT Upload */}
           <div className="space-y-2">
             <label className="text-sm text-muted-foreground flex items-center gap-2">
-              <FileText className="w-4 h-4" /> Subtitle File (.srt) — optional
+              <FileText className="w-4 h-4" /> 🇫🇷 French Subtitles (.srt) — optional
             </label>
             <div className="flex items-center gap-3">
               <Input
-                ref={fileInputRef}
+                ref={fileInputRefFr}
                 type="file"
                 accept=".srt"
-                onChange={(e) => setSrtFile(e.target.files?.[0] ?? null)}
+                onChange={(e) => setSrtFileFr(e.target.files?.[0] ?? null)}
                 className="bg-secondary/50 border-border"
               />
-              {srtFile && (
+              {srtFileFr && (
                 <span className="text-xs text-primary flex items-center gap-1 whitespace-nowrap">
-                  <Check className="w-3 h-3" /> {srtFile.name}
+                  <Check className="w-3 h-3" /> {srtFileFr.name}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* English SRT Upload */}
+          <div className="space-y-2">
+            <label className="text-sm text-muted-foreground flex items-center gap-2">
+              <FileText className="w-4 h-4" /> 🇬🇧 English Subtitles (.srt) — optional
+            </label>
+            <div className="flex items-center gap-3">
+              <Input
+                ref={fileInputRefEn}
+                type="file"
+                accept=".srt"
+                onChange={(e) => setSrtFileEn(e.target.files?.[0] ?? null)}
+                className="bg-secondary/50 border-border"
+              />
+              {srtFileEn && (
+                <span className="text-xs text-primary flex items-center gap-1 whitespace-nowrap">
+                  <Check className="w-3 h-3" /> {srtFileEn.name}
                 </span>
               )}
             </div>
             <p className="text-xs text-muted-foreground">
-              Upload an .srt file for accurate subtitles. If not provided, we'll try to fetch from YouTube.
+              Upload .srt files per language. If not provided, we'll try to fetch from YouTube.
             </p>
           </div>
 
@@ -262,47 +294,53 @@ const Admin = () => {
                     <Trash2 className="w-4 h-4 text-destructive" />
                   </Button>
                 </div>
-                {/* Subtitle status + upload */}
-                <div className="flex items-center justify-between pl-20">
-                  <span className="text-xs text-muted-foreground">
-                    {(film.subtitle_count ?? 0) > 0 ? (
-                      <span className="text-primary">✓ {film.subtitle_count} subtitles loaded</span>
+                {/* Subtitle status + per-language upload */}
+                <div className="flex flex-col gap-2 pl-20">
+                  <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                    {(film.subtitle_languages ?? []).length > 0 ? (
+                      <span className="text-primary">
+                        ✓ Subtitles: {(film.subtitle_languages ?? []).map(l => l.toUpperCase()).join(", ")}
+                      </span>
                     ) : (
                       "No subtitles uploaded"
                     )}
-                  </span>
-                  <div>
-                    <input
-                      ref={existingFileInputRef}
-                      type="file"
-                      accept=".srt"
-                      className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) handleUploadSubsForExisting(film.id, file);
-                        e.target.value = "";
-                      }}
-                    />
-                    <Button
-                      variant="glass"
-                      size="sm"
-                      className="gap-1 text-xs"
-                      disabled={uploadingSubsFor === film.id}
-                      onClick={() => {
-                        existingFileInputRef.current?.click();
-                        // Store film ID for the handler
-                        if (existingFileInputRef.current) {
-                          existingFileInputRef.current.dataset.filmId = film.id;
-                        }
-                      }}
-                    >
-                      {uploadingSubsFor === film.id ? (
-                        <Loader2 className="w-3 h-3 animate-spin" />
-                      ) : (
-                        <Upload className="w-3 h-3" />
-                      )}
-                      {(film.subtitle_count ?? 0) > 0 ? "Replace SRT" : "Upload SRT"}
-                    </Button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {["fr", "en"].map((lang) => {
+                      const hasLang = (film.subtitle_languages ?? []).includes(lang);
+                      const langLabel = lang === "fr" ? "🇫🇷 FR" : "🇬🇧 EN";
+                      return (
+                        <div key={lang}>
+                          <input
+                            type="file"
+                            accept=".srt"
+                            className="hidden"
+                            id={`srt-${film.id}-${lang}`}
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) handleUploadSubsForExisting(film.id, file, lang);
+                              e.target.value = "";
+                            }}
+                          />
+                          <Button
+                            variant="glass"
+                            size="sm"
+                            className="gap-1 text-xs"
+                            disabled={uploadingSubsFor === film.id}
+                            onClick={() => {
+                              document.getElementById(`srt-${film.id}-${lang}`)?.click();
+                            }}
+                          >
+                            {uploadingSubsFor === film.id ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : (
+                              <Upload className="w-3 h-3" />
+                            )}
+                            {hasLang ? `Replace ${langLabel}` : `Upload ${langLabel}`}
+                          </Button>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
