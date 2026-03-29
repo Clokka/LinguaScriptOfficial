@@ -1,6 +1,7 @@
 import { X, Volume2, BookmarkPlus, RotateCcw } from "lucide-react";
 import { Button } from "./ui/button";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface Word {
   id: string;
