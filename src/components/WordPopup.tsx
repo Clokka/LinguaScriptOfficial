@@ -56,12 +56,7 @@ export const WordPopup = ({ word, position, onClose, onSave }: WordPopupProps) =
             <Button
               variant="glass"
               size="icon-sm"
-              onClick={() => {
-                // Play pronunciation
-                const utterance = new SpeechSynthesisUtterance(word.text);
-                utterance.lang = "es-ES";
-                speechSynthesis.speak(utterance);
-              }}
+              onClick={() => speak(word.text)}
             >
               <Volume2 className="w-4 h-4" />
             </Button>

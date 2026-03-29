@@ -56,9 +56,7 @@ export const Flashcard = ({
             className="mt-4"
             onClick={(e) => {
               e.stopPropagation();
-              const utterance = new SpeechSynthesisUtterance(word);
-              utterance.lang = "es-ES";
-              speechSynthesis.speak(utterance);
+              speak(word);
             }}
           >
             <Volume2 className="w-5 h-5" />
