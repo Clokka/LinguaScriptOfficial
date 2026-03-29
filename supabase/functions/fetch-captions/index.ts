@@ -27,81 +27,176 @@ function parseXmlSubtitles(xmlText: string): { start: number; end: number; text:
   return subtitles;
 }
 
+// Method 1: Use YouTube Data API v3 to get caption tracks, then download via timedtext
+async function fetchViaYouTubeAPI(videoId: string, lang: string, apiKey: string): Promise<{ subtitles: any[]; source: string } | null> {
+  try {
+    // List captions for the video
+    const listUrl = `https://www.googleapis.com/youtube/v3/captions?part=snippet&videoId=${videoId}&key=${apiKey}`;
+    console.log('YouTube API: listing captions for', videoId);
+    const listRes = await fetch(listUrl);
+    
+    if (!listRes.ok) {
+      const errText = await listRes.text();
+      console.error('YouTube API list error:', listRes.status, errText);
+      return null;
+    }
+
+    const listData = await listRes.json();
+    const items = listData.items || [];
+    console.log('YouTube API: found', items.length, 'caption tracks:', items.map((i: any) => `${i.snippet.language} (${i.snippet.trackKind})`));
+
+    if (items.length === 0) return null;
+
+    // Find best matching track
+    let track = items.find((i: any) => i.snippet.language === lang);
+    if (!track) {
+      track = items.find((i: any) => i.snippet.language.startsWith(lang));
+    }
+    if (!track) {
+      // Prefer non-ASR tracks
+      track = items.find((i: any) => i.snippet.trackKind !== 'ASR') || items[0];
+    }
+
+    const trackLang = track.snippet.language;
+    const trackKind = track.snippet.trackKind;
+    console.log('YouTube API: selected track:', trackLang, trackKind);
+
+    // Download via timedtext endpoint (doesn't require OAuth, works with video captions)
+    const timedtextUrl = `https://www.youtube.com/api/timedtext?v=${videoId}&lang=${trackLang}&fmt=srv3${trackKind === 'ASR' ? '&kind=asr' : ''}`;
+    const ttRes = await fetch(timedtextUrl);
+    if (ttRes.ok) {
+      const xmlText = await ttRes.text();
+      const subtitles = parseXmlSubtitles(xmlText);
+      if (subtitles.length > 0) {
+        return { subtitles, source: trackKind === 'ASR' ? 'auto-generated' : 'manual' };
+      }
+    }
+
+    return null;
+  } catch (e) {
+    console.error('YouTube API error:', e);
+    return null;
+  }
+}
+
+// Method 2: Direct timedtext endpoints (no API key needed)
+async function fetchViaTimedtext(videoId: string, lang: string): Promise<{ subtitles: any[]; source: string } | null> {
+  // Try manual captions
+  const url1 = `https://www.youtube.com/api/timedtext?v=${videoId}&lang=${lang}&fmt=srv3`;
+  console.log('Timedtext: trying manual captions for', lang);
+  const res1 = await fetch(url1);
+  if (res1.ok) {
+    const xml = await res1.text();
+    const subs = parseXmlSubtitles(xml);
+    if (subs.length > 0) return { subtitles: subs, source: 'timedtext' };
+  } else {
+    await res1.text(); // consume
+  }
+
+  // Try auto-generated
+  const url2 = `https://www.youtube.com/api/timedtext?v=${videoId}&lang=${lang}&fmt=srv3&kind=asr`;
+  console.log('Timedtext: trying ASR captions for', lang);
+  const res2 = await fetch(url2);
+  if (res2.ok) {
+    const xml = await res2.text();
+    const subs = parseXmlSubtitles(xml);
+    if (subs.length > 0) return { subtitles: subs, source: 'auto-generated' };
+  } else {
+    await res2.text();
+  }
+
+  // Try English as fallback
+  if (lang !== 'en') {
+    const url3 = `https://www.youtube.com/api/timedtext?v=${videoId}&lang=en&fmt=srv3`;
+    console.log('Timedtext: trying English fallback');
+    const res3 = await fetch(url3);
+    if (res3.ok) {
+      const xml = await res3.text();
+      const subs = parseXmlSubtitles(xml);
+      if (subs.length > 0) return { subtitles: subs, source: 'timedtext-en-fallback' };
+    } else {
+      await res3.text();
+    }
+
+    const url4 = `https://www.youtube.com/api/timedtext?v=${videoId}&lang=en&fmt=srv3&kind=asr`;
+    const res4 = await fetch(url4);
+    if (res4.ok) {
+      const xml = await res4.text();
+      const subs = parseXmlSubtitles(xml);
+      if (subs.length > 0) return { subtitles: subs, source: 'auto-generated-en-fallback' };
+    } else {
+      await res4.text();
+    }
+  }
+
+  return null;
+}
+
+// Method 3: Scrape YouTube page for caption URLs
 async function scrapeYouTubeCaptions(videoId: string, lang: string): Promise<{ subtitles: any[]; source: string } | null> {
   try {
-    // Fetch the YouTube watch page
     const pageUrl = `https://www.youtube.com/watch?v=${videoId}`;
     const res = await fetch(pageUrl, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
         'Accept-Language': 'en-US,en;q=0.9',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
       },
     });
 
     if (!res.ok) {
-      console.error('Failed to fetch YouTube page:', res.status);
+      console.error('Scrape: page fetch failed:', res.status);
       return null;
     }
 
     const html = await res.text();
+    
+    // Try multiple patterns to find caption data
+    const patterns = [
+      /ytInitialPlayerResponse\s*=\s*(\{.+?\})\s*;/s,
+      /"captions"\s*:\s*(\{.+?\})\s*,\s*"videoDetails"/s,
+    ];
 
-    // Extract ytInitialPlayerResponse from page HTML
-    const playerMatch = html.match(/ytInitialPlayerResponse\s*=\s*(\{.+?\});/s);
-    if (!playerMatch) {
-      console.log('Could not find ytInitialPlayerResponse in page');
-      return null;
+    let captionTracks: any[] | null = null;
+
+    for (const pattern of patterns) {
+      const match = html.match(pattern);
+      if (match) {
+        try {
+          const data = JSON.parse(match[1]);
+          captionTracks = data?.captions?.playerCaptionsTracklistRenderer?.captionTracks 
+            || data?.playerCaptionsTracklistRenderer?.captionTracks;
+          if (captionTracks) break;
+        } catch {
+          continue;
+        }
+      }
     }
 
-    let playerData;
-    try {
-      playerData = JSON.parse(playerMatch[1]);
-    } catch (e) {
-      console.error('Failed to parse player response JSON');
-      return null;
-    }
-
-    const captionTracks = playerData?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
     if (!captionTracks || captionTracks.length === 0) {
-      console.log('No caption tracks found in player data');
+      console.log('Scrape: no caption tracks found');
       return null;
     }
 
-    console.log('Found caption tracks:', captionTracks.map((t: any) => t.languageCode));
+    console.log('Scrape: found tracks:', captionTracks.map((t: any) => t.languageCode));
 
-    // Find matching language track, or fall back to first available
-    let track = captionTracks.find((t: any) => t.languageCode === lang);
-    if (!track) {
-      // Try partial match (e.g., 'fr' matches 'fr-FR')
-      track = captionTracks.find((t: any) => t.languageCode.startsWith(lang));
-    }
-    if (!track) {
-      // Use first available track
-      track = captionTracks[0];
-      console.log(`No ${lang} track found, using ${track.languageCode}`);
-    }
+    let track = captionTracks.find((t: any) => t.languageCode === lang)
+      || captionTracks.find((t: any) => t.languageCode.startsWith(lang))
+      || captionTracks[0];
 
-    // Fetch the caption track XML
     let captionUrl = track.baseUrl;
-    // Ensure we get srv3 format
-    if (!captionUrl.includes('fmt=')) {
-      captionUrl += '&fmt=srv3';
-    }
+    if (!captionUrl.includes('fmt=')) captionUrl += '&fmt=srv3';
 
-    console.log('Fetching caption track:', track.languageCode);
     const captionRes = await fetch(captionUrl);
     if (!captionRes.ok) {
-      console.error('Failed to fetch caption track:', captionRes.status);
+      console.error('Scrape: caption download failed:', captionRes.status);
       return null;
     }
 
     const xmlText = await captionRes.text();
     const subtitles = parseXmlSubtitles(xmlText);
-
     if (subtitles.length > 0) {
-      return {
-        subtitles,
-        source: track.kind === 'asr' ? 'auto-generated' : 'manual',
-      };
+      return { subtitles, source: track.kind === 'asr' ? 'auto-generated' : 'manual' };
     }
 
     return null;
@@ -119,45 +214,41 @@ serve(async (req) => {
   try {
     const { videoId, language } = await req.json();
     if (!videoId) {
-      return new Response(JSON.stringify({ error: 'videoId required' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({ error: 'videoId required' }), { 
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      });
     }
 
     const lang = language || 'fr';
+    const apiKey = Deno.env.get('YOUTUBE_API_KEY');
 
-    // Method 1: Scrape YouTube page for caption track URLs (most reliable)
-    console.log(`Attempting page scrape for ${videoId}, lang: ${lang}`);
-    const scraped = await scrapeYouTubeCaptions(videoId, lang);
-    if (scraped && scraped.subtitles.length > 0) {
-      return new Response(JSON.stringify({ subtitles: scraped.subtitles, language: lang, source: scraped.source }), {
+    // Method 1: YouTube Data API (most reliable when API key works)
+    if (apiKey) {
+      console.log(`[1/3] YouTube API for ${videoId}, lang: ${lang}`);
+      const result = await fetchViaYouTubeAPI(videoId, lang, apiKey);
+      if (result && result.subtitles.length > 0) {
+        return new Response(JSON.stringify({ subtitles: result.subtitles, language: lang, source: result.source }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+    }
+
+    // Method 2: Direct timedtext endpoints
+    console.log(`[2/3] Timedtext API for ${videoId}, lang: ${lang}`);
+    const ttResult = await fetchViaTimedtext(videoId, lang);
+    if (ttResult && ttResult.subtitles.length > 0) {
+      return new Response(JSON.stringify({ subtitles: ttResult.subtitles, language: lang, source: ttResult.source }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
 
-    // Method 2: Try public timedtext endpoint (fallback)
-    console.log('Page scrape failed, trying timedtext API...');
-    const timedtextUrl = `https://www.youtube.com/api/timedtext?v=${videoId}&lang=${lang}&fmt=srv3`;
-    const ttRes = await fetch(timedtextUrl);
-    if (ttRes.ok) {
-      const xmlText = await ttRes.text();
-      const subtitles = parseXmlSubtitles(xmlText);
-      if (subtitles.length > 0) {
-        return new Response(JSON.stringify({ subtitles, language: lang, source: 'timedtext' }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        });
-      }
-    }
-
-    // Method 3: Try auto-generated captions
-    const asrUrl = `https://www.youtube.com/api/timedtext?v=${videoId}&lang=${lang}&fmt=srv3&kind=asr`;
-    const asrRes = await fetch(asrUrl);
-    if (asrRes.ok) {
-      const xmlText = await asrRes.text();
-      const subtitles = parseXmlSubtitles(xmlText);
-      if (subtitles.length > 0) {
-        return new Response(JSON.stringify({ subtitles, language: lang, source: 'auto-generated' }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        });
-      }
+    // Method 3: Page scraping
+    console.log(`[3/3] Page scrape for ${videoId}, lang: ${lang}`);
+    const scrapeResult = await scrapeYouTubeCaptions(videoId, lang);
+    if (scrapeResult && scrapeResult.subtitles.length > 0) {
+      return new Response(JSON.stringify({ subtitles: scrapeResult.subtitles, language: lang, source: scrapeResult.source }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
     }
 
     return new Response(JSON.stringify({ subtitles: [], language: lang, source: 'none', message: 'No captions found for this video' }), {
@@ -167,8 +258,7 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error:', error);
     return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   }
 });
