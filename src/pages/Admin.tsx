@@ -164,7 +164,7 @@ const Admin = () => {
         </Button>
 
         <h1 className="text-3xl font-bold text-foreground mb-2">Admin Dashboard</h1>
-        <p className="text-muted-foreground mb-8">Add films and upload subtitle tracks (.srt files).</p>
+        <p className="text-muted-foreground mb-8">Add films and upload subtitle tracks, or let fetched YouTube captions auto-save here per film.</p>
 
         {/* Add Film Form */}
         <form onSubmit={addFilm} className="glass-panel-strong p-6 space-y-4 mb-8">
@@ -245,7 +245,7 @@ const Admin = () => {
               )}
             </div>
             <p className="text-xs text-muted-foreground">
-              Upload .srt files per language. If not provided, we'll try to fetch from YouTube.
+              Upload .srt files per language. If not provided, LinguaScript will fetch and store tracks when the lesson is created or opened.
             </p>
           </div>
 

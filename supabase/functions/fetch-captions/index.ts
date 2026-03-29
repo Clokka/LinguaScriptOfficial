@@ -51,6 +51,10 @@ function parseJsonTranscript(json: any): { start: number; end: number; text: str
   }
 }
 
+function isAsrKind(kind?: string): boolean {
+  return (kind || '').toLowerCase() === 'asr';
+}
+
 // Method 1: Fetch YouTube page and extract captions from embedded player data
 async function fetchFromPage(videoId: string, lang: string): Promise<{ subtitles: any[]; source: string } | null> {
   try {
@@ -124,15 +128,19 @@ function extractBalancedJson(str: string): string | null {
 }
 
 async function downloadFromTracks(captionTracks: any[], lang: string): Promise<{ subtitles: any[]; source: string } | null> {
-  let track = captionTracks.find((t: any) => t.languageCode === lang)
-    || captionTracks.find((t: any) => t.languageCode?.startsWith(lang))
-    || captionTracks.find((t: any) => t.languageCode === 'en')
-    || captionTracks[0];
+  const directTrack = captionTracks.find((t: any) => t.languageCode === lang)
+    || captionTracks.find((t: any) => t.languageCode?.startsWith(lang));
+  const fallbackTrack = captionTracks.find((t: any) => t.languageCode === 'en') || captionTracks[0];
+  const track = directTrack || fallbackTrack;
 
   if (!track?.baseUrl) return null;
+  const translatedRequest = !directTrack && track.languageCode !== lang;
   
   let captionUrl = track.baseUrl;
   if (!captionUrl.includes('fmt=')) captionUrl += '&fmt=srv3';
+  if (translatedRequest && !captionUrl.includes('tlang=')) {
+    captionUrl += `&tlang=${encodeURIComponent(lang)}`;
+  }
 
   console.log('Downloading captions for', track.languageCode, 'from baseUrl');
   const captionRes = await fetch(captionUrl);
@@ -147,7 +155,7 @@ async function downloadFromTracks(captionTracks: any[], lang: string): Promise<{
   // Try XML parsing
   let subtitles = parseXmlSubtitles(content);
   if (subtitles.length > 0) {
-    return { subtitles, source: track.kind === 'asr' ? 'auto-generated' : 'manual' };
+    return { subtitles, source: translatedRequest ? `translated-from-${track.languageCode}` : isAsrKind(track.kind) ? 'auto-generated' : 'manual' };
   }
   
   // Try JSON parsing (json3 format)
@@ -155,7 +163,7 @@ async function downloadFromTracks(captionTracks: any[], lang: string): Promise<{
     const jsonData = JSON.parse(content);
     subtitles = parseJsonTranscript(jsonData);
     if (subtitles.length > 0) {
-      return { subtitles, source: track.kind === 'asr' ? 'auto-generated' : 'manual' };
+      return { subtitles, source: translatedRequest ? `translated-from-${track.languageCode}` : isAsrKind(track.kind) ? 'auto-generated' : 'manual' };
     }
   } catch {}
   
@@ -215,25 +223,27 @@ async function fetchViaYouTubeAPI(videoId: string, lang: string, apiKey: string)
     console.log('YT API: found', items.length, 'tracks:', items.map((i: any) => `${i.snippet.language} (${i.snippet.trackKind})`));
     if (items.length === 0) return null;
 
-    let track = items.find((i: any) => i.snippet.language === lang)
-      || items.find((i: any) => i.snippet.language.startsWith(lang))
-      || items.find((i: any) => i.snippet.trackKind !== 'ASR') || items[0];
+    const directTrack = items.find((i: any) => i.snippet.language === lang)
+      || items.find((i: any) => i.snippet.language.startsWith(lang));
+    const fallbackTrack = items.find((i: any) => !isAsrKind(i.snippet.trackKind)) || items[0];
+    const track = directTrack || fallbackTrack;
 
     const trackLang = track.snippet.language;
-    const trackKind = track.snippet.trackKind;
+    const translatedRequest = !directTrack && trackLang !== lang;
+    const asrTrack = isAsrKind(track.snippet.trackKind);
 
     // Try multiple download formats
     const formats = ['srv3', 'json3'];
     for (const fmt of formats) {
-      const ttUrl = `https://www.youtube.com/api/timedtext?v=${videoId}&lang=${trackLang}&fmt=${fmt}${trackKind === 'ASR' ? '&kind=asr' : ''}`;
+      const ttUrl = `https://www.youtube.com/api/timedtext?v=${videoId}&lang=${trackLang}&fmt=${fmt}${asrTrack ? '&kind=asr' : ''}${translatedRequest ? `&tlang=${encodeURIComponent(lang)}` : ''}`;
       const ttRes = await fetch(ttUrl);
       const body = await ttRes.text();
       if (ttRes.ok && body.length > 50) {
         let subs = parseXmlSubtitles(body);
-        if (subs.length > 0) return { subtitles: subs, source: trackKind === 'ASR' ? 'auto-generated' : 'manual' };
+        if (subs.length > 0) return { subtitles: subs, source: translatedRequest ? `translated-from-${trackLang}` : asrTrack ? 'auto-generated' : 'manual' };
         try {
           subs = parseJsonTranscript(JSON.parse(body));
-          if (subs.length > 0) return { subtitles: subs, source: trackKind === 'ASR' ? 'auto-generated' : 'manual' };
+          if (subs.length > 0) return { subtitles: subs, source: translatedRequest ? `translated-from-${trackLang}` : asrTrack ? 'auto-generated' : 'manual' };
         } catch {}
       }
     }
