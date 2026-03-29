@@ -93,6 +93,48 @@ const Watch = () => {
     });
   }, [id]);
 
+  // Client-side caption fetching (bypasses server-side YouTube blocks)
+  const fetchCaptionsClientSide = async (ytId: string, lang: string): Promise<{start: number; end: number; text: string}[]> => {
+    const parseXml = (xml: string) => {
+      const subs: {start: number; end: number; text: string}[] = [];
+      const regex = /<text start="([\d.]+)" dur="([\d.]+)"[^>]*>(.*?)<\/text>/gs;
+      let match;
+      while ((match = regex.exec(xml)) !== null) {
+        const start = parseFloat(match[1]);
+        const dur = parseFloat(match[2]);
+        const text = match[3]
+          .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+          .replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/<[^>]+>/g, '').trim();
+        if (text) subs.push({ start, end: start + dur, text });
+      }
+      return subs;
+    };
+
+    // Try direct timedtext URLs from the user's browser
+    const urls = [
+      `https://www.youtube.com/api/timedtext?v=${ytId}&lang=${lang}&fmt=srv3`,
+      `https://www.youtube.com/api/timedtext?v=${ytId}&lang=${lang}&fmt=srv3&kind=asr`,
+    ];
+    if (lang !== 'en') {
+      urls.push(
+        `https://www.youtube.com/api/timedtext?v=${ytId}&lang=en&fmt=srv3`,
+        `https://www.youtube.com/api/timedtext?v=${ytId}&lang=en&fmt=srv3&kind=asr`,
+      );
+    }
+
+    for (const url of urls) {
+      try {
+        const res = await fetch(url);
+        if (res.ok) {
+          const xml = await res.text();
+          const subs = parseXml(xml);
+          if (subs.length > 0) return subs;
+        }
+      } catch {}
+    }
+    return [];
+  };
+
   // Fetch subtitles
   useEffect(() => {
     if (!film) return;
@@ -105,7 +147,7 @@ const Watch = () => {
     Promise.all([
       supabase.from("subtitles").select("*").eq("film_id", film.id).eq("language", filmLang).order("sort_order", { ascending: true }),
       supabase.from("subtitles").select("*").eq("film_id", film.id).eq("language", secondaryLang).order("sort_order", { ascending: true }),
-    ]).then(([primaryRes, secondaryRes]) => {
+    ]).then(async ([primaryRes, secondaryRes]) => {
       const primarySubs = primaryRes.data || [];
       const secondarySubs = secondaryRes.data || [];
 
@@ -133,6 +175,42 @@ const Watch = () => {
         return;
       }
 
+      // Try client-side first (browser can access YouTube directly)
+      console.log("Trying client-side caption fetch...");
+      const clientSubs = await fetchCaptionsClientSide(ytId, filmLang);
+      
+      if (clientSubs.length > 0) {
+        console.log(`Got ${clientSubs.length} captions client-side`);
+        const display: DisplaySubtitle[] = clientSubs.map((c, i) => ({
+          start: c.start, end: c.end, primary: c.text, secondary: "", words: textToWords(c.text, i),
+        }));
+        setSubtitles(display);
+        setCaptionsLoading(false);
+
+        // Translate in background
+        const filmLangLabel = getLanguageLabel(filmLang);
+        const userLang = "English";
+        if (filmLangLabel.toLowerCase() !== userLang.toLowerCase()) {
+          supabase.functions
+            .invoke("translate-subtitles", {
+              body: { subtitles: clientSubs, fromLanguage: filmLangLabel, toLanguage: userLang },
+            })
+            .then(({ data: transData }) => {
+              if (transData?.translations) {
+                setSubtitles((prev) =>
+                  prev.map((s, i) => ({
+                    ...s,
+                    secondary: transData.translations[i]?.translation || "",
+                  }))
+                );
+              }
+            });
+        }
+        return;
+      }
+
+      // Fallback to edge function
+      console.log("Client-side failed, trying edge function...");
       supabase.functions
         .invoke("fetch-captions", { body: { videoId: ytId, language: filmLang } })
         .then(async ({ data, error }) => {
@@ -143,16 +221,11 @@ const Watch = () => {
           }
           if (data?.subtitles?.length) {
             const display: DisplaySubtitle[] = data.subtitles.map((c: any, i: number) => ({
-              start: c.start,
-              end: c.end,
-              primary: c.text,
-              secondary: "",
-              words: textToWords(c.text, i),
+              start: c.start, end: c.end, primary: c.text, secondary: "", words: textToWords(c.text, i),
             }));
             setSubtitles(display);
             setCaptionsLoading(false);
 
-            // Translate in background
             const filmLangLabel = getLanguageLabel(filmLang);
             const userLang = "English";
             if (filmLangLabel.toLowerCase() !== userLang.toLowerCase()) {
