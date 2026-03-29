@@ -23,6 +23,7 @@ interface FilmRow {
   thumbnail_url: string | null;
   created_at: string;
   subtitle_count?: number;
+  subtitle_languages?: string[];
 }
 
 const Admin = () => {
