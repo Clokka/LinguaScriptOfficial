@@ -35,28 +35,39 @@ function parseXmlSubtitles(xmlText: string): { start: number; end: number; text:
 // Method 1: YouTube InnerTube API (what the player uses internally)
 async function fetchViaInnerTube(videoId: string, lang: string): Promise<{ subtitles: any[]; source: string } | null> {
   try {
-    console.log('InnerTube: fetching player for', videoId);
-    const res = await fetch('https://www.youtube.com/youtubei/v1/player?prettyPrint=false', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        context: {
-          client: {
-            hl: 'en',
-            gl: 'US',
-            clientName: 'WEB',
-            clientVersion: '2.20240101.00.00',
-          }
+    // Try multiple client types
+    const clients = [
+      {
+        name: 'ANDROID',
+        body: {
+          context: { client: { hl: 'en', gl: 'US', clientName: 'ANDROID', clientVersion: '19.29.37', androidSdkVersion: 30 } },
+          videoId,
         },
-        videoId,
-      }),
-    });
+        headers: { 'Content-Type': 'application/json', 'User-Agent': 'com.google.android.youtube/19.29.37 (Linux; U; Android 11)' },
+      },
+      {
+        name: 'TV_EMBEDDED',
+        body: {
+          context: { client: { hl: 'en', gl: 'US', clientName: 'TVHTML5_SIMPLY_EMBEDDED_PLAYER', clientVersion: '2.0' } },
+          videoId,
+        },
+        headers: { 'Content-Type': 'application/json' },
+      },
+    ];
 
-    if (!res.ok) {
-      console.error('InnerTube: request failed:', res.status);
-      await res.text();
-      return null;
-    }
+    for (const client of clients) {
+      console.log(`InnerTube: trying ${client.name} client for`, videoId);
+      const res = await fetch('https://www.youtube.com/youtubei/v1/player?prettyPrint=false', {
+        method: 'POST',
+        headers: client.headers,
+        body: JSON.stringify(client.body),
+      });
+
+      if (!res.ok) {
+        console.error(`InnerTube ${client.name}: request failed:`, res.status);
+        await res.text();
+        continue;
+      }
 
     const data = await res.json();
     const captionTracks = data?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
