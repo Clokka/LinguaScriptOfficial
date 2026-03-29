@@ -127,16 +127,20 @@ const Admin = () => {
     if (error) {
       toast({ title: "Error adding film", description: error.message, variant: "destructive" });
     } else {
-      // Upload SRT if provided
-      if (srtFile && data) {
-        await parseSrtAndUpload(data.id, srtFile);
+      if (srtFileFr && data) {
+        await parseSrtAndUpload(data.id, srtFileFr, "fr");
+      }
+      if (srtFileEn && data) {
+        await parseSrtAndUpload(data.id, srtFileEn, "en");
       }
       toast({ title: "Film added!" });
       setTitle("");
       setUrl("");
       setThumbnailUrl("");
-      setSrtFile(null);
-      if (fileInputRef.current) fileInputRef.current.value = "";
+      setSrtFileFr(null);
+      setSrtFileEn(null);
+      if (fileInputRefFr.current) fileInputRefFr.current.value = "";
+      if (fileInputRefEn.current) fileInputRefEn.current.value = "";
       fetchFilms();
     }
     setAdding(false);
