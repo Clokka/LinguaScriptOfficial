@@ -1,11 +1,10 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SubtitleOverlay } from "@/components/SubtitleOverlay";
 import { DifficultyStars } from "@/components/DifficultyStars";
 import { supabase } from "@/integrations/supabase/client";
-import { cn } from "@/lib/utils";
 import { getLanguageLabel, getLanguageFlag } from "@/lib/languages";
 
 interface FilmData {
@@ -16,52 +15,43 @@ interface FilmData {
   thumbnail_url: string | null;
 }
 
-// Hardcoded French subtitles synced to the video
-const frenchSubtitles = [
-  { start: 0, end: 4, primary: "Bonjour et bienvenue sur ma chaîne.", secondary: "Hello and welcome to my channel.", words: [
-    { id: "1", text: "Bonjour", translation: "Hello", pronunciation: "bohn-ZHOOR", ipa: "/bɔ̃.ʒuʁ/" },
-    { id: "2", text: "bienvenue", translation: "welcome", pronunciation: "byaN-vuh-NEW", ipa: "/bjɛ̃.və.ny/" },
-    { id: "3", text: "chaîne", translation: "channel", pronunciation: "SHEHN", ipa: "/ʃɛn/" },
-  ]},
-  { start: 4, end: 8, primary: "Aujourd'hui, je vais vous parler de langues.", secondary: "Today, I'm going to talk to you about languages.", words: [
-    { id: "4", text: "Aujourd'hui", translation: "Today", pronunciation: "oh-zhoor-DWEE", ipa: "/o.ʒuʁ.dɥi/" },
-    { id: "5", text: "parler", translation: "to talk", pronunciation: "par-LAY", ipa: "/paʁ.le/" },
-    { id: "6", text: "langues", translation: "languages", pronunciation: "LAHNG", ipa: "/lɑ̃ɡ/" },
-  ]},
-  { start: 8, end: 13, primary: "Je parle huit langues couramment.", secondary: "I speak eight languages fluently.", words: [
-    { id: "7", text: "parle", translation: "speak", pronunciation: "PARL", ipa: "/paʁl/" },
-    { id: "8", text: "huit", translation: "eight", pronunciation: "WEET", ipa: "/ɥit/" },
-    { id: "9", text: "couramment", translation: "fluently", pronunciation: "koo-rah-MAHN", ipa: "/ku.ʁa.mɑ̃/" },
-  ]},
-  { start: 13, end: 18, primary: "Chaque langue a changé ma vie.", secondary: "Each language has changed my life.", words: [
-    { id: "10", text: "Chaque", translation: "Each", pronunciation: "SHAHK", ipa: "/ʃak/" },
-    { id: "11", text: "langue", translation: "language", pronunciation: "LAHNG", ipa: "/lɑ̃ɡ/" },
-    { id: "12", text: "changé", translation: "changed", pronunciation: "shahn-ZHAY", ipa: "/ʃɑ̃.ʒe/" },
-    { id: "13", text: "vie", translation: "life", pronunciation: "VEE", ipa: "/vi/" },
-  ]},
-  { start: 18, end: 23, primary: "L'apprentissage des langues ouvre des portes.", secondary: "Learning languages opens doors.", words: [
-    { id: "14", text: "apprentissage", translation: "learning", pronunciation: "ah-prahn-tee-SAHZH", ipa: "/a.pʁɑ̃.ti.saʒ/" },
-    { id: "15", text: "ouvre", translation: "opens", pronunciation: "OOVR", ipa: "/uvʁ/" },
-    { id: "16", text: "portes", translation: "doors", pronunciation: "PORT", ipa: "/pɔʁt/" },
-  ]},
-  { start: 23, end: 28, primary: "On peut voyager et rencontrer des gens.", secondary: "You can travel and meet people.", words: [
-    { id: "17", text: "voyager", translation: "to travel", pronunciation: "vwah-yah-ZHAY", ipa: "/vwa.ja.ʒe/" },
-    { id: "18", text: "rencontrer", translation: "to meet", pronunciation: "rahn-kohn-TRAY", ipa: "/ʁɑ̃.kɔ̃.tʁe/" },
-    { id: "19", text: "gens", translation: "people", pronunciation: "ZHAHN", ipa: "/ʒɑ̃/" },
-  ]},
-  { start: 28, end: 33, primary: "C'est une aventure incroyable.", secondary: "It's an incredible adventure.", words: [
-    { id: "20", text: "aventure", translation: "adventure", pronunciation: "ah-vahn-TOOR", ipa: "/a.vɑ̃.tyʁ/" },
-    { id: "21", text: "incroyable", translation: "incredible", pronunciation: "aN-kwah-YAHBL", ipa: "/ɛ̃.kʁwa.jabl/" },
-  ]},
-  { start: 33, end: 38, primary: "Je vous encourage à commencer aujourd'hui.", secondary: "I encourage you to start today.", words: [
-    { id: "22", text: "encourage", translation: "encourage", pronunciation: "ahn-koo-RAZH", ipa: "/ɑ̃.ku.ʁaʒ/" },
-    { id: "23", text: "commencer", translation: "to start", pronunciation: "koh-mahn-SAY", ipa: "/kɔ.mɑ̃.se/" },
-  ]},
-];
+interface CaptionEntry {
+  start: number;
+  end: number;
+  text: string;
+}
+
+interface DisplaySubtitle {
+  start: number;
+  end: number;
+  primary: string;
+  secondary: string;
+  words: { id: string; text: string; translation: string; pronunciation: string; ipa: string }[];
+}
 
 function getYouTubeId(url: string): string | null {
   const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?.*v=|embed\/|v\/))([^&?\s]+)/);
   return match ? match[1] : null;
+}
+
+function captionsToSubtitles(captions: CaptionEntry[]): DisplaySubtitle[] {
+  return captions.map((c, i) => {
+    const textWords = c.text.split(/\s+/).filter(Boolean);
+    const words = textWords.map((w, wi) => ({
+      id: `${i}-${wi}`,
+      text: w.replace(/[.,!?;:]/g, ""),
+      translation: "",
+      pronunciation: "",
+      ipa: "",
+    }));
+    return {
+      start: c.start,
+      end: c.end,
+      primary: c.text,
+      secondary: "",
+      words,
+    };
+  });
 }
 
 declare global {
@@ -83,6 +73,9 @@ const Watch = () => {
   const [currentTime, setCurrentTime] = useState(0);
   const [subtitleMode, setSubtitleMode] = useState<"single" | "dual">("dual");
   const [apiReady, setApiReady] = useState(!!window.YT?.Player);
+  const [subtitles, setSubtitles] = useState<DisplaySubtitle[]>([]);
+  const [captionsLoading, setCaptionsLoading] = useState(false);
+  const [captionsError, setCaptionsError] = useState<string | null>(null);
 
   // Load film data
   useEffect(() => {
@@ -92,6 +85,32 @@ const Watch = () => {
       setLoading(false);
     });
   }, [id]);
+
+  // Fetch captions when film loads
+  useEffect(() => {
+    if (!film) return;
+    const ytId = getYouTubeId(film.url);
+    if (!ytId) return;
+
+    setCaptionsLoading(true);
+    setCaptionsError(null);
+
+    supabase.functions.invoke("fetch-captions", {
+      body: { videoId: ytId, language: film.language || "fr" },
+    }).then(({ data, error }) => {
+      setCaptionsLoading(false);
+      if (error) {
+        console.error("Caption fetch error:", error);
+        setCaptionsError("Could not load captions");
+        return;
+      }
+      if (data?.subtitles?.length) {
+        setSubtitles(captionsToSubtitles(data.subtitles));
+      } else {
+        setCaptionsError("No captions available for this video");
+      }
+    });
+  }, [film]);
 
   // Load YouTube IFrame API
   useEffect(() => {
@@ -132,7 +151,7 @@ const Watch = () => {
   }, [apiReady, film]);
 
   // Find current subtitle
-  const currentSubtitle = frenchSubtitles.find(
+  const currentSubtitle = subtitles.find(
     (s) => currentTime >= s.start && currentTime < s.end
   );
 
@@ -169,6 +188,7 @@ const Watch = () => {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {captionsLoading && <Loader2 className="w-4 h-4 text-white/60 animate-spin" />}
           <Button
             variant={subtitleMode === "dual" ? "default" : "ghost"}
             size="sm"
@@ -185,6 +205,13 @@ const Watch = () => {
       <div ref={containerRef} className="relative flex-1 flex flex-col items-center justify-center bg-black">
         <div className="w-full max-w-5xl aspect-video relative">
           <div id="yt-player" className="w-full h-full" />
+
+          {/* Caption status */}
+          {captionsError && (
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-destructive/80 text-destructive-foreground text-sm px-4 py-2 rounded-lg">
+              {captionsError}
+            </div>
+          )}
 
           {/* Subtitle overlay */}
           {currentSubtitle && (
