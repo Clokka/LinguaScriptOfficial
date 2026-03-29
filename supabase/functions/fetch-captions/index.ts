@@ -152,7 +152,7 @@ serve(async (req) => {
     }
 
     // Format into subtitle entries
-    const subtitles = captions.map((cap, i) => {
+    const subtitles = captions.map((cap) => {
       const translatedEntry = translatedCaptions.find(
         tc => Math.abs(tc.start - cap.start) < 1.0
       );
