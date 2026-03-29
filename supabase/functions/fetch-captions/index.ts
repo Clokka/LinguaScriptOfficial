@@ -85,10 +85,15 @@ async function fetchViaYouTubeAPI(videoId: string, lang: string, apiKey: string)
 
 // Method 2: Direct timedtext endpoints (no API key needed)
 async function fetchViaTimedtext(videoId: string, lang: string): Promise<{ subtitles: any[]; source: string } | null> {
+  const headers = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+    'Accept-Language': 'en-US,en;q=0.9',
+  };
+
   // Try manual captions
   const url1 = `https://www.youtube.com/api/timedtext?v=${videoId}&lang=${lang}&fmt=srv3`;
   console.log('Timedtext: trying manual captions for', lang);
-  const res1 = await fetch(url1);
+  const res1 = await fetch(url1, { headers });
   if (res1.ok) {
     const xml = await res1.text();
     const subs = parseXmlSubtitles(xml);
