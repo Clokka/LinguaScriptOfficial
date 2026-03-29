@@ -33,7 +33,11 @@ async function fetchViaYouTubeAPI(videoId: string, lang: string, apiKey: string)
     // List captions for the video
     const listUrl = `https://www.googleapis.com/youtube/v3/captions?part=snippet&videoId=${videoId}&key=${apiKey}`;
     console.log('YouTube API: listing captions for', videoId);
-    const listRes = await fetch(listUrl);
+    const listRes = await fetch(listUrl, {
+      headers: {
+        'Referer': 'https://subtitle-mastery.lovable.app',
+      },
+    });
     
     if (!listRes.ok) {
       const errText = await listRes.text();
@@ -81,10 +85,15 @@ async function fetchViaYouTubeAPI(videoId: string, lang: string, apiKey: string)
 
 // Method 2: Direct timedtext endpoints (no API key needed)
 async function fetchViaTimedtext(videoId: string, lang: string): Promise<{ subtitles: any[]; source: string } | null> {
+  const headers = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+    'Accept-Language': 'en-US,en;q=0.9',
+  };
+
   // Try manual captions
   const url1 = `https://www.youtube.com/api/timedtext?v=${videoId}&lang=${lang}&fmt=srv3`;
   console.log('Timedtext: trying manual captions for', lang);
-  const res1 = await fetch(url1);
+  const res1 = await fetch(url1, { headers });
   if (res1.ok) {
     const xml = await res1.text();
     const subs = parseXmlSubtitles(xml);
@@ -96,7 +105,7 @@ async function fetchViaTimedtext(videoId: string, lang: string): Promise<{ subti
   // Try auto-generated
   const url2 = `https://www.youtube.com/api/timedtext?v=${videoId}&lang=${lang}&fmt=srv3&kind=asr`;
   console.log('Timedtext: trying ASR captions for', lang);
-  const res2 = await fetch(url2);
+  const res2 = await fetch(url2, { headers });
   if (res2.ok) {
     const xml = await res2.text();
     const subs = parseXmlSubtitles(xml);
@@ -109,7 +118,7 @@ async function fetchViaTimedtext(videoId: string, lang: string): Promise<{ subti
   if (lang !== 'en') {
     const url3 = `https://www.youtube.com/api/timedtext?v=${videoId}&lang=en&fmt=srv3`;
     console.log('Timedtext: trying English fallback');
-    const res3 = await fetch(url3);
+    const res3 = await fetch(url3, { headers });
     if (res3.ok) {
       const xml = await res3.text();
       const subs = parseXmlSubtitles(xml);
@@ -119,7 +128,7 @@ async function fetchViaTimedtext(videoId: string, lang: string): Promise<{ subti
     }
 
     const url4 = `https://www.youtube.com/api/timedtext?v=${videoId}&lang=en&fmt=srv3&kind=asr`;
-    const res4 = await fetch(url4);
+    const res4 = await fetch(url4, { headers });
     if (res4.ok) {
       const xml = await res4.text();
       const subs = parseXmlSubtitles(xml);
