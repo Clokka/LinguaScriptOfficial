@@ -146,9 +146,9 @@ const Admin = () => {
     setAdding(false);
   };
 
-  const handleUploadSubsForExisting = async (filmId: string, file: File) => {
+  const handleUploadSubsForExisting = async (filmId: string, file: File, lang: string) => {
     setUploadingSubsFor(filmId);
-    await parseSrtAndUpload(filmId, file);
+    await parseSrtAndUpload(filmId, file, lang);
     setUploadingSubsFor(null);
     fetchFilms();
   };
