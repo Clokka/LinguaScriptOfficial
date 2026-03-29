@@ -19,6 +19,7 @@ interface WordPopupProps {
 }
 
 export const WordPopup = ({ word, position, onClose, onSave }: WordPopupProps) => {
+  const { speak } = useLanguage();
   return (
     <>
       {/* Backdrop */}
