@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { LANGUAGES } from "@/lib/languages";
+import { parseSrt } from "@/lib/srtParser";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -10,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Plus, Trash2, Film, Loader2 } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Film, Loader2, Upload, FileText, Check } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 
@@ -21,6 +22,7 @@ interface FilmRow {
   language: string | null;
   thumbnail_url: string | null;
   created_at: string;
+  subtitle_count?: number;
 }
 
 const Admin = () => {
@@ -31,6 +33,10 @@ const Admin = () => {
   const [thumbnailUrl, setThumbnailUrl] = useState("");
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
+  const [srtFile, setSrtFile] = useState<File | null>(null);
+  const [uploadingSubsFor, setUploadingSubsFor] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const existingFileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -40,29 +46,97 @@ const Admin = () => {
 
   const fetchFilms = async () => {
     const { data } = await supabase.from("films").select("*").order("created_at", { ascending: false });
-    setFilms(data ?? []);
+    if (data) {
+      // Get subtitle counts
+      const filmsWithCounts = await Promise.all(
+        data.map(async (film) => {
+          const { count } = await supabase
+            .from("subtitles")
+            .select("*", { count: "exact", head: true })
+            .eq("film_id", film.id);
+          return { ...film, subtitle_count: count ?? 0 };
+        })
+      );
+      setFilms(filmsWithCounts);
+    }
     setLoading(false);
+  };
+
+  const parseSrtAndUpload = async (filmId: string, file: File) => {
+    const content = await file.text();
+    const entries = parseSrt(content);
+
+    if (entries.length === 0) {
+      toast({ title: "Invalid SRT file", description: "No valid subtitle entries found.", variant: "destructive" });
+      return false;
+    }
+
+    // Delete existing subtitles for this film
+    await supabase.from("subtitles").delete().eq("film_id", filmId);
+
+    // Insert in batches of 100
+    for (let i = 0; i < entries.length; i += 100) {
+      const batch = entries.slice(i, i + 100).map((entry, idx) => ({
+        film_id: filmId,
+        start_time: entry.startTime,
+        end_time: entry.endTime,
+        text: entry.text,
+        sort_order: i + idx,
+      }));
+      const { error } = await supabase.from("subtitles").insert(batch);
+      if (error) {
+        toast({ title: "Error uploading subtitles", description: error.message, variant: "destructive" });
+        return false;
+      }
+    }
+
+    toast({ title: `${entries.length} subtitles uploaded!` });
+    return true;
   };
 
   const addFilm = async (e: React.FormEvent) => {
     e.preventDefault();
     setAdding(true);
-    const { error } = await supabase.from("films").insert({
+
+    // Auto-generate YouTube thumbnail if not provided
+    let thumb = thumbnailUrl || null;
+    if (!thumb) {
+      const ytMatch = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?.*v=|embed\/|v\/))([^&?\s]+)/);
+      if (ytMatch) {
+        thumb = `https://img.youtube.com/vi/${ytMatch[1]}/hqdefault.jpg`;
+      }
+    }
+
+    const { data, error } = await supabase.from("films").insert({
       title,
       url,
       language,
-      thumbnail_url: thumbnailUrl || null,
-    });
+      thumbnail_url: thumb,
+    }).select().single();
+
     if (error) {
       toast({ title: "Error adding film", description: error.message, variant: "destructive" });
     } else {
+      // Upload SRT if provided
+      if (srtFile && data) {
+        await parseSrtAndUpload(data.id, srtFile);
+      }
       toast({ title: "Film added!" });
       setTitle("");
       setUrl("");
       setThumbnailUrl("");
+      setSrtFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
       fetchFilms();
     }
     setAdding(false);
+  };
+
+  const handleUploadSubsForExisting = async (filmId: string, file: File) => {
+    setUploadingSubsFor(filmId);
+    await parseSrtAndUpload(filmId, file);
+    setUploadingSubsFor(null);
+    fetchFilms();
   };
 
   const deleteFilm = async (id: string) => {
@@ -79,7 +153,7 @@ const Admin = () => {
         </Button>
 
         <h1 className="text-3xl font-bold text-foreground mb-2">Admin Dashboard</h1>
-        <p className="text-muted-foreground mb-8">Add films for users to watch and learn from.</p>
+        <p className="text-muted-foreground mb-8">Add films and upload subtitle tracks (.srt files).</p>
 
         {/* Add Film Form */}
         <form onSubmit={addFilm} className="glass-panel-strong p-6 space-y-4 mb-8">
@@ -94,14 +168,14 @@ const Admin = () => {
             className="bg-secondary/50 border-border"
           />
           <Input
-            placeholder="Video URL (embed or direct link)"
+            placeholder="YouTube URL (e.g. https://youtu.be/...)"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             required
             className="bg-secondary/50 border-border"
           />
           <Input
-            placeholder="Thumbnail URL (optional)"
+            placeholder="Thumbnail URL (auto-generated from YouTube if empty)"
             value={thumbnailUrl}
             onChange={(e) => setThumbnailUrl(e.target.value)}
             className="bg-secondary/50 border-border"
@@ -118,6 +192,31 @@ const Admin = () => {
               ))}
             </SelectContent>
           </Select>
+
+          {/* SRT Upload */}
+          <div className="space-y-2">
+            <label className="text-sm text-muted-foreground flex items-center gap-2">
+              <FileText className="w-4 h-4" /> Subtitle File (.srt) — optional
+            </label>
+            <div className="flex items-center gap-3">
+              <Input
+                ref={fileInputRef}
+                type="file"
+                accept=".srt"
+                onChange={(e) => setSrtFile(e.target.files?.[0] ?? null)}
+                className="bg-secondary/50 border-border"
+              />
+              {srtFile && (
+                <span className="text-xs text-primary flex items-center gap-1 whitespace-nowrap">
+                  <Check className="w-3 h-3" /> {srtFile.name}
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Upload an .srt file for accurate subtitles. If not provided, we'll try to fetch from YouTube.
+            </p>
+          </div>
+
           <Button type="submit" variant="hero" disabled={adding} className="gap-2">
             {adding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
             Add Film
@@ -140,27 +239,72 @@ const Admin = () => {
         ) : (
           <div className="space-y-3">
             {films.map((film) => (
-              <div key={film.id} className="glass-panel p-4 flex items-center justify-between gap-4">
-                <div className="flex items-center gap-4 min-w-0">
-                  {film.thumbnail_url ? (
-                    <img
-                      src={film.thumbnail_url}
-                      alt={film.title}
-                      className="w-16 h-10 rounded-lg object-cover bg-secondary"
-                    />
-                  ) : (
-                    <div className="w-16 h-10 rounded-lg bg-secondary flex items-center justify-center">
-                      <Film className="w-5 h-5 text-muted-foreground" />
+              <div key={film.id} className="glass-panel p-4 space-y-3">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-4 min-w-0">
+                    {film.thumbnail_url ? (
+                      <img
+                        src={film.thumbnail_url}
+                        alt={film.title}
+                        className="w-16 h-10 rounded-lg object-cover bg-secondary"
+                      />
+                    ) : (
+                      <div className="w-16 h-10 rounded-lg bg-secondary flex items-center justify-center">
+                        <Film className="w-5 h-5 text-muted-foreground" />
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <p className="text-foreground font-medium truncate">{film.title}</p>
+                      <p className="text-muted-foreground text-xs truncate">{film.url}</p>
                     </div>
-                  )}
-                  <div className="min-w-0">
-                    <p className="text-foreground font-medium truncate">{film.title}</p>
-                    <p className="text-muted-foreground text-xs truncate">{film.url}</p>
+                  </div>
+                  <Button variant="glass" size="icon" onClick={() => deleteFilm(film.id)}>
+                    <Trash2 className="w-4 h-4 text-destructive" />
+                  </Button>
+                </div>
+                {/* Subtitle status + upload */}
+                <div className="flex items-center justify-between pl-20">
+                  <span className="text-xs text-muted-foreground">
+                    {(film.subtitle_count ?? 0) > 0 ? (
+                      <span className="text-primary">✓ {film.subtitle_count} subtitles loaded</span>
+                    ) : (
+                      "No subtitles uploaded"
+                    )}
+                  </span>
+                  <div>
+                    <input
+                      ref={existingFileInputRef}
+                      type="file"
+                      accept=".srt"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleUploadSubsForExisting(film.id, file);
+                        e.target.value = "";
+                      }}
+                    />
+                    <Button
+                      variant="glass"
+                      size="sm"
+                      className="gap-1 text-xs"
+                      disabled={uploadingSubsFor === film.id}
+                      onClick={() => {
+                        existingFileInputRef.current?.click();
+                        // Store film ID for the handler
+                        if (existingFileInputRef.current) {
+                          existingFileInputRef.current.dataset.filmId = film.id;
+                        }
+                      }}
+                    >
+                      {uploadingSubsFor === film.id ? (
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                      ) : (
+                        <Upload className="w-3 h-3" />
+                      )}
+                      {(film.subtitle_count ?? 0) > 0 ? "Replace SRT" : "Upload SRT"}
+                    </Button>
                   </div>
                 </div>
-                <Button variant="glass" size="icon" onClick={() => deleteFilm(film.id)}>
-                  <Trash2 className="w-4 h-4 text-destructive" />
-                </Button>
               </div>
             ))}
           </div>
