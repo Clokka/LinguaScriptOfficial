@@ -44,6 +44,7 @@ export const NavBar = () => {
         </div>
 
         <div className="flex items-center gap-3">
+          <LanguageSelector />
           <StreakBadge streak={7} showAnimation={false} />
 
           <Button variant="glass" size="sm" onClick={() => navigate("/admin")} className="gap-2">
