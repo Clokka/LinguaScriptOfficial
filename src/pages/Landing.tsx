@@ -249,7 +249,14 @@ const Landing = () => {
 
         {activeTab === "flashcards" && (
           <div className="max-w-md mx-auto">
-            <FlashcardReview />
+            <FlashcardReview
+              cards={[
+                { id: "1", word: "Bonjour", translation: "Hello", pronunciation: "bohn-ZHOOR", ipa: "/bɔ̃.ʒuʁ/", context: "Bonjour, comment allez-vous?" },
+                { id: "2", word: "Merci", translation: "Thank you", pronunciation: "mair-SEE", ipa: "/mɛʁ.si/", context: "Merci beaucoup!" },
+                { id: "3", word: "S'il vous plaît", translation: "Please", pronunciation: "seel voo PLEH", ipa: "/sil vu plɛ/", context: "Un café, s'il vous plaît." },
+              ]}
+              onClose={() => setActiveTab("demo")}
+            />
           </div>
         )}
       </section>
