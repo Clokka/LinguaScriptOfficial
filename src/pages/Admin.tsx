@@ -26,8 +26,15 @@ interface FilmRow {
   subtitle_languages?: string[];
 }
 
+interface EmailSignup {
+  id: string;
+  email: string;
+  created_at: string;
+}
+
 const Admin = () => {
   const [films, setFilms] = useState<FilmRow[]>([]);
+  const [emails, setEmails] = useState<EmailSignup[]>([]);
   const [title, setTitle] = useState("");
   const [url, setUrl] = useState("");
   const [language, setLanguage] = useState("es");
