@@ -7,12 +7,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { getLanguageLabel, getLanguageFlag } from "@/lib/languages";
-import {
-  ensureSubtitleTracks,
-  persistSubtitleTrack,
-  translateSubtitleTrack,
-  type SubtitleSegment,
-} from "@/lib/subtitleSync";
 
 interface FilmData {
   id: string;
@@ -20,6 +14,12 @@ interface FilmData {
   url: string;
   language: string | null;
   thumbnail_url: string | null;
+}
+
+interface SubtitleSegment {
+  start: number;
+  end: number;
+  text: string;
 }
 
 interface DisplaySubtitle {
@@ -45,16 +45,15 @@ function textToWords(text: string, index: number) {
   }));
 }
 
-function buildDisplaySubtitles(primaryTrack: SubtitleSegment[], secondaryTrack: SubtitleSegment[]): DisplaySubtitle[] {
-  return primaryTrack.map((subtitle, index) => {
-    const match = secondaryTrack.find((candidate) => Math.abs(candidate.start - subtitle.start) < 1.5);
-
+function buildDisplaySubtitles(primary: SubtitleSegment[], secondary: SubtitleSegment[]): DisplaySubtitle[] {
+  return primary.map((sub, i) => {
+    const match = secondary.find((s) => Math.abs(s.start - sub.start) < 1.5);
     return {
-      start: subtitle.start,
-      end: subtitle.end,
-      primary: subtitle.text,
+      start: sub.start,
+      end: sub.end,
+      primary: sub.text,
       secondary: match?.text || "",
-      words: textToWords(subtitle.text, index),
+      words: textToWords(sub.text, i),
     };
   });
 }
@@ -64,18 +63,164 @@ function subtitlesToSrt(subtitles: DisplaySubtitle[], textKey: "primary" | "seco
     .map((s, i) => {
       const text = textKey === "primary" ? s.primary : s.secondary;
       if (!text) return null;
-      const formatTime = (t: number) => {
+      const fmt = (t: number) => {
         const h = Math.floor(t / 3600);
         const m = Math.floor((t % 3600) / 60);
         const sec = Math.floor(t % 60);
         const ms = Math.round((t % 1) * 1000);
         return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}:${sec.toString().padStart(2, "0")},${ms.toString().padStart(3, "0")}`;
       };
-      return `${i + 1}\n${formatTime(s.start)} --> ${formatTime(s.end)}\n${text}\n`;
+      return `${i + 1}\n${fmt(s.start)} --> ${fmt(s.end)}\n${text}\n`;
     })
     .filter(Boolean)
     .join("\n");
 }
+
+// ── Caption loader: fetches tracks from timedtext endpoints via edge function ──
+
+async function fetchTrackViaEdge(videoId: string, lang: string): Promise<SubtitleSegment[]> {
+  try {
+    const { data, error } = await supabase.functions.invoke("fetch-captions", {
+      body: { videoId, language: lang },
+    });
+    if (error || !data?.subtitles?.length) return [];
+    return data.subtitles.map((s: any) => ({ start: s.start, end: s.end, text: s.text }));
+  } catch {
+    return [];
+  }
+}
+
+async function fetchTrackClientSide(videoId: string, lang: string): Promise<SubtitleSegment[]> {
+  const parseXml = (xml: string) => {
+    const subs: SubtitleSegment[] = [];
+    const regex = /<text start="([\d.]+)" dur="([\d.]+)"[^>]*>(.*?)<\/text>/gs;
+    let m;
+    while ((m = regex.exec(xml)) !== null) {
+      const start = parseFloat(m[1]);
+      const dur = parseFloat(m[2]);
+      const text = m[3]
+        .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+        .replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/<[^>]+>/g, '').trim();
+      if (text) subs.push({ start, end: start + dur, text });
+    }
+    return subs;
+  };
+
+  const urls = [
+    `https://video.google.com/timedtext?v=${videoId}&lang=${lang}&fmt=srv3`,
+    `https://www.youtube.com/api/timedtext?v=${videoId}&lang=${lang}&fmt=srv3`,
+    `https://www.youtube.com/api/timedtext?v=${videoId}&lang=${lang}&fmt=srv3&kind=asr`,
+  ];
+
+  for (const url of urls) {
+    try {
+      const res = await fetch(url);
+      if (res.ok) {
+        const xml = await res.text();
+        const subs = parseXml(xml);
+        if (subs.length > 0) return subs;
+      }
+    } catch {}
+  }
+  return [];
+}
+
+async function loadStoredTrack(filmId: string, lang: string): Promise<SubtitleSegment[]> {
+  const { data } = await supabase
+    .from("subtitles")
+    .select("start_time, end_time, text")
+    .eq("film_id", filmId)
+    .eq("language", lang)
+    .order("sort_order", { ascending: true });
+  return (data || []).map((r) => ({ start: r.start_time, end: r.end_time, text: r.text }));
+}
+
+async function persistTrack(filmId: string, lang: string, subs: SubtitleSegment[]) {
+  if (!subs.length) return;
+  await supabase.from("subtitles").delete().eq("film_id", filmId).eq("language", lang);
+  for (let i = 0; i < subs.length; i += 100) {
+    const batch = subs.slice(i, i + 100).map((s, idx) => ({
+      film_id: filmId,
+      start_time: s.start,
+      end_time: s.end,
+      text: s.text,
+      sort_order: i + idx,
+      language: lang,
+    }));
+    await supabase.from("subtitles").insert(batch);
+  }
+}
+
+async function translateTrack(subs: SubtitleSegment[], from: string, to: string): Promise<SubtitleSegment[]> {
+  if (!subs.length || from === to) return [];
+  try {
+    const { data, error } = await supabase.functions.invoke("translate-subtitles", {
+      body: { subtitles: subs, fromLanguage: getLanguageLabel(from), toLanguage: getLanguageLabel(to) },
+    });
+    if (error || !data?.translations?.length) return [];
+    return subs
+      .map((s, i) => ({ ...s, text: data.translations[i]?.translation || "" }))
+      .filter((s) => s.text.trim().length > 0);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Master caption loader — runs BEFORE overlay.
+ * Priority: DB → Edge function (video.google.com/timedtext) → Client-side fetch → AI translation
+ */
+async function loadAllCaptions(
+  filmId: string,
+  videoId: string,
+  primaryLang: string,
+  secondaryLang: string,
+  onStatus: (msg: string) => void,
+): Promise<{ primary: SubtitleSegment[]; secondary: SubtitleSegment[] }> {
+  // 1) Check DB
+  onStatus("Checking saved captions…");
+  let primary = await loadStoredTrack(filmId, primaryLang);
+  let secondary = primaryLang === secondaryLang ? primary : await loadStoredTrack(filmId, secondaryLang);
+
+  if (primary.length > 0 && (primaryLang === secondaryLang || secondary.length > 0)) {
+    return { primary, secondary };
+  }
+
+  // 2) Fetch primary if missing
+  if (!primary.length) {
+    onStatus(`Downloading ${getLanguageLabel(primaryLang)} captions…`);
+    primary = await fetchTrackViaEdge(videoId, primaryLang);
+    if (!primary.length) {
+      onStatus(`Trying client-side fetch for ${getLanguageLabel(primaryLang)}…`);
+      primary = await fetchTrackClientSide(videoId, primaryLang);
+    }
+    if (primary.length) {
+      await persistTrack(filmId, primaryLang, primary);
+    }
+  }
+
+  // 3) Fetch secondary if missing & different
+  if (primaryLang !== secondaryLang && !secondary.length) {
+    onStatus(`Downloading ${getLanguageLabel(secondaryLang)} captions…`);
+    secondary = await fetchTrackViaEdge(videoId, secondaryLang);
+    if (!secondary.length) {
+      onStatus(`Trying client-side fetch for ${getLanguageLabel(secondaryLang)}…`);
+      secondary = await fetchTrackClientSide(videoId, secondaryLang);
+    }
+    // If still empty, translate from primary
+    if (!secondary.length && primary.length) {
+      onStatus(`Translating to ${getLanguageLabel(secondaryLang)}…`);
+      secondary = await translateTrack(primary, primaryLang, secondaryLang);
+    }
+    if (secondary.length) {
+      await persistTrack(filmId, secondaryLang, secondary);
+    }
+  }
+
+  return { primary, secondary: primaryLang === secondaryLang ? primary : secondary };
+}
+
+// ── YT Player globals ──
 
 declare global {
   interface Window {
@@ -99,10 +244,10 @@ const Watch = () => {
   const [apiReady, setApiReady] = useState(!!window.YT?.Player);
   const [subtitles, setSubtitles] = useState<DisplaySubtitle[]>([]);
   const [captionsLoading, setCaptionsLoading] = useState(false);
+  const [captionsStatus, setCaptionsStatus] = useState<string | null>(null);
   const [captionsError, setCaptionsError] = useState<string | null>(null);
   const [nativeLanguage, setNativeLanguage] = useState("en");
 
-  // Track watch time
   const watchStartRef = useRef<number | null>(null);
 
   // Load film
@@ -114,135 +259,62 @@ const Watch = () => {
     });
   }, [id]);
 
+  // Load native language from profile
   useEffect(() => {
-    if (!user) {
-      setNativeLanguage("en");
-      return;
-    }
-
+    if (!user) { setNativeLanguage("en"); return; }
     supabase
       .from("profiles")
       .select("native_language")
       .eq("user_id", user.id)
       .single()
       .then(({ data }) => {
-        if (data?.native_language) {
-          setNativeLanguage(data.native_language);
-        }
+        if (data?.native_language) setNativeLanguage(data.native_language);
       });
   }, [user]);
 
-  // Client-side caption fetching (bypasses server-side YouTube blocks)
-  const fetchCaptionsClientSide = async (ytId: string, lang: string): Promise<{start: number; end: number; text: string}[]> => {
-    const parseXml = (xml: string) => {
-      const subs: {start: number; end: number; text: string}[] = [];
-      const regex = /<text start="([\d.]+)" dur="([\d.]+)"[^>]*>(.*?)<\/text>/gs;
-      let match;
-      while ((match = regex.exec(xml)) !== null) {
-        const start = parseFloat(match[1]);
-        const dur = parseFloat(match[2]);
-        const text = match[3]
-          .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
-          .replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/<[^>]+>/g, '').trim();
-        if (text) subs.push({ start, end: start + dur, text });
-      }
-      return subs;
-    };
-
-    // Try direct timedtext URLs from the user's browser
-    const urls = [
-      `https://www.youtube.com/api/timedtext?v=${ytId}&lang=${lang}&fmt=srv3`,
-      `https://www.youtube.com/api/timedtext?v=${ytId}&lang=${lang}&fmt=srv3&kind=asr`,
-    ];
-    if (lang !== 'en') {
-      urls.push(
-        `https://www.youtube.com/api/timedtext?v=${ytId}&lang=en&fmt=srv3`,
-        `https://www.youtube.com/api/timedtext?v=${ytId}&lang=en&fmt=srv3&kind=asr`,
-      );
-    }
-
-    for (const url of urls) {
-      try {
-        const res = await fetch(url);
-        if (res.ok) {
-          const xml = await res.text();
-          const subs = parseXml(xml);
-          if (subs.length > 0) return subs;
-        }
-      } catch {}
-    }
-    return [];
-  };
-
-  // Fetch subtitles
+  // ── CAPTION LOADING — runs before overlay ──
   useEffect(() => {
     if (!film) return;
     let cancelled = false;
 
-    const loadCaptions = async () => {
+    const run = async () => {
       setCaptionsLoading(true);
       setCaptionsError(null);
+      setCaptionsStatus(null);
 
-      const primaryLanguage = film.language || learningLanguage || "fr";
-      const secondaryLanguage = nativeLanguage || "en";
+      const primaryLang = film.language || learningLanguage || "fr";
+      const secondaryLang = nativeLanguage || "en";
       const ytId = getYouTubeId(film.url);
 
       if (!ytId) {
         if (!cancelled) {
           setCaptionsLoading(false);
-          setCaptionsError("No subtitles available");
+          setCaptionsError("Invalid video URL — cannot load captions");
         }
         return;
       }
 
-      const storedTracks = await ensureSubtitleTracks({
-        filmId: film.id,
-        videoId: ytId,
-        primaryLanguage,
-        secondaryLanguage,
-      });
+      const { primary, secondary } = await loadAllCaptions(
+        film.id, ytId, primaryLang, secondaryLang,
+        (msg) => { if (!cancelled) setCaptionsStatus(msg); },
+      );
 
-      if (storedTracks.primary.length > 0) {
-        if (!cancelled) {
-          setSubtitles(buildDisplaySubtitles(storedTracks.primary, storedTracks.secondary));
-          setCaptionsLoading(false);
-        }
-        return;
+      if (cancelled) return;
+
+      if (primary.length > 0) {
+        setSubtitles(buildDisplaySubtitles(primary, secondary));
+        setCaptionsStatus(null);
+      } else {
+        setCaptionsError(`Could not load ${getLanguageLabel(primaryLang)} captions for this video`);
       }
-
-      const clientPrimary = await fetchCaptionsClientSide(ytId, primaryLanguage);
-      if (clientPrimary.length > 0) {
-        await persistSubtitleTrack(film.id, primaryLanguage, clientPrimary);
-
-        let secondaryTrack: SubtitleSegment[] = [];
-        if (secondaryLanguage !== primaryLanguage) {
-          secondaryTrack = await translateSubtitleTrack(clientPrimary, primaryLanguage, secondaryLanguage);
-          if (secondaryTrack.length > 0) {
-            await persistSubtitleTrack(film.id, secondaryLanguage, secondaryTrack);
-          }
-        }
-
-        if (!cancelled) {
-          setSubtitles(buildDisplaySubtitles(clientPrimary, secondaryTrack));
-          setCaptionsLoading(false);
-        }
-        return;
-      }
-
-      if (!cancelled) {
-        setCaptionsLoading(false);
-        setCaptionsError(`Could not load ${getLanguageLabel(primaryLanguage)} captions for this video`);
-      }
+      setCaptionsLoading(false);
     };
 
-    void loadCaptions();
-
-    return () => {
-      cancelled = true;
-    };
+    void run();
+    return () => { cancelled = true; };
   }, [film, learningLanguage, nativeLanguage]);
 
-  // Load YouTube API
+  // Load YouTube IFrame API
   useEffect(() => {
     if (window.YT?.Player) { setApiReady(true); return; }
     const tag = document.createElement("script");
@@ -261,7 +333,7 @@ const Watch = () => {
       videoId: ytId,
       width: "100%",
       height: "100%",
-      playerVars: { autoplay: 0, controls: 1, modestbranding: 1, rel: 0 },
+      playerVars: { autoplay: 0, controls: 1, modestbranding: 1, rel: 0, cc_load_policy: 0 },
       events: {
         onStateChange: (event: any) => {
           if (event.data === window.YT.PlayerState.PLAYING) {
@@ -273,12 +345,9 @@ const Watch = () => {
             }, 250);
           } else {
             clearInterval(intervalRef.current);
-            // Log watch time
             if (watchStartRef.current && user) {
-              const minutesWatched = Math.round((Date.now() - watchStartRef.current) / 60000);
-              if (minutesWatched > 0) {
-                logWatchTime(minutesWatched);
-              }
+              const mins = Math.round((Date.now() - watchStartRef.current) / 60000);
+              if (mins > 0) logWatchTime(mins);
               watchStartRef.current = null;
             }
           }
@@ -305,23 +374,20 @@ const Watch = () => {
         .eq("id", existing.id);
     } else {
       await supabase.from("activity_log").insert({
-        user_id: user.id,
-        date: today,
-        minutes_watched: minutes,
-        videos_watched: 1,
+        user_id: user.id, date: today, minutes_watched: minutes, videos_watched: 1,
       });
     }
   };
 
   const downloadSrt = (type: "primary" | "secondary") => {
-    const srtContent = subtitlesToSrt(subtitles, type);
-    if (!srtContent) return;
-    const blob = new Blob([srtContent], { type: "text/plain" });
+    const content = subtitlesToSrt(subtitles, type);
+    if (!content) return;
+    const blob = new Blob([content], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    const langSuffix = type === "primary" ? (film?.language || learningLanguage || "original") : nativeLanguage;
-    a.download = `${film?.title || "subtitles"}_${langSuffix}.srt`;
+    const lang = type === "primary" ? (film?.language || learningLanguage || "original") : nativeLanguage;
+    a.download = `${film?.title || "subtitles"}_${lang}.srt`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -371,23 +437,11 @@ const Watch = () => {
           </Button>
           {subtitles.length > 0 && (
             <div className="flex gap-1">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => downloadSrt("primary")}
-                className="text-white/70 hover:bg-white/10 gap-1 text-xs"
-              >
-                <Download className="w-3 h-3" />
-                Original
+              <Button variant="ghost" size="sm" onClick={() => downloadSrt("primary")} className="text-white/70 hover:bg-white/10 gap-1 text-xs">
+                <Download className="w-3 h-3" /> Original
               </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => downloadSrt("secondary")}
-                className="text-white/70 hover:bg-white/10 gap-1 text-xs"
-              >
-                <Download className="w-3 h-3" />
-                Translation
+              <Button variant="ghost" size="sm" onClick={() => downloadSrt("secondary")} className="text-white/70 hover:bg-white/10 gap-1 text-xs">
+                <Download className="w-3 h-3" /> Translation
               </Button>
             </div>
           )}
@@ -397,6 +451,14 @@ const Watch = () => {
       <div className="relative flex-1 flex flex-col items-center justify-center bg-black">
         <div className="w-full max-w-5xl aspect-video relative">
           <div id="yt-player" className="w-full h-full" />
+
+          {/* Loading status */}
+          {captionsLoading && captionsStatus && (
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/70 text-white/80 text-sm px-4 py-2 rounded-lg flex items-center gap-2">
+              <Loader2 className="w-3 h-3 animate-spin" />
+              {captionsStatus}
+            </div>
+          )}
 
           {captionsError && (
             <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-destructive/80 text-destructive-foreground text-sm px-4 py-2 rounded-lg">

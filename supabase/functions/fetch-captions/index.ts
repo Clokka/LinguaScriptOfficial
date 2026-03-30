@@ -5,253 +5,148 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-function parseXmlSubtitles(xmlText: string): { start: number; end: number; text: string }[] {
-  const subtitles: { start: number; end: number; text: string }[] = [];
-  const patterns = [
-    /<text start="([\d.]+)" dur="([\d.]+)"[^>]*>(.*?)<\/text>/gs,
-    /<p t="(\d+)" d="(\d+)"[^>]*>(.*?)<\/p>/gs,
+const headers = {
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+};
+
+interface Sub { start: number; end: number; text: string }
+
+function parseSRT(srt: string): Sub[] {
+  return srt
+    .replace(/\r\n/g, '\n')
+    .trim()
+    .split(/\n\n+/)
+    .map(block => {
+      const lines = block.split('\n').filter(Boolean);
+      if (lines.length < 3) return null;
+      const timeMatch = lines[1]?.match(/(\d{2}:\d{2}:\d{2}[.,]\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2}[.,]\d{3})/);
+      if (!timeMatch) return null;
+      const toSec = (t: string) => {
+        const [h, m, s] = t.replace(',', '.').split(':');
+        return (+h) * 3600 + (+m) * 60 + parseFloat(s);
+      };
+      return {
+        start: toSec(timeMatch[1]),
+        end: toSec(timeMatch[2]),
+        text: lines.slice(2).join(' ').trim(),
+      };
+    })
+    .filter(Boolean) as Sub[];
+}
+
+function parseXML(xml: string): Sub[] {
+  const subs: Sub[] = [];
+  const regex = /<text start="([\d.]+)" dur="([\d.]+)"[^>]*>(.*?)<\/text>/gs;
+  let m;
+  while ((m = regex.exec(xml)) !== null) {
+    const start = parseFloat(m[1]);
+    const dur = parseFloat(m[2]);
+    const text = m[3]
+      .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+      .replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/<[^>]+>/g, '').trim();
+    if (text) subs.push({ start, end: start + dur, text });
+  }
+  return subs;
+}
+
+async function fetchTrack(videoId: string, lang: string): Promise<Sub[]> {
+  // Strategy 1: video.google.com/timedtext SRT format
+  const googleUrls = [
+    `https://video.google.com/timedtext?v=${videoId}&lang=${lang}&fmt=srt`,
+    `https://video.google.com/timedtext?v=${videoId}&lang=${lang}&fmt=srt&kind=asr`,
   ];
-  for (const regex of patterns) {
-    let match;
-    while ((match = regex.exec(xmlText)) !== null) {
-      let start: number, dur: number;
-      if (regex === patterns[1]) {
-        start = parseInt(match[1]) / 1000;
-        dur = parseInt(match[2]) / 1000;
-      } else {
-        start = parseFloat(match[1]);
-        dur = parseFloat(match[2]);
-      }
-      const text = match[3]
-        .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
-        .replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/<[^>]+>/g, '').trim();
-      if (text) subtitles.push({ start, end: start + dur, text });
-    }
-    if (subtitles.length > 0) break;
-  }
-  return subtitles;
-}
 
-function parseJsonTranscript(json: any): { start: number; end: number; text: string }[] {
-  try {
-    const events = json?.events || json;
-    if (!Array.isArray(events)) return [];
-    const subtitles: { start: number; end: number; text: string }[] = [];
-    for (const event of events) {
-      if (!event.segs) continue;
-      const text = event.segs.map((s: any) => s.utf8).join('').trim();
-      if (!text || text === '\n') continue;
-      const start = (event.tStartMs || 0) / 1000;
-      const dur = (event.dDurationMs || 3000) / 1000;
-      subtitles.push({ start, end: start + dur, text });
-    }
-    return subtitles;
-  } catch {
-    return [];
-  }
-}
-
-function isAsrKind(kind?: string): boolean {
-  return (kind || '').toLowerCase() === 'asr';
-}
-
-// Method 1: Fetch YouTube page and extract captions from embedded player data
-async function fetchFromPage(videoId: string, lang: string): Promise<{ subtitles: any[]; source: string } | null> {
-  try {
-    // Use embed page which is less restrictive
-    const embedUrl = `https://www.youtube.com/embed/${videoId}`;
-    console.log('Embed: fetching', embedUrl);
-    
-    const res = await fetch(embedUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml',
-        'Accept-Language': 'en-US,en;q=0.9',
-      },
-    });
-
-    if (!res.ok) {
-      console.error('Embed: fetch failed:', res.status);
-      await res.text();
-      return null;
-    }
-
-    const html = await res.text();
-    
-    // Extract caption tracks from embedded player config
-    const captionMatch = html.match(/"captionTracks"\s*:\s*(\[.*?\])\s*,/s);
-    if (captionMatch) {
-      try {
-        const tracks = JSON.parse(captionMatch[1]);
-        console.log('Embed: found caption tracks:', tracks.map((t: any) => t.languageCode));
-        return await downloadFromTracks(tracks, lang);
-      } catch (e) {
-        console.error('Embed: failed to parse caption tracks:', e);
-      }
-    }
-
-    // Try to find in ytInitialPlayerResponse
-    const playerMatch = html.match(/ytInitialPlayerResponse\s*=\s*\{/);
-    if (playerMatch) {
-      const startIdx = playerMatch.index! + playerMatch[0].length - 1;
-      const jsonStr = extractBalancedJson(html.substring(startIdx));
-      if (jsonStr) {
-        try {
-          const playerData = JSON.parse(jsonStr);
-          const tracks = playerData?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
-          if (tracks?.length) {
-            console.log('Embed: found tracks from playerResponse:', tracks.map((t: any) => t.languageCode));
-            return await downloadFromTracks(tracks, lang);
-          }
-        } catch {}
-      }
-    }
-
-    console.log('Embed: no caption tracks found');
-    return null;
-  } catch (e) {
-    console.error('Embed error:', e);
-    return null;
-  }
-}
-
-function extractBalancedJson(str: string): string | null {
-  let depth = 0;
-  for (let i = 0; i < Math.min(str.length, 500000); i++) {
-    if (str[i] === '{') depth++;
-    else if (str[i] === '}') {
-      depth--;
-      if (depth === 0) return str.substring(0, i + 1);
-    }
-  }
-  return null;
-}
-
-async function downloadFromTracks(captionTracks: any[], lang: string): Promise<{ subtitles: any[]; source: string } | null> {
-  const directTrack = captionTracks.find((t: any) => t.languageCode === lang)
-    || captionTracks.find((t: any) => t.languageCode?.startsWith(lang));
-  const fallbackTrack = captionTracks.find((t: any) => t.languageCode === 'en') || captionTracks[0];
-  const track = directTrack || fallbackTrack;
-
-  if (!track?.baseUrl) return null;
-  const translatedRequest = !directTrack && track.languageCode !== lang;
-  
-  let captionUrl = track.baseUrl;
-  if (!captionUrl.includes('fmt=')) captionUrl += '&fmt=srv3';
-  if (translatedRequest && !captionUrl.includes('tlang=')) {
-    captionUrl += `&tlang=${encodeURIComponent(lang)}`;
-  }
-
-  console.log('Downloading captions for', track.languageCode, 'from baseUrl');
-  const captionRes = await fetch(captionUrl);
-  if (!captionRes.ok) {
-    console.error('Caption download failed:', captionRes.status);
-    await captionRes.text();
-    return null;
-  }
-
-  const content = await captionRes.text();
-  
-  // Try XML parsing
-  let subtitles = parseXmlSubtitles(content);
-  if (subtitles.length > 0) {
-    return { subtitles, source: translatedRequest ? `translated-from-${track.languageCode}` : isAsrKind(track.kind) ? 'auto-generated' : 'manual' };
-  }
-  
-  // Try JSON parsing (json3 format)
-  try {
-    const jsonData = JSON.parse(content);
-    subtitles = parseJsonTranscript(jsonData);
-    if (subtitles.length > 0) {
-      return { subtitles, source: translatedRequest ? `translated-from-${track.languageCode}` : isAsrKind(track.kind) ? 'auto-generated' : 'manual' };
-    }
-  } catch {}
-  
-  return null;
-}
-
-// Method 2: Direct timedtext endpoints
-async function fetchViaTimedtext(videoId: string, lang: string): Promise<{ subtitles: any[]; source: string } | null> {
-  const headers = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-  };
-  
-  // Try both srv3 (XML) and json3 formats
-  const urls = [
-    { url: `https://www.youtube.com/api/timedtext?v=${videoId}&lang=${lang}&fmt=srv3`, src: 'timedtext' },
-    { url: `https://www.youtube.com/api/timedtext?v=${videoId}&lang=${lang}&fmt=srv3&kind=asr`, src: 'asr' },
-    { url: `https://www.youtube.com/api/timedtext?v=${videoId}&lang=${lang}&fmt=json3`, src: 'json3' },
-    { url: `https://www.youtube.com/api/timedtext?v=${videoId}&lang=${lang}&fmt=json3&kind=asr`, src: 'json3-asr' },
-  ];
-  if (lang !== 'en') {
-    urls.push(
-      { url: `https://www.youtube.com/api/timedtext?v=${videoId}&lang=en&fmt=srv3`, src: 'en' },
-      { url: `https://www.youtube.com/api/timedtext?v=${videoId}&lang=en&fmt=srv3&kind=asr`, src: 'en-asr' },
-      { url: `https://www.youtube.com/api/timedtext?v=${videoId}&lang=en&fmt=json3&kind=asr`, src: 'en-json3-asr' },
-    );
-  }
-  for (const { url, src } of urls) {
+  for (const url of googleUrls) {
     try {
-      console.log('Timedtext:', src);
+      console.log(`Trying: ${url}`);
       const res = await fetch(url, { headers });
-      const body = await res.text();
-      if (res.ok && body.length > 50) {
-        // Try XML
-        let subs = parseXmlSubtitles(body);
-        if (subs.length > 0) return { subtitles: subs, source: src };
-        // Try JSON
-        try {
-          subs = parseJsonTranscript(JSON.parse(body));
-          if (subs.length > 0) return { subtitles: subs, source: src };
-        } catch {}
+      if (res.ok) {
+        const body = await res.text();
+        if (body.length > 20) {
+          const subs = parseSRT(body);
+          if (subs.length > 0) {
+            console.log(`✓ Got ${subs.length} subs from video.google.com SRT (${lang})`);
+            return subs;
+          }
+        }
       }
     } catch {}
   }
-  return null;
-}
 
-// Method 3: YouTube Data API to identify tracks, then download
-async function fetchViaYouTubeAPI(videoId: string, lang: string, apiKey: string): Promise<{ subtitles: any[]; source: string } | null> {
+  // Strategy 2: youtube.com/api/timedtext XML format
+  const ytUrls = [
+    `https://www.youtube.com/api/timedtext?v=${videoId}&lang=${lang}&fmt=srv3`,
+    `https://www.youtube.com/api/timedtext?v=${videoId}&lang=${lang}&fmt=srv3&kind=asr`,
+  ];
+
+  for (const url of ytUrls) {
+    try {
+      console.log(`Trying: ${url}`);
+      const res = await fetch(url, { headers });
+      if (res.ok) {
+        const body = await res.text();
+        if (body.length > 20) {
+          const subs = parseXML(body);
+          if (subs.length > 0) {
+            console.log(`✓ Got ${subs.length} subs from youtube timedtext XML (${lang})`);
+            return subs;
+          }
+        }
+      }
+    } catch {}
+  }
+
+  // Strategy 3: Embed page scraping for signed caption URLs
   try {
-    const listUrl = `https://www.googleapis.com/youtube/v3/captions?part=snippet&videoId=${videoId}&key=${apiKey}`;
-    console.log('YT API: listing captions');
-    const listRes = await fetch(listUrl);
-    if (!listRes.ok) { await listRes.text(); return null; }
+    console.log(`Trying embed page scrape for ${videoId}`);
+    const embedRes = await fetch(`https://www.youtube.com/embed/${videoId}`, { headers });
+    if (embedRes.ok) {
+      const html = await embedRes.text();
+      const captionMatch = html.match(/"captionTracks"\s*:\s*(\[.*?\])\s*,/s);
+      if (captionMatch) {
+        const tracks = JSON.parse(captionMatch[1]);
+        const track = tracks.find((t: any) => t.languageCode === lang)
+          || tracks.find((t: any) => t.languageCode?.startsWith(lang));
 
-    const listData = await listRes.json();
-    const items = listData.items || [];
-    console.log('YT API: found', items.length, 'tracks:', items.map((i: any) => `${i.snippet.language} (${i.snippet.trackKind})`));
-    if (items.length === 0) return null;
+        if (track?.baseUrl) {
+          let captionUrl = track.baseUrl;
+          if (!captionUrl.includes('fmt=')) captionUrl += '&fmt=srv3';
+          const capRes = await fetch(captionUrl, { headers });
+          if (capRes.ok) {
+            const xml = await capRes.text();
+            const subs = parseXML(xml);
+            if (subs.length > 0) {
+              console.log(`✓ Got ${subs.length} subs from embed scrape (${lang})`);
+              return subs;
+            }
+          }
+        }
 
-    const directTrack = items.find((i: any) => i.snippet.language === lang)
-      || items.find((i: any) => i.snippet.language.startsWith(lang));
-    const fallbackTrack = items.find((i: any) => !isAsrKind(i.snippet.trackKind)) || items[0];
-    const track = directTrack || fallbackTrack;
-
-    const trackLang = track.snippet.language;
-    const translatedRequest = !directTrack && trackLang !== lang;
-    const asrTrack = isAsrKind(track.snippet.trackKind);
-
-    // Try multiple download formats
-    const formats = ['srv3', 'json3'];
-    for (const fmt of formats) {
-      const ttUrl = `https://www.youtube.com/api/timedtext?v=${videoId}&lang=${trackLang}&fmt=${fmt}${asrTrack ? '&kind=asr' : ''}${translatedRequest ? `&tlang=${encodeURIComponent(lang)}` : ''}`;
-      const ttRes = await fetch(ttUrl);
-      const body = await ttRes.text();
-      if (ttRes.ok && body.length > 50) {
-        let subs = parseXmlSubtitles(body);
-        if (subs.length > 0) return { subtitles: subs, source: translatedRequest ? `translated-from-${trackLang}` : asrTrack ? 'auto-generated' : 'manual' };
-        try {
-          subs = parseJsonTranscript(JSON.parse(body));
-          if (subs.length > 0) return { subtitles: subs, source: translatedRequest ? `translated-from-${trackLang}` : asrTrack ? 'auto-generated' : 'manual' };
-        } catch {}
+        // Try translation via tlang if direct track not found
+        if (!track) {
+          const anyTrack = tracks[0];
+          if (anyTrack?.baseUrl) {
+            let captionUrl = anyTrack.baseUrl;
+            if (!captionUrl.includes('fmt=')) captionUrl += '&fmt=srv3';
+            captionUrl += `&tlang=${encodeURIComponent(lang)}`;
+            const capRes = await fetch(captionUrl, { headers });
+            if (capRes.ok) {
+              const xml = await capRes.text();
+              const subs = parseXML(xml);
+              if (subs.length > 0) {
+                console.log(`✓ Got ${subs.length} subs via tlang translation to ${lang}`);
+                return subs;
+              }
+            }
+          }
+        }
       }
     }
-    return null;
   } catch (e) {
-    console.error('YT API error:', e);
-    return null;
+    console.error('Embed scrape error:', e);
   }
+
+  return [];
 }
 
 serve(async (req) => {
@@ -262,47 +157,22 @@ serve(async (req) => {
   try {
     const { videoId, language } = await req.json();
     if (!videoId) {
-      return new Response(JSON.stringify({ error: 'videoId required' }), { 
-        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      return new Response(JSON.stringify({ error: 'videoId required' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
 
     const lang = language || 'fr';
-    const apiKey = Deno.env.get('YOUTUBE_API_KEY');
+    console.log(`=== Fetching captions for ${videoId}, lang: ${lang} ===`);
 
-    // Method 1: Embed page scraping (gets signed URLs)
-    console.log(`[1/3] Embed page for ${videoId}, lang: ${lang}`);
-    const embedResult = await fetchFromPage(videoId, lang);
-    if (embedResult && embedResult.subtitles.length > 0) {
-      console.log(`✓ Got ${embedResult.subtitles.length} subtitles from embed`);
-      return new Response(JSON.stringify({ subtitles: embedResult.subtitles, language: lang, source: embedResult.source }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
+    const subtitles = await fetchTrack(videoId, lang);
 
-    // Method 2: Direct timedtext
-    console.log(`[2/3] Timedtext for ${videoId}, lang: ${lang}`);
-    const ttResult = await fetchViaTimedtext(videoId, lang);
-    if (ttResult && ttResult.subtitles.length > 0) {
-      console.log(`✓ Got ${ttResult.subtitles.length} subtitles from timedtext`);
-      return new Response(JSON.stringify({ subtitles: ttResult.subtitles, language: lang, source: ttResult.source }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
-
-    // Method 3: YouTube Data API
-    if (apiKey) {
-      console.log(`[3/3] YouTube API for ${videoId}, lang: ${lang}`);
-      const apiResult = await fetchViaYouTubeAPI(videoId, lang, apiKey);
-      if (apiResult && apiResult.subtitles.length > 0) {
-        console.log(`✓ Got ${apiResult.subtitles.length} subtitles from YT API`);
-        return new Response(JSON.stringify({ subtitles: apiResult.subtitles, language: lang, source: apiResult.source }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        });
-      }
-    }
-
-    return new Response(JSON.stringify({ subtitles: [], language: lang, source: 'none', message: 'No captions found for this video' }), {
+    return new Response(JSON.stringify({
+      subtitles,
+      language: lang,
+      count: subtitles.length,
+      source: subtitles.length > 0 ? 'timedtext' : 'none',
+    }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
 
