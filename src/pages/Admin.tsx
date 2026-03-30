@@ -51,7 +51,13 @@ const Admin = () => {
 
   useEffect(() => {
     fetchFilms();
+    fetchEmails();
   }, []);
+
+  const fetchEmails = async () => {
+    const { data } = await supabase.from("email_signups").select("*").order("created_at", { ascending: false });
+    if (data) setEmails(data);
+  };
 
   const fetchFilms = async () => {
     const { data } = await supabase.from("films").select("*").order("created_at", { ascending: false });
