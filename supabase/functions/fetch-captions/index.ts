@@ -10,13 +10,26 @@ const headers = {
 };
 
 interface Sub { start: number; end: number; text: string }
+interface CaptionTrack { lang: string; name?: string; kind?: string }
+
+function decodeHtml(text: string): string {
+  return text
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&#39;/g, "'")
+    .replace(/&quot;/g, '"')
+    .replace(/&#10;/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
 
 function parseSRT(srt: string): Sub[] {
   return srt
     .replace(/\r\n/g, '\n')
     .trim()
     .split(/\n\n+/)
-    .map(block => {
+    .map((block) => {
       const lines = block.split('\n').filter(Boolean);
       if (lines.length < 3) return null;
       const timeMatch = lines[1]?.match(/(\d{2}:\d{2}:\d{2}[.,]\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2}[.,]\d{3})/);
@@ -34,116 +47,117 @@ function parseSRT(srt: string): Sub[] {
     .filter(Boolean) as Sub[];
 }
 
-function parseXML(xml: string): Sub[] {
-  const subs: Sub[] = [];
-  const regex = /<text start="([\d.]+)" dur="([\d.]+)"[^>]*>(.*?)<\/text>/gs;
-  let m;
-  while ((m = regex.exec(xml)) !== null) {
-    const start = parseFloat(m[1]);
-    const dur = parseFloat(m[2]);
-    const text = m[3]
-      .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
-      .replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/<[^>]+>/g, '').trim();
-    if (text) subs.push({ start, end: start + dur, text });
+function parseTimedTextXml(xml: string): Sub[] {
+  const subtitles: Sub[] = [];
+  const textRegex = /<text start="([\d.]+)" dur="([\d.]+)"[^>]*>([\s\S]*?)<\/text>/g;
+  const pRegex = /<p\s+t="(\d+)"\s+d="(\d+)"[^>]*>([\s\S]*?)<\/p>/g;
+
+  let match: RegExpExecArray | null;
+
+  while ((match = textRegex.exec(xml)) !== null) {
+    const start = parseFloat(match[1]);
+    const dur = parseFloat(match[2]);
+    const text = decodeHtml(match[3].replace(/<[^>]+>/g, ''));
+    if (text) subtitles.push({ start, end: start + dur, text });
   }
-  return subs;
+
+  if (subtitles.length > 0) return subtitles;
+
+  while ((match = pRegex.exec(xml)) !== null) {
+    const start = parseInt(match[1], 10) / 1000;
+    const dur = parseInt(match[2], 10) / 1000;
+    const text = decodeHtml(match[3].replace(/<[^>]+>/g, ''));
+    if (text) subtitles.push({ start, end: start + dur, text });
+  }
+
+  return subtitles;
+}
+
+function parseTrackList(xml: string): CaptionTrack[] {
+  const tracks: CaptionTrack[] = [];
+  const trackRegex = /<track\s+([^>]+?)\/?>(?:<\/track>)?/g;
+  const attrRegex = /(\w+)="([^"]*)"/g;
+  let match: RegExpExecArray | null;
+
+  while ((match = trackRegex.exec(xml)) !== null) {
+    const attrs = Object.fromEntries(Array.from(match[1].matchAll(attrRegex)).map(([, key, value]) => [key, decodeHtml(value)]));
+    const lang = attrs.lang_code || attrs.lang || '';
+    if (!lang) continue;
+    tracks.push({ lang, name: attrs.name || undefined, kind: attrs.kind || undefined });
+  }
+
+  return tracks;
+}
+
+function buildTimedTextUrl(videoId: string, track: CaptionTrack, format: 'srt' | 'srv3', targetLang?: string): string {
+  const params = new URLSearchParams({ v: videoId, lang: track.lang, fmt: format });
+  if (track.name) params.set('name', track.name);
+  if (track.kind) params.set('kind', track.kind);
+  if (targetLang && targetLang !== track.lang) params.set('tlang', targetLang);
+  return `https://video.google.com/timedtext?${params.toString()}`;
+}
+
+async function fetchTrackList(videoId: string): Promise<CaptionTrack[]> {
+  try {
+    const res = await fetch(`https://video.google.com/timedtext?type=list&v=${videoId}`, { headers });
+    const body = await res.text();
+    return body ? parseTrackList(body) : [];
+  } catch {
+    return [];
+  }
 }
 
 async function fetchTrack(videoId: string, lang: string): Promise<Sub[]> {
-  // Strategy 1: video.google.com/timedtext SRT format
-  const googleUrls = [
-    `https://video.google.com/timedtext?v=${videoId}&lang=${lang}&fmt=srt`,
-    `https://video.google.com/timedtext?v=${videoId}&lang=${lang}&fmt=srt&kind=asr`,
-  ];
+  const trackList = await fetchTrackList(videoId);
+  const directTrack = trackList.find((track) => track.lang === lang) || trackList.find((track) => track.lang.startsWith(`${lang}-`));
+  const fallbackTrack = trackList.find((track) => track.lang === 'en') || trackList[0];
 
-  for (const url of googleUrls) {
-    try {
-      console.log(`Trying: ${url}`);
-      const res = await fetch(url, { headers });
-      if (res.ok) {
+  const candidates = [
+    directTrack ? { track: directTrack, targetLang: undefined } : null,
+    !directTrack && fallbackTrack ? { track: fallbackTrack, targetLang: lang } : null,
+  ].filter(Boolean) as Array<{ track: CaptionTrack; targetLang?: string }>;
+
+  for (const candidate of candidates) {
+    for (const format of ['srt', 'srv3'] as const) {
+      try {
+        const url = buildTimedTextUrl(videoId, candidate.track, format, candidate.targetLang);
+        console.log(`Trying: ${url}`);
+        const res = await fetch(url, { headers });
         const body = await res.text();
-        if (body.length > 20) {
-          const subs = parseSRT(body);
-          if (subs.length > 0) {
-            console.log(`✓ Got ${subs.length} subs from video.google.com SRT (${lang})`);
-            return subs;
-          }
+        if (!res.ok || !body.trim()) continue;
+        const subtitles = format === 'srt' ? parseSRT(body) : parseTimedTextXml(body);
+        if (subtitles.length > 0) {
+          console.log(`✓ Got ${subtitles.length} subtitles via timedtext (${candidate.track.lang}${candidate.targetLang ? `→${candidate.targetLang}` : ''})`);
+          return subtitles;
         }
-      }
-    } catch {}
+      } catch {}
+    }
   }
 
-  // Strategy 2: youtube.com/api/timedtext XML format
-  const ytUrls = [
-    `https://www.youtube.com/api/timedtext?v=${videoId}&lang=${lang}&fmt=srv3`,
-    `https://www.youtube.com/api/timedtext?v=${videoId}&lang=${lang}&fmt=srv3&kind=asr`,
-  ];
-
-  for (const url of ytUrls) {
-    try {
-      console.log(`Trying: ${url}`);
-      const res = await fetch(url, { headers });
-      if (res.ok) {
-        const body = await res.text();
-        if (body.length > 20) {
-          const subs = parseXML(body);
-          if (subs.length > 0) {
-            console.log(`✓ Got ${subs.length} subs from youtube timedtext XML (${lang})`);
-            return subs;
-          }
-        }
-      }
-    } catch {}
-  }
-
-  // Strategy 3: Embed page scraping for signed caption URLs
   try {
     console.log(`Trying embed page scrape for ${videoId}`);
     const embedRes = await fetch(`https://www.youtube.com/embed/${videoId}`, { headers });
-    if (embedRes.ok) {
-      const html = await embedRes.text();
-      const captionMatch = html.match(/"captionTracks"\s*:\s*(\[.*?\])\s*,/s);
-      if (captionMatch) {
-        const tracks = JSON.parse(captionMatch[1]);
-        const track = tracks.find((t: any) => t.languageCode === lang)
-          || tracks.find((t: any) => t.languageCode?.startsWith(lang));
+    const html = await embedRes.text();
+    const captionMatch = html.match(/"captionTracks"\s*:\s*(\[.*?\])\s*,/s);
+    if (captionMatch) {
+      const tracks = JSON.parse(captionMatch[1]);
+      const direct = tracks.find((track: any) => track.languageCode === lang) || tracks.find((track: any) => track.languageCode?.startsWith(lang));
+      const fallback = tracks.find((track: any) => track.languageCode === 'en') || tracks[0];
+      const selected = direct || fallback;
 
-        if (track?.baseUrl) {
-          let captionUrl = track.baseUrl;
-          if (!captionUrl.includes('fmt=')) captionUrl += '&fmt=srv3';
-          const capRes = await fetch(captionUrl, { headers });
-          if (capRes.ok) {
-            const xml = await capRes.text();
-            const subs = parseXML(xml);
-            if (subs.length > 0) {
-              console.log(`✓ Got ${subs.length} subs from embed scrape (${lang})`);
-              return subs;
-            }
-          }
-        }
-
-        // Try translation via tlang if direct track not found
-        if (!track) {
-          const anyTrack = tracks[0];
-          if (anyTrack?.baseUrl) {
-            let captionUrl = anyTrack.baseUrl;
-            if (!captionUrl.includes('fmt=')) captionUrl += '&fmt=srv3';
-            captionUrl += `&tlang=${encodeURIComponent(lang)}`;
-            const capRes = await fetch(captionUrl, { headers });
-            if (capRes.ok) {
-              const xml = await capRes.text();
-              const subs = parseXML(xml);
-              if (subs.length > 0) {
-                console.log(`✓ Got ${subs.length} subs via tlang translation to ${lang}`);
-                return subs;
-              }
-            }
-          }
+      if (selected?.baseUrl) {
+        const captionUrl = `${selected.baseUrl}${selected.baseUrl.includes('fmt=') ? '' : '&fmt=srv3'}${!direct && selected.languageCode !== lang ? `&tlang=${encodeURIComponent(lang)}` : ''}`;
+        const capRes = await fetch(captionUrl, { headers });
+        const xml = await capRes.text();
+        const subtitles = parseTimedTextXml(xml);
+        if (subtitles.length > 0) {
+          console.log(`✓ Got ${subtitles.length} subtitles from embed scrape (${selected.languageCode})`);
+          return subtitles;
         }
       }
     }
-  } catch (e) {
-    console.error('Embed scrape error:', e);
+  } catch (error) {
+    console.error('Embed scrape error:', error);
   }
 
   return [];
