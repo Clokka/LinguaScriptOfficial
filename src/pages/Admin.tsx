@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Plus, Trash2, Film, Loader2, Upload, FileText, Check } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Film, Loader2, Upload, FileText, Check, Mail } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 
@@ -26,8 +26,15 @@ interface FilmRow {
   subtitle_languages?: string[];
 }
 
+interface EmailSignup {
+  id: string;
+  email: string;
+  created_at: string;
+}
+
 const Admin = () => {
   const [films, setFilms] = useState<FilmRow[]>([]);
+  const [emails, setEmails] = useState<EmailSignup[]>([]);
   const [title, setTitle] = useState("");
   const [url, setUrl] = useState("");
   const [language, setLanguage] = useState("es");
@@ -44,7 +51,13 @@ const Admin = () => {
 
   useEffect(() => {
     fetchFilms();
+    fetchEmails();
   }, []);
+
+  const fetchEmails = async () => {
+    const { data } = await supabase.from("email_signups").select("*").order("created_at", { ascending: false });
+    if (data) setEmails(data);
+  };
 
   const fetchFilms = async () => {
     const { data } = await supabase.from("films").select("*").order("created_at", { ascending: false });
@@ -345,6 +358,37 @@ const Admin = () => {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+        {/* Email Signups */}
+        <h2 className="text-lg font-semibold text-foreground mb-4 mt-12 flex items-center gap-2">
+          <Mail className="w-5 h-5 text-primary" /> Email Signups ({emails.length})
+        </h2>
+        {emails.length === 0 ? (
+          <div className="glass-panel p-8 text-center">
+            <Mail className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+            <p className="text-muted-foreground">No email signups yet.</p>
+          </div>
+        ) : (
+          <div className="glass-panel-strong overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="text-left p-3 text-muted-foreground font-medium">Email</th>
+                  <th className="text-left p-3 text-muted-foreground font-medium">Signed Up</th>
+                </tr>
+              </thead>
+              <tbody>
+                {emails.map((signup) => (
+                  <tr key={signup.id} className="border-b border-border/50 last:border-0">
+                    <td className="p-3 text-foreground">{signup.email}</td>
+                    <td className="p-3 text-muted-foreground">
+                      {new Date(signup.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
