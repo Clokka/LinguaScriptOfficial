@@ -418,6 +418,20 @@ const Watch = () => {
     }
   };
 
+  const saveWordToFlashcards = async (word: { id: string; text: string; translation: string; pronunciation: string; ipa: string }) => {
+    if (!user || !film) return;
+    await supabase.from("saved_words").upsert({
+      user_id: user.id,
+      word: word.text,
+      translation: word.translation,
+      pronunciation: word.pronunciation,
+      ipa: word.ipa,
+      context: currentSubtitle?.primary || "",
+      film_id: film.id,
+      language: film.language || learningLanguage || "fr",
+    }, { onConflict: "user_id,word,language" });
+  };
+
   const downloadSrt = (type: "primary" | "secondary") => {
     const content = subtitlesToSrt(subtitles, type);
     if (!content) return;
