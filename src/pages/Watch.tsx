@@ -512,6 +512,7 @@ const Watch = () => {
                 words={currentSubtitle.words}
                 mode={subtitleMode}
                 onSaveWord={saveWordToFlashcards}
+                nativeLanguage={nativeLanguage}
               />
             </div>
           )}
