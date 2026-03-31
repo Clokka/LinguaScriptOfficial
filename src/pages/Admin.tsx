@@ -332,7 +332,7 @@ const Admin = () => {
                             onChange={(e) => {
                               const file = e.target.files?.[0];
                               if (file) handleUploadSubsForExisting(film.id, file, lang);
-                              e.target.value = "";
+                              requestAnimationFrame(() => { e.target.value = ""; });
                             }}
                           />
                           <Button
