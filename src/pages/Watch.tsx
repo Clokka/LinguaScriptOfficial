@@ -91,60 +91,8 @@ async function fetchTrackViaEdge(videoId: string, lang: string): Promise<Subtitl
   }
 }
 
-async function fetchTrackClientSide(videoId: string, lang: string): Promise<SubtitleSegment[]> {
-  const parseXml = (xml: string) => {
-    const decode = (value: string) => value
-      .replace(/&amp;/g, '&')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/&#39;/g, "'")
-      .replace(/&quot;/g, '"')
-      .replace(/&#10;/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
-
-    const subs: SubtitleSegment[] = [];
-    const textRegex = /<text start="([\d.]+)" dur="([\d.]+)"[^>]*>([\s\S]*?)<\/text>/g;
-    const pRegex = /<p\s+t="(\d+)"\s+d="(\d+)"[^>]*>([\s\S]*?)<\/p>/g;
-    let m: RegExpExecArray | null;
-
-    while ((m = textRegex.exec(xml)) !== null) {
-      const start = parseFloat(m[1]);
-      const dur = parseFloat(m[2]);
-      const text = decode(m[3].replace(/<[^>]+>/g, ''));
-      if (text) subs.push({ start, end: start + dur, text });
-    }
-
-    if (subs.length > 0) return subs;
-
-    while ((m = pRegex.exec(xml)) !== null) {
-      const start = parseInt(m[1], 10) / 1000;
-      const dur = parseInt(m[2], 10) / 1000;
-      const text = decode(m[3].replace(/<[^>]+>/g, ''));
-      if (text) subs.push({ start, end: start + dur, text });
-    }
-
-    return subs;
-  };
-
-  const urls = [
-    `https://video.google.com/timedtext?v=${videoId}&lang=${lang}&fmt=srv3`,
-    `https://www.youtube.com/api/timedtext?v=${videoId}&lang=${lang}&fmt=srv3`,
-    `https://www.youtube.com/api/timedtext?v=${videoId}&lang=${lang}&fmt=srv3&kind=asr`,
-  ];
-
-  for (const url of urls) {
-    try {
-      const res = await fetch(url);
-      if (res.ok) {
-        const xml = await res.text();
-        const subs = parseXml(xml);
-        if (subs.length > 0) return subs;
-      }
-    } catch {}
-  }
-  return [];
-}
+// Client-side fetch removed — CORS blocks timedtext from browser.
+// All fetching goes through the edge function.
 
 async function loadStoredTrack(filmId: string, lang: string): Promise<SubtitleSegment[]> {
   const { data } = await supabase
