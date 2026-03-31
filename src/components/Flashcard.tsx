@@ -10,6 +10,7 @@ interface FlashcardProps {
   pronunciation: string;
   ipa: string;
   context?: string;
+  contextTranslation?: string;
   onCorrect: () => void;
   onIncorrect: () => void;
 }
