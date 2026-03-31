@@ -118,7 +118,7 @@ async function fetchCaptionsViaInnertube(videoId: string, targetLang: string): P
   console.log(`Innertube found ${tracks.length} tracks: ${tracks.map((t: any) => t.languageCode).join(', ')}`);
 
   // Step 4: Download the target language track
-  return await downloadFromTracks(tracks, targetLang, cookieJar);
+  return await downloadFromTracks(tracks, targetLang, cookies);
 }
 
 function extractCaptionsFromHtml(html: string, targetLang: string): Sub[] {
