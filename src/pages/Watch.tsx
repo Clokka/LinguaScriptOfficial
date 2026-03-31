@@ -374,15 +374,38 @@ const Watch = () => {
 
   const saveWordToFlashcards = async (word: { id: string; text: string; translation: string; pronunciation: string; ipa: string }) => {
     if (!user || !film) return;
+
+    let { translation, pronunciation, ipa } = word;
+    const context = currentSubtitle?.primary || "";
+    const langCode = learningLanguage || film.language || "fr";
+    const fromLang = getLanguageLabel(langCode);
+    const toLang = getLanguageLabel(nativeLanguage);
+
+    // If translation is empty, fetch it from AI
+    if (!translation) {
+      try {
+        const { data, error } = await supabase.functions.invoke("translate-word", {
+          body: { word: word.text, context, fromLanguage: fromLang, toLanguage: toLang },
+        });
+        if (!error && data) {
+          translation = data.translation || "";
+          pronunciation = data.pronunciation || "";
+          ipa = data.ipa || "";
+        }
+      } catch (e) {
+        console.error("Word translation failed:", e);
+      }
+    }
+
     await supabase.from("saved_words").upsert({
       user_id: user.id,
       word: word.text,
-      translation: word.translation,
-      pronunciation: word.pronunciation,
-      ipa: word.ipa,
-      context: currentSubtitle?.primary || "",
+      translation,
+      pronunciation,
+      ipa,
+      context,
       film_id: film.id,
-      language: film.language || learningLanguage || "fr",
+      language: langCode,
     }, { onConflict: "user_id,word,language" });
   };
 
