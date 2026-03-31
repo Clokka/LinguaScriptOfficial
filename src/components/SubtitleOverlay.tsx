@@ -25,6 +25,7 @@ export const SubtitleOverlay = ({
   words,
   className,
   mode,
+  onSaveWord,
 }: SubtitleOverlayProps) => {
   const [selectedWord, setSelectedWord] = useState<Word | null>(null);
   const [popupPosition, setPopupPosition] = useState({ x: 0, y: 0 });
