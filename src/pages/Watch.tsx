@@ -171,31 +171,25 @@ async function loadAllCaptions(
     return { primary, secondary };
   }
 
-  // 2) Fetch primary if missing
-  if (!primary.length) {
-    onStatus(`Downloading ${getLanguageLabel(primaryLang)} captions…`);
-    primary = await fetchTrackViaEdge(videoId, primaryLang);
-    if (primary.length) {
+  // 2) Fetch both tracks in one call using tlang (DownSub method)
+  if (!primary.length || (primaryLang !== secondaryLang && !secondary.length)) {
+    onStatus(`Downloading ${getLanguageLabel(primaryLang)} & ${getLanguageLabel(secondaryLang)} captions…`);
+    const result = await fetchBothTracksViaEdge(videoId, primaryLang, secondaryLang);
+
+    if (!primary.length && result.learning.length) {
+      primary = result.learning;
       await persistTrack(filmId, primaryLang, primary);
     }
-  }
-
-  // 3) Fetch secondary if missing & different
-  if (primaryLang !== secondaryLang && !secondary.length) {
-    onStatus(`Downloading ${getLanguageLabel(secondaryLang)} captions…`);
-    secondary = await fetchTrackViaEdge(videoId, secondaryLang);
-    // If still empty, translate from primary
-    if (!secondary.length && primary.length) {
-      onStatus(`Translating to ${getLanguageLabel(secondaryLang)}…`);
-      secondary = await translateTrack(primary, primaryLang, secondaryLang);
-    }
-    // If still empty, translate from primary
-    if (!secondary.length && primary.length) {
-      onStatus(`Translating to ${getLanguageLabel(secondaryLang)}…`);
-      secondary = await translateTrack(primary, primaryLang, secondaryLang);
-    }
-    if (secondary.length) {
+    if (primaryLang !== secondaryLang && !secondary.length && result.native.length) {
+      secondary = result.native;
       await persistTrack(filmId, secondaryLang, secondary);
+    }
+
+    // Fallback: AI translate if one track still missing
+    if (primary.length && !secondary.length && primaryLang !== secondaryLang) {
+      onStatus(`Translating to ${getLanguageLabel(secondaryLang)}…`);
+      secondary = await translateTrack(primary, primaryLang, secondaryLang);
+      if (secondary.length) await persistTrack(filmId, secondaryLang, secondary);
     }
   }
 
