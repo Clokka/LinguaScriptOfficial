@@ -9,6 +9,7 @@ import Browse from "./pages/Browse";
 import Auth from "./pages/Auth";
 import Profile from "./pages/Profile";
 import Watch from "./pages/Watch";
+import Flashcards from "./pages/Flashcards";
 import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 
