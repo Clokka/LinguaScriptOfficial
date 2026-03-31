@@ -130,21 +130,32 @@ function extractTracksFromHtml(html: string): any[] {
   return [];
 }
 
-async function downloadTrack(baseUrl: string, lang: string): Promise<Sub[]> {
+async function downloadTrack(baseUrl: string, lang: string, cookies: Record<string, string>): Promise<Sub[]> {
   let url = baseUrl.replace(/\\u0026/g, '&');
-  // Always use tlang to force translation
-  url += `${url.includes('?') ? '&' : '?'}fmt=srv3&tlang=${encodeURIComponent(lang)}`;
+  // Remove existing fmt if present, use srv3 for XML format
+  url = url.replace(/&fmt=[^&]*/, '');
+  url += `&fmt=srv3&tlang=${encodeURIComponent(lang)}`;
 
-  console.log(`Downloading track for lang=${lang}, url starts: ${url.substring(0, 120)}...`);
+  const cookieStr = Object.entries(cookies).map(([k, v]) => `${k}=${v}`).join('; ');
+  console.log(`Downloading track for lang=${lang}`);
   try {
-    const res = await fetch(url, { headers: { 'User-Agent': UA, 'Accept-Language': 'en-US,en;q=0.9' } });
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': UA,
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Referer': 'https://www.youtube.com/',
+        ...(cookieStr ? { Cookie: cookieStr } : {}),
+      },
+    });
     if (!res.ok) {
       console.log(`Track download failed: ${res.status}`);
       return [];
     }
     const content = await res.text();
-    console.log(`Track content length: ${content.length}, first 100: ${content.substring(0, 100)}`);
-    return parseSubtitleContent(content);
+    console.log(`Track content length: ${content.length}`);
+    const subs = parseSubtitleContent(content);
+    console.log(`Parsed ${subs.length} subs for ${lang}`);
+    return subs;
   } catch (e) {
     console.log(`Track download error: ${e}`);
     return [];
