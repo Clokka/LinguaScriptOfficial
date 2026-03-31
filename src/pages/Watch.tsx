@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Loader2, Download, Maximize, Minimize } from "lucide-react";
+import { ArrowLeft, Loader2, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SubtitleOverlay } from "@/components/SubtitleOverlay";
 import { supabase } from "@/integrations/supabase/client";
@@ -228,25 +228,7 @@ const Watch = () => {
   const watchStartRef = useRef<number | null>(null);
   const videoContainerRef = useRef<HTMLDivElement>(null);
 
-  // Fullscreen handler
-  const toggleFullscreen = useCallback(async () => {
-    const container = videoContainerRef.current;
-    if (!container) return;
-    const fsEl = document.fullscreenElement || (document as any).webkitFullscreenElement;
-    if (!fsEl) {
-      if (container.requestFullscreen) {
-        await container.requestFullscreen();
-      } else if ((container as any).webkitRequestFullscreen) {
-        (container as any).webkitRequestFullscreen();
-      }
-    } else {
-      if (document.exitFullscreen) {
-        await document.exitFullscreen();
-      } else if ((document as any).webkitExitFullscreen) {
-        (document as any).webkitExitFullscreen();
-      }
-    }
-  }, []);
+  // Fullscreen detection (user may use browser/YT native fullscreen)
 
   useEffect(() => {
     const handler = () => {
@@ -511,14 +493,6 @@ const Watch = () => {
             </div>
           )}
 
-          {/* Fullscreen toggle button */}
-          <button
-            onClick={toggleFullscreen}
-            className="absolute bottom-3 right-3 z-[9999] p-2 rounded-lg bg-black/60 text-white/80 hover:text-white hover:bg-black/80 transition-colors"
-            title={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
-          >
-            {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
-          </button>
         </div>
       </div>
     </div>

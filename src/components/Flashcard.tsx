@@ -10,6 +10,7 @@ interface FlashcardProps {
   pronunciation: string;
   ipa: string;
   context?: string;
+  contextTranslation?: string;
   onCorrect: () => void;
   onIncorrect: () => void;
 }
@@ -20,6 +21,7 @@ export const Flashcard = ({
   pronunciation,
   ipa,
   context,
+  contextTranslation,
   onCorrect,
   onIncorrect,
 }: FlashcardProps) => {
@@ -34,22 +36,32 @@ export const Flashcard = ({
         className={cn("flashcard w-full h-72 cursor-pointer", isFlipped && "flipped")}
         onClick={handleFlip}
       >
-        {/* Front */}
+        {/* Front — Learning language (word to learn) */}
         <div className="flashcard-face glass-panel-strong p-8 flex flex-col items-center justify-center shadow-float">
+          <p className="text-xs uppercase tracking-wider text-muted-foreground/60 mb-2">Learning Language</p>
           <p className="text-4xl font-bold gradient-text mb-4">{word}</p>
           <p className="text-muted-foreground text-lg">{ipa}</p>
           {context && (
-            <p className="text-sm text-muted-foreground mt-4 text-center italic">
-              "{context}"
-            </p>
+            <div className="mt-4 text-center space-y-1">
+              <p className="text-sm text-muted-foreground italic">"{context}"</p>
+            </div>
           )}
-          <p className="text-xs text-muted-foreground mt-6">Tap to reveal</p>
+          <p className="text-xs text-muted-foreground mt-6">Tap to reveal translation</p>
         </div>
 
-        {/* Back */}
+        {/* Back — User's native language (translation) */}
         <div className="flashcard-face flashcard-back glass-panel-strong p-8 flex flex-col items-center justify-center shadow-float">
+          <p className="text-xs uppercase tracking-wider text-muted-foreground/60 mb-2">Your Language</p>
           <p className="text-3xl font-bold text-foreground mb-3">{translation}</p>
           <p className="text-muted-foreground">{pronunciation}</p>
+          {context && (
+            <div className="mt-4 text-center space-y-1 border-t border-border/30 pt-3">
+              <p className="text-sm font-medium text-foreground/80 italic">"{context}"</p>
+              {contextTranslation && (
+                <p className="text-xs text-muted-foreground">"{contextTranslation}"</p>
+              )}
+            </div>
+          )}
           <Button
             variant="glass"
             size="icon"

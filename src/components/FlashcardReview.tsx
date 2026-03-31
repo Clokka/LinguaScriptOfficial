@@ -11,6 +11,7 @@ interface FlashcardData {
   pronunciation: string;
   ipa: string;
   context?: string;
+  contextTranslation?: string;
 }
 
 interface FlashcardReviewProps {
@@ -127,6 +128,7 @@ export const FlashcardReview = ({ cards, onClose, className }: FlashcardReviewPr
         pronunciation={currentCard.pronunciation}
         ipa={currentCard.ipa}
         context={currentCard.context}
+        contextTranslation={currentCard.contextTranslation}
         onCorrect={handleCorrect}
         onIncorrect={handleIncorrect}
       />
