@@ -16,6 +16,7 @@ interface SubtitleOverlayProps {
   words: Word[];
   className?: string;
   mode: "single" | "dual";
+  onSaveWord?: (word: Word) => void;
 }
 
 export const SubtitleOverlay = ({
