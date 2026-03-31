@@ -54,6 +54,14 @@ export const Flashcard = ({
           <p className="text-xs uppercase tracking-wider text-muted-foreground/60 mb-2">Your Language</p>
           <p className="text-3xl font-bold text-foreground mb-3">{translation}</p>
           <p className="text-muted-foreground">{pronunciation}</p>
+          {context && (
+            <div className="mt-4 text-center space-y-1 border-t border-border/30 pt-3">
+              <p className="text-sm font-medium text-foreground/80 italic">"{context}"</p>
+              {contextTranslation && (
+                <p className="text-xs text-muted-foreground">"{contextTranslation}"</p>
+              )}
+            </div>
+          )}
           <Button
             variant="glass"
             size="icon"
