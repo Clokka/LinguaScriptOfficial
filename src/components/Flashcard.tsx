@@ -21,6 +21,7 @@ export const Flashcard = ({
   pronunciation,
   ipa,
   context,
+  contextTranslation,
   onCorrect,
   onIncorrect,
 }: FlashcardProps) => {
