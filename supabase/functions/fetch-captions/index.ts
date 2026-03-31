@@ -76,6 +76,7 @@ async function scrapeCaptionTracks(videoId: string): Promise<any[]> {
   const urls = [
     `https://www.youtube.com/watch?v=${videoId}`,
     `https://m.youtube.com/watch?v=${videoId}`,
+    `https://www.youtube.com/embed/${videoId}`,
   ];
 
   for (const url of urls) {
@@ -84,19 +85,32 @@ async function scrapeCaptionTracks(videoId: string): Promise<any[]> {
       const res = await fetch(url, { headers });
       const html = await res.text();
 
-      // Try to find captionTracks in the page
-      const match = html.match(/"captionTracks"\s*:\s*(\[[\s\S]*?\])\s*,\s*"/);
-      if (!match) {
-        // Try alternate pattern
-        const match2 = html.match(/"captionTracks"\s*:\s*(\[.*?\])\s*,/s);
-        if (match2) {
-          try {
-            const tracks = JSON.parse(match2[1]);
+      // Log whether the key string exists at all
+      const hasCaptionTracks = html.includes('"captionTracks"');
+      const hasPlayerCaptions = html.includes('playerCaptionsTracklistRenderer');
+      console.log(`Page length: ${html.length}, hasCaptionTracks: ${hasCaptionTracks}, hasPlayerCaptions: ${hasPlayerCaptions}`);
+
+      if (!hasCaptionTracks) continue;
+
+      // Extract the captionTracks JSON array - try multiple regex patterns
+      const patterns = [
+        /"captionTracks"\s*:\s*(\[.*?\])\s*,\s*"/s,
+        /"captionTracks"\s*:\s*(\[.*?\])\s*,/s,
+        /"captionTracks"\s*:\s*(\[.*?\])/s,
+      ];
+
+      for (const pattern of patterns) {
+        const match = html.match(pattern);
+        if (!match) continue;
+        try {
+          const tracks = JSON.parse(match[1]);
+          if (Array.isArray(tracks) && tracks.length > 0) {
             console.log(`Found ${tracks.length} caption tracks from ${url}`);
             return tracks;
-          } catch {}
+          }
+        } catch (parseErr) {
+          console.log(`JSON parse failed for pattern: ${parseErr}`);
         }
-        continue;
       }
 
       try {
