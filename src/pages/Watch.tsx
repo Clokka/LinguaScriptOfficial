@@ -1,12 +1,13 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Loader2, Download } from "lucide-react";
+import { ArrowLeft, Loader2, Download, Maximize, Minimize } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SubtitleOverlay } from "@/components/SubtitleOverlay";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { getLanguageLabel, getLanguageFlag } from "@/lib/languages";
+import { cn } from "@/lib/utils";
 
 interface FilmData {
   id: string;
@@ -267,8 +268,26 @@ const Watch = () => {
   const [captionsStatus, setCaptionsStatus] = useState<string | null>(null);
   const [captionsError, setCaptionsError] = useState<string | null>(null);
   const [nativeLanguage, setNativeLanguage] = useState("en");
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   const watchStartRef = useRef<number | null>(null);
+  const videoContainerRef = useRef<HTMLDivElement>(null);
+
+  // Fullscreen handler
+  const toggleFullscreen = useCallback(async () => {
+    if (!videoContainerRef.current) return;
+    if (!document.fullscreenElement) {
+      await videoContainerRef.current.requestFullscreen();
+    } else {
+      await document.exitFullscreen();
+    }
+  }, []);
+
+  useEffect(() => {
+    const handler = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", handler);
+    return () => document.removeEventListener("fullscreenchange", handler);
+  }, []);
 
   // Load film
   useEffect(() => {
@@ -399,6 +418,20 @@ const Watch = () => {
     }
   };
 
+  const saveWordToFlashcards = async (word: { id: string; text: string; translation: string; pronunciation: string; ipa: string }) => {
+    if (!user || !film) return;
+    await supabase.from("saved_words").upsert({
+      user_id: user.id,
+      word: word.text,
+      translation: word.translation,
+      pronunciation: word.pronunciation,
+      ipa: word.ipa,
+      context: currentSubtitle?.primary || "",
+      film_id: film.id,
+      language: film.language || learningLanguage || "fr",
+    }, { onConflict: "user_id,word,language" });
+  };
+
   const downloadSrt = (type: "primary" | "secondary") => {
     const content = subtitlesToSrt(subtitles, type);
     if (!content) return;
@@ -469,33 +502,51 @@ const Watch = () => {
       </div>
 
       <div className="relative flex-1 flex flex-col items-center justify-center bg-black">
-        <div className="w-full max-w-5xl aspect-video relative">
-          <div id="yt-player" className="w-full h-full" />
+        {/* Fullscreen wrapper — subtitles are INSIDE this so they persist in fullscreen */}
+        <div
+          ref={videoContainerRef}
+          className={cn(
+            "relative w-full bg-black",
+            isFullscreen ? "h-full flex items-center justify-center" : "max-w-5xl aspect-video"
+          )}
+        >
+          <div id="yt-player" className={cn("w-full", isFullscreen ? "h-full" : "h-full")} />
 
           {/* Loading status */}
           {captionsLoading && captionsStatus && (
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/70 text-white/80 text-sm px-4 py-2 rounded-lg flex items-center gap-2">
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/70 text-white/80 text-sm px-4 py-2 rounded-lg flex items-center gap-2 z-[9999]">
               <Loader2 className="w-3 h-3 animate-spin" />
               {captionsStatus}
             </div>
           )}
 
           {captionsError && (
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-destructive/80 text-destructive-foreground text-sm px-4 py-2 rounded-lg">
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-destructive/80 text-destructive-foreground text-sm px-4 py-2 rounded-lg z-[9999]">
               {captionsError}
             </div>
           )}
 
+          {/* Subtitle overlay — rendered OUTSIDE the iframe but INSIDE the fullscreen container */}
           {currentSubtitle && (
-            <div className="absolute bottom-2 left-0 right-0 px-4 z-10 pointer-events-auto">
+            <div className="absolute bottom-[8%] left-0 right-0 px-4 z-[9999] pointer-events-auto">
               <SubtitleOverlay
                 primaryText={currentSubtitle.primary}
                 secondaryText={currentSubtitle.secondary}
                 words={currentSubtitle.words}
                 mode={subtitleMode}
+                onSaveWord={saveWordToFlashcards}
               />
             </div>
           )}
+
+          {/* Fullscreen toggle button */}
+          <button
+            onClick={toggleFullscreen}
+            className="absolute bottom-3 right-3 z-[9999] p-2 rounded-lg bg-black/60 text-white/80 hover:text-white hover:bg-black/80 transition-colors"
+            title={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+          >
+            {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
+          </button>
         </div>
       </div>
     </div>

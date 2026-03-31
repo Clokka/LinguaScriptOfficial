@@ -122,6 +122,65 @@ export type Database = {
         }
         Relationships: []
       }
+      saved_words: {
+        Row: {
+          context: string | null
+          created_at: string
+          ease_factor: number
+          film_id: string | null
+          id: string
+          interval_days: number
+          ipa: string
+          language: string
+          next_review: string
+          pronunciation: string
+          review_count: number
+          translation: string
+          user_id: string
+          word: string
+        }
+        Insert: {
+          context?: string | null
+          created_at?: string
+          ease_factor?: number
+          film_id?: string | null
+          id?: string
+          interval_days?: number
+          ipa?: string
+          language?: string
+          next_review?: string
+          pronunciation?: string
+          review_count?: number
+          translation?: string
+          user_id: string
+          word: string
+        }
+        Update: {
+          context?: string | null
+          created_at?: string
+          ease_factor?: number
+          film_id?: string | null
+          id?: string
+          interval_days?: number
+          ipa?: string
+          language?: string
+          next_review?: string
+          pronunciation?: string
+          review_count?: number
+          translation?: string
+          user_id?: string
+          word?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "saved_words_film_id_fkey"
+            columns: ["film_id"]
+            isOneToOne: false
+            referencedRelation: "films"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       subtitles: {
         Row: {
           created_at: string

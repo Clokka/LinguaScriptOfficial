@@ -16,6 +16,7 @@ interface SubtitleOverlayProps {
   words: Word[];
   className?: string;
   mode: "single" | "dual";
+  onSaveWord?: (word: Word) => void;
 }
 
 export const SubtitleOverlay = ({
@@ -24,6 +25,7 @@ export const SubtitleOverlay = ({
   words,
   className,
   mode,
+  onSaveWord,
 }: SubtitleOverlayProps) => {
   const [selectedWord, setSelectedWord] = useState<Word | null>(null);
   const [popupPosition, setPopupPosition] = useState({ x: 0, y: 0 });
@@ -83,7 +85,7 @@ export const SubtitleOverlay = ({
           position={popupPosition}
           onClose={() => setSelectedWord(null)}
           onSave={() => {
-            console.log("Saved:", selectedWord);
+            if (onSaveWord && selectedWord) onSaveWord(selectedWord);
             setSelectedWord(null);
           }}
         />

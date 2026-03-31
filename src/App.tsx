@@ -9,6 +9,7 @@ import Browse from "./pages/Browse";
 import Auth from "./pages/Auth";
 import Profile from "./pages/Profile";
 import Watch from "./pages/Watch";
+import Flashcards from "./pages/Flashcards";
 import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 
@@ -27,6 +28,7 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/watch/:id" element={<Watch />} />
+            <Route path="/flashcards" element={<Flashcards />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
