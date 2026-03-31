@@ -128,6 +128,7 @@ export const FlashcardReview = ({ cards, onClose, className }: FlashcardReviewPr
         pronunciation={currentCard.pronunciation}
         ipa={currentCard.ipa}
         context={currentCard.context}
+        contextTranslation={currentCard.contextTranslation}
         onCorrect={handleCorrect}
         onIncorrect={handleIncorrect}
       />
