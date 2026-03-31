@@ -303,7 +303,7 @@ const Browse = () => {
           {SIDEBAR_ITEMS.map(({ icon: Icon, label, key }) => (
             <button
               key={key}
-              onClick={() => setActiveTab(key)}
+              onClick={() => key === "flashcards" ? navigate("/flashcards") : setActiveTab(key as TabKey)}
               className={cn(
                 "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors",
                 activeTab === key
