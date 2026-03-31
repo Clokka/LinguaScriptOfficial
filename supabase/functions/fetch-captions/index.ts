@@ -132,9 +132,8 @@ function extractTracksFromHtml(html: string): any[] {
 
 async function downloadTrack(baseUrl: string, lang: string, cookies: Record<string, string>): Promise<Sub[]> {
   let url = baseUrl.replace(/\\u0026/g, '&');
-  // Remove existing fmt if present, use srv3 for XML format
-  url = url.replace(/&fmt=[^&]*/, '');
-  url += `&fmt=srv3&tlang=${encodeURIComponent(lang)}`;
+  // Add tlang for translation
+  url += `&tlang=${encodeURIComponent(lang)}`;
 
   const cookieStr = Object.entries(cookies).map(([k, v]) => `${k}=${v}`).join('; ');
   console.log(`Downloading track for lang=${lang}`);
@@ -143,16 +142,38 @@ async function downloadTrack(baseUrl: string, lang: string, cookies: Record<stri
       headers: {
         'User-Agent': UA,
         'Accept-Language': 'en-US,en;q=0.9',
+        'Accept': '*/*',
         'Referer': 'https://www.youtube.com/',
+        'Origin': 'https://www.youtube.com',
         ...(cookieStr ? { Cookie: cookieStr } : {}),
       },
     });
     if (!res.ok) {
       console.log(`Track download failed: ${res.status}`);
+      // If 429, retry once after a delay
+      if (res.status === 429) {
+        console.log('Rate limited, waiting 2s and retrying...');
+        await new Promise(r => setTimeout(r, 2000));
+        const retry = await fetch(url, {
+          headers: {
+            'User-Agent': UA,
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Referer': 'https://www.youtube.com/',
+            ...(cookieStr ? { Cookie: cookieStr } : {}),
+          },
+        });
+        if (!retry.ok) {
+          console.log(`Retry also failed: ${retry.status}`);
+          return [];
+        }
+        const content = await retry.text();
+        const subs = parseSubtitleContent(content);
+        console.log(`Retry parsed ${subs.length} subs for ${lang}`);
+        return subs;
+      }
       return [];
     }
     const content = await res.text();
-    console.log(`Track content length: ${content.length}`);
     const subs = parseSubtitleContent(content);
     console.log(`Parsed ${subs.length} subs for ${lang}`);
     return subs;
