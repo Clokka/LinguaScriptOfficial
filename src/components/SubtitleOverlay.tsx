@@ -85,7 +85,7 @@ export const SubtitleOverlay = ({
           position={popupPosition}
           onClose={() => setSelectedWord(null)}
           onSave={() => {
-            console.log("Saved:", selectedWord);
+            if (onSaveWord && selectedWord) onSaveWord(selectedWord);
             setSelectedWord(null);
           }}
         />
