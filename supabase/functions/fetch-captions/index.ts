@@ -280,11 +280,9 @@ async function fetchCaptions(videoId: string, targetLang: string, nativeLang: st
 
   console.log(`Using base track: ${baseTrack.languageCode} → generating tlang=${targetLang} + tlang=${nativeLang}`);
 
-  // Step 5: Download BOTH languages in parallel using &tlang= (DownSub method)
-  const [learning, native] = await Promise.all([
-    downloadTrack(baseTrack.baseUrl, targetLang),
-    downloadTrack(baseTrack.baseUrl, nativeLang),
-  ]);
+  // Step 5: Download BOTH languages sequentially (to avoid 429) using &tlang= (DownSub method)
+  const learning = await downloadTrack(baseTrack.baseUrl, targetLang, cookies);
+  const native = await downloadTrack(baseTrack.baseUrl, nativeLang, cookies);
 
   console.log(`Results: learning=${learning.length} subs, native=${native.length} subs`);
   return { learning, native };
