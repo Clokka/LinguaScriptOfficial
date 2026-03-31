@@ -21,6 +21,7 @@ function decodeHtml(text: string): string {
 
 function parseTimedTextXml(xml: string): Sub[] {
   const subtitles: Sub[] = [];
+  // Format 1: <text start="..." dur="...">
   const textRegex = /<text start="([\d.]+)" dur="([\d.]+)"[^>]*>([\s\S]*?)<\/text>/g;
   let match: RegExpExecArray | null;
   while ((match = textRegex.exec(xml)) !== null) {
@@ -30,6 +31,7 @@ function parseTimedTextXml(xml: string): Sub[] {
     if (text) subtitles.push({ start, end: start + dur, text });
   }
   if (subtitles.length > 0) return subtitles;
+  // Format 2: <p t="..." d="...">
   const pRegex = /<p\s+t="(\d+)"\s+d="(\d+)"[^>]*>([\s\S]*?)<\/p>/g;
   while ((match = pRegex.exec(xml)) !== null) {
     const start = parseInt(match[1], 10) / 1000;
@@ -40,17 +42,113 @@ function parseTimedTextXml(xml: string): Sub[] {
   return subtitles;
 }
 
+function parseSrt(srt: string): Sub[] {
+  const subs: Sub[] = [];
+  const blocks = srt.replace(/\r\n/g, '\n').trim().split(/\n\n+/);
+  for (const block of blocks) {
+    const lines = block.split('\n').filter(Boolean);
+    if (lines.length < 3) continue;
+    const timeMatch = lines[1]?.match(/(\d{2}:\d{2}:\d{2}[,.]?\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2}[,.]?\d{3})/);
+    if (!timeMatch) continue;
+    const toSec = (t: string) => {
+      const [h, m, rest] = t.split(':');
+      const s = rest.replace(',', '.');
+      return parseInt(h) * 3600 + parseInt(m) * 60 + parseFloat(s);
+    };
+    const text = lines.slice(2).join(' ').replace(/<[^>]+>/g, '').trim();
+    if (text) subs.push({ start: toSec(timeMatch[1]), end: toSec(timeMatch[2]), text });
+  }
+  return subs;
+}
+
+function parseSubtitleContent(content: string): Sub[] {
+  // Try XML first, then SRT
+  if (content.includes('<text') || content.includes('<p ') || content.includes('<?xml')) {
+    const result = parseTimedTextXml(content);
+    if (result.length > 0) return result;
+  }
+  if (content.includes('-->')) {
+    const result = parseSrt(content);
+    if (result.length > 0) return result;
+  }
+  // Fallback: try both
+  return parseTimedTextXml(content).length > 0 ? parseTimedTextXml(content) : parseSrt(content);
+}
+
 /**
- * Replicates youtube-transcript-api approach:
- * 1. Fetch YouTube watch page HTML
- * 2. Handle EU consent cookie
- * 3. Extract INNERTUBE_API_KEY
- * 4. Call innertube /player endpoint with ANDROID client context
- * 5. Get signed caption track URLs from response
- * 6. Download captions
+ * Extract captionTracks from ytInitialPlayerResponse in page HTML.
+ * This is the most reliable method — same as DownSub.
  */
-async function fetchCaptionsViaInnertube(videoId: string, targetLang: string): Promise<Sub[]> {
-  // Use a session-like approach matching youtube-transcript-api
+function extractTracksFromHtml(html: string): any[] {
+  // Try ytInitialPlayerResponse first
+  const patterns = [
+    /ytInitialPlayerResponse\s*=\s*(\{.*?\});\s*(?:var\s|<\/script>)/s,
+    /ytInitialPlayerResponse\s*=\s*(\{.*?\});/s,
+  ];
+  for (const pattern of patterns) {
+    const match = html.match(pattern);
+    if (match) {
+      try {
+        const data = JSON.parse(match[1]);
+        const tracks = data?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
+        if (Array.isArray(tracks) && tracks.length > 0) {
+          console.log(`ytInitialPlayerResponse: found ${tracks.length} tracks`);
+          return tracks;
+        }
+      } catch (e) {
+        console.log('Failed to parse ytInitialPlayerResponse JSON:', e);
+      }
+    }
+  }
+
+  // Fallback: extract captionTracks array directly
+  const captionPatterns = [
+    /"captionTracks"\s*:\s*(\[.*?\])\s*,\s*"/s,
+    /"captionTracks"\s*:\s*(\[.*?\])\s*,/s,
+  ];
+  for (const pattern of captionPatterns) {
+    const match = html.match(pattern);
+    if (match) {
+      try {
+        const tracks = JSON.parse(match[1]);
+        if (Array.isArray(tracks) && tracks.length > 0) {
+          console.log(`captionTracks regex: found ${tracks.length} tracks`);
+          return tracks;
+        }
+      } catch {}
+    }
+  }
+
+  return [];
+}
+
+async function downloadTrack(baseUrl: string, lang: string | null, cookies: Record<string, string>): Promise<Sub[]> {
+  const cookieStr = Object.entries(cookies).map(([k, v]) => `${k}=${v}`).join('; ');
+  let url = baseUrl.replace(/\\u0026/g, '&');
+
+  // Add format - try srv3 (XML) which is most reliable
+  if (!url.includes('fmt=')) url += '&fmt=srv3';
+
+  // Add translation language if specified
+  if (lang) url += `&tlang=${encodeURIComponent(lang)}`;
+
+  try {
+    const res = await fetch(url, { headers: { ...browserHeaders, Cookie: cookieStr } });
+    if (!res.ok) {
+      console.log(`Track download failed: ${res.status}`);
+      return [];
+    }
+    const content = await res.text();
+    const subs = parseSubtitleContent(content);
+    console.log(`Downloaded track: ${subs.length} subtitles${lang ? ` (tlang=${lang})` : ''}`);
+    return subs;
+  } catch (e) {
+    console.error('Track download error:', e);
+    return [];
+  }
+}
+
+async function fetchCaptions(videoId: string, targetLang: string): Promise<Sub[]> {
   const cookies: Record<string, string> = {};
 
   const fetchPage = async (): Promise<string> => {
@@ -62,134 +160,104 @@ async function fetchCaptionsViaInnertube(videoId: string, targetLang: string): P
     return await res.text();
   };
 
-  // First fetch
+  // Fetch the watch page
   let html = await fetchPage();
-  console.log(`Watch page: ${html.length} bytes, hasConsent: ${html.includes('consent.youtube.com')}`);
+  console.log(`Watch page: ${html.length} bytes`);
 
-  // Handle consent wall (same as youtube-transcript-api)
+  // Handle EU consent wall
   if (html.includes('action="https://consent.youtube.com/s"')) {
     const vMatch = html.match(/name="v" value="(.*?)"/);
-    if (vMatch) {
-      cookies['CONSENT'] = 'YES+' + vMatch[1];
-      console.log(`Set consent cookie: YES+${vMatch[1]}`);
-    } else {
-      cookies['CONSENT'] = 'YES+cb.20210328-17-p0.en+FX+987';
-    }
+    cookies['CONSENT'] = vMatch ? 'YES+' + vMatch[1] : 'YES+cb.20210328-17-p0.en+FX+987';
     html = await fetchPage();
-    console.log(`After consent: ${html.length} bytes, hasCaptions: ${html.includes('captionTracks')}`);
+    console.log(`After consent: ${html.length} bytes`);
   }
 
-  // Step 2: Extract INNERTUBE_API_KEY
-  const apiKeyMatch = html.match(/"INNERTUBE_API_KEY":\s*"([a-zA-Z0-9_-]+)"/);
-  if (!apiKeyMatch) {
-    console.log('Could not extract INNERTUBE_API_KEY from page');
-    // Try to find captionTracks directly in HTML as fallback
-    return extractCaptionsFromHtml(html, targetLang);
-  }
+  // Step 1: Extract tracks from ytInitialPlayerResponse (DownSub method)
+  let tracks = extractTracksFromHtml(html);
 
-  const apiKey = apiKeyMatch[1];
-  console.log(`Extracted API key: ${apiKey}`);
-
-  // Step 3: Call innertube /player with ANDROID client (same as youtube-transcript-api)
-  const cookieStr = Object.entries(cookies).map(([k, v]) => `${k}=${v}`).join('; ');
-  const playerRes = await fetch(`https://www.youtube.com/youtubei/v1/player?key=${apiKey}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...browserHeaders,
-      'Cookie': cookieStr,
-    },
-    body: JSON.stringify({
-      context: { client: { clientName: 'ANDROID', clientVersion: '20.10.38' } },
-      videoId,
-    }),
-  });
-
-  const playerData = await playerRes.json();
-  const captions = playerData?.captions?.playerCaptionsTracklistRenderer;
-
-  if (!captions?.captionTracks?.length) {
-    console.log('Innertube returned no caption tracks');
-    // Fallback: try extracting from HTML
-    return extractCaptionsFromHtml(html, targetLang);
-  }
-
-  const tracks = captions.captionTracks;
-  console.log(`Innertube found ${tracks.length} tracks: ${tracks.map((t: any) => t.languageCode).join(', ')}`);
-
-  // Step 4: Download the target language track
-  return await downloadFromTracks(tracks, targetLang, cookies);
-}
-
-function extractCaptionsFromHtml(html: string, targetLang: string): Sub[] {
-  if (!html.includes('"captionTracks"')) return [];
-  const patterns = [
-    /"captionTracks"\s*:\s*(\[.*?\])\s*,\s*"/s,
-    /"captionTracks"\s*:\s*(\[.*?\])\s*,/s,
-  ];
-  for (const pattern of patterns) {
-    const match = html.match(pattern);
-    if (!match) continue;
-    try {
-      const tracks = JSON.parse(match[1]);
-      if (Array.isArray(tracks) && tracks.length > 0) {
-        console.log(`Found ${tracks.length} tracks in HTML`);
-        // Can't await here, just return empty - this is sync fallback
-        return [];
+  // Step 2: If no tracks from HTML, try InnerTube API
+  if (tracks.length === 0) {
+    console.log('No tracks in HTML, trying InnerTube...');
+    const apiKeyMatch = html.match(/"INNERTUBE_API_KEY":\s*"([a-zA-Z0-9_-]+)"/);
+    if (apiKeyMatch) {
+      const cookieStr = Object.entries(cookies).map(([k, v]) => `${k}=${v}`).join('; ');
+      try {
+        const playerRes = await fetch(`https://www.youtube.com/youtubei/v1/player?key=${apiKeyMatch[1]}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...browserHeaders, Cookie: cookieStr },
+          body: JSON.stringify({
+            context: { client: { clientName: 'ANDROID', clientVersion: '20.10.38' } },
+            videoId,
+          }),
+        });
+        const playerData = await playerRes.json();
+        tracks = playerData?.captions?.playerCaptionsTracklistRenderer?.captionTracks || [];
+        console.log(`InnerTube: found ${tracks.length} tracks`);
+      } catch (e) {
+        console.log('InnerTube failed:', e);
       }
-    } catch {}
+    }
+
+    // Step 2b: Try TV_EMBEDDED client as another fallback
+    if (tracks.length === 0 && apiKeyMatch) {
+      try {
+        const cookieStr = Object.entries(cookies).map(([k, v]) => `${k}=${v}`).join('; ');
+        const playerRes = await fetch(`https://www.youtube.com/youtubei/v1/player?key=${apiKeyMatch[1]}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...browserHeaders, Cookie: cookieStr },
+          body: JSON.stringify({
+            context: { client: { clientName: 'TVHTML5_SIMPLY_EMBEDDED_PLAYER', clientVersion: '2.0' } },
+            videoId,
+          }),
+        });
+        const playerData = await playerRes.json();
+        tracks = playerData?.captions?.playerCaptionsTracklistRenderer?.captionTracks || [];
+        console.log(`TV_EMBEDDED: found ${tracks.length} tracks`);
+      } catch (e) {
+        console.log('TV_EMBEDDED failed:', e);
+      }
+    }
   }
-  return [];
-}
 
-async function downloadFromTracks(tracks: any[], targetLang: string, cookies: Record<string, string>): Promise<Sub[]> {
-  const cookieStr = Object.entries(cookies).map(([k, v]) => `${k}=${v}`).join('; ');
-  const hdrs: Record<string, string> = { ...browserHeaders, Cookie: cookieStr };
+  if (tracks.length === 0) {
+    console.log('No caption tracks found from any method');
+    return [];
+  }
 
+  console.log(`Available tracks: ${tracks.map((t: any) => `${t.languageCode}${t.kind === 'asr' ? '(auto)' : ''}`).join(', ')}`);
+
+  // Step 3: Find and download the target language track
   // Direct match
   const directTrack = tracks.find((t: any) => t.languageCode === targetLang) ||
     tracks.find((t: any) => t.languageCode?.startsWith(targetLang));
 
   if (directTrack?.baseUrl) {
-    const url = directTrack.baseUrl.replace(/\\u0026/g, '&');
-    const fmtUrl = url.includes('fmt=') ? url : `${url}&fmt=srv3`;
-    try {
-      const res = await fetch(fmtUrl, { headers: hdrs });
-      const xml = await res.text();
-      const subs = parseTimedTextXml(xml);
-      if (subs.length > 0) {
-        console.log(`✓ Got ${subs.length} subtitles directly in ${directTrack.languageCode}`);
-        return subs;
-      }
-    } catch (e) { console.error('Direct download error:', e); }
+    const subs = await downloadTrack(directTrack.baseUrl, null, cookies);
+    if (subs.length > 0) {
+      console.log(`✓ Direct track ${directTrack.languageCode}: ${subs.length} subs`);
+      return subs;
+    }
   }
 
-  // Translatable track + tlang
+  // Translated track via tlang (DownSub method)
   const translatableTrack = tracks.find((t: any) => t.isTranslatable);
   if (translatableTrack?.baseUrl) {
-    const url = translatableTrack.baseUrl.replace(/\\u0026/g, '&');
-    const fmtUrl = url.includes('fmt=') ? url : `${url}&fmt=srv3`;
-    const tlangUrl = `${fmtUrl}&tlang=${encodeURIComponent(targetLang)}`;
-    try {
-      const res = await fetch(tlangUrl, { headers: hdrs });
-      const xml = await res.text();
-      const subs = parseTimedTextXml(xml);
-      if (subs.length > 0) {
-        console.log(`✓ Got ${subs.length} subtitles via tlang ${translatableTrack.languageCode}→${targetLang}`);
-        return subs;
-      }
-    } catch (e) { console.error('Tlang download error:', e); }
+    const subs = await downloadTrack(translatableTrack.baseUrl, targetLang, cookies);
+    if (subs.length > 0) {
+      console.log(`✓ Translated ${translatableTrack.languageCode}→${targetLang}: ${subs.length} subs`);
+      return subs;
+    }
+  }
 
-    // Source language as last resort
-    try {
-      const res = await fetch(fmtUrl, { headers: hdrs });
-      const xml = await res.text();
-      const subs = parseTimedTextXml(xml);
+  // Last resort: download any available track
+  for (const track of tracks) {
+    if (track.baseUrl) {
+      const subs = await downloadTrack(track.baseUrl, null, cookies);
       if (subs.length > 0) {
-        console.log(`✓ Got ${subs.length} subtitles in source ${translatableTrack.languageCode}`);
+        console.log(`✓ Fallback track ${track.languageCode}: ${subs.length} subs`);
         return subs;
       }
-    } catch {}
+    }
   }
 
   return [];
@@ -204,28 +272,27 @@ serve(async (req) => {
     const { videoId, language } = await req.json();
     if (!videoId) {
       return new Response(JSON.stringify({ error: 'videoId required' }), {
-        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     const lang = language || 'fr';
     console.log(`=== Fetching captions for ${videoId}, lang: ${lang} ===`);
 
-    const subtitles = await fetchCaptionsViaInnertube(videoId, lang);
+    const subtitles = await fetchCaptions(videoId, lang);
 
     return new Response(JSON.stringify({
       subtitles,
       language: lang,
       count: subtitles.length,
-      source: subtitles.length > 0 ? 'innertube' : 'none',
+      source: subtitles.length > 0 ? 'youtube' : 'none',
     }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
-
   } catch (error) {
     console.error('Error:', error);
     return new Response(JSON.stringify({ error: error.message }), {
-      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 });
