@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Loader2, Download } from "lucide-react";
+import { ArrowLeft, Loader2, Download, Maximize, Minimize } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SubtitleOverlay } from "@/components/SubtitleOverlay";
 import { supabase } from "@/integrations/supabase/client";
