@@ -534,6 +534,7 @@ const Watch = () => {
                 secondaryText={currentSubtitle.secondary}
                 words={currentSubtitle.words}
                 mode={subtitleMode}
+                onSaveWord={saveWordToFlashcards}
               />
             </div>
           )}
