@@ -7,10 +7,10 @@ const corsHeaders = {
 
 const headers = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+  'Accept-Language': 'en-US,en;q=0.9',
 };
 
 interface Sub { start: number; end: number; text: string }
-interface CaptionTrack { lang: string; name?: string; kind?: string }
 
 function decodeHtml(text: string): string {
   return text
@@ -24,34 +24,10 @@ function decodeHtml(text: string): string {
     .trim();
 }
 
-function parseSRT(srt: string): Sub[] {
-  return srt
-    .replace(/\r\n/g, '\n')
-    .trim()
-    .split(/\n\n+/)
-    .map((block) => {
-      const lines = block.split('\n').filter(Boolean);
-      if (lines.length < 3) return null;
-      const timeMatch = lines[1]?.match(/(\d{2}:\d{2}:\d{2}[.,]\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2}[.,]\d{3})/);
-      if (!timeMatch) return null;
-      const toSec = (t: string) => {
-        const [h, m, s] = t.replace(',', '.').split(':');
-        return (+h) * 3600 + (+m) * 60 + parseFloat(s);
-      };
-      return {
-        start: toSec(timeMatch[1]),
-        end: toSec(timeMatch[2]),
-        text: lines.slice(2).join(' ').trim(),
-      };
-    })
-    .filter(Boolean) as Sub[];
-}
-
 function parseTimedTextXml(xml: string): Sub[] {
   const subtitles: Sub[] = [];
   const textRegex = /<text start="([\d.]+)" dur="([\d.]+)"[^>]*>([\s\S]*?)<\/text>/g;
   const pRegex = /<p\s+t="(\d+)"\s+d="(\d+)"[^>]*>([\s\S]*?)<\/p>/g;
-
   let match: RegExpExecArray | null;
 
   while ((match = textRegex.exec(xml)) !== null) {
@@ -73,94 +49,177 @@ function parseTimedTextXml(xml: string): Sub[] {
   return subtitles;
 }
 
-function parseTrackList(xml: string): CaptionTrack[] {
-  const tracks: CaptionTrack[] = [];
-  const trackRegex = /<track\s+([^>]+?)\/?>(?:<\/track>)?/g;
-  const attrRegex = /(\w+)="([^"]*)"/g;
-  let match: RegExpExecArray | null;
-
-  while ((match = trackRegex.exec(xml)) !== null) {
-    const attrs = Object.fromEntries(Array.from(match[1].matchAll(attrRegex)).map(([, key, value]) => [key, decodeHtml(value)]));
-    const lang = attrs.lang_code || attrs.lang || '';
-    if (!lang) continue;
-    tracks.push({ lang, name: attrs.name || undefined, kind: attrs.kind || undefined });
-  }
-
-  return tracks;
+function parseSRT(srt: string): Sub[] {
+  return srt
+    .replace(/\r\n/g, '\n')
+    .trim()
+    .split(/\n\n+/)
+    .map((block) => {
+      const lines = block.split('\n').filter(Boolean);
+      if (lines.length < 3) return null;
+      const timeMatch = lines[1]?.match(/(\d{2}:\d{2}:\d{2}[.,]\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2}[.,]\d{3})/);
+      if (!timeMatch) return null;
+      const toSec = (t: string) => {
+        const [h, m, s] = t.replace(',', '.').split(':');
+        return (+h) * 3600 + (+m) * 60 + parseFloat(s);
+      };
+      return { start: toSec(timeMatch[1]), end: toSec(timeMatch[2]), text: lines.slice(2).join(' ').trim() };
+    })
+    .filter(Boolean) as Sub[];
 }
 
-function buildTimedTextUrl(videoId: string, track: CaptionTrack, format: 'srt' | 'srv3', targetLang?: string): string {
-  const params = new URLSearchParams({ v: videoId, lang: track.lang, fmt: format });
-  if (track.name) params.set('name', track.name);
-  if (track.kind) params.set('kind', track.kind);
-  if (targetLang && targetLang !== track.lang) params.set('tlang', targetLang);
-  return `https://video.google.com/timedtext?${params.toString()}`;
-}
+/**
+ * Scrape the YouTube WATCH page to extract captionTracks with signed URLs.
+ * This works much more reliably than the embed page or timedtext list API.
+ */
+async function scrapeCaptionTracks(videoId: string): Promise<any[]> {
+  const urls = [
+    `https://www.youtube.com/watch?v=${videoId}`,
+    `https://m.youtube.com/watch?v=${videoId}`,
+  ];
 
-async function fetchTrackList(videoId: string): Promise<CaptionTrack[]> {
-  try {
-    const res = await fetch(`https://video.google.com/timedtext?type=list&v=${videoId}`, { headers });
-    const body = await res.text();
-    return body ? parseTrackList(body) : [];
-  } catch {
-    return [];
-  }
-}
+  for (const url of urls) {
+    try {
+      console.log(`Scraping caption tracks from: ${url}`);
+      const res = await fetch(url, { headers });
+      const html = await res.text();
 
-async function fetchTrack(videoId: string, lang: string): Promise<Sub[]> {
-  const trackList = await fetchTrackList(videoId);
-  const directTrack = trackList.find((track) => track.lang === lang) || trackList.find((track) => track.lang.startsWith(`${lang}-`));
-  const fallbackTrack = trackList.find((track) => track.lang === 'en') || trackList[0];
-
-  const candidates = [
-    directTrack ? { track: directTrack, targetLang: undefined } : null,
-    !directTrack && fallbackTrack ? { track: fallbackTrack, targetLang: lang } : null,
-  ].filter(Boolean) as Array<{ track: CaptionTrack; targetLang?: string }>;
-
-  for (const candidate of candidates) {
-    for (const format of ['srt', 'srv3'] as const) {
-      try {
-        const url = buildTimedTextUrl(videoId, candidate.track, format, candidate.targetLang);
-        console.log(`Trying: ${url}`);
-        const res = await fetch(url, { headers });
-        const body = await res.text();
-        if (!res.ok || !body.trim()) continue;
-        const subtitles = format === 'srt' ? parseSRT(body) : parseTimedTextXml(body);
-        if (subtitles.length > 0) {
-          console.log(`✓ Got ${subtitles.length} subtitles via timedtext (${candidate.track.lang}${candidate.targetLang ? `→${candidate.targetLang}` : ''})`);
-          return subtitles;
+      // Try to find captionTracks in the page
+      const match = html.match(/"captionTracks"\s*:\s*(\[[\s\S]*?\])\s*,\s*"/);
+      if (!match) {
+        // Try alternate pattern
+        const match2 = html.match(/"captionTracks"\s*:\s*(\[.*?\])\s*,/s);
+        if (match2) {
+          try {
+            const tracks = JSON.parse(match2[1]);
+            console.log(`Found ${tracks.length} caption tracks from ${url}`);
+            return tracks;
+          } catch {}
         }
-      } catch {}
-    }
-  }
-
-  try {
-    console.log(`Trying embed page scrape for ${videoId}`);
-    const embedRes = await fetch(`https://www.youtube.com/embed/${videoId}`, { headers });
-    const html = await embedRes.text();
-    const captionMatch = html.match(/"captionTracks"\s*:\s*(\[.*?\])\s*,/s);
-    if (captionMatch) {
-      const tracks = JSON.parse(captionMatch[1]);
-      const direct = tracks.find((track: any) => track.languageCode === lang) || tracks.find((track: any) => track.languageCode?.startsWith(lang));
-      const fallback = tracks.find((track: any) => track.languageCode === 'en') || tracks[0];
-      const selected = direct || fallback;
-
-      if (selected?.baseUrl) {
-        const captionUrl = `${selected.baseUrl}${selected.baseUrl.includes('fmt=') ? '' : '&fmt=srv3'}${!direct && selected.languageCode !== lang ? `&tlang=${encodeURIComponent(lang)}` : ''}`;
-        const capRes = await fetch(captionUrl, { headers });
-        const xml = await capRes.text();
-        const subtitles = parseTimedTextXml(xml);
-        if (subtitles.length > 0) {
-          console.log(`✓ Got ${subtitles.length} subtitles from embed scrape (${selected.languageCode})`);
-          return subtitles;
-        }
+        continue;
       }
+
+      try {
+        const tracks = JSON.parse(match[1]);
+        console.log(`Found ${tracks.length} caption tracks from ${url}`);
+        return tracks;
+      } catch {}
+    } catch (err) {
+      console.error(`Failed to scrape ${url}:`, err);
     }
-  } catch (error) {
-    console.error('Embed scrape error:', error);
   }
 
   return [];
+}
+
+/**
+ * Download subtitles using the signed baseUrl from captionTracks.
+ * Supports tlang for machine translation to target language.
+ */
+async function downloadFromTrack(
+  tracks: any[],
+  targetLang: string,
+): Promise<{ subtitles: Sub[]; sourceLang: string }> {
+  // 1) Try to find a direct track for the target language
+  const directTrack = tracks.find((t: any) => t.languageCode === targetLang) ||
+    tracks.find((t: any) => t.languageCode?.startsWith(targetLang));
+
+  if (directTrack?.baseUrl) {
+    const url = directTrack.baseUrl.replace(/\\u0026/g, '&');
+    const fmtUrl = url.includes('fmt=') ? url : `${url}&fmt=srv3`;
+    console.log(`Downloading direct track: ${directTrack.languageCode}`);
+    try {
+      const res = await fetch(fmtUrl, { headers });
+      const xml = await res.text();
+      const subs = parseTimedTextXml(xml);
+      if (subs.length > 0) {
+        console.log(`✓ Got ${subs.length} subtitles directly in ${directTrack.languageCode}`);
+        return { subtitles: subs, sourceLang: directTrack.languageCode };
+      }
+    } catch (err) {
+      console.error('Direct track download failed:', err);
+    }
+  }
+
+  // 2) If no direct track, use any translatable track + tlang parameter
+  const translatableTrack = tracks.find((t: any) => t.isTranslatable);
+  if (translatableTrack?.baseUrl) {
+    const url = translatableTrack.baseUrl.replace(/\\u0026/g, '&');
+    const fmtUrl = url.includes('fmt=') ? url : `${url}&fmt=srv3`;
+    const tlangUrl = `${fmtUrl}&tlang=${encodeURIComponent(targetLang)}`;
+    console.log(`Downloading translated track: ${translatableTrack.languageCode} → ${targetLang}`);
+    try {
+      const res = await fetch(tlangUrl, { headers });
+      const xml = await res.text();
+      const subs = parseTimedTextXml(xml);
+      if (subs.length > 0) {
+        console.log(`✓ Got ${subs.length} subtitles via translation ${translatableTrack.languageCode}→${targetLang}`);
+        return { subtitles: subs, sourceLang: translatableTrack.languageCode };
+      }
+    } catch (err) {
+      console.error('Translated track download failed:', err);
+    }
+
+    // 3) Try downloading the source track without translation as last resort
+    console.log(`Trying source track without translation: ${translatableTrack.languageCode}`);
+    try {
+      const res = await fetch(fmtUrl, { headers });
+      const xml = await res.text();
+      const subs = parseTimedTextXml(xml);
+      if (subs.length > 0) {
+        console.log(`✓ Got ${subs.length} subtitles in source language ${translatableTrack.languageCode}`);
+        return { subtitles: subs, sourceLang: translatableTrack.languageCode };
+      }
+    } catch {}
+  }
+
+  return { subtitles: [], sourceLang: '' };
+}
+
+/**
+ * Fallback: try the old timedtext list API (works for some videos)
+ */
+async function fetchViaTimedTextList(videoId: string, lang: string): Promise<Sub[]> {
+  try {
+    const listRes = await fetch(`https://video.google.com/timedtext?type=list&v=${videoId}`, { headers });
+    const listBody = await listRes.text();
+    if (!listBody.trim()) return [];
+
+    // Parse track list
+    const trackRegex = /<track\s+([^>]+?)\/?>(?:<\/track>)?/g;
+    const attrRegex = /(\w+)="([^"]*)"/g;
+    let match: RegExpExecArray | null;
+    const tracks: { lang: string; name?: string; kind?: string }[] = [];
+
+    while ((match = trackRegex.exec(listBody)) !== null) {
+      const attrs = Object.fromEntries(
+        Array.from(match[1].matchAll(attrRegex)).map(([, k, v]) => [k, v])
+      );
+      const trackLang = attrs.lang_code || attrs.lang || '';
+      if (trackLang) tracks.push({ lang: trackLang, name: attrs.name, kind: attrs.kind });
+    }
+
+    if (tracks.length === 0) return [];
+
+    const directTrack = tracks.find(t => t.lang === lang) || tracks.find(t => t.lang.startsWith(lang));
+    const fallbackTrack = tracks.find(t => t.lang === 'en') || tracks[0];
+    const selectedTrack = directTrack || fallbackTrack;
+    if (!selectedTrack) return [];
+
+    const tlang = !directTrack && selectedTrack.lang !== lang ? `&tlang=${lang}` : '';
+    const params = new URLSearchParams({ v: videoId, lang: selectedTrack.lang, fmt: 'srv3' });
+    if (selectedTrack.name) params.set('name', selectedTrack.name);
+    if (selectedTrack.kind) params.set('kind', selectedTrack.kind);
+
+    const url = `https://video.google.com/timedtext?${params.toString()}${tlang}`;
+    const res = await fetch(url, { headers });
+    const body = await res.text();
+    if (!body.trim()) return [];
+
+    return parseTimedTextXml(body);
+  } catch {
+    return [];
+  }
 }
 
 serve(async (req) => {
@@ -179,13 +238,44 @@ serve(async (req) => {
     const lang = language || 'fr';
     console.log(`=== Fetching captions for ${videoId}, lang: ${lang} ===`);
 
-    const subtitles = await fetchTrack(videoId, lang);
+    // Strategy 1: Scrape watch page for signed caption URLs (most reliable)
+    const tracks = await scrapeCaptionTracks(videoId);
+    if (tracks.length > 0) {
+      const result = await downloadFromTrack(tracks, lang);
+      if (result.subtitles.length > 0) {
+        return new Response(JSON.stringify({
+          subtitles: result.subtitles,
+          language: lang,
+          count: result.subtitles.length,
+          source: 'watch-scrape',
+          sourceLang: result.sourceLang,
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+    }
 
+    // Strategy 2: Fallback to timedtext list API
+    console.log('Watch page scrape failed, trying timedtext list API...');
+    const timedTextSubs = await fetchViaTimedTextList(videoId, lang);
+    if (timedTextSubs.length > 0) {
+      return new Response(JSON.stringify({
+        subtitles: timedTextSubs,
+        language: lang,
+        count: timedTextSubs.length,
+        source: 'timedtext-list',
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // No subtitles found
+    console.log('No subtitles found from any source');
     return new Response(JSON.stringify({
-      subtitles,
+      subtitles: [],
       language: lang,
-      count: subtitles.length,
-      source: subtitles.length > 0 ? 'timedtext' : 'none',
+      count: 0,
+      source: 'none',
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
