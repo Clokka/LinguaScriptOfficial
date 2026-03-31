@@ -220,18 +220,35 @@ const Watch = () => {
 
   // Fullscreen handler
   const toggleFullscreen = useCallback(async () => {
-    if (!videoContainerRef.current) return;
-    if (!document.fullscreenElement) {
-      await videoContainerRef.current.requestFullscreen();
+    const container = videoContainerRef.current;
+    if (!container) return;
+    const fsEl = document.fullscreenElement || (document as any).webkitFullscreenElement;
+    if (!fsEl) {
+      if (container.requestFullscreen) {
+        await container.requestFullscreen();
+      } else if ((container as any).webkitRequestFullscreen) {
+        (container as any).webkitRequestFullscreen();
+      }
     } else {
-      await document.exitFullscreen();
+      if (document.exitFullscreen) {
+        await document.exitFullscreen();
+      } else if ((document as any).webkitExitFullscreen) {
+        (document as any).webkitExitFullscreen();
+      }
     }
   }, []);
 
   useEffect(() => {
-    const handler = () => setIsFullscreen(!!document.fullscreenElement);
+    const handler = () => {
+      const fsEl = document.fullscreenElement || (document as any).webkitFullscreenElement;
+      setIsFullscreen(!!fsEl);
+    };
     document.addEventListener("fullscreenchange", handler);
-    return () => document.removeEventListener("fullscreenchange", handler);
+    document.addEventListener("webkitfullscreenchange", handler);
+    return () => {
+      document.removeEventListener("fullscreenchange", handler);
+      document.removeEventListener("webkitfullscreenchange", handler);
+    };
   }, []);
 
   // Load film
