@@ -159,10 +159,6 @@ async function loadAllCaptions(
   if (!primary.length) {
     onStatus(`Downloading ${getLanguageLabel(primaryLang)} captions…`);
     primary = await fetchTrackViaEdge(videoId, primaryLang);
-    if (!primary.length) {
-      onStatus(`Trying client-side fetch for ${getLanguageLabel(primaryLang)}…`);
-      primary = await fetchTrackClientSide(videoId, primaryLang);
-    }
     if (primary.length) {
       await persistTrack(filmId, primaryLang, primary);
     }
@@ -172,9 +168,10 @@ async function loadAllCaptions(
   if (primaryLang !== secondaryLang && !secondary.length) {
     onStatus(`Downloading ${getLanguageLabel(secondaryLang)} captions…`);
     secondary = await fetchTrackViaEdge(videoId, secondaryLang);
-    if (!secondary.length) {
-      onStatus(`Trying client-side fetch for ${getLanguageLabel(secondaryLang)}…`);
-      secondary = await fetchTrackClientSide(videoId, secondaryLang);
+    // If still empty, translate from primary
+    if (!secondary.length && primary.length) {
+      onStatus(`Translating to ${getLanguageLabel(secondaryLang)}…`);
+      secondary = await translateTrack(primary, primaryLang, secondaryLang);
     }
     // If still empty, translate from primary
     if (!secondary.length && primary.length) {
