@@ -228,25 +228,7 @@ const Watch = () => {
   const watchStartRef = useRef<number | null>(null);
   const videoContainerRef = useRef<HTMLDivElement>(null);
 
-  // Fullscreen handler
-  const toggleFullscreen = useCallback(async () => {
-    const container = videoContainerRef.current;
-    if (!container) return;
-    const fsEl = document.fullscreenElement || (document as any).webkitFullscreenElement;
-    if (!fsEl) {
-      if (container.requestFullscreen) {
-        await container.requestFullscreen();
-      } else if ((container as any).webkitRequestFullscreen) {
-        (container as any).webkitRequestFullscreen();
-      }
-    } else {
-      if (document.exitFullscreen) {
-        await document.exitFullscreen();
-      } else if ((document as any).webkitExitFullscreen) {
-        (document as any).webkitExitFullscreen();
-      }
-    }
-  }, []);
+  // Fullscreen detection (user may use browser/YT native fullscreen)
 
   useEffect(() => {
     const handler = () => {
