@@ -91,6 +91,22 @@ async function fetchTrackViaEdge(videoId: string, lang: string): Promise<Subtitl
   }
 }
 
+async function fetchBothTracksViaEdge(videoId: string, learningLang: string, nativeLang: string): Promise<{ learning: SubtitleSegment[]; native: SubtitleSegment[] }> {
+  try {
+    const { data, error } = await supabase.functions.invoke("fetch-captions", {
+      body: { videoId, language: learningLang, nativeLanguage: nativeLang },
+    });
+    if (error) return { learning: [], native: [] };
+    const toSegs = (arr: any[]) => (arr || []).map((s: any) => ({ start: s.start, end: s.end, text: s.text }));
+    return {
+      learning: toSegs(data?.subtitles),
+      native: toSegs(data?.nativeSubtitles),
+    };
+  } catch {
+    return { learning: [], native: [] };
+  }
+}
+
 // Client-side fetch removed — CORS blocks timedtext from browser.
 // All fetching goes through the edge function.
 
