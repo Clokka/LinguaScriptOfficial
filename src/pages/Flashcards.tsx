@@ -13,6 +13,7 @@ interface SavedWord {
   pronunciation: string;
   ipa: string;
   context: string;
+  language?: string;
   next_review: string;
   review_count: number;
 }
