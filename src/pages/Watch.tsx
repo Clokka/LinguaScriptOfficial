@@ -293,7 +293,7 @@ const Watch = () => {
       setCaptionsError(null);
       setCaptionsStatus(null);
 
-      const primaryLang = film.language || learningLanguage || "fr";
+      const primaryLang = learningLanguage || film.language || "fr";
       const secondaryLang = nativeLanguage || "en";
       const ytId = getYouTubeId(film.url);
 
