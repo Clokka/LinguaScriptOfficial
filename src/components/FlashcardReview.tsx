@@ -11,6 +11,7 @@ interface FlashcardData {
   pronunciation: string;
   ipa: string;
   context?: string;
+  contextTranslation?: string;
 }
 
 interface FlashcardReviewProps {
