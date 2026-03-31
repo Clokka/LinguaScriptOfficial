@@ -50,57 +50,33 @@ function parseTimedTextXml(xml: string): Sub[] {
  * 6. Download captions
  */
 async function fetchCaptionsViaInnertube(videoId: string, targetLang: string): Promise<Sub[]> {
-  // Step 1: Fetch watch page to get API key (handle consent)
-  let html = '';
-  const cookieJar: Record<string, string> = {};
+  // Use a session-like approach matching youtube-transcript-api
+  const cookies: Record<string, string> = {};
 
-  const fetchHtml = async () => {
-    const cookieStr = Object.entries(cookieJar).map(([k, v]) => `${k}=${v}`).join('; ');
-    const hdrs: Record<string, string> = { ...browserHeaders };
-    if (cookieStr) hdrs['Cookie'] = cookieStr;
-    const res = await fetch(`https://www.youtube.com/watch?v=${videoId}&hl=en`, {
-      headers: hdrs,
+  const fetchPage = async (): Promise<string> => {
+    const cookieStr = Object.entries(cookies).map(([k, v]) => `${k}=${v}`).join('; ');
+    const res = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
+      headers: { ...browserHeaders, ...(cookieStr ? { Cookie: cookieStr } : {}) },
       redirect: 'follow',
     });
-    // Capture set-cookie
-    const setCookies = res.headers.get('set-cookie') || '';
-    for (const part of setCookies.split(',')) {
-      const m = part.trim().match(/^([^=]+)=([^;]*)/);
-      if (m) cookieJar[m[1].trim()] = m[2].trim();
-    }
     return await res.text();
   };
 
-  html = await fetchHtml();
-  console.log(`Watch page: ${html.length} bytes`);
+  // First fetch
+  let html = await fetchPage();
+  console.log(`Watch page: ${html.length} bytes, hasConsent: ${html.includes('consent.youtube.com')}`);
 
-  // Handle consent wall
+  // Handle consent wall (same as youtube-transcript-api)
   if (html.includes('action="https://consent.youtube.com/s"')) {
-    console.log('Consent wall detected, creating consent cookie...');
-    const consentMatch = html.match(/name="v" value="([^"]+)"/);
-    if (consentMatch) {
-      // Post consent form
-      const formData = new URLSearchParams({
-        gl: 'GB', m: '0', app: '0', pc: 'yt', continue: `https://www.youtube.com/watch?v=${videoId}`,
-        x: '6', bl: 'boq_identityfrontenduiserver', hl: 'en', src: '1', cm: '2', set_eom: 'true', v: consentMatch[1],
-      });
-      const consentRes = await fetch('https://consent.youtube.com/save', {
-        method: 'POST',
-        headers: { ...browserHeaders, 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: formData.toString(),
-        redirect: 'manual',
-      });
-      const consentCookies = consentRes.headers.get('set-cookie') || '';
-      for (const part of consentCookies.split(',')) {
-        const m = part.trim().match(/^([^=]+)=([^;]*)/);
-        if (m) cookieJar[m[1].trim()] = m[2].trim();
-      }
+    const vMatch = html.match(/name="v" value="(.*?)"/);
+    if (vMatch) {
+      cookies['CONSENT'] = 'YES+' + vMatch[1];
+      console.log(`Set consent cookie: YES+${vMatch[1]}`);
+    } else {
+      cookies['CONSENT'] = 'YES+cb.20210328-17-p0.en+FX+987';
     }
-    // Set fallback consent cookie
-    cookieJar['CONSENT'] = 'YES+cb.20210328-17-p0.en+FX+987';
-    cookieJar['SOCS'] = 'CAISNQgDEitib3FfaWRlbnRpdHlmcm9udGVuZHVpc2VydmVyXzIwMjMwODI5LjA3X3AxGgJlbiADGgYIgMLcrgY';
-    html = await fetchHtml();
-    console.log(`After consent: ${html.length} bytes`);
+    html = await fetchPage();
+    console.log(`After consent: ${html.length} bytes, hasCaptions: ${html.includes('captionTracks')}`);
   }
 
   // Step 2: Extract INNERTUBE_API_KEY
