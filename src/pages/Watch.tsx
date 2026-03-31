@@ -229,9 +229,16 @@ const Watch = () => {
   }, []);
 
   useEffect(() => {
-    const handler = () => setIsFullscreen(!!document.fullscreenElement);
+    const handler = () => {
+      const fsEl = document.fullscreenElement || (document as any).webkitFullscreenElement;
+      setIsFullscreen(!!fsEl);
+    };
     document.addEventListener("fullscreenchange", handler);
-    return () => document.removeEventListener("fullscreenchange", handler);
+    document.addEventListener("webkitfullscreenchange", handler);
+    return () => {
+      document.removeEventListener("fullscreenchange", handler);
+      document.removeEventListener("webkitfullscreenchange", handler);
+    };
   }, []);
 
   // Load film
