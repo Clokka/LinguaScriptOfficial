@@ -511,14 +511,6 @@ const Watch = () => {
             </div>
           )}
 
-          {/* Fullscreen toggle button */}
-          <button
-            onClick={toggleFullscreen}
-            className="absolute bottom-3 right-3 z-[9999] p-2 rounded-lg bg-black/60 text-white/80 hover:text-white hover:bg-black/80 transition-colors"
-            title={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
-          >
-            {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
-          </button>
         </div>
       </div>
     </div>
