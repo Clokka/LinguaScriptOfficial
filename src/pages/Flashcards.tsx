@@ -13,6 +13,7 @@ interface SavedWord {
   pronunciation: string;
   ipa: string;
   context: string;
+  language?: string;
   next_review: string;
   review_count: number;
 }
@@ -30,22 +31,66 @@ const Flashcards = () => {
     if (!user) { setLoading(false); return; }
     const today = new Date().toISOString().split("T")[0];
 
-    const [dueRes, allRes] = await Promise.all([
+    // Also fetch user's language settings for translation
+    const [dueRes, allRes, profileRes] = await Promise.all([
       supabase
         .from("saved_words")
-        .select("id, word, translation, pronunciation, ipa, context, next_review, review_count")
+        .select("id, word, translation, pronunciation, ipa, context, language, next_review, review_count")
         .eq("user_id", user.id)
         .lte("next_review", today)
         .order("next_review", { ascending: true }),
       supabase
         .from("saved_words")
-        .select("id, word, translation, pronunciation, ipa, context, next_review, review_count")
+        .select("id, word, translation, pronunciation, ipa, context, language, next_review, review_count")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false }),
+      supabase
+        .from("profiles")
+        .select("native_language, learning_language")
+        .eq("user_id", user.id)
+        .single(),
     ]);
 
-    setDueCards((dueRes.data as SavedWord[]) || []);
-    setAllCards((allRes.data as SavedWord[]) || []);
+    const allWords = (allRes.data as SavedWord[]) || [];
+    const dueWords = (dueRes.data as SavedWord[]) || [];
+    const nativeLang = profileRes.data?.native_language || "en";
+
+    // Auto-translate any words missing translations
+    const wordsNeedingTranslation = allWords.filter(w => !w.translation || w.translation.trim() === '');
+    if (wordsNeedingTranslation.length > 0) {
+      console.log(`Auto-translating ${wordsNeedingTranslation.length} words missing translations...`);
+      const { getLanguageLabel: getLangLabel } = await import("@/lib/languages");
+
+      // Translate up to 10 at a time to avoid overwhelming
+      for (const word of wordsNeedingTranslation.slice(0, 10)) {
+        try {
+          const fromLang = getLangLabel(word.language || "fr");
+          const toLang = getLangLabel(nativeLang);
+          const { data, error } = await supabase.functions.invoke("translate-word", {
+            body: { word: word.word, context: word.context || "", fromLanguage: fromLang, toLanguage: toLang },
+          });
+          if (!error && data?.translation) {
+            await supabase.from("saved_words").update({
+              translation: data.translation,
+              pronunciation: data.pronunciation || "",
+              ipa: data.ipa || "",
+            }).eq("id", word.id);
+            // Update in-memory
+            word.translation = data.translation;
+            word.pronunciation = data.pronunciation || "";
+            word.ipa = data.ipa || "";
+          }
+        } catch (e) {
+          console.error("Auto-translate failed for:", word.word, e);
+        }
+      }
+    }
+
+    setDueCards(dueWords.map(dw => {
+      const updated = allWords.find(a => a.id === dw.id);
+      return updated || dw;
+    }));
+    setAllCards([...allWords]);
     setLoading(false);
   }, [user]);
 
