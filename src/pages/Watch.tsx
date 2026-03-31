@@ -267,8 +267,26 @@ const Watch = () => {
   const [captionsStatus, setCaptionsStatus] = useState<string | null>(null);
   const [captionsError, setCaptionsError] = useState<string | null>(null);
   const [nativeLanguage, setNativeLanguage] = useState("en");
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   const watchStartRef = useRef<number | null>(null);
+  const videoContainerRef = useRef<HTMLDivElement>(null);
+
+  // Fullscreen handler
+  const toggleFullscreen = useCallback(async () => {
+    if (!videoContainerRef.current) return;
+    if (!document.fullscreenElement) {
+      await videoContainerRef.current.requestFullscreen();
+    } else {
+      await document.exitFullscreen();
+    }
+  }, []);
+
+  useEffect(() => {
+    const handler = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", handler);
+    return () => document.removeEventListener("fullscreenchange", handler);
+  }, []);
 
   // Load film
   useEffect(() => {
