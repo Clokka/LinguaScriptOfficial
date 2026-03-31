@@ -91,7 +91,7 @@ async function fetchCaptionsViaInnertube(videoId: string, targetLang: string): P
   console.log(`Extracted API key: ${apiKey}`);
 
   // Step 3: Call innertube /player with ANDROID client (same as youtube-transcript-api)
-  const cookieStr = Object.entries(cookieJar).map(([k, v]) => `${k}=${v}`).join('; ');
+  const cookieStr = Object.entries(cookies).map(([k, v]) => `${k}=${v}`).join('; ');
   const playerRes = await fetch(`https://www.youtube.com/youtubei/v1/player?key=${apiKey}`, {
     method: 'POST',
     headers: {
