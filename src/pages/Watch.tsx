@@ -91,6 +91,22 @@ async function fetchTrackViaEdge(videoId: string, lang: string): Promise<Subtitl
   }
 }
 
+async function fetchBothTracksViaEdge(videoId: string, learningLang: string, nativeLang: string): Promise<{ learning: SubtitleSegment[]; native: SubtitleSegment[] }> {
+  try {
+    const { data, error } = await supabase.functions.invoke("fetch-captions", {
+      body: { videoId, language: learningLang, nativeLanguage: nativeLang },
+    });
+    if (error) return { learning: [], native: [] };
+    const toSegs = (arr: any[]) => (arr || []).map((s: any) => ({ start: s.start, end: s.end, text: s.text }));
+    return {
+      learning: toSegs(data?.subtitles),
+      native: toSegs(data?.nativeSubtitles),
+    };
+  } catch {
+    return { learning: [], native: [] };
+  }
+}
+
 // Client-side fetch removed — CORS blocks timedtext from browser.
 // All fetching goes through the edge function.
 
@@ -155,31 +171,25 @@ async function loadAllCaptions(
     return { primary, secondary };
   }
 
-  // 2) Fetch primary if missing
-  if (!primary.length) {
-    onStatus(`Downloading ${getLanguageLabel(primaryLang)} captions…`);
-    primary = await fetchTrackViaEdge(videoId, primaryLang);
-    if (primary.length) {
+  // 2) Fetch both tracks in one call using tlang (DownSub method)
+  if (!primary.length || (primaryLang !== secondaryLang && !secondary.length)) {
+    onStatus(`Downloading ${getLanguageLabel(primaryLang)} & ${getLanguageLabel(secondaryLang)} captions…`);
+    const result = await fetchBothTracksViaEdge(videoId, primaryLang, secondaryLang);
+
+    if (!primary.length && result.learning.length) {
+      primary = result.learning;
       await persistTrack(filmId, primaryLang, primary);
     }
-  }
-
-  // 3) Fetch secondary if missing & different
-  if (primaryLang !== secondaryLang && !secondary.length) {
-    onStatus(`Downloading ${getLanguageLabel(secondaryLang)} captions…`);
-    secondary = await fetchTrackViaEdge(videoId, secondaryLang);
-    // If still empty, translate from primary
-    if (!secondary.length && primary.length) {
-      onStatus(`Translating to ${getLanguageLabel(secondaryLang)}…`);
-      secondary = await translateTrack(primary, primaryLang, secondaryLang);
-    }
-    // If still empty, translate from primary
-    if (!secondary.length && primary.length) {
-      onStatus(`Translating to ${getLanguageLabel(secondaryLang)}…`);
-      secondary = await translateTrack(primary, primaryLang, secondaryLang);
-    }
-    if (secondary.length) {
+    if (primaryLang !== secondaryLang && !secondary.length && result.native.length) {
+      secondary = result.native;
       await persistTrack(filmId, secondaryLang, secondary);
+    }
+
+    // Fallback: AI translate if one track still missing
+    if (primary.length && !secondary.length && primaryLang !== secondaryLang) {
+      onStatus(`Translating to ${getLanguageLabel(secondaryLang)}…`);
+      secondary = await translateTrack(primary, primaryLang, secondaryLang);
+      if (secondary.length) await persistTrack(filmId, secondaryLang, secondary);
     }
   }
 
