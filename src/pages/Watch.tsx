@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Loader2, Download } from "lucide-react";
+import { ArrowLeft, Loader2, Download, Maximize, Minimize } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SubtitleOverlay } from "@/components/SubtitleOverlay";
 import { supabase } from "@/integrations/supabase/client";
@@ -224,6 +224,19 @@ const Watch = () => {
   const [captionsError, setCaptionsError] = useState<string | null>(null);
   const [nativeLanguage, setNativeLanguage] = useState("en");
   const [isFullscreen, setIsFullscreen] = useState(false);
+
+  const toggleFullscreen = useCallback(() => {
+    const container = videoContainerRef.current;
+    if (!container) return;
+    const fsEl = document.fullscreenElement || (document as any).webkitFullscreenElement;
+    if (fsEl) {
+      if (document.exitFullscreen) document.exitFullscreen();
+      else if ((document as any).webkitExitFullscreen) (document as any).webkitExitFullscreen();
+    } else {
+      if (container.requestFullscreen) container.requestFullscreen();
+      else if ((container as any).webkitRequestFullscreen) (container as any).webkitRequestFullscreen();
+    }
+  }, []);
 
   const watchStartRef = useRef<number | null>(null);
   const videoContainerRef = useRef<HTMLDivElement>(null);
@@ -475,6 +488,9 @@ const Watch = () => {
               </Button>
             </div>
           )}
+          <Button variant="ghost" size="icon" onClick={toggleFullscreen} className="text-white hover:bg-white/10">
+            {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
+          </Button>
         </div>
       </div>
 
