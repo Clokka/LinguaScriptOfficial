@@ -55,16 +55,53 @@ function parseJson3(json: any): Sub[] {
 // This is YouTube's internal API — works from server without cookies
 
 async function getInnerTubeCaptionTracks(videoId: string): Promise<any[]> {
+  const webVersion = '2.20250401.01.00';
   const clients = [
     {
       name: 'WEB',
       payload: {
         context: {
-          client: { clientName: 'WEB', clientVersion: '2.20240101.00.00', hl: 'en', gl: 'US' }
+          client: {
+            clientName: 'WEB',
+            clientVersion: webVersion,
+            hl: 'en',
+            gl: 'US',
+            originalUrl: `https://www.youtube.com/watch?v=${videoId}`,
+            mainAppWebInfo: { graftUrl: `https://www.youtube.com/watch?v=${videoId}` },
+          }
         },
         videoId,
       },
       url: 'https://www.youtube.com/youtubei/v1/player?prettyPrint=false',
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+        'X-YouTube-Client-Name': '1',
+        'X-YouTube-Client-Version': webVersion,
+        'Origin': 'https://www.youtube.com',
+        'Referer': `https://www.youtube.com/watch?v=${videoId}`,
+      },
+    },
+    {
+      name: 'MWEB',
+      payload: {
+        context: {
+          client: {
+            clientName: 'MWEB',
+            clientVersion: '2.20250401.01.00',
+            hl: 'en',
+            gl: 'US',
+          }
+        },
+        videoId,
+      },
+      url: 'https://www.youtube.com/youtubei/v1/player?prettyPrint=false',
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36',
+        'X-YouTube-Client-Name': '2',
+        'X-YouTube-Client-Version': '2.20250401.01.00',
+        'Origin': 'https://m.youtube.com',
+        'Referer': `https://m.youtube.com/watch?v=${videoId}`,
+      },
     },
     {
       name: 'ANDROID',

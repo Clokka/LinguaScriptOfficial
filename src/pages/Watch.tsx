@@ -143,18 +143,25 @@ async function loadAllCaptions(
     return { primary, secondary };
   }
 
-  // 2) Fetch both tracks in one call using tlang (DownSub method)
+  // 2) Fetch via edge function (proxies InnerTube + tlang to avoid CORS)
   if (!primary.length || (primaryLang !== secondaryLang && !secondary.length)) {
     onStatus(`Downloading ${getLanguageLabel(primaryLang)} & ${getLanguageLabel(secondaryLang)} captions…`);
-    const result = await fetchCaptionsFromBrowser(videoId, primaryLang, secondaryLang);
-
-    if (!primary.length && result.learning.length) {
-      primary = result.learning;
-      await persistTrack(filmId, primaryLang, primary);
-    }
-    if (primaryLang !== secondaryLang && !secondary.length && result.native.length) {
-      secondary = result.native;
-      await persistTrack(filmId, secondaryLang, secondary);
+    try {
+      const { data, error } = await supabase.functions.invoke("fetch-captions", {
+        body: { videoId, language: primaryLang, nativeLanguage: secondaryLang },
+      });
+      if (!error && data) {
+        if (!primary.length && data.subtitles?.length) {
+          primary = data.subtitles;
+          await persistTrack(filmId, primaryLang, primary);
+        }
+        if (primaryLang !== secondaryLang && !secondary.length && data.nativeSubtitles?.length) {
+          secondary = data.nativeSubtitles;
+          await persistTrack(filmId, secondaryLang, secondary);
+        }
+      }
+    } catch (e) {
+      console.warn("Edge caption fetch failed:", e);
     }
 
     // Fallback: AI translate if one track still missing
