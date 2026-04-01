@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { getLanguageLabel, getLanguageFlag } from "@/lib/languages";
 import { cn } from "@/lib/utils";
+import { fetchCaptionsFromBrowser } from "@/lib/browserCaptionFetcher";
 
 interface FilmData {
   id: string;
