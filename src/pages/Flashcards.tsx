@@ -56,7 +56,7 @@ const Flashcards = () => {
     const nativeLang = profileRes.data?.native_language || "en";
 
     // Auto-translate any words missing translations
-    const wordsNeedingTranslation = allWords.filter(w => !w.translation || w.translation.trim() === '');
+    const wordsNeedingTranslation = allWords.filter(w => !w.translation || w.translation.trim() === '' || w.translation === 'Translating...');
     if (wordsNeedingTranslation.length > 0) {
       console.log(`Auto-translating ${wordsNeedingTranslation.length} words missing translations...`);
       const { getLanguageLabel: getLangLabel } = await import("@/lib/languages");
