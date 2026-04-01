@@ -111,6 +111,7 @@ const Flashcards = () => {
     pronunciation: c.pronunciation,
     ipa: c.ipa,
     context: c.context,
+    contextTranslation: c.contextTranslation,
   }));
 
   if (!user) {
