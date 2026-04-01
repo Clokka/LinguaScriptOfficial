@@ -80,6 +80,7 @@ const Flashcards = () => {
             word.translation = data.translation;
             word.pronunciation = data.pronunciation || "";
             word.ipa = data.ipa || "";
+            word.contextTranslation = data.contextTranslation || "";
           }
         } catch (e) {
           console.error("Auto-translate failed for:", word.word, e);
