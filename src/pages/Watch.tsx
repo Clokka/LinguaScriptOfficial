@@ -225,6 +225,19 @@ const Watch = () => {
   const [nativeLanguage, setNativeLanguage] = useState("en");
   const [isFullscreen, setIsFullscreen] = useState(false);
 
+  const toggleFullscreen = useCallback(() => {
+    const container = videoContainerRef.current;
+    if (!container) return;
+    const fsEl = document.fullscreenElement || (document as any).webkitFullscreenElement;
+    if (fsEl) {
+      if (document.exitFullscreen) document.exitFullscreen();
+      else if ((document as any).webkitExitFullscreen) (document as any).webkitExitFullscreen();
+    } else {
+      if (container.requestFullscreen) container.requestFullscreen();
+      else if ((container as any).webkitRequestFullscreen) (container as any).webkitRequestFullscreen();
+    }
+  }, []);
+
   const watchStartRef = useRef<number | null>(null);
   const videoContainerRef = useRef<HTMLDivElement>(null);
 
