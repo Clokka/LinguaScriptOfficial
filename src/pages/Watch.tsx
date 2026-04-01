@@ -124,7 +124,8 @@ async function translateTrack(subs: SubtitleSegment[], from: string, to: string)
 
 /**
  * Master caption loader — runs BEFORE overlay.
- * Priority: DB → Edge function (video.google.com/timedtext) → Client-side fetch → AI translation
+ * Priority: DB cache → Browser-side YouTube fetch (DownSub method) → AI translation fallback
+ * YouTube is NEVER contacted from the server/edge function.
  */
 async function loadAllCaptions(
   filmId: string,
