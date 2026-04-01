@@ -13,6 +13,7 @@ interface SavedWord {
   pronunciation: string;
   ipa: string;
   context: string;
+  contextTranslation?: string;
   language?: string;
   next_review: string;
   review_count: number;
@@ -56,7 +57,7 @@ const Flashcards = () => {
     const nativeLang = profileRes.data?.native_language || "en";
 
     // Auto-translate any words missing translations
-    const wordsNeedingTranslation = allWords.filter(w => !w.translation || w.translation.trim() === '');
+    const wordsNeedingTranslation = allWords.filter(w => !w.translation || w.translation.trim() === '' || w.translation === 'Translating...');
     if (wordsNeedingTranslation.length > 0) {
       console.log(`Auto-translating ${wordsNeedingTranslation.length} words missing translations...`);
       const { getLanguageLabel: getLangLabel } = await import("@/lib/languages");
@@ -79,6 +80,7 @@ const Flashcards = () => {
             word.translation = data.translation;
             word.pronunciation = data.pronunciation || "";
             word.ipa = data.ipa || "";
+            word.contextTranslation = data.contextTranslation || "";
           }
         } catch (e) {
           console.error("Auto-translate failed for:", word.word, e);
@@ -109,6 +111,7 @@ const Flashcards = () => {
     pronunciation: c.pronunciation,
     ipa: c.ipa,
     context: c.context,
+    contextTranslation: c.contextTranslation,
   }));
 
   if (!user) {
