@@ -488,6 +488,9 @@ const Watch = () => {
               </Button>
             </div>
           )}
+          <Button variant="ghost" size="icon" onClick={toggleFullscreen} className="text-white hover:bg-white/10">
+            {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
+          </Button>
         </div>
       </div>
 
