@@ -145,7 +145,7 @@ async function loadAllCaptions(
   // 2) Fetch both tracks in one call using tlang (DownSub method)
   if (!primary.length || (primaryLang !== secondaryLang && !secondary.length)) {
     onStatus(`Downloading ${getLanguageLabel(primaryLang)} & ${getLanguageLabel(secondaryLang)} captions…`);
-    const result = await fetchBothTracksViaEdge(videoId, primaryLang, secondaryLang);
+    const result = await fetchCaptionsFromBrowser(videoId, primaryLang, secondaryLang);
 
     if (!primary.length && result.learning.length) {
       primary = result.learning;
