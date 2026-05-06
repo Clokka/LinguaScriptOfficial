@@ -128,6 +128,21 @@ serve(async (req) => {
       nativeSubs = learning;
     }
 
+    // Detect duplicate: Supadata sometimes returns original-language track when
+    // requested native language isn't available. Compare first few segments.
+    if (native !== lang && learning.length && nativeSubs.length) {
+      const sampleSize = Math.min(5, learning.length, nativeSubs.length);
+      let identical = 0;
+      for (let i = 0; i < sampleSize; i++) {
+        if ((learning[i].text || '').trim() === (nativeSubs[i].text || '').trim()) identical++;
+      }
+      if (identical === sampleSize) {
+        console.log(`Native track is duplicate of learning track — discarding so client can AI-translate`);
+        nativeSubs = [];
+        nativeError = `No ${native} captions available on YouTube`;
+      }
+    }
+
     console.log(`Final: learning=${learning.length}, native=${nativeSubs.length}`);
 
     return new Response(JSON.stringify({

@@ -139,6 +139,20 @@ async function loadAllCaptions(
   let primary = await loadStoredTrack(filmId, primaryLang);
   let secondary = primaryLang === secondaryLang ? primary : await loadStoredTrack(filmId, secondaryLang);
 
+  // Detect cached duplicate (same text as primary) — purge so we can re-translate
+  if (primaryLang !== secondaryLang && primary.length && secondary.length) {
+    const sample = Math.min(5, primary.length, secondary.length);
+    let same = 0;
+    for (let i = 0; i < sample; i++) {
+      if ((primary[i].text || "").trim() === (secondary[i].text || "").trim()) same++;
+    }
+    if (same === sample) {
+      console.log("Cached secondary track is a duplicate — clearing");
+      await supabase.from("subtitles").delete().eq("film_id", filmId).eq("language", secondaryLang);
+      secondary = [];
+    }
+  }
+
   if (primary.length > 0 && (primaryLang === secondaryLang || secondary.length > 0)) {
     return { primary, secondary };
   }
@@ -455,7 +469,7 @@ const Watch = () => {
             onClick={() => setSubtitleMode(subtitleMode === "dual" ? "single" : "dual")}
             className={subtitleMode !== "dual" ? "text-white hover:bg-white/10" : ""}
           >
-            {subtitleMode === "dual" ? "Dual" : "Single"}
+            {subtitleMode === "dual" ? "Dual subtitles: ON" : "Dual subtitles: OFF"}
           </Button>
           {subtitles.length > 0 && (
             <div className="flex gap-1">
