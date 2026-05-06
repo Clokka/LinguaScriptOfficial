@@ -15,6 +15,8 @@ const Auth = () => {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const next = searchParams.get("next") || "/browse";
   const { toast } = useToast();
 
   const handleGoogle = async () => {
