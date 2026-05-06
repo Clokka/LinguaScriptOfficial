@@ -476,7 +476,8 @@ const Admin = () => {
             const pinnedIds = new Set(row.pins.map((p) => p.film_id));
             const availableFilms = films.filter((f) => f.is_public && !pinnedIds.has(f.id));
             return (
-              <RowHeader row={row} onRename={renameCatalogRow} onDelete={deleteCatalogRow} />
+              <div key={row.id} className="glass-panel p-4 space-y-3">
+                <RowHeader row={row} onRename={renameCatalogRow} onDelete={deleteCatalogRow} />
                 <div className="space-y-2">
                   {row.pins.length === 0 && <p className="text-xs text-muted-foreground italic">No films pinned yet.</p>}
                   {row.pins.map((pin) => (
