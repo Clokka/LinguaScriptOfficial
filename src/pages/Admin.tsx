@@ -14,6 +14,45 @@ import {
 import { ArrowLeft, Plus, Trash2, Film, Loader2, Upload, FileText, Check, Mail, Layers, X, ArrowUp, ArrowDown, Eye, EyeOff } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { Pencil } from "lucide-react";
+
+function RowHeader({ row, onRename, onDelete }: { row: { id: string; title: string }; onRename: (id: string, title: string) => void; onDelete: (id: string) => void; }) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(row.title);
+  useEffect(() => { setValue(row.title); }, [row.title]);
+  const save = () => {
+    const v = value.trim();
+    if (v && v !== row.title) onRename(row.id, v);
+    setEditing(false);
+  };
+  return (
+    <div className="flex items-center gap-2">
+      {editing ? (
+        <>
+          <Input
+            autoFocus
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); save(); } if (e.key === "Escape") { setValue(row.title); setEditing(false); } }}
+            className="bg-secondary/50 border-border font-medium"
+          />
+          <Button variant="hero" size="sm" onClick={save}>Save</Button>
+          <Button variant="glass" size="sm" onClick={() => { setValue(row.title); setEditing(false); }}>Cancel</Button>
+        </>
+      ) : (
+        <>
+          <h3 className="flex-1 text-foreground font-medium truncate">{row.title}</h3>
+          <Button variant="glass" size="icon" onClick={() => setEditing(true)} title="Rename">
+            <Pencil className="w-4 h-4" />
+          </Button>
+          <Button variant="glass" size="icon" onClick={() => onDelete(row.id)} title="Delete">
+            <Trash2 className="w-4 h-4 text-destructive" />
+          </Button>
+        </>
+      )}
+    </div>
+  );
+}
 
 interface FilmRow {
   id: string;
