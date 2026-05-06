@@ -387,9 +387,14 @@ const Admin = () => {
                       <p className="text-muted-foreground text-xs truncate">{film.url}</p>
                     </div>
                   </div>
-                  <Button variant="glass" size="icon" onClick={() => deleteFilm(film.id)}>
-                    <Trash2 className="w-4 h-4 text-destructive" />
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button variant="glass" size="sm" onClick={() => togglePublish(film)} className="gap-1 text-xs">
+                      {film.is_public ? <><Eye className="w-3.5 h-3.5 text-primary" /> Public</> : <><EyeOff className="w-3.5 h-3.5 text-muted-foreground" /> Private</>}
+                    </Button>
+                    <Button variant="glass" size="icon" onClick={() => deleteFilm(film.id)}>
+                      <Trash2 className="w-4 h-4 text-destructive" />
+                    </Button>
+                  </div>
                 </div>
                 {/* Subtitle status + per-language upload */}
                 <div className="flex flex-col gap-2 pl-20">
