@@ -22,7 +22,7 @@ const Auth = () => {
   const handleGoogle = async () => {
     setGoogleLoading(true);
     const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin + "/browse",
+      redirect_uri: window.location.origin + next,
     });
     if (result.error) {
       toast({ title: "Google sign-in failed", description: String(result.error.message || result.error), variant: "destructive" });
@@ -30,7 +30,7 @@ const Auth = () => {
       return;
     }
     if (result.redirected) return;
-    navigate("/browse");
+    navigate(next);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -42,7 +42,7 @@ const Auth = () => {
       if (error) {
         toast({ title: "Login failed", description: error.message, variant: "destructive" });
       } else {
-        navigate("/browse");
+        navigate(next);
       }
     } else {
       const { error } = await supabase.auth.signUp({
@@ -50,7 +50,7 @@ const Auth = () => {
         password,
         options: {
           data: { display_name: displayName },
-          emailRedirectTo: window.location.origin + "/browse",
+          emailRedirectTo: window.location.origin + next,
         },
       });
       if (error) {
