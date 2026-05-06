@@ -476,17 +476,7 @@ const Admin = () => {
             const pinnedIds = new Set(row.pins.map((p) => p.film_id));
             const availableFilms = films.filter((f) => f.is_public && !pinnedIds.has(f.id));
             return (
-              <div key={row.id} className="glass-panel p-4 space-y-3">
-                <div className="flex items-center gap-2">
-                  <Input
-                    defaultValue={row.title}
-                    onBlur={(e) => { if (e.target.value.trim() && e.target.value !== row.title) renameCatalogRow(row.id, e.target.value.trim()); }}
-                    className="bg-secondary/50 border-border font-medium"
-                  />
-                  <Button variant="glass" size="icon" onClick={() => deleteCatalogRow(row.id)}>
-                    <Trash2 className="w-4 h-4 text-destructive" />
-                  </Button>
-                </div>
+              <RowHeader row={row} onRename={renameCatalogRow} onDelete={deleteCatalogRow} />
                 <div className="space-y-2">
                   {row.pins.length === 0 && <p className="text-xs text-muted-foreground italic">No films pinned yet.</p>}
                   {row.pins.map((pin) => (
