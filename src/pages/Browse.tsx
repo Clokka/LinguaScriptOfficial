@@ -147,8 +147,11 @@ const Browse = () => {
       setNativeLanguage(data.native_language || "en");
       setSettingsLearning(data.learning_language || "fr");
       setDisplayName(data.display_name || "");
+      if ((data as any).onboarded === false) {
+        navigate("/onboarding");
+      }
     }
-  }, [user]);
+  }, [user, navigate]);
 
   useEffect(() => {
     fetchLessons();
