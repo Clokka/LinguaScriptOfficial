@@ -449,6 +449,81 @@ const Admin = () => {
             ))}
           </div>
         )}
+        {/* Catalog Rows */}
+        <h2 className="text-lg font-semibold text-foreground mb-2 mt-12 flex items-center gap-2">
+          <Layers className="w-5 h-5 text-primary" /> Catalog Rows
+        </h2>
+        <p className="text-muted-foreground text-sm mb-4">Group public films into themed rows shown on the home page.</p>
+
+        <div className="glass-panel-strong p-4 mb-4 flex gap-2">
+          <Input
+            placeholder="New row title (e.g. French Classics)"
+            value={newRowTitle}
+            onChange={(e) => setNewRowTitle(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), createCatalogRow())}
+            className="bg-secondary/50 border-border"
+          />
+          <Button onClick={createCatalogRow} variant="hero" className="gap-2 shrink-0">
+            <Plus className="w-4 h-4" /> Add Row
+          </Button>
+        </div>
+
+        <div className="space-y-4 mb-12">
+          {catalogRows.length === 0 && (
+            <p className="text-sm text-muted-foreground italic">No rows yet — create your first one above.</p>
+          )}
+          {catalogRows.map((row) => {
+            const pinnedIds = new Set(row.pins.map((p) => p.film_id));
+            const availableFilms = films.filter((f) => f.is_public && !pinnedIds.has(f.id));
+            return (
+              <div key={row.id} className="glass-panel p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Input
+                    defaultValue={row.title}
+                    onBlur={(e) => { if (e.target.value.trim() && e.target.value !== row.title) renameCatalogRow(row.id, e.target.value.trim()); }}
+                    className="bg-secondary/50 border-border font-medium"
+                  />
+                  <Button variant="glass" size="icon" onClick={() => deleteCatalogRow(row.id)}>
+                    <Trash2 className="w-4 h-4 text-destructive" />
+                  </Button>
+                </div>
+                <div className="space-y-2">
+                  {row.pins.length === 0 && <p className="text-xs text-muted-foreground italic">No films pinned yet.</p>}
+                  {row.pins.map((pin) => (
+                    <div key={pin.id} className="flex items-center gap-2 bg-secondary/30 rounded-lg px-2 py-1.5">
+                      {pin.film?.thumbnail_url && (
+                        <img src={pin.film.thumbnail_url} alt="" className="w-12 h-7 rounded object-cover" />
+                      )}
+                      <span className="text-sm text-foreground truncate flex-1">{pin.film?.title ?? "(deleted)"}</span>
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => movePin(row.id, pin.id, -1)}>
+                        <ArrowUp className="w-3.5 h-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => movePin(row.id, pin.id, 1)}>
+                        <ArrowDown className="w-3.5 h-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => unpinFilm(pin.id)}>
+                        <X className="w-3.5 h-3.5 text-destructive" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+                {availableFilms.length > 0 && (
+                  <Select value="" onValueChange={(v) => v && pinFilmToRow(row.id, v)}>
+                    <SelectTrigger className="bg-secondary/50 border-border">
+                      <SelectValue placeholder="+ Add a film to this row" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableFilms.map((f) => (
+                        <SelectItem key={f.id} value={f.id}>{f.title}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
         {/* Email Signups */}
         <h2 className="text-lg font-semibold text-foreground mb-4 mt-12 flex items-center gap-2">
           <Mail className="w-5 h-5 text-primary" /> Email Signups ({emails.length})
