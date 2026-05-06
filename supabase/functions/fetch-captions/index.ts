@@ -9,6 +9,29 @@ interface Sub { start: number; end: number; text: string }
 
 const SUPADATA_API_KEY = Deno.env.get('SUPADATA_API_KEY') || '';
 
+async function supadataFetch(url: string): Promise<Response> {
+  // Retry on 429 with exponential backoff
+  let lastBody = '';
+  let lastStatus = 0;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    if (attempt > 0) {
+      const delay = 1500 * Math.pow(2, attempt - 1); // 1.5s, 3s, 6s, 12s
+      console.log(`Retrying after ${delay}ms (attempt ${attempt + 1})`);
+      await new Promise((r) => setTimeout(r, delay));
+    }
+    const res = await fetch(url, {
+      headers: { 'x-api-key': SUPADATA_API_KEY },
+      signal: AbortSignal.timeout(30000),
+    });
+    if (res.ok) return res;
+    lastStatus = res.status;
+    lastBody = await res.text();
+    console.log(`Supadata ${res.status}: ${lastBody.slice(0, 200)}`);
+    if (res.status !== 429) break; // only retry rate limits
+  }
+  throw new Error(`Supadata ${lastStatus}: ${lastBody.slice(0, 200)}`);
+}
+
 async function fetchSupadataTranscript(videoId: string, lang: string): Promise<Sub[]> {
   const url = new URL('https://api.supadata.ai/v1/transcript');
   url.searchParams.set('url', `https://www.youtube.com/watch?v=${videoId}`);
@@ -17,16 +40,7 @@ async function fetchSupadataTranscript(videoId: string, lang: string): Promise<S
   url.searchParams.set('mode', 'auto');
 
   console.log(`Supadata: fetching ${videoId} lang=${lang}`);
-  const res = await fetch(url.toString(), {
-    headers: { 'x-api-key': SUPADATA_API_KEY },
-    signal: AbortSignal.timeout(30000),
-  });
-
-  if (!res.ok) {
-    const body = await res.text();
-    console.log(`Supadata error ${res.status}: ${body.slice(0, 300)}`);
-    throw new Error(`Supadata ${res.status}: ${body.slice(0, 200)}`);
-  }
+  const res = await supadataFetch(url.toString());
 
   const data = await res.json();
 
@@ -102,6 +116,8 @@ serve(async (req) => {
     }
 
     if (native !== lang) {
+      // Space requests out to respect free-plan rate limit (~1 req/sec)
+      await new Promise((r) => setTimeout(r, 1500));
       try {
         nativeSubs = await fetchSupadataTranscript(videoId, native);
       } catch (e: any) {
