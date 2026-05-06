@@ -57,10 +57,82 @@ const Admin = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  // Catalog rows state
+  const [catalogRows, setCatalogRows] = useState<CatalogRow[]>([]);
+  const [newRowTitle, setNewRowTitle] = useState("");
+
   useEffect(() => {
     fetchFilms();
     fetchEmails();
+    fetchCatalogRows();
   }, []);
+
+  const fetchCatalogRows = async () => {
+    const { data: rows } = await supabase.from("catalog_rows").select("*").order("sort_order");
+    if (!rows) { setCatalogRows([]); return; }
+    const withPins = await Promise.all(rows.map(async (r: any) => {
+      const { data: pins } = await supabase
+        .from("catalog_row_films")
+        .select("id, film_id, sort_order, films(*)")
+        .eq("row_id", r.id)
+        .order("sort_order");
+      return {
+        id: r.id,
+        title: r.title,
+        sort_order: r.sort_order,
+        pins: (pins || []).map((p: any) => ({ id: p.id, film_id: p.film_id, sort_order: p.sort_order, film: p.films })),
+      } as CatalogRow;
+    }));
+    setCatalogRows(withPins);
+  };
+
+  const createCatalogRow = async () => {
+    if (!newRowTitle.trim()) return;
+    const { error } = await supabase.from("catalog_rows").insert({ title: newRowTitle.trim(), sort_order: catalogRows.length });
+    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    setNewRowTitle("");
+    fetchCatalogRows();
+  };
+
+  const renameCatalogRow = async (id: string, title: string) => {
+    await supabase.from("catalog_rows").update({ title }).eq("id", id);
+    fetchCatalogRows();
+  };
+
+  const deleteCatalogRow = async (id: string) => {
+    await supabase.from("catalog_rows").delete().eq("id", id);
+    fetchCatalogRows();
+  };
+
+  const pinFilmToRow = async (rowId: string, filmId: string) => {
+    const row = catalogRows.find((r) => r.id === rowId);
+    const sort = row?.pins.length ?? 0;
+    const { error } = await supabase.from("catalog_row_films").insert({ row_id: rowId, film_id: filmId, sort_order: sort });
+    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    fetchCatalogRows();
+  };
+
+  const unpinFilm = async (pinId: string) => {
+    await supabase.from("catalog_row_films").delete().eq("id", pinId);
+    fetchCatalogRows();
+  };
+
+  const movePin = async (rowId: string, pinId: string, dir: -1 | 1) => {
+    const row = catalogRows.find((r) => r.id === rowId);
+    if (!row) return;
+    const idx = row.pins.findIndex((p) => p.id === pinId);
+    const swapIdx = idx + dir;
+    if (idx < 0 || swapIdx < 0 || swapIdx >= row.pins.length) return;
+    const a = row.pins[idx]; const b = row.pins[swapIdx];
+    await supabase.from("catalog_row_films").update({ sort_order: b.sort_order }).eq("id", a.id);
+    await supabase.from("catalog_row_films").update({ sort_order: a.sort_order }).eq("id", b.id);
+    fetchCatalogRows();
+  };
+
+  const togglePublish = async (film: FilmRow) => {
+    await supabase.from("films").update({ is_public: !film.is_public }).eq("id", film.id);
+    fetchFilms();
+  };
 
   const fetchEmails = async () => {
     const { data } = await supabase.from("email_signups").select("*").order("created_at", { ascending: false });
