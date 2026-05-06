@@ -315,7 +315,8 @@ const Browse = () => {
       native_language: nativeLanguage,
       learning_language: settingsLearning,
       display_name: displayName,
-    }).eq("user_id", user.id);
+      is_public: isPublic,
+    } as any).eq("user_id", user.id);
     setLearningLanguage(settingsLearning);
     toast({ title: "Settings saved!" });
     setSavingSettings(false);
