@@ -33,6 +33,7 @@ const App = () => (
             <Route path="/flashcards" element={<Flashcards />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="/story" element={<Story />} />
+            <Route path="/onboarding" element={<Onboarding />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
