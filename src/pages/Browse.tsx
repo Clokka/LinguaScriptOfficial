@@ -400,10 +400,16 @@ const Browse = () => {
               deleteLesson={deleteLesson}
               navigate={navigate}
               discoverFilms={discoverFilms}
+              catalogRows={catalogRows}
             />
           )}
           {activeTab === "discover" && (
-            <DiscoverTab films={discoverFilms} navigate={navigate} />
+            <DiscoverTab
+              films={discoverFilms}
+              navigate={navigate}
+              learningLanguage={learningLanguage}
+              onPickVideo={(url) => { setPasteUrl(url); setActiveTab("home"); }}
+            />
           )}
           {activeTab === "calendar" && (
             <CalendarTab
@@ -433,9 +439,40 @@ const Browse = () => {
   );
 };
 
+/* ── CATALOG ROW STRIP ── */
+const CatalogStrip = ({ title, films, navigate }: { title: string; films: any[]; navigate: (p: string) => void }) => (
+  <section>
+    <h2 className="text-lg font-semibold text-foreground mb-4">{title}</h2>
+    <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin">
+      {films.map((film) => (
+        <button
+          key={film.id}
+          onClick={() => navigate(`/watch/${film.id}`)}
+          className="group shrink-0 w-[180px]"
+        >
+          <div className="relative rounded-xl overflow-hidden aspect-video bg-secondary mb-2 border border-border group-hover:border-primary/50 transition-all">
+            {film.thumbnail_url ? (
+              <img src={film.thumbnail_url} alt={film.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center"><Play className="w-8 h-8 text-muted-foreground" /></div>
+            )}
+            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+              <div className="w-10 h-10 rounded-full bg-primary/90 flex items-center justify-center">
+                <Play className="w-4 h-4 text-primary-foreground ml-0.5" />
+              </div>
+            </div>
+          </div>
+          <p className="text-sm text-foreground truncate text-left">{film.title}</p>
+          <p className="text-xs text-muted-foreground text-left">{getLanguageFlag(film.language ?? "fr")} {getLanguageLabel(film.language ?? "fr")}</p>
+        </button>
+      ))}
+    </div>
+  </section>
+);
+
 /* ── HOME TAB ── */
 const HomeTab = ({
-  lessons, loading, pasteUrl, setPasteUrl, creating, createLesson, deleteLesson, navigate, discoverFilms,
+  lessons, loading, pasteUrl, setPasteUrl, creating, createLesson, deleteLesson, navigate, discoverFilms, catalogRows,
 }: {
   lessons: UserLesson[];
   loading: boolean;
@@ -446,6 +483,7 @@ const HomeTab = ({
   deleteLesson: (id: string) => void;
   navigate: (path: string) => void;
   discoverFilms: any[];
+  catalogRows: { id: string; title: string; films: any[] }[];
 }) => (
   <div className="space-y-8">
     {/* Paste YouTube Link */}
@@ -495,35 +533,14 @@ const HomeTab = ({
       )}
     </section>
 
-    {/* Discover row */}
-    {discoverFilms.length > 0 && (
-      <section>
-        <h2 className="text-lg font-semibold text-foreground mb-4">From the Catalog</h2>
-        <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin">
-          {discoverFilms.map((film) => (
-            <button
-              key={film.id}
-              onClick={() => navigate(`/watch/${film.id}`)}
-              className="group shrink-0 w-[180px]"
-            >
-              <div className="relative rounded-xl overflow-hidden aspect-video bg-secondary mb-2 border border-border group-hover:border-primary/50 transition-all">
-                {film.thumbnail_url ? (
-                  <img src={film.thumbnail_url} alt={film.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center"><Play className="w-8 h-8 text-muted-foreground" /></div>
-                )}
-                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                  <div className="w-10 h-10 rounded-full bg-primary/90 flex items-center justify-center">
-                    <Play className="w-4 h-4 text-primary-foreground ml-0.5" />
-                  </div>
-                </div>
-              </div>
-              <p className="text-sm text-foreground truncate text-left">{film.title}</p>
-              <p className="text-xs text-muted-foreground text-left">{getLanguageFlag(film.language ?? "fr")} {getLanguageLabel(film.language ?? "fr")}</p>
-            </button>
-          ))}
-        </div>
-      </section>
+    {/* Curated catalog rows */}
+    {catalogRows.map((row) => (
+      <CatalogStrip key={row.id} title={row.title} films={row.films} navigate={navigate} />
+    ))}
+
+    {/* Generic catalog row (fallback if no curated rows) */}
+    {catalogRows.length === 0 && discoverFilms.length > 0 && (
+      <CatalogStrip title="From the Catalog" films={discoverFilms} navigate={navigate} />
     )}
   </div>
 );
