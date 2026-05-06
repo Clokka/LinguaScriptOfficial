@@ -135,11 +135,15 @@ const Admin = () => {
       }
     }
 
+    // Get current user (RLS now requires auth + records owner)
+    const { data: authData } = await supabase.auth.getUser();
     const { data, error } = await supabase.from("films").insert({
       title,
       url,
       language,
       thumbnail_url: thumb,
+      is_public: true,
+      created_by: authData.user?.id ?? null,
     }).select().single();
 
     if (error) {
