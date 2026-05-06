@@ -953,9 +953,6 @@ const ToggleRow = ({
     <Switch checked={checked} onCheckedChange={onChange} disabled={disabled} />
   </div>
 );
-    </div>
-  );
-};
 
 /* ── Helpers ── */
 function getTimeAgo(date: Date): string {
