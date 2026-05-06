@@ -228,7 +228,7 @@ const Landing = () => {
           >
             <Button
               variant="ghost"
-              onClick={() => navigate("/browse")}
+              onClick={() => navigate("/story")}
               className="gap-2 text-primary hover:text-primary"
             >
               <Play className="w-4 h-4" />
@@ -350,7 +350,7 @@ const Landing = () => {
           <motion.div variants={fadeUp} custom={2} className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button
               size="lg"
-              onClick={() => navigate("/browse")}
+              onClick={() => navigate("/story")}
               className="h-14 px-10 text-lg rounded-full bg-gradient-to-r from-accent to-[hsl(45,100%,60%)] shadow-glow-accent hover:shadow-glow-primary transition-all duration-500 hover:scale-105 gap-3 text-accent-foreground font-semibold"
             >
               <Play className="w-5 h-5" />

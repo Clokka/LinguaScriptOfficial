@@ -11,6 +11,7 @@ import Profile from "./pages/Profile";
 import Watch from "./pages/Watch";
 import Flashcards from "./pages/Flashcards";
 import Admin from "./pages/Admin";
+import Story from "./pages/Story";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -30,6 +31,7 @@ const App = () => (
             <Route path="/watch/:id" element={<Watch />} />
             <Route path="/flashcards" element={<Flashcards />} />
             <Route path="/admin" element={<Admin />} />
+            <Route path="/story" element={<Story />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
