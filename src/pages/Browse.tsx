@@ -533,10 +533,7 @@ const HomeTab = ({
       )}
     </section>
 
-    {/* Trending — public films, most recent first */}
-    {discoverFilms.length > 0 && (
-      <CatalogStrip title="🔥 Trending" films={discoverFilms.slice(0, 12)} navigate={navigate} />
-    )}
+
 
     {/* Curated catalog rows */}
     {catalogRows.map((row) => (
