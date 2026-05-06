@@ -90,6 +90,7 @@ const Browse = () => {
   const [nativeLanguage, setNativeLanguage] = useState("en");
   const [settingsLearning, setSettingsLearning] = useState(learningLanguage);
   const [displayName, setDisplayName] = useState("");
+  const [isPublic, setIsPublic] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
 
   // Calendar state
