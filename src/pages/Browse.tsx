@@ -96,8 +96,9 @@ const Browse = () => {
   const [activityData, setActivityData] = useState<ActivityDay[]>([]);
   const [currentStreak, setCurrentStreak] = useState(0);
 
-  // Discover - public films
+  // Discover - public films + curated rows
   const [discoverFilms, setDiscoverFilms] = useState<any[]>([]);
+  const [catalogRows, setCatalogRows] = useState<{ id: string; title: string; films: any[] }[]>([]);
 
   const fetchLessons = useCallback(async () => {
     if (!user) { setLoadingLessons(false); return; }
@@ -153,9 +154,29 @@ const Browse = () => {
     fetchLessons();
     fetchActivity();
     fetchProfile();
-    supabase.from("films").select("*").order("created_at", { ascending: false }).then(({ data }) => {
+    // Public films only (RLS now also enforces this)
+    supabase.from("films").select("*").eq("is_public", true).order("created_at", { ascending: false }).then(({ data }) => {
       setDiscoverFilms(data || []);
     });
+    // Curated catalog rows with their pinned films
+    (async () => {
+      const { data: rows } = await supabase.from("catalog_rows").select("*").order("sort_order");
+      if (!rows) return;
+      const withFilms = await Promise.all(
+        rows.map(async (row: any) => {
+          const { data: pins } = await supabase
+            .from("catalog_row_films")
+            .select("sort_order, films(*)")
+            .eq("row_id", row.id)
+            .order("sort_order");
+          const films = (pins || [])
+            .map((p: any) => p.films)
+            .filter((f: any) => f && f.is_public);
+          return { id: row.id, title: row.title, films };
+        })
+      );
+      setCatalogRows(withFilms.filter((r) => r.films.length > 0));
+    })();
   }, [fetchLessons, fetchActivity, fetchProfile]);
 
   const createLesson = async () => {
@@ -198,9 +219,14 @@ const Browse = () => {
         return;
       }
 
-      // Also insert into films table for the system catalog
+      // Create a private films row owned by this user (needed for subtitle FK)
       const filmUrl = `https://www.youtube.com/watch?v=${ytId}`;
-      const { data: existingFilm } = await supabase.from("films").select("id").eq("url", filmUrl).maybeSingle();
+      const { data: existingFilm } = await supabase
+        .from("films")
+        .select("id")
+        .eq("url", filmUrl)
+        .eq("created_by", user.id)
+        .maybeSingle();
       let filmId: string;
       if (existingFilm) {
         filmId = existingFilm.id;
@@ -210,6 +236,8 @@ const Browse = () => {
           url: filmUrl,
           thumbnail_url: thumbnail,
           language: learningLanguage,
+          is_public: false,
+          created_by: user.id,
         }).select("id").single();
         filmId = newFilm?.id || "";
       }
