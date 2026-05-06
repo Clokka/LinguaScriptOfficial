@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Plus, Trash2, Film, Loader2, Upload, FileText, Check, Mail } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Film, Loader2, Upload, FileText, Check, Mail, Layers, X, ArrowUp, ArrowDown, Eye, EyeOff } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 
@@ -22,8 +22,16 @@ interface FilmRow {
   language: string | null;
   thumbnail_url: string | null;
   created_at: string;
+  is_public?: boolean;
   subtitle_count?: number;
   subtitle_languages?: string[];
+}
+
+interface CatalogRow {
+  id: string;
+  title: string;
+  sort_order: number;
+  pins: { id: string; film_id: string; sort_order: number; film: FilmRow | null }[];
 }
 
 interface EmailSignup {
