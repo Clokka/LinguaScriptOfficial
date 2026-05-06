@@ -96,8 +96,9 @@ const Browse = () => {
   const [activityData, setActivityData] = useState<ActivityDay[]>([]);
   const [currentStreak, setCurrentStreak] = useState(0);
 
-  // Discover - public films
+  // Discover - public films + curated rows
   const [discoverFilms, setDiscoverFilms] = useState<any[]>([]);
+  const [catalogRows, setCatalogRows] = useState<{ id: string; title: string; films: any[] }[]>([]);
 
   const fetchLessons = useCallback(async () => {
     if (!user) { setLoadingLessons(false); return; }
@@ -153,9 +154,29 @@ const Browse = () => {
     fetchLessons();
     fetchActivity();
     fetchProfile();
-    supabase.from("films").select("*").order("created_at", { ascending: false }).then(({ data }) => {
+    // Public films only (RLS now also enforces this)
+    supabase.from("films").select("*").eq("is_public", true).order("created_at", { ascending: false }).then(({ data }) => {
       setDiscoverFilms(data || []);
     });
+    // Curated catalog rows with their pinned films
+    (async () => {
+      const { data: rows } = await supabase.from("catalog_rows").select("*").order("sort_order");
+      if (!rows) return;
+      const withFilms = await Promise.all(
+        rows.map(async (row: any) => {
+          const { data: pins } = await supabase
+            .from("catalog_row_films")
+            .select("sort_order, films(*)")
+            .eq("row_id", row.id)
+            .order("sort_order");
+          const films = (pins || [])
+            .map((p: any) => p.films)
+            .filter((f: any) => f && f.is_public);
+          return { id: row.id, title: row.title, films };
+        })
+      );
+      setCatalogRows(withFilms.filter((r) => r.films.length > 0));
+    })();
   }, [fetchLessons, fetchActivity, fetchProfile]);
 
   const createLesson = async () => {
@@ -198,9 +219,14 @@ const Browse = () => {
         return;
       }
 
-      // Also insert into films table for the system catalog
+      // Create a private films row owned by this user (needed for subtitle FK)
       const filmUrl = `https://www.youtube.com/watch?v=${ytId}`;
-      const { data: existingFilm } = await supabase.from("films").select("id").eq("url", filmUrl).maybeSingle();
+      const { data: existingFilm } = await supabase
+        .from("films")
+        .select("id")
+        .eq("url", filmUrl)
+        .eq("created_by", user.id)
+        .maybeSingle();
       let filmId: string;
       if (existingFilm) {
         filmId = existingFilm.id;
@@ -210,6 +236,8 @@ const Browse = () => {
           url: filmUrl,
           thumbnail_url: thumbnail,
           language: learningLanguage,
+          is_public: false,
+          created_by: user.id,
         }).select("id").single();
         filmId = newFilm?.id || "";
       }
@@ -372,10 +400,16 @@ const Browse = () => {
               deleteLesson={deleteLesson}
               navigate={navigate}
               discoverFilms={discoverFilms}
+              catalogRows={catalogRows}
             />
           )}
           {activeTab === "discover" && (
-            <DiscoverTab films={discoverFilms} navigate={navigate} />
+            <DiscoverTab
+              films={discoverFilms}
+              navigate={navigate}
+              learningLanguage={learningLanguage}
+              onPickVideo={(url) => { setPasteUrl(url); setActiveTab("home"); }}
+            />
           )}
           {activeTab === "calendar" && (
             <CalendarTab
@@ -405,9 +439,40 @@ const Browse = () => {
   );
 };
 
+/* ── CATALOG ROW STRIP ── */
+const CatalogStrip = ({ title, films, navigate }: { title: string; films: any[]; navigate: (p: string) => void }) => (
+  <section>
+    <h2 className="text-lg font-semibold text-foreground mb-4">{title}</h2>
+    <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin">
+      {films.map((film) => (
+        <button
+          key={film.id}
+          onClick={() => navigate(`/watch/${film.id}`)}
+          className="group shrink-0 w-[180px]"
+        >
+          <div className="relative rounded-xl overflow-hidden aspect-video bg-secondary mb-2 border border-border group-hover:border-primary/50 transition-all">
+            {film.thumbnail_url ? (
+              <img src={film.thumbnail_url} alt={film.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center"><Play className="w-8 h-8 text-muted-foreground" /></div>
+            )}
+            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+              <div className="w-10 h-10 rounded-full bg-primary/90 flex items-center justify-center">
+                <Play className="w-4 h-4 text-primary-foreground ml-0.5" />
+              </div>
+            </div>
+          </div>
+          <p className="text-sm text-foreground truncate text-left">{film.title}</p>
+          <p className="text-xs text-muted-foreground text-left">{getLanguageFlag(film.language ?? "fr")} {getLanguageLabel(film.language ?? "fr")}</p>
+        </button>
+      ))}
+    </div>
+  </section>
+);
+
 /* ── HOME TAB ── */
 const HomeTab = ({
-  lessons, loading, pasteUrl, setPasteUrl, creating, createLesson, deleteLesson, navigate, discoverFilms,
+  lessons, loading, pasteUrl, setPasteUrl, creating, createLesson, deleteLesson, navigate, discoverFilms, catalogRows,
 }: {
   lessons: UserLesson[];
   loading: boolean;
@@ -418,6 +483,7 @@ const HomeTab = ({
   deleteLesson: (id: string) => void;
   navigate: (path: string) => void;
   discoverFilms: any[];
+  catalogRows: { id: string; title: string; films: any[] }[];
 }) => (
   <div className="space-y-8">
     {/* Paste YouTube Link */}
@@ -467,35 +533,14 @@ const HomeTab = ({
       )}
     </section>
 
-    {/* Discover row */}
-    {discoverFilms.length > 0 && (
-      <section>
-        <h2 className="text-lg font-semibold text-foreground mb-4">From the Catalog</h2>
-        <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin">
-          {discoverFilms.map((film) => (
-            <button
-              key={film.id}
-              onClick={() => navigate(`/watch/${film.id}`)}
-              className="group shrink-0 w-[180px]"
-            >
-              <div className="relative rounded-xl overflow-hidden aspect-video bg-secondary mb-2 border border-border group-hover:border-primary/50 transition-all">
-                {film.thumbnail_url ? (
-                  <img src={film.thumbnail_url} alt={film.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center"><Play className="w-8 h-8 text-muted-foreground" /></div>
-                )}
-                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                  <div className="w-10 h-10 rounded-full bg-primary/90 flex items-center justify-center">
-                    <Play className="w-4 h-4 text-primary-foreground ml-0.5" />
-                  </div>
-                </div>
-              </div>
-              <p className="text-sm text-foreground truncate text-left">{film.title}</p>
-              <p className="text-xs text-muted-foreground text-left">{getLanguageFlag(film.language ?? "fr")} {getLanguageLabel(film.language ?? "fr")}</p>
-            </button>
-          ))}
-        </div>
-      </section>
+    {/* Curated catalog rows */}
+    {catalogRows.map((row) => (
+      <CatalogStrip key={row.id} title={row.title} films={row.films} navigate={navigate} />
+    ))}
+
+    {/* Generic catalog row (fallback if no curated rows) */}
+    {catalogRows.length === 0 && discoverFilms.length > 0 && (
+      <CatalogStrip title="From the Catalog" films={discoverFilms} navigate={navigate} />
     )}
   </div>
 );
@@ -508,13 +553,11 @@ const LessonCard = ({
   onDelete: (id: string) => void;
   navigate: (path: string) => void;
 }) => {
-  // Find film by youtube_id to navigate
+  // Find film by youtube_id (RLS limits to public + owned-by-me)
   const handleClick = async () => {
     const filmUrl = `https://www.youtube.com/watch?v=${lesson.youtube_id}`;
-    const { data } = await supabase.from("films").select("id").eq("url", filmUrl).maybeSingle();
-    if (data) {
-      navigate(`/watch/${data.id}`);
-    }
+    const { data } = await supabase.from("films").select("id").eq("url", filmUrl).limit(1).maybeSingle();
+    if (data) navigate(`/watch/${data.id}`);
   };
 
   const lastWatched = new Date(lesson.last_watched_at);
@@ -557,39 +600,120 @@ const LessonCard = ({
 };
 
 /* ── DISCOVER TAB ── */
-const DiscoverTab = ({ films, navigate }: { films: any[]; navigate: (p: string) => void }) => (
-  <div className="space-y-6">
-    <div>
-      <h2 className="text-2xl font-bold text-foreground mb-2">Discover</h2>
-      <p className="text-muted-foreground">Browse our curated catalog of language-learning content.</p>
+const DiscoverTab = ({
+  films, navigate, learningLanguage, onPickVideo,
+}: {
+  films: any[];
+  navigate: (p: string) => void;
+  learningLanguage: string;
+  onPickVideo: (url: string) => void;
+}) => {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<any[]>([]);
+  const [searching, setSearching] = useState(false);
+  const { toast } = useToast();
+
+  const runSearch = async () => {
+    if (!query.trim()) return;
+    setSearching(true);
+    setResults([]);
+    try {
+      const { data, error } = await supabase.functions.invoke("youtube-search", {
+        body: { q: query, lang: learningLanguage },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      setResults((data as any)?.items || []);
+    } catch (e: any) {
+      toast({ title: "Search failed", description: e.message || String(e), variant: "destructive" });
+    }
+    setSearching(false);
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold text-foreground mb-2">Discover</h2>
+        <p className="text-muted-foreground">Search YouTube or browse the curated catalog.</p>
+      </div>
+
+      {/* YouTube search */}
+      <div className="glass-panel-strong p-4 rounded-2xl">
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder={`Search YouTube in ${getLanguageLabel(learningLanguage)}…`}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && runSearch()}
+              className="pl-10 h-11 bg-secondary/50 border-border rounded-xl"
+            />
+          </div>
+          <Button onClick={runSearch} disabled={searching || !query.trim()} className="h-11 px-5 rounded-xl">
+            {searching ? <Loader2 className="w-4 h-4 animate-spin" /> : "Search"}
+          </Button>
+        </div>
+      </div>
+
+      {results.length > 0 && (
+        <section>
+          <h3 className="text-sm font-medium text-muted-foreground mb-3">YouTube results</h3>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+            {results.map((r) => (
+              <button
+                key={r.videoId}
+                onClick={() => onPickVideo(`https://www.youtube.com/watch?v=${r.videoId}`)}
+                className="group text-left"
+              >
+                <div className="relative rounded-xl overflow-hidden aspect-video bg-secondary mb-2 border border-border group-hover:border-primary/50 transition-all">
+                  {r.thumbnail && <img src={r.thumbnail} alt={r.title} className="w-full h-full object-cover" />}
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <div className="w-10 h-10 rounded-full bg-primary/90 flex items-center justify-center">
+                      <Play className="w-4 h-4 text-primary-foreground ml-0.5" />
+                    </div>
+                  </div>
+                </div>
+                <p className="text-sm text-foreground truncate font-medium" dangerouslySetInnerHTML={{ __html: r.title }} />
+                <p className="text-xs text-muted-foreground truncate">{r.channel}</p>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Curated catalog */}
+      <section>
+        <h3 className="text-sm font-medium text-muted-foreground mb-3">From the catalog</h3>
+        {films.length === 0 ? (
+          <div className="glass-panel p-12 text-center rounded-2xl">
+            <Compass className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+            <p className="text-muted-foreground">No catalog content yet.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+            {films.map((film) => (
+              <button key={film.id} onClick={() => navigate(`/watch/${film.id}`)} className="group text-left">
+                <div className="relative rounded-xl overflow-hidden aspect-video bg-secondary mb-2 border border-border group-hover:border-primary/50 transition-all">
+                  {film.thumbnail_url ? (
+                    <img src={film.thumbnail_url} alt={film.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center"><Play className="w-8 h-8 text-muted-foreground" /></div>
+                  )}
+                  <div className="absolute bottom-2 left-2 bg-black/70 backdrop-blur text-xs px-2 py-0.5 rounded-md text-foreground">
+                    {getLanguageFlag(film.language ?? "fr")}
+                  </div>
+                </div>
+                <p className="text-sm text-foreground truncate font-medium">{film.title}</p>
+                <p className="text-xs text-muted-foreground">{getLanguageLabel(film.language ?? "fr")}</p>
+              </button>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
-    {films.length === 0 ? (
-      <div className="glass-panel p-12 text-center rounded-2xl">
-        <Compass className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-        <p className="text-muted-foreground">More content coming soon!</p>
-      </div>
-    ) : (
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-        {films.map((film) => (
-          <button key={film.id} onClick={() => navigate(`/watch/${film.id}`)} className="group text-left">
-            <div className="relative rounded-xl overflow-hidden aspect-video bg-secondary mb-2 border border-border group-hover:border-primary/50 transition-all">
-              {film.thumbnail_url ? (
-                <img src={film.thumbnail_url} alt={film.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center"><Play className="w-8 h-8 text-muted-foreground" /></div>
-              )}
-              <div className="absolute bottom-2 left-2 bg-black/70 backdrop-blur text-xs px-2 py-0.5 rounded-md text-foreground">
-                {getLanguageFlag(film.language ?? "fr")}
-              </div>
-            </div>
-            <p className="text-sm text-foreground truncate font-medium">{film.title}</p>
-            <p className="text-xs text-muted-foreground">{getLanguageLabel(film.language ?? "fr")}</p>
-          </button>
-        ))}
-      </div>
-    )}
-  </div>
-);
+  );
+};
 
 /* ── CALENDAR TAB ── */
 const CalendarTab = ({

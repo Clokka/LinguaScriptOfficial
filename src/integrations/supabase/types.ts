@@ -44,6 +44,66 @@ export type Database = {
         }
         Relationships: []
       }
+      catalog_row_films: {
+        Row: {
+          created_at: string
+          film_id: string
+          id: string
+          row_id: string
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string
+          film_id: string
+          id?: string
+          row_id: string
+          sort_order?: number
+        }
+        Update: {
+          created_at?: string
+          film_id?: string
+          id?: string
+          row_id?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "catalog_row_films_film_id_fkey"
+            columns: ["film_id"]
+            isOneToOne: false
+            referencedRelation: "films"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "catalog_row_films_row_id_fkey"
+            columns: ["row_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_rows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      catalog_rows: {
+        Row: {
+          created_at: string
+          id: string
+          sort_order: number
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          sort_order?: number
+          title: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          sort_order?: number
+          title?: string
+        }
+        Relationships: []
+      }
       email_signups: {
         Row: {
           created_at: string
@@ -65,7 +125,9 @@ export type Database = {
       films: {
         Row: {
           created_at: string
+          created_by: string | null
           id: string
+          is_public: boolean
           language: string | null
           thumbnail_url: string | null
           title: string
@@ -73,7 +135,9 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          created_by?: string | null
           id?: string
+          is_public?: boolean
           language?: string | null
           thumbnail_url?: string | null
           title: string
@@ -81,7 +145,9 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          created_by?: string | null
           id?: string
+          is_public?: boolean
           language?: string | null
           thumbnail_url?: string | null
           title?: string
