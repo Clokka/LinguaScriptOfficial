@@ -12,6 +12,7 @@ import Watch from "./pages/Watch";
 import Flashcards from "./pages/Flashcards";
 import Admin from "./pages/Admin";
 import Story from "./pages/Story";
+import Onboarding from "./pages/Onboarding";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
