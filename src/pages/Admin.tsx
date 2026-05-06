@@ -14,6 +14,45 @@ import {
 import { ArrowLeft, Plus, Trash2, Film, Loader2, Upload, FileText, Check, Mail, Layers, X, ArrowUp, ArrowDown, Eye, EyeOff } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { Pencil } from "lucide-react";
+
+function RowHeader({ row, onRename, onDelete }: { row: { id: string; title: string }; onRename: (id: string, title: string) => void; onDelete: (id: string) => void; }) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(row.title);
+  useEffect(() => { setValue(row.title); }, [row.title]);
+  const save = () => {
+    const v = value.trim();
+    if (v && v !== row.title) onRename(row.id, v);
+    setEditing(false);
+  };
+  return (
+    <div className="flex items-center gap-2">
+      {editing ? (
+        <>
+          <Input
+            autoFocus
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); save(); } if (e.key === "Escape") { setValue(row.title); setEditing(false); } }}
+            className="bg-secondary/50 border-border font-medium"
+          />
+          <Button variant="hero" size="sm" onClick={save}>Save</Button>
+          <Button variant="glass" size="sm" onClick={() => { setValue(row.title); setEditing(false); }}>Cancel</Button>
+        </>
+      ) : (
+        <>
+          <h3 className="flex-1 text-foreground font-medium truncate">{row.title}</h3>
+          <Button variant="glass" size="icon" onClick={() => setEditing(true)} title="Rename">
+            <Pencil className="w-4 h-4" />
+          </Button>
+          <Button variant="glass" size="icon" onClick={() => onDelete(row.id)} title="Delete">
+            <Trash2 className="w-4 h-4 text-destructive" />
+          </Button>
+        </>
+      )}
+    </div>
+  );
+}
 
 interface FilmRow {
   id: string;
@@ -477,16 +516,7 @@ const Admin = () => {
             const availableFilms = films.filter((f) => f.is_public && !pinnedIds.has(f.id));
             return (
               <div key={row.id} className="glass-panel p-4 space-y-3">
-                <div className="flex items-center gap-2">
-                  <Input
-                    defaultValue={row.title}
-                    onBlur={(e) => { if (e.target.value.trim() && e.target.value !== row.title) renameCatalogRow(row.id, e.target.value.trim()); }}
-                    className="bg-secondary/50 border-border font-medium"
-                  />
-                  <Button variant="glass" size="icon" onClick={() => deleteCatalogRow(row.id)}>
-                    <Trash2 className="w-4 h-4 text-destructive" />
-                  </Button>
-                </div>
+                <RowHeader row={row} onRename={renameCatalogRow} onDelete={deleteCatalogRow} />
                 <div className="space-y-2">
                   {row.pins.length === 0 && <p className="text-xs text-muted-foreground italic">No films pinned yet.</p>}
                   {row.pins.map((pin) => (
