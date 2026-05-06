@@ -553,13 +553,11 @@ const LessonCard = ({
   onDelete: (id: string) => void;
   navigate: (path: string) => void;
 }) => {
-  // Find film by youtube_id to navigate
+  // Find film by youtube_id (RLS limits to public + owned-by-me)
   const handleClick = async () => {
     const filmUrl = `https://www.youtube.com/watch?v=${lesson.youtube_id}`;
-    const { data } = await supabase.from("films").select("id").eq("url", filmUrl).maybeSingle();
-    if (data) {
-      navigate(`/watch/${data.id}`);
-    }
+    const { data } = await supabase.from("films").select("id").eq("url", filmUrl).limit(1).maybeSingle();
+    if (data) navigate(`/watch/${data.id}`);
   };
 
   const lastWatched = new Date(lesson.last_watched_at);
