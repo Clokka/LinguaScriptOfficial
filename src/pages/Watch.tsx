@@ -469,7 +469,7 @@ const Watch = () => {
             onClick={() => setSubtitleMode(subtitleMode === "dual" ? "single" : "dual")}
             className={subtitleMode !== "dual" ? "text-white hover:bg-white/10" : ""}
           >
-            {subtitleMode === "dual" ? "Dual" : "Single"}
+            {subtitleMode === "dual" ? "Dual subtitles: ON" : "Dual subtitles: OFF"}
           </Button>
           {subtitles.length > 0 && (
             <div className="flex gap-1">
