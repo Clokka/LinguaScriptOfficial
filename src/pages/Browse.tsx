@@ -602,39 +602,120 @@ const LessonCard = ({
 };
 
 /* ── DISCOVER TAB ── */
-const DiscoverTab = ({ films, navigate }: { films: any[]; navigate: (p: string) => void }) => (
-  <div className="space-y-6">
-    <div>
-      <h2 className="text-2xl font-bold text-foreground mb-2">Discover</h2>
-      <p className="text-muted-foreground">Browse our curated catalog of language-learning content.</p>
+const DiscoverTab = ({
+  films, navigate, learningLanguage, onPickVideo,
+}: {
+  films: any[];
+  navigate: (p: string) => void;
+  learningLanguage: string;
+  onPickVideo: (url: string) => void;
+}) => {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<any[]>([]);
+  const [searching, setSearching] = useState(false);
+  const { toast } = useToast();
+
+  const runSearch = async () => {
+    if (!query.trim()) return;
+    setSearching(true);
+    setResults([]);
+    try {
+      const { data, error } = await supabase.functions.invoke("youtube-search", {
+        body: { q: query, lang: learningLanguage },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      setResults((data as any)?.items || []);
+    } catch (e: any) {
+      toast({ title: "Search failed", description: e.message || String(e), variant: "destructive" });
+    }
+    setSearching(false);
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold text-foreground mb-2">Discover</h2>
+        <p className="text-muted-foreground">Search YouTube or browse the curated catalog.</p>
+      </div>
+
+      {/* YouTube search */}
+      <div className="glass-panel-strong p-4 rounded-2xl">
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder={`Search YouTube in ${getLanguageLabel(learningLanguage)}…`}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && runSearch()}
+              className="pl-10 h-11 bg-secondary/50 border-border rounded-xl"
+            />
+          </div>
+          <Button onClick={runSearch} disabled={searching || !query.trim()} className="h-11 px-5 rounded-xl">
+            {searching ? <Loader2 className="w-4 h-4 animate-spin" /> : "Search"}
+          </Button>
+        </div>
+      </div>
+
+      {results.length > 0 && (
+        <section>
+          <h3 className="text-sm font-medium text-muted-foreground mb-3">YouTube results</h3>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+            {results.map((r) => (
+              <button
+                key={r.videoId}
+                onClick={() => onPickVideo(`https://www.youtube.com/watch?v=${r.videoId}`)}
+                className="group text-left"
+              >
+                <div className="relative rounded-xl overflow-hidden aspect-video bg-secondary mb-2 border border-border group-hover:border-primary/50 transition-all">
+                  {r.thumbnail && <img src={r.thumbnail} alt={r.title} className="w-full h-full object-cover" />}
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <div className="w-10 h-10 rounded-full bg-primary/90 flex items-center justify-center">
+                      <Play className="w-4 h-4 text-primary-foreground ml-0.5" />
+                    </div>
+                  </div>
+                </div>
+                <p className="text-sm text-foreground truncate font-medium" dangerouslySetInnerHTML={{ __html: r.title }} />
+                <p className="text-xs text-muted-foreground truncate">{r.channel}</p>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Curated catalog */}
+      <section>
+        <h3 className="text-sm font-medium text-muted-foreground mb-3">From the catalog</h3>
+        {films.length === 0 ? (
+          <div className="glass-panel p-12 text-center rounded-2xl">
+            <Compass className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+            <p className="text-muted-foreground">No catalog content yet.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+            {films.map((film) => (
+              <button key={film.id} onClick={() => navigate(`/watch/${film.id}`)} className="group text-left">
+                <div className="relative rounded-xl overflow-hidden aspect-video bg-secondary mb-2 border border-border group-hover:border-primary/50 transition-all">
+                  {film.thumbnail_url ? (
+                    <img src={film.thumbnail_url} alt={film.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center"><Play className="w-8 h-8 text-muted-foreground" /></div>
+                  )}
+                  <div className="absolute bottom-2 left-2 bg-black/70 backdrop-blur text-xs px-2 py-0.5 rounded-md text-foreground">
+                    {getLanguageFlag(film.language ?? "fr")}
+                  </div>
+                </div>
+                <p className="text-sm text-foreground truncate font-medium">{film.title}</p>
+                <p className="text-xs text-muted-foreground">{getLanguageLabel(film.language ?? "fr")}</p>
+              </button>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
-    {films.length === 0 ? (
-      <div className="glass-panel p-12 text-center rounded-2xl">
-        <Compass className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-        <p className="text-muted-foreground">More content coming soon!</p>
-      </div>
-    ) : (
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-        {films.map((film) => (
-          <button key={film.id} onClick={() => navigate(`/watch/${film.id}`)} className="group text-left">
-            <div className="relative rounded-xl overflow-hidden aspect-video bg-secondary mb-2 border border-border group-hover:border-primary/50 transition-all">
-              {film.thumbnail_url ? (
-                <img src={film.thumbnail_url} alt={film.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center"><Play className="w-8 h-8 text-muted-foreground" /></div>
-              )}
-              <div className="absolute bottom-2 left-2 bg-black/70 backdrop-blur text-xs px-2 py-0.5 rounded-md text-foreground">
-                {getLanguageFlag(film.language ?? "fr")}
-              </div>
-            </div>
-            <p className="text-sm text-foreground truncate font-medium">{film.title}</p>
-            <p className="text-xs text-muted-foreground">{getLanguageLabel(film.language ?? "fr")}</p>
-          </button>
-        ))}
-      </div>
-    )}
-  </div>
-);
+  );
+};
 
 /* ── CALENDAR TAB ── */
 const CalendarTab = ({
