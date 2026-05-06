@@ -116,6 +116,8 @@ serve(async (req) => {
     }
 
     if (native !== lang) {
+      // Space requests out to respect free-plan rate limit (~1 req/sec)
+      await new Promise((r) => setTimeout(r, 1500));
       try {
         nativeSubs = await fetchSupadataTranscript(videoId, native);
       } catch (e: any) {
