@@ -433,6 +433,8 @@ const Browse = () => {
               setLearningLanguage={setSettingsLearning}
               displayName={displayName}
               setDisplayName={setDisplayName}
+              isPublic={isPublic}
+              setIsPublic={setIsPublic}
               saving={savingSettings}
               onSave={saveSettings}
               user={user}
