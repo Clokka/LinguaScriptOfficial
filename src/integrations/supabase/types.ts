@@ -158,31 +158,43 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          cef_level: string | null
           created_at: string
           display_name: string | null
           id: string
+          is_public: boolean
+          learning_goal: string | null
           learning_language: string | null
           native_language: string | null
+          onboarded: boolean
           updated_at: string
           user_id: string
         }
         Insert: {
           avatar_url?: string | null
+          cef_level?: string | null
           created_at?: string
           display_name?: string | null
           id?: string
+          is_public?: boolean
+          learning_goal?: string | null
           learning_language?: string | null
           native_language?: string | null
+          onboarded?: boolean
           updated_at?: string
           user_id: string
         }
         Update: {
           avatar_url?: string | null
+          cef_level?: string | null
           created_at?: string
           display_name?: string | null
           id?: string
+          is_public?: boolean
+          learning_goal?: string | null
           learning_language?: string | null
           native_language?: string | null
+          onboarded?: boolean
           updated_at?: string
           user_id?: string
         }

@@ -1,60 +1,79 @@
-## Scope this turn
+# Onboarding Flow + Settings Redesign
 
-1. **Custom catalog rows + pinning** (admin)
-2. **Fix privacy leak** — stop publishing user-pasted videos to public catalog
-3. **Google sign-in**
-4. **YouTube search** (Discover tab) — uses existing `YOUTUBE_API_KEY`
+A Duolingo-inspired account → onboarding → app journey, plus a friendlier settings page.
 
-Deferred: importing a user's personal YouTube playlists (needs per-user Google OAuth with `youtube.readonly` scope and Google app verification — separate follow-up).
+## Routing changes
 
----
+- `/story` "Enter the Demo" CTA → routes to `/auth?mode=signup&next=/onboarding` (new users) or `/onboarding` (already signed in).
+- New route: `/onboarding` — gated; if user not signed in, redirect to `/auth`.
+- After onboarding completes → `/browse`.
 
-## 1. Catalog rows
+## Database
 
-**New tables**
-- `catalog_rows` — `id`, `title`, `sort_order`, `created_at`. Public read; insert/update/delete restricted to admins (uses existing pattern — for now: anyone can manage, matching how `films` already works, since admin route is hidden).
-- `catalog_row_films` — `row_id`, `film_id`, `sort_order`. Same access pattern.
+Add columns to `profiles`:
+- `cef_level` text (A1, A2, B1, B2, C1, C2; nullable)
+- `learning_goal` text (nullable)
+- `onboarded` boolean default false
+- `is_public` boolean default false
 
-**Admin UI** (`Admin.tsx`)
-- New "Catalog Rows" section above the Films list
-- Create row (title input + add button)
-- For each row: rename, delete, list of pinned films with up/down/remove buttons, and a "+ Add film" dropdown showing all `films` not already in that row
+(Native + learning language already exist.)
 
-**Browse home** (`Browse.tsx`)
-- Replace the single hard-coded "From the Catalog" strip with one horizontal strip per `catalog_rows` row, in `sort_order`
-- Each strip queries `catalog_row_films` joined with `films`
-- Keep "Your Lessons" at the top exactly as-is
+Onboarding writes these. `Browse` checks `onboarded`; if false → redirect to `/onboarding`.
 
-## 2. Privacy fix
+## /onboarding page (5 cards, swipeable)
 
-Currently `Browse.createLesson` (line 208) inserts every user-pasted YouTube video into the public `films` table, so every other user sees it under "From the Catalog".
+Soft white bg with warm orange accents, Framer Motion card transitions, soft ding sound on key actions (small WebAudio beep, no asset).
 
-**Change:** drop the `films` insert from the user paste flow entirely. Lesson rows live only in `user_lessons` (already private via RLS). For subtitle storage we still need a `films.id` FK, so:
-- Add `is_public boolean default false` to `films`
-- User-paste flow: still creates a `films` row (needed for the subtitles table) but with `is_public = false`
-- Admin-added films: `is_public = true`
-- Browse "From the Catalog" / new rows query `films.is_public = true` only
-- Backfill: mark any `films` row that exists in someone's `user_lessons` (and was never touched by admin) as private. Concretely: set every existing `films` row to `is_public = false`, then the admin can flip the ones they actually curated back to public from the dashboard. (Cleanest given we can't tell apart admin-seeded vs user-seeded today.)
+```text
+[ Step indicator dots ]
+[ ← back ]    Card content    [ Continue → ]
+```
 
-Tighten RLS on `films`: public can SELECT only `is_public = true`. Authenticated users can SELECT their own private films via a join through `user_lessons` — implemented as a SECURITY DEFINER function or a second policy `EXISTS (select 1 from user_lessons where user_lessons.user_id = auth.uid() and user_lessons.youtube_id = ...)`. Simpler: add `created_by uuid` to films and policy `is_public OR created_by = auth.uid()`.
+**Card 0 — Setup (replaces "account creation" since auth is separate)**
+- Native language select
+- Target learning language select
+- Current level: A1–C2 chips. If user picks "Below A1" → friendly message recommending Duolingo, blocks proceeding.
 
-Also lock down `films` insert/update/delete — currently `public` can do anything. Switch to `authenticated`, with `created_by = auth.uid()` for inserts. Admin ops keep working because the admin is a logged-in user.
+**Card 1 — Welcome + Goal**
+- Headline "Welcome to the Lingua Universe 🌍"
+- Stat line about written goals
+- Textarea: "Write your language goal" → on submit saves to `profiles.learning_goal`, success tick animation + ding.
 
-## 3. Google sign-in
+**Card 2 — How Linguascript Works**
+- Lingua + Script explanation
+- Mini interactive tutorial: a mock player screenshot with an animated cursor pointing to a "Dual Subtitles" button. User must click it to proceed.
 
-Use Lovable Cloud managed Google OAuth via `configure_social_auth` tool. Update `Auth.tsx` to add a "Continue with Google" button using `lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin + "/browse" })`.
+**Card 3 — Catalogue & XP**
+- Explains CEFR ratings on videos
+- Explains Level XP (flashcards + mini boss test) and Immersion XP (watch time, streaks, reviews)
 
-## 4. YouTube search (Discover tab)
+**Card 4 — Flashcards & SRS**
+- Three decks: Short / Medium / Long term
+- "Got it" promotes card + ding
 
-New edge function `youtube-search` that proxies `https://www.googleapis.com/youtube/v3/search` using the existing `YOUTUBE_API_KEY` secret. Add a search box at the top of the Discover tab; results render as cards; click → calls existing `createLesson` flow with the URL.
+**Card 5 — Learn Faster**
+- Shadowing + Word click feature explanation
+- Final CTA: "Start learning" → marks `onboarded=true`, navigates `/browse`.
 
----
+## Settings page redesign
 
-## Out of scope (explicit)
+Refactor `SettingsPanel` (and/or `Profile` page) to:
+- White/cream background, warm orange accents (uses existing `--accent` orange tokens)
+- Sectioned layout: Profile, Languages, Learning, Privacy
+- Add "Public account" toggle (writes `profiles.is_public`)
+- Add disabled "Leaderboard — Coming Soon" row
 
-- **Netflix, BBC iPlayer, Disney+, Channel 4** — no public APIs; content is DRM-protected. Cannot be integrated into a hosted web app. Not a Lovable limit, an industry one.
-- **YouTube playlist import** — deferred. Needs per-user OAuth + Google app verification.
+## Sound
 
----
+Tiny `playDing()` util using `AudioContext` (no asset upload required).
 
-## Approve to ship?
+## Files
+
+- New: `src/pages/Onboarding.tsx`, `src/lib/sound.ts`
+- Edit: `src/App.tsx` (route), `src/pages/Story.tsx` (CTA target), `src/pages/Auth.tsx` (respect `?next=`), `src/pages/Browse.tsx` (redirect if not onboarded), `src/components/SettingsPanel.tsx` (redesign), `src/integrations/supabase/types.ts` auto-updated by migration.
+- Migration: add 4 profile columns.
+
+## Out of scope (not in this pass)
+- Real "mini boss fight" test logic
+- Leaderboard backend
+- Recording onboarding completion analytics

@@ -32,6 +32,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 
 interface UserLesson {
@@ -90,6 +91,7 @@ const Browse = () => {
   const [nativeLanguage, setNativeLanguage] = useState("en");
   const [settingsLearning, setSettingsLearning] = useState(learningLanguage);
   const [displayName, setDisplayName] = useState("");
+  const [isPublic, setIsPublic] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
 
   // Calendar state
@@ -147,8 +149,12 @@ const Browse = () => {
       setNativeLanguage(data.native_language || "en");
       setSettingsLearning(data.learning_language || "fr");
       setDisplayName(data.display_name || "");
+      setIsPublic(!!(data as any).is_public);
+      if ((data as any).onboarded === false) {
+        navigate("/onboarding");
+      }
     }
-  }, [user]);
+  }, [user, navigate]);
 
   useEffect(() => {
     fetchLessons();
@@ -310,7 +316,8 @@ const Browse = () => {
       native_language: nativeLanguage,
       learning_language: settingsLearning,
       display_name: displayName,
-    }).eq("user_id", user.id);
+      is_public: isPublic,
+    } as any).eq("user_id", user.id);
     setLearningLanguage(settingsLearning);
     toast({ title: "Settings saved!" });
     setSavingSettings(false);
@@ -427,6 +434,8 @@ const Browse = () => {
               setLearningLanguage={setSettingsLearning}
               displayName={displayName}
               setDisplayName={setDisplayName}
+              isPublic={isPublic}
+              setIsPublic={setIsPublic}
               saving={savingSettings}
               onSave={saveSettings}
               user={user}
@@ -816,6 +825,7 @@ const SettingsTab = ({
   nativeLanguage, setNativeLanguage,
   learningLanguage, setLearningLanguage,
   displayName, setDisplayName,
+  isPublic, setIsPublic,
   saving, onSave, user, navigate,
 }: {
   nativeLanguage: string;
@@ -824,6 +834,8 @@ const SettingsTab = ({
   setLearningLanguage: (v: string) => void;
   displayName: string;
   setDisplayName: (v: string) => void;
+  isPublic: boolean;
+  setIsPublic: (v: boolean) => void;
   saving: boolean;
   onSave: () => void;
   user: any;
@@ -833,73 +845,114 @@ const SettingsTab = ({
     return (
       <div className="space-y-6">
         <h2 className="text-2xl font-bold text-foreground">Settings</h2>
-        <div className="glass-panel p-12 text-center rounded-2xl">
-          <p className="text-muted-foreground mb-4">Sign in to access settings.</p>
-          <Button onClick={() => navigate("/auth")}>Sign In</Button>
+        <div className="rounded-3xl border border-orange-100 bg-orange-50/50 p-12 text-center">
+          <p className="text-neutral-600 mb-4">Sign in to access settings.</p>
+          <Button onClick={() => navigate("/auth")} className="rounded-full bg-orange-500 hover:bg-orange-600 text-white">Sign In</Button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 max-w-lg">
+    <div className="space-y-8 max-w-2xl">
       <div>
-        <h2 className="text-2xl font-bold text-foreground mb-2">Settings</h2>
-        <p className="text-muted-foreground">Configure your language preferences.</p>
+        <h2 className="text-3xl font-semibold tracking-tight text-foreground mb-1">Settings</h2>
+        <p className="text-muted-foreground">A friendly little control panel for your learning.</p>
       </div>
 
-      <div className="glass-panel-strong p-6 rounded-2xl space-y-6">
+      {/* Profile */}
+      <SettingsSection title="Profile" subtitle="How you appear to others.">
         <div>
-          <label className="text-sm font-medium text-foreground mb-2 block">Display Name</label>
+          <label className="text-sm font-medium text-foreground mb-2 block">Display name</label>
           <Input
             value={displayName}
             onChange={(e) => setDisplayName(e.target.value)}
-            className="bg-secondary/50 border-border"
+            className="rounded-xl border-orange-100 focus-visible:ring-orange-300"
           />
         </div>
+      </SettingsSection>
 
+      {/* Languages */}
+      <SettingsSection title="Languages" subtitle="Powers translations and pronunciation voices.">
         <div>
-          <label className="text-sm font-medium text-foreground mb-2 block">Your Native Language</label>
-          <p className="text-xs text-muted-foreground mb-2">Translations will appear in this language.</p>
+          <label className="text-sm font-medium text-foreground mb-2 block">Native language</label>
           <Select value={nativeLanguage} onValueChange={setNativeLanguage}>
-            <SelectTrigger className="bg-secondary/50 border-border">
-              <SelectValue />
-            </SelectTrigger>
+            <SelectTrigger className="rounded-xl border-orange-100"><SelectValue /></SelectTrigger>
             <SelectContent>
-              {LANGUAGES.map((lang) => (
-                <SelectItem key={lang.code} value={lang.code}>{lang.flag} {lang.label}</SelectItem>
-              ))}
+              {LANGUAGES.map((l) => (<SelectItem key={l.code} value={l.code}>{l.flag} {l.label}</SelectItem>))}
             </SelectContent>
           </Select>
         </div>
-
         <div>
-          <label className="text-sm font-medium text-foreground mb-2 block">Language You're Learning</label>
-          <p className="text-xs text-muted-foreground mb-2">This determines which subtitles are fetched and which pronunciation voice is used.</p>
+          <label className="text-sm font-medium text-foreground mb-2 block">Learning</label>
           <Select value={learningLanguage} onValueChange={setLearningLanguage}>
-            <SelectTrigger className="bg-secondary/50 border-border">
-              <SelectValue />
-            </SelectTrigger>
+            <SelectTrigger className="rounded-xl border-orange-100"><SelectValue /></SelectTrigger>
             <SelectContent>
-              {LANGUAGES.filter((l) => l.code !== nativeLanguage).map((lang) => (
-                <SelectItem key={lang.code} value={lang.code}>{lang.flag} {lang.label}</SelectItem>
+              {LANGUAGES.filter((l) => l.code !== nativeLanguage).map((l) => (
+                <SelectItem key={l.code} value={l.code}>{l.flag} {l.label}</SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
+      </SettingsSection>
 
-        <Button
-          onClick={onSave}
-          disabled={saving}
-          className="w-full bg-gradient-to-r from-primary to-[hsl(280,100%,60%)] text-primary-foreground font-semibold gap-2"
-        >
-          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-          Save Settings
-        </Button>
-      </div>
+      {/* Privacy */}
+      <SettingsSection title="Privacy" subtitle="Control who can see your progress.">
+        <ToggleRow
+          title="Public account"
+          subtitle="Allow others to view your profile and stats."
+          checked={isPublic}
+          onChange={setIsPublic}
+        />
+        <ToggleRow
+          title="Leaderboard"
+          subtitle="Coming soon — climb the ranks against friends."
+          checked={false}
+          onChange={() => {}}
+          disabled
+          badge="Soon"
+        />
+      </SettingsSection>
+
+      <Button
+        onClick={onSave}
+        disabled={saving}
+        className="w-full h-12 rounded-full bg-orange-500 hover:bg-orange-600 text-white font-semibold gap-2 shadow-[0_8px_24px_-8px_rgba(249,115,22,0.5)]"
+      >
+        {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+        Save settings
+      </Button>
     </div>
   );
 };
+
+const SettingsSection = ({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) => (
+  <div className="rounded-3xl bg-card border border-orange-100/80 p-6 sm:p-7 space-y-5">
+    <div>
+      <h3 className="text-lg font-semibold text-foreground">{title}</h3>
+      {subtitle && <p className="text-sm text-muted-foreground mt-0.5">{subtitle}</p>}
+    </div>
+    {children}
+  </div>
+);
+
+const ToggleRow = ({
+  title, subtitle, checked, onChange, disabled, badge,
+}: {
+  title: string; subtitle?: string; checked: boolean; onChange: (v: boolean) => void;
+  disabled?: boolean; badge?: string;
+}) => (
+  <div className={cn("flex items-center justify-between gap-4 py-2", disabled && "opacity-70")}>
+    <div>
+      <div className="flex items-center gap-2">
+        <p className="text-sm font-medium text-foreground">{title}</p>
+        {badge && <span className="text-[10px] font-semibold uppercase tracking-wider text-orange-600 bg-orange-50 border border-orange-200/70 rounded-full px-2 py-0.5">{badge}</span>}
+      </div>
+      {subtitle && <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>}
+    </div>
+    <Switch checked={checked} onCheckedChange={onChange} disabled={disabled} />
+  </div>
+);
 
 /* ── Helpers ── */
 function getTimeAgo(date: Date): string {

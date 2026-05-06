@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
 import { Button } from "@/components/ui/button";
@@ -15,12 +15,14 @@ const Auth = () => {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const next = searchParams.get("next") || "/browse";
   const { toast } = useToast();
 
   const handleGoogle = async () => {
     setGoogleLoading(true);
     const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin + "/browse",
+      redirect_uri: window.location.origin + next,
     });
     if (result.error) {
       toast({ title: "Google sign-in failed", description: String(result.error.message || result.error), variant: "destructive" });
@@ -28,7 +30,7 @@ const Auth = () => {
       return;
     }
     if (result.redirected) return;
-    navigate("/browse");
+    navigate(next);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -40,7 +42,7 @@ const Auth = () => {
       if (error) {
         toast({ title: "Login failed", description: error.message, variant: "destructive" });
       } else {
-        navigate("/browse");
+        navigate(next);
       }
     } else {
       const { error } = await supabase.auth.signUp({
@@ -48,7 +50,7 @@ const Auth = () => {
         password,
         options: {
           data: { display_name: displayName },
-          emailRedirectTo: window.location.origin + "/browse",
+          emailRedirectTo: window.location.origin + next,
         },
       });
       if (error) {
