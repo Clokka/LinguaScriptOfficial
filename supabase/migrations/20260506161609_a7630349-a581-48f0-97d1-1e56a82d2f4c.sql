@@ -1,0 +1,1 @@
+UPDATE public.films SET created_by = 'aba78237-95d6-4286-81d6-81a36453fb2e', is_public = true WHERE created_by IS NULL;
