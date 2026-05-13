@@ -9,6 +9,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { getLanguageLabel, getLanguageFlag } from "@/lib/languages";
 import { cn } from "@/lib/utils";
 import { fetchCaptionsFromBrowser } from "@/lib/browserCaptionFetcher";
+import { AdLoader } from "@/components/AdLoader";
 
 interface FilmData {
   id: string;
@@ -217,6 +218,7 @@ const Watch = () => {
   const [captionsError, setCaptionsError] = useState<string | null>(null);
   const [nativeLanguage, setNativeLanguage] = useState("en");
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [adDone, setAdDone] = useState(false);
 
   const toggleFullscreen = useCallback(() => {
     const container = videoContainerRef.current;
@@ -322,9 +324,9 @@ const Watch = () => {
     window.onYouTubeIframeAPIReady = () => setApiReady(true);
   }, []);
 
-  // Create player
+  // Create player — only after the pre-roll ad finishes (or is skipped)
   useEffect(() => {
-    if (!apiReady || !film) return;
+    if (!apiReady || !film || !adDone) return;
     const ytId = getYouTubeId(film.url);
     if (!ytId) return;
 
@@ -355,7 +357,7 @@ const Watch = () => {
     });
 
     return () => { clearInterval(intervalRef.current); };
-  }, [apiReady, film]);
+  }, [apiReady, film, adDone]);
 
   const logWatchTime = async (minutes: number) => {
     if (!user) return;
@@ -497,6 +499,9 @@ const Watch = () => {
           )}
         >
           <div id="yt-player" className={cn("w-full", isFullscreen ? "h-full" : "h-full")} />
+
+          {/* Pre-roll house ad — masks YT iframe load */}
+          {!adDone && <AdLoader onComplete={() => setAdDone(true)} />}
 
           {/* Loading status */}
           {captionsLoading && captionsStatus && (

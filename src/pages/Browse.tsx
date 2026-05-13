@@ -164,9 +164,13 @@ const Browse = () => {
     supabase.from("films").select("*").eq("is_public", true).order("created_at", { ascending: false }).then(({ data }) => {
       setDiscoverFilms(data || []);
     });
-    // Curated catalog rows with their pinned films
+    // Curated catalog rows with their pinned films — filter to user's learning language (or global rows where language IS NULL)
     (async () => {
-      const { data: rows } = await supabase.from("catalog_rows").select("*").order("sort_order");
+      const { data: rows } = await supabase
+        .from("catalog_rows")
+        .select("*")
+        .or(`language.is.null,language.eq.${learningLanguage}`)
+        .order("sort_order");
       if (!rows) return;
       const withFilms = await Promise.all(
         rows.map(async (row: any) => {
@@ -183,7 +187,7 @@ const Browse = () => {
       );
       setCatalogRows(withFilms.filter((r) => r.films.length > 0));
     })();
-  }, [fetchLessons, fetchActivity, fetchProfile]);
+  }, [fetchLessons, fetchActivity, fetchProfile, learningLanguage]);
 
   const createLesson = async () => {
     if (!user) {

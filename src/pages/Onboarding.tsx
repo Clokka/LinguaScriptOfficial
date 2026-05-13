@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { LANGUAGES } from "@/lib/languages";
+import { InteractiveDemo } from "@/components/InteractiveDemo";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -210,45 +211,15 @@ const Onboarding = () => {
             {step === 2 && (
               <Card>
                 <Eyebrow icon={<Subtitles className="w-3.5 h-3.5" />}>Card 2 of 5</Eyebrow>
-                <Title>How Linguascript works</Title>
+                <Title>Try it yourself.</Title>
                 <Sub>
-                  <span className="font-medium text-neutral-900">Lingua</span> = language (Latin).{" "}
-                  <span className="font-medium text-neutral-900">Script</span> = our unique dual-subtitle system.
+                  <span className="font-medium text-neutral-900">Lingua</span> = language.{" "}
+                  <span className="font-medium text-neutral-900">Script</span> = our dual-subtitle system. Walk through the 3 steps below — the entire Linguascript loop in 10 seconds.
                 </Sub>
 
-                {/* Mock player */}
-                <div className="mt-8 relative rounded-3xl overflow-hidden border border-orange-100 bg-neutral-900 aspect-video">
-                  <div className="absolute inset-0 bg-gradient-to-br from-neutral-800 to-neutral-900" />
-                  <div className="absolute bottom-16 left-0 right-0 text-center px-4">
-                    <p className="text-white text-base sm:text-lg font-medium drop-shadow">Bonjour, comment ça va ?</p>
-                    <p className="text-orange-300 text-xs sm:text-sm mt-1">Hello, how are you?</p>
-                  </div>
-                  {/* Animated cursor */}
-                  {!dualClicked && (
-                    <motion.div
-                      className="absolute"
-                      initial={{ left: "20%", bottom: "20%", opacity: 0 }}
-                      animate={{ left: "70%", bottom: "12%", opacity: 1 }}
-                      transition={{ duration: 1.4, repeat: Infinity, repeatType: "reverse" }}
-                    >
-                      <MousePointer2 className="w-6 h-6 text-white drop-shadow" />
-                    </motion.div>
-                  )}
-                  <button
-                    onClick={() => { setDualClicked(true); playDing("success"); }}
-                    className={`absolute right-4 bottom-4 px-3 py-2 rounded-lg text-xs font-medium transition ${
-                      dualClicked
-                        ? "bg-orange-500 text-white"
-                        : "bg-white/95 text-neutral-900 hover:bg-white animate-pulse"
-                    }`}
-                  >
-                    {dualClicked ? <><Check className="w-3.5 h-3.5 inline -mt-0.5 mr-1" />Dual subtitles on</> : "Dual subtitles"}
-                  </button>
+                <div className="mt-8">
+                  <InteractiveDemo onComplete={() => setDualClicked(true)} />
                 </div>
-
-                <p className="mt-5 text-sm text-neutral-600 text-center">
-                  {dualClicked ? "Nice! That's the magic." : "Click the Dual subtitles button to continue."}
-                </p>
               </Card>
             )}
 

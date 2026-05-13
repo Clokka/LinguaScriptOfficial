@@ -87,18 +87,21 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          language: string | null
           sort_order: number
           title: string
         }
         Insert: {
           created_at?: string
           id?: string
+          language?: string | null
           sort_order?: number
           title: string
         }
         Update: {
           created_at?: string
           id?: string
+          language?: string | null
           sort_order?: number
           title?: string
         }
