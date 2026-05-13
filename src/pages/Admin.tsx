@@ -506,14 +506,25 @@ const Admin = () => {
         </h2>
         <p className="text-muted-foreground text-sm mb-4">Group public films into themed rows shown on the home page.</p>
 
-        <div className="glass-panel-strong p-4 mb-4 flex gap-2">
+        <div className="glass-panel-strong p-4 mb-4 flex flex-wrap gap-2">
           <Input
             placeholder="New row title (e.g. French Classics)"
             value={newRowTitle}
             onChange={(e) => setNewRowTitle(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), createCatalogRow())}
-            className="bg-secondary/50 border-border"
+            className="bg-secondary/50 border-border min-w-[220px] flex-1"
           />
+          <Select value={newRowLang} onValueChange={setNewRowLang}>
+            <SelectTrigger className="bg-secondary/50 border-border w-[180px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">🌐 All languages</SelectItem>
+              {LANGUAGES.map((l) => (
+                <SelectItem key={l.code} value={l.code}>{l.flag} {l.label} only</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Button onClick={createCatalogRow} variant="hero" className="gap-2 shrink-0">
             <Plus className="w-4 h-4" /> Add Row
           </Button>
@@ -529,6 +540,23 @@ const Admin = () => {
             return (
               <div key={row.id} className="glass-panel p-4 space-y-3">
                 <RowHeader row={row} onRename={renameCatalogRow} onDelete={deleteCatalogRow} />
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">Shown to:</span>
+                  <Select
+                    value={row.language ?? "__all__"}
+                    onValueChange={(v) => setRowLanguage(row.id, v === "__all__" ? null : v)}
+                  >
+                    <SelectTrigger className="bg-secondary/50 border-border h-8 w-[200px] text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__all__">🌐 All learners</SelectItem>
+                      {LANGUAGES.map((l) => (
+                        <SelectItem key={l.code} value={l.code}>{l.flag} {l.label} learners</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div className="space-y-2">
                   {row.pins.length === 0 && <p className="text-xs text-muted-foreground italic">No films pinned yet.</p>}
                   {row.pins.map((pin) => (
