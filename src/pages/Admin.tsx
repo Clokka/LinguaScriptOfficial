@@ -70,6 +70,7 @@ interface CatalogRow {
   id: string;
   title: string;
   sort_order: number;
+  language: string | null;
   pins: { id: string; film_id: string; sort_order: number; film: FilmRow | null }[];
 }
 
@@ -99,6 +100,7 @@ const Admin = () => {
   // Catalog rows state
   const [catalogRows, setCatalogRows] = useState<CatalogRow[]>([]);
   const [newRowTitle, setNewRowTitle] = useState("");
+  const [newRowLang, setNewRowLang] = useState<string>("__all__");
 
   useEffect(() => {
     fetchFilms();
@@ -119,6 +121,7 @@ const Admin = () => {
         id: r.id,
         title: r.title,
         sort_order: r.sort_order,
+        language: r.language ?? null,
         pins: (pins || []).map((p: any) => ({ id: p.id, film_id: p.film_id, sort_order: p.sort_order, film: p.films })),
       } as CatalogRow;
     }));
@@ -127,9 +130,18 @@ const Admin = () => {
 
   const createCatalogRow = async () => {
     if (!newRowTitle.trim()) return;
-    const { error } = await supabase.from("catalog_rows").insert({ title: newRowTitle.trim(), sort_order: catalogRows.length });
+    const { error } = await supabase.from("catalog_rows").insert({
+      title: newRowTitle.trim(),
+      sort_order: catalogRows.length,
+      language: newRowLang === "__all__" ? null : newRowLang,
+    } as any);
     if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
     setNewRowTitle("");
+    fetchCatalogRows();
+  };
+
+  const setRowLanguage = async (id: string, language: string | null) => {
+    await supabase.from("catalog_rows").update({ language } as any).eq("id", id);
     fetchCatalogRows();
   };
 
