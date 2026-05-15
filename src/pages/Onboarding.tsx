@@ -403,4 +403,22 @@ const InfoTile = ({ icon, title, body }: { icon: React.ReactNode; title: string;
   </div>
 );
 
+const PillarCard = ({
+  icon, pillar, aliases, title, body,
+}: { icon: React.ReactNode; pillar: string; aliases: string; title: string; body: string }) => (
+  <div className="rounded-2xl border border-orange-100 bg-gradient-to-br from-orange-50/60 to-white p-5 flex gap-4">
+    <div className="shrink-0 w-12 h-12 rounded-2xl bg-gradient-to-br from-orange-400 to-orange-500 text-white flex items-center justify-center shadow-[0_8px_20px_-8px_rgba(249,115,22,0.6)]">
+      {icon}
+    </div>
+    <div className="min-w-0">
+      <div className="flex items-baseline gap-2 flex-wrap">
+        <p className="font-semibold text-neutral-900">{pillar}</p>
+        <p className="text-[11px] text-orange-500 font-medium uppercase tracking-wide">{aliases}</p>
+      </div>
+      <p className="text-[13px] text-neutral-500 mt-0.5">{title}</p>
+      <p className="mt-1.5 text-sm text-neutral-700 leading-relaxed">{body}</p>
+    </div>
+  </div>
+);
+
 export default Onboarding;
