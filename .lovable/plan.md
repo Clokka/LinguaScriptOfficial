@@ -1,88 +1,77 @@
-## Competitive read: Speakeasy
+# Interactive Onboarding Walkthrough
 
-What they do well that we should answer:
-- Animated hero where the user **hovers a word and sees a translation pop** — proof of concept in 1 second.
-- Step-by-step scrollytelling: **Watch → Save → Speak**, each step has a working mini-demo embedded inline.
-- Per-language landing variants (Spanish / Mandarin / Japanese / French / Portuguese) with curated creator catalogues.
-- Phrase-first (not word-first) framing.
+A forced, cursor-guided tour that runs on **real pages** (Watch, Browse, Flashcards, Profile) — not a mocked demo. Users cannot skip; each step requires the prescribed click before advancing.
 
-What we win on (and should make obvious):
-- Real YouTube playback with **dual subtitles + click-to-flashcard** in-browser — no extension, no app install.
-- A-Level / school-grade CEFR curation.
-- B2B-for-schools angle — they don't have it.
+## Architecture
 
-## Recommended next steps (in priority order)
+A new global **`TourProvider`** (`src/contexts/TourContext.tsx`) wraps the app. It owns:
+- current step id
+- step config (target selector, tooltip copy, required interaction, next route)
+- `advance()` / `setStep()` / `endTour()`
 
-### 1. Interactive demo inside onboarding (highest ROI)
-Replace static "How Linguascript works" card in `/onboarding` (Card 2) with a real **mini-player simulator** the user must interact with to advance. Three micro-steps, each gated:
+A new global **`TourOverlay`** component (mounted in `App.tsx` inside `LanguageProvider`) renders:
+- animated fake cursor (framer-motion spring) that flies to the current target's bounding rect (resolved via `document.querySelector(selector)` + `getBoundingClientRect`, recomputed on resize/route change)
+- tooltip near the target with copy
+- a translucent "spotlight" that dims everything except the target
+- click interception: only the target is clickable; everything else is blocked
 
-```text
-[ Mini step A ]  Toggle "Dual subtitles" → second line fades in
-[ Mini step B ]  Click a highlighted word ("bonjour") → popup shows translation + IPA + 🔊
-[ Mini step C ]  Tap "Save to deck" → flashcard flies into a deck icon (success ding)
-```
+Pages opt in by giving key elements stable `data-tour="..."` attributes. The overlay finds them by `[data-tour="..."]`.
 
-- Built with Framer Motion + a mocked subtitle line (no real YT iframe needed → instant, no ads, works offline).
-- Animated finger / cursor hint after 2s of inactivity per step (Duolingo-style).
-- On completion → confetti + "You just learned how Linguascript works" then continue.
+The tour is triggered from the existing `/onboarding` page via a new "Enter the demo" button after the intro video, which sets `tour.start("watch-dual")` and navigates to `/watch/<training-video-id>`.
 
-This is the **single biggest conversion lever** — copies their best pattern but applied to our actual feature.
+## Step sequence
 
-### 2. Language-specific catalogues
-Driven by `profiles.learning_language` chosen in onboarding.
+| # | Route | Target (`data-tour`) | Tooltip | Required action |
+|---|---|---|---|---|
+| 1 | `/watch/:id` (training video) | `dual-subs-toggle` | "See two languages at once" | click toggle |
+| 2 | `/watch/:id` | `subtitle-word` (any word in overlay) | "Click any word to learn it" | click a word |
+| 3 | `/watch/:id` | `word-pronounce` (in WordPopup) | "Hear the word spoken" | click speaker |
+| 4 | `/watch/:id` | `fullscreen-btn` | "Immerse yourself" | click fullscreen |
+| — | auto-nav to `/browse` after 500ms | | | |
+| 5 | `/browse` sidebar | `nav-flashcards` | "Your saved words live here" | click |
+| 6 | `/flashcards` | `flashcard-body` | "Click the card to reveal translation" | click card |
+| 7 | `/flashcards` | `flashcard-got-it` / `flashcard-again` | "Green = Got it · Red = Again" | click either |
+| (repeat 6-7 once more) | | | | |
+| 8 | back arrow → `/browse` | `nav-back` | — | auto-advance after route |
+| 9 | `/browse` | `nav-calendar` | "Track your daily streaks" | click |
+| 10 | back → `/browse` | `nav-back` | — | |
+| 11 | `/browse` | `nav-settings` | "Set your languages" | click |
+| 12 | `/profile` | `native-lang-select` | "Choose your native language" | select value |
+| 13 | `/profile` | `target-lang-select` | "Choose what you're learning" | select value |
+| 14 | back → `/browse` | `paste-youtube-input` | "Linguascript works with YouTube videos you already love. Paste any link." | input gets focus + value (auto-filled with `SoafcM3xqlc` URL by the tour) |
+| 15 | `/watch/<new lesson>` | overlay finale | "You're ready. Happy learning." | dismiss |
 
-Schema additions:
-- `films.tags text[]` (e.g. `{"creator:InnerFrench","beginner"}`)
-- `catalog_rows.language text` (nullable = global; else filter)
-- Optional: `catalog_rows.cef_levels text[]` for level-targeted rows
+Each `data-tour` already-present-or-not is verified during implementation; missing ones are added with no visual change.
 
-Browse logic: only render rows where `row.language IS NULL OR row.language = profile.learning_language`.
+## Onboarding intro video
 
-Seed catalogues per language with curated YouTube channels:
-- 🇨🇳 Mandarin: Mandarin Corner, Lazy Chinese, Mandarin Click
-- 🇫🇷 French: InnerFrench, Français avec Pierre, Piece of French
-- 🇪🇸 Spanish: Dreaming Spanish, Españolistos
-- 🇩🇪 German: Easy German, Deutsch mit Marija
-- 🇯🇵 Japanese: Nihongo con Teppei, Comprehensible Japanese
+Replace the current Onboarding "demo" embed with the Instagram intro video, played **inline** via Instagram's official `<blockquote class="instagram-media">` embed (loaded with `instagram.com/embed.js`). Below it: an "Enter the demo" CTA that starts the tour and routes to `/watch/<training-video-db-id>`.
 
-Admin gets a per-language tab to manage rows.
+The training video is `https://youtu.be/v7G2iPeiVVg`. We resolve its row in `films` by `youtube_id = 'v7G2iPeiVVg'` and route to `/watch/<row.id>`. If the row is missing, the tour falls back to opening the YT id directly.
 
-### 3. Pre-roll ads while video loads
-On click of a video card → route to `/watch/:id`, show a **15s ad slot** before the YouTube iframe mounts. Ad types supported:
-- House promo (free) — rotating Linguascript "Did you know?" cards (animated).
-- Real ads — wire in **Google AdSense / EzoicAds** later. For now, build the slot with a `Skip in 5s` countdown so the surface is ready.
+## Required UI hooks (add `data-tour` attributes)
 
-```text
-[Watch route]
-  ├─ AdLoader (15s, skippable after 5s) ── while we prefetch subtitles + iframe
-  └─ Player mounts when ad ends OR skip pressed
-```
+- `src/pages/Watch.tsx`: dual-subs toggle button, fullscreen button
+- `src/components/SubtitleOverlay.tsx`: each word span
+- `src/components/WordPopup.tsx`: pronunciation button
+- `src/components/NavBar.tsx` (sidebar): flashcards link, calendar link, settings link, back arrow
+- `src/pages/Profile.tsx`: native + target language selects
+- `src/pages/Browse.tsx`: paste-YouTube input
 
-This also masks YouTube iframe load latency — perceived perf win.
+## New files
 
-### 4. B2B / schools positioning (light pass now, deeper later)
-Add a `/schools` route linked from the footer + a small "For Schools" pill in the top nav:
-- Headline: "Free for A-Level & GCSE classrooms."
-- Form → captures school name, teacher email, # students into a new `school_signups` table.
-- "Class accounts coming soon" — sets up the eventual paid plan upgrade path.
+- `src/contexts/TourContext.tsx` — provider + hook
+- `src/components/TourOverlay.tsx` — cursor + tooltip + spotlight + click gate
+- `src/lib/tourSteps.ts` — declarative step config
 
-Don't build the actual class-management product yet; capture demand first.
+## Edited files
 
-### 5. Marketing-style hero refresh on `/` (optional, smaller)
-Add a **"Try to hover"** mini interactive subtitle to the landing hero so first-time visitors see the magic before clicking anything (mirrors Speakeasy's hook). Low effort, high signal.
+- `src/App.tsx` — wrap with TourProvider, render TourOverlay
+- `src/pages/Onboarding.tsx` — Instagram inline embed + "Enter the demo" CTA → starts tour
+- `src/pages/Watch.tsx`, `src/pages/Browse.tsx`, `src/pages/Profile.tsx`, `src/pages/Flashcards.tsx`, `src/components/NavBar.tsx`, `src/components/SubtitleOverlay.tsx`, `src/components/WordPopup.tsx` — add `data-tour` attributes; emit `tour.advance()` on the required interaction when that step is active
 
-## Suggested build order
+## Open questions
 
-1. Interactive demo onboarding (Step 1) — ~1 build cycle
-2. Pre-roll ad slot on `/watch/:id` (Step 3) — ~½ cycle
-3. Language-specific catalogues + admin filter (Step 2) — ~1 cycle (includes migration + seed data)
-4. `/schools` lead-capture page (Step 4) — ~½ cycle
-5. Landing hover-demo (Step 5) — ~½ cycle
-
-## Out of scope (not now)
-- AI voice tutor / speaking practice (Speakeasy's Step 3) — different product surface, defer.
-- Real ad-network integration (just the slot + house ads for now).
-- Full school admin dashboard / paid plans.
-
-## Question before I build
-Which should I ship first — **(A) the interactive onboarding demo** (biggest conversion lever) or **(B) the language-specific catalogues** (needed before you onboard non-French users)?
+1. **Instagram intro URL** — what is the Instagram reel/post URL to embed? (Not provided; need it to render the inline player.)
+2. **YouTube link demo (step 14)** — should the tour actually call the existing "create lesson from URL" pipeline (real fetch + DB insert + navigate to the new lesson), or just play a loading animation and stop? Real pipeline gives a true outcome; mock keeps the tour fast and avoids polluting the user's library.
+3. **Replay** — should completing the tour persist a `tour_completed_at` flag on the profile so it never re-runs, with a "Replay tour" button in Settings? (Recommended yes.)
