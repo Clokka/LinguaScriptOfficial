@@ -4,6 +4,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { LanguageProvider } from "@/contexts/LanguageContext";
+import { TourProvider } from "@/contexts/TourContext";
+import { TourOverlay } from "@/components/TourOverlay";
 import Landing from "./pages/Landing";
 import Browse from "./pages/Browse";
 import Auth from "./pages/Auth";
@@ -24,18 +26,21 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Landing />} />
-            <Route path="/browse" element={<Browse />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/watch/:id" element={<Watch />} />
-            <Route path="/flashcards" element={<Flashcards />} />
-            <Route path="/admin" element={<Admin />} />
-            <Route path="/story" element={<Story />} />
-            <Route path="/onboarding" element={<Onboarding />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+          <TourProvider>
+            <Routes>
+              <Route path="/" element={<Landing />} />
+              <Route path="/browse" element={<Browse />} />
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/profile" element={<Profile />} />
+              <Route path="/watch/:id" element={<Watch />} />
+              <Route path="/flashcards" element={<Flashcards />} />
+              <Route path="/admin" element={<Admin />} />
+              <Route path="/story" element={<Story />} />
+              <Route path="/onboarding" element={<Onboarding />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+            <TourOverlay />
+          </TourProvider>
         </BrowserRouter>
       </LanguageProvider>
     </TooltipProvider>

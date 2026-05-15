@@ -6,6 +6,7 @@ import { SubtitleOverlay } from "@/components/SubtitleOverlay";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useTour } from "@/contexts/TourContext";
 import { getLanguageLabel, getLanguageFlag } from "@/lib/languages";
 import { cn } from "@/lib/utils";
 import { fetchCaptionsFromBrowser } from "@/lib/browserCaptionFetcher";
@@ -206,6 +207,7 @@ const Watch = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { learningLanguage } = useLanguage();
+  const { registerPlayer } = useTour();
   const playerRef = useRef<any>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval>>();
 
@@ -375,6 +377,7 @@ const Watch = () => {
       height: "100%",
       playerVars: { autoplay: 0, controls: 1, modestbranding: 1, rel: 0, cc_load_policy: 0 },
       events: {
+        onReady: () => { registerPlayer(playerRef.current); },
         onStateChange: (event: any) => {
           if (event.data === window.YT.PlayerState.PLAYING) {
             watchStartRef.current = Date.now();
@@ -505,6 +508,7 @@ const Watch = () => {
         <div className="flex items-center gap-2">
           {captionsLoading && <Loader2 className="w-4 h-4 text-white/60 animate-spin" />}
           <Button
+            data-tour="dual-toggle"
             variant={subtitleMode === "dual" ? "default" : "ghost"}
             size="sm"
             onClick={() => setSubtitleMode(subtitleMode === "dual" ? "single" : "dual")}
@@ -522,7 +526,7 @@ const Watch = () => {
               </Button>
             </div>
           )}
-          <Button variant="ghost" size="icon" onClick={toggleFullscreen} className="text-white hover:bg-white/10">
+          <Button data-tour="fullscreen-btn" variant="ghost" size="icon" onClick={toggleFullscreen} className="text-white hover:bg-white/10">
             {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
           </Button>
         </div>

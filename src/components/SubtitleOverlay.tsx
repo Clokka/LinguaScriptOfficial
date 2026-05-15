@@ -91,6 +91,7 @@ export const SubtitleOverlay = ({
       return (
         <span
           key={index}
+          data-tour={wordData ? "subtitle-word" : undefined}
           className={cn(
             "subtitle-word",
             wordData && "cursor-pointer"
