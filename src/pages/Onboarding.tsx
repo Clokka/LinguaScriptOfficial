@@ -53,17 +53,18 @@ const Onboarding = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  const totalSteps = 6;
+  const totalSteps = 7;
 
   const canContinue = useMemo(() => {
-    if (step === 0) return !!native && !!target && native !== target && !!level && level !== "below";
-    if (step === 1) return goalSaved;
-    if (step === 2) return dualClicked;
+    if (step === 0) return true; // 3-pillars intro
+    if (step === 1) return !!native && !!target && native !== target && !!level && level !== "below";
+    if (step === 2) return goalSaved;
+    if (step === 3) return dualClicked;
     return true;
   }, [step, native, target, level, goalSaved, dualClicked]);
 
   const next = async () => {
-    if (step === 0 && user) {
+    if (step === 1 && user) {
       await supabase.from("profiles").update({
         native_language: native,
         learning_language: target,
