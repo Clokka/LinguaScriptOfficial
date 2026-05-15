@@ -54,6 +54,7 @@ export const WordPopup = ({ word, position, onClose, onSave }: WordPopupProps) =
               <p className="text-muted-foreground text-sm mt-1">{word.ipa}</p>
             </div>
             <Button
+              data-tour="word-pronounce"
               variant="glass"
               size="icon-sm"
               onClick={() => speak(word.text)}
