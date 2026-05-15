@@ -202,7 +202,7 @@ const Onboarding = () => {
               </Card>
             )}
 
-            {step === 1 && (
+            {step === 2 && (
               <Card>
                 <Eyebrow icon={<Sparkles className="w-3.5 h-3.5" />}>Card 1 of 5</Eyebrow>
                 <Title>Welcome to the Lingua Universe 🌍</Title>
@@ -242,13 +242,12 @@ const Onboarding = () => {
               </Card>
             )}
 
-            {step === 2 && (
+            {step === 3 && (
               <Card>
                 <Eyebrow icon={<Subtitles className="w-3.5 h-3.5" />}>Card 2 of 5</Eyebrow>
-                <Title>Try it yourself.</Title>
+                <Title>Continue to demo.</Title>
                 <Sub>
-                  <span className="font-medium text-neutral-900">Lingua</span> = language.{" "}
-                  <span className="font-medium text-neutral-900">Script</span> = our dual-subtitle system. Walk through the 3 steps below — the entire Linguascript loop in 10 seconds.
+                  A guided walkthrough of the entire Linguascript loop on a real video. Follow the cursor.
                 </Sub>
 
                 <div className="mt-8">
@@ -257,7 +256,7 @@ const Onboarding = () => {
               </Card>
             )}
 
-            {step === 3 && (
+            {step === 4 && (
               <Card>
                 <Eyebrow icon={<Trophy className="w-3.5 h-3.5" />}>Card 3 of 5</Eyebrow>
                 <Title>Catalogue & XP</Title>
@@ -278,7 +277,7 @@ const Onboarding = () => {
               </Card>
             )}
 
-            {step === 4 && (
+            {step === 5 && (
               <Card>
                 <Eyebrow icon={<Brain className="w-3.5 h-3.5" />}>Card 4 of 5</Eyebrow>
                 <Title>Flashcards & spaced repetition</Title>
@@ -302,7 +301,7 @@ const Onboarding = () => {
               </Card>
             )}
 
-            {step === 5 && (
+            {step === 6 && (
               <Card>
                 <Eyebrow icon={<Mic className="w-3.5 h-3.5" />}>Card 5 of 5</Eyebrow>
                 <Title>Learn faster</Title>
