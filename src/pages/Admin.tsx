@@ -471,42 +471,50 @@ const Admin = () => {
                       "No subtitles uploaded"
                     )}
                   </div>
-                  <div className="flex items-center gap-2">
-                    {["fr", "en"].map((lang) => {
-                      const hasLang = (film.subtitle_languages ?? []).includes(lang);
-                      const langLabel = lang === "fr" ? "🇫🇷 FR" : "🇬🇧 EN";
-                      return (
-                        <div key={lang}>
-                          <input
-                            type="file"
-                            accept=".srt"
-                            className="hidden"
-                            id={`srt-${film.id}-${lang}`}
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) handleUploadSubsForExisting(film.id, file, lang);
-                              requestAnimationFrame(() => { e.target.value = ""; });
-                            }}
-                          />
-                          <Button
-                            variant="glass"
-                            size="sm"
-                            className="gap-1 text-xs"
-                            disabled={uploadingSubsFor === film.id}
-                            onClick={() => {
-                              document.getElementById(`srt-${film.id}-${lang}`)?.click();
-                            }}
-                          >
-                            {uploadingSubsFor === film.id ? (
-                              <Loader2 className="w-3 h-3 animate-spin" />
-                            ) : (
-                              <Upload className="w-3 h-3" />
-                            )}
-                            {hasLang ? `Replace ${langLabel}` : `Upload ${langLabel}`}
-                          </Button>
-                        </div>
-                      );
-                    })}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {(() => {
+                      const orig = film.language || "fr";
+                      const existing = film.subtitle_languages ?? [];
+                      const secondaryExisting = existing.find((l) => l !== orig);
+                      const slots: Array<{ lang: string; role: "Original" | "Second" }> = [
+                        { lang: orig, role: "Original" },
+                        { lang: secondaryExisting || (orig === "en" ? "fr" : "en"), role: "Second" },
+                      ];
+                      return slots.map((slot) => {
+                        const hasLang = existing.includes(slot.lang);
+                        const langInfo = LANGUAGES.find((l) => l.code === slot.lang);
+                        const label = `${langInfo?.flag ?? ""} ${langInfo?.label ?? slot.lang.toUpperCase()}`;
+                        return (
+                          <div key={slot.role}>
+                            <input
+                              type="file"
+                              accept=".srt"
+                              className="hidden"
+                              id={`srt-${film.id}-${slot.role}`}
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) handleUploadSubsForExisting(film.id, file, slot.lang);
+                                requestAnimationFrame(() => { e.target.value = ""; });
+                              }}
+                            />
+                            <Button
+                              variant="glass"
+                              size="sm"
+                              className="gap-1 text-xs"
+                              disabled={uploadingSubsFor === film.id}
+                              onClick={() => document.getElementById(`srt-${film.id}-${slot.role}`)?.click()}
+                            >
+                              {uploadingSubsFor === film.id ? (
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                              ) : (
+                                <Upload className="w-3 h-3" />
+                              )}
+                              {hasLang ? `Replace ${slot.role} (${label})` : `Upload ${slot.role} (${label})`}
+                            </Button>
+                          </div>
+                        );
+                      });
+                    })()}
                   </div>
                 </div>
               </div>
