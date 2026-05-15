@@ -353,48 +353,60 @@ const Admin = () => {
             </SelectContent>
           </Select>
 
-          {/* French SRT Upload */}
+          {/* Original SRT Upload (matches film language) */}
           <div className="space-y-2">
             <label className="text-sm text-muted-foreground flex items-center gap-2">
-              <FileText className="w-4 h-4" /> 🇫🇷 French Subtitles (.srt) — optional
+              <FileText className="w-4 h-4" /> Original subtitles (.srt) — {LANGUAGES.find(l => l.code === language)?.label || language} — optional
             </label>
             <div className="flex items-center gap-3">
               <Input
-                ref={fileInputRefFr}
+                ref={fileInputRefOriginal}
                 type="file"
                 accept=".srt"
-                onChange={(e) => setSrtFileFr(e.target.files?.[0] ?? null)}
+                onChange={(e) => setSrtFileOriginal(e.target.files?.[0] ?? null)}
                 className="bg-secondary/50 border-border"
               />
-              {srtFileFr && (
+              {srtFileOriginal && (
                 <span className="text-xs text-primary flex items-center gap-1 whitespace-nowrap">
-                  <Check className="w-3 h-3" /> {srtFileFr.name}
+                  <Check className="w-3 h-3" /> {srtFileOriginal.name}
                 </span>
               )}
             </div>
           </div>
 
-          {/* English SRT Upload */}
+          {/* Second-language SRT Upload */}
           <div className="space-y-2">
             <label className="text-sm text-muted-foreground flex items-center gap-2">
-              <FileText className="w-4 h-4" /> 🇬🇧 English Subtitles (.srt) — optional
+              <FileText className="w-4 h-4" /> Second-language subtitles (.srt) — optional
             </label>
             <div className="flex items-center gap-3">
+              <Select value={secondaryLanguage} onValueChange={setSecondaryLanguage}>
+                <SelectTrigger className="bg-secondary/50 border-border w-[160px] shrink-0">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {LANGUAGES.filter(l => l.code !== language).map((lang) => (
+                    <SelectItem key={lang.code} value={lang.code}>
+                      {lang.flag} {lang.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <Input
-                ref={fileInputRefEn}
+                ref={fileInputRefSecondary}
                 type="file"
                 accept=".srt"
-                onChange={(e) => setSrtFileEn(e.target.files?.[0] ?? null)}
+                onChange={(e) => setSrtFileSecondary(e.target.files?.[0] ?? null)}
                 className="bg-secondary/50 border-border"
               />
-              {srtFileEn && (
+              {srtFileSecondary && (
                 <span className="text-xs text-primary flex items-center gap-1 whitespace-nowrap">
-                  <Check className="w-3 h-3" /> {srtFileEn.name}
+                  <Check className="w-3 h-3" /> {srtFileSecondary.name}
                 </span>
               )}
             </div>
             <p className="text-xs text-muted-foreground">
-              Upload .srt files per language. If not provided, LinguaScript will fetch and store tracks when the lesson is created or opened.
+              Upload SRT pairs per film. Library films use only these uploaded subtitles — they are never auto-translated or auto-fetched.
             </p>
           </div>
 
