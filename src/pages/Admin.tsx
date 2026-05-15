@@ -89,11 +89,12 @@ const Admin = () => {
   const [thumbnailUrl, setThumbnailUrl] = useState("");
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
-  const [srtFileFr, setSrtFileFr] = useState<File | null>(null);
-  const [srtFileEn, setSrtFileEn] = useState<File | null>(null);
+  const [srtFileOriginal, setSrtFileOriginal] = useState<File | null>(null);
+  const [srtFileSecondary, setSrtFileSecondary] = useState<File | null>(null);
+  const [secondaryLanguage, setSecondaryLanguage] = useState("en");
   const [uploadingSubsFor, setUploadingSubsFor] = useState<string | null>(null);
-  const fileInputRefFr = useRef<HTMLInputElement>(null);
-  const fileInputRefEn = useRef<HTMLInputElement>(null);
+  const fileInputRefOriginal = useRef<HTMLInputElement>(null);
+  const fileInputRefSecondary = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
 
