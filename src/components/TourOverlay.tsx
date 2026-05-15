@@ -78,16 +78,15 @@ export const TourOverlay = () => {
       const target = e.target as HTMLElement | null;
       if (!target) return;
       const matched = target.closest(step.selector);
+      const isAllowed = target.closest('[data-tour-allow="true"]');
       if (matched) {
         advanceLockRef.current = true;
-        // let the original click do its thing, then advance
         setTimeout(() => {
           advanceLockRef.current = false;
           if (step.navigateTo) navigate(step.navigateTo);
           advance();
         }, step.postDelay ?? 60);
-      } else if (!step.allowFreeClicks) {
-        // Block stray clicks so the user cannot derail the tour.
+      } else if (!step.allowFreeClicks && !isAllowed) {
         e.stopPropagation();
         e.preventDefault();
       }
@@ -251,6 +250,7 @@ export const TourOverlay = () => {
 
       {/* Skip-tour escape hatch (small, top-right, doesn't block view) */}
       <button
+        data-tour-allow="true"
         onClick={end}
         style={{ position: "fixed", top: 12, right: 12, zIndex: Z_CURSOR }}
         className="text-xs px-3 py-1.5 rounded-full bg-white/90 hover:bg-white text-neutral-600 shadow-md"
