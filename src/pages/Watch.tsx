@@ -17,6 +17,8 @@ interface FilmData {
   url: string;
   language: string | null;
   thumbnail_url: string | null;
+  is_public: boolean;
+  created_by: string | null;
 }
 
 interface SubtitleSegment {
