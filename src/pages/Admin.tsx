@@ -273,20 +273,20 @@ const Admin = () => {
     if (error) {
       toast({ title: "Error adding film", description: error.message, variant: "destructive" });
     } else {
-      if (srtFileFr && data) {
-        await parseSrtAndUpload(data.id, srtFileFr, "fr");
+      if (srtFileOriginal && data) {
+        await parseSrtAndUpload(data.id, srtFileOriginal, language);
       }
-      if (srtFileEn && data) {
-        await parseSrtAndUpload(data.id, srtFileEn, "en");
+      if (srtFileSecondary && data) {
+        await parseSrtAndUpload(data.id, srtFileSecondary, secondaryLanguage);
       }
       toast({ title: "Film added!" });
       setTitle("");
       setUrl("");
       setThumbnailUrl("");
-      setSrtFileFr(null);
-      setSrtFileEn(null);
-      if (fileInputRefFr.current) fileInputRefFr.current.value = "";
-      if (fileInputRefEn.current) fileInputRefEn.current.value = "";
+      setSrtFileOriginal(null);
+      setSrtFileSecondary(null);
+      if (fileInputRefOriginal.current) fileInputRefOriginal.current.value = "";
+      if (fileInputRefSecondary.current) fileInputRefSecondary.current.value = "";
       fetchFilms();
     }
     setAdding(false);
