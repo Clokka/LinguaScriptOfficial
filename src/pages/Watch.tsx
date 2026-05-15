@@ -6,6 +6,7 @@ import { SubtitleOverlay } from "@/components/SubtitleOverlay";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useTour } from "@/contexts/TourContext";
 import { getLanguageLabel, getLanguageFlag } from "@/lib/languages";
 import { cn } from "@/lib/utils";
 import { fetchCaptionsFromBrowser } from "@/lib/browserCaptionFetcher";
@@ -505,6 +506,7 @@ const Watch = () => {
         <div className="flex items-center gap-2">
           {captionsLoading && <Loader2 className="w-4 h-4 text-white/60 animate-spin" />}
           <Button
+            data-tour="dual-toggle"
             variant={subtitleMode === "dual" ? "default" : "ghost"}
             size="sm"
             onClick={() => setSubtitleMode(subtitleMode === "dual" ? "single" : "dual")}
@@ -522,7 +524,7 @@ const Watch = () => {
               </Button>
             </div>
           )}
-          <Button variant="ghost" size="icon" onClick={toggleFullscreen} className="text-white hover:bg-white/10">
+          <Button data-tour="fullscreen-btn" variant="ghost" size="icon" onClick={toggleFullscreen} className="text-white hover:bg-white/10">
             {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
           </Button>
         </div>
