@@ -80,14 +80,12 @@ export const TourOverlay = () => {
       const matched = target.closest(step.selector);
       if (matched) {
         advanceLockRef.current = true;
-        // let the original click do its thing
+        // let the original click do its thing, then advance
         setTimeout(() => {
           advanceLockRef.current = false;
-          if (step.navigateTo) {
-            setTimeout(() => navigate(step.navigateTo!), step.postDelay || 0);
-          }
+          if (step.navigateTo) navigate(step.navigateTo);
           advance();
-        }, step.postDelay || 60);
+        }, step.postDelay ?? 60);
       } else if (!step.allowFreeClicks) {
         // Block stray clicks so the user cannot derail the tour.
         e.stopPropagation();
