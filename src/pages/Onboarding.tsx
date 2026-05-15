@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowRight, ArrowLeft, Check, Sparkles, Languages, Subtitles,
   BookOpen, Brain, Mic, MousePointer2, Trophy, Flame,
+  Headphones, MessageCircle, RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -52,17 +53,18 @@ const Onboarding = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  const totalSteps = 6;
+  const totalSteps = 7;
 
   const canContinue = useMemo(() => {
-    if (step === 0) return !!native && !!target && native !== target && !!level && level !== "below";
-    if (step === 1) return goalSaved;
-    if (step === 2) return dualClicked;
+    if (step === 0) return true; // 3-pillars intro
+    if (step === 1) return !!native && !!target && native !== target && !!level && level !== "below";
+    if (step === 2) return goalSaved;
+    if (step === 3) return dualClicked;
     return true;
   }, [step, native, target, level, goalSaved, dualClicked]);
 
   const next = async () => {
-    if (step === 0 && user) {
+    if (step === 1 && user) {
       await supabase.from("profiles").update({
         native_language: native,
         learning_language: target,
@@ -129,6 +131,38 @@ const Onboarding = () => {
           >
             {step === 0 && (
               <Card>
+                <Eyebrow icon={<Sparkles className="w-3.5 h-3.5" />}>How fluency works</Eyebrow>
+                <Title>The 3 pillars of language learning.</Title>
+                <Sub>Every fluent speaker balances these three. LinguaScript is built around them.</Sub>
+
+                <div className="mt-8 space-y-4">
+                  <PillarCard
+                    icon={<Headphones className="w-5 h-5" />}
+                    pillar="Input"
+                    aliases="Comprehension · Immersion"
+                    title="Soak it in"
+                    body="Videos, podcasts, books, real conversations. Linguascript turns YouTube into your daily input feed."
+                  />
+                  <PillarCard
+                    icon={<MessageCircle className="w-5 h-5" />}
+                    pillar="Output"
+                    aliases="Fluency · Interaction · Practice"
+                    title="Use the language"
+                    body="Speaking, journaling, shadowing, exchanges. Click any subtitle word, hear it, repeat it out loud."
+                  />
+                  <PillarCard
+                    icon={<RefreshCw className="w-5 h-5" />}
+                    pillar="Study & Review"
+                    aliases="Retention · Feedback · Consistency"
+                    title="Make it stick"
+                    body="Spaced-repetition flashcards, grammar nudges and corrections. The boring bit done painlessly."
+                  />
+                </div>
+              </Card>
+            )}
+
+            {step === 1 && (
+              <Card>
                 <Eyebrow icon={<Sparkles className="w-3.5 h-3.5" />}>Quick setup</Eyebrow>
                 <Title>Let's tune Linguascript to you.</Title>
                 <Sub>Tell us your languages and current level — this powers translations and recommendations.</Sub>
@@ -168,7 +202,7 @@ const Onboarding = () => {
               </Card>
             )}
 
-            {step === 1 && (
+            {step === 2 && (
               <Card>
                 <Eyebrow icon={<Sparkles className="w-3.5 h-3.5" />}>Card 1 of 5</Eyebrow>
                 <Title>Welcome to the Lingua Universe 🌍</Title>
@@ -208,13 +242,12 @@ const Onboarding = () => {
               </Card>
             )}
 
-            {step === 2 && (
+            {step === 3 && (
               <Card>
                 <Eyebrow icon={<Subtitles className="w-3.5 h-3.5" />}>Card 2 of 5</Eyebrow>
-                <Title>Try it yourself.</Title>
+                <Title>Continue to demo.</Title>
                 <Sub>
-                  <span className="font-medium text-neutral-900">Lingua</span> = language.{" "}
-                  <span className="font-medium text-neutral-900">Script</span> = our dual-subtitle system. Walk through the 3 steps below — the entire Linguascript loop in 10 seconds.
+                  A guided walkthrough of the entire Linguascript loop on a real video. Follow the cursor.
                 </Sub>
 
                 <div className="mt-8">
@@ -223,7 +256,7 @@ const Onboarding = () => {
               </Card>
             )}
 
-            {step === 3 && (
+            {step === 4 && (
               <Card>
                 <Eyebrow icon={<Trophy className="w-3.5 h-3.5" />}>Card 3 of 5</Eyebrow>
                 <Title>Catalogue & XP</Title>
@@ -244,7 +277,7 @@ const Onboarding = () => {
               </Card>
             )}
 
-            {step === 4 && (
+            {step === 5 && (
               <Card>
                 <Eyebrow icon={<Brain className="w-3.5 h-3.5" />}>Card 4 of 5</Eyebrow>
                 <Title>Flashcards & spaced repetition</Title>
@@ -268,7 +301,7 @@ const Onboarding = () => {
               </Card>
             )}
 
-            {step === 5 && (
+            {step === 6 && (
               <Card>
                 <Eyebrow icon={<Mic className="w-3.5 h-3.5" />}>Card 5 of 5</Eyebrow>
                 <Title>Learn faster</Title>
@@ -367,6 +400,24 @@ const InfoTile = ({ icon, title, body }: { icon: React.ReactNode; title: string;
     </div>
     <p className="font-semibold text-neutral-900">{title}</p>
     <p className="mt-1 text-sm text-neutral-600 leading-relaxed">{body}</p>
+  </div>
+);
+
+const PillarCard = ({
+  icon, pillar, aliases, title, body,
+}: { icon: React.ReactNode; pillar: string; aliases: string; title: string; body: string }) => (
+  <div className="rounded-2xl border border-orange-100 bg-gradient-to-br from-orange-50/60 to-white p-5 flex gap-4">
+    <div className="shrink-0 w-12 h-12 rounded-2xl bg-gradient-to-br from-orange-400 to-orange-500 text-white flex items-center justify-center shadow-[0_8px_20px_-8px_rgba(249,115,22,0.6)]">
+      {icon}
+    </div>
+    <div className="min-w-0">
+      <div className="flex items-baseline gap-2 flex-wrap">
+        <p className="font-semibold text-neutral-900">{pillar}</p>
+        <p className="text-[11px] text-orange-500 font-medium uppercase tracking-wide">{aliases}</p>
+      </div>
+      <p className="text-[13px] text-neutral-500 mt-0.5">{title}</p>
+      <p className="mt-1.5 text-sm text-neutral-700 leading-relaxed">{body}</p>
+    </div>
   </div>
 );
 
