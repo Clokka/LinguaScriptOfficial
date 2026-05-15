@@ -342,6 +342,7 @@ const Browse = () => {
           {SIDEBAR_ITEMS.map(({ icon: Icon, label, key }) => (
             <button
               key={key}
+              data-tour={`nav-${key}`}
               onClick={() => key === "flashcards" ? navigate("/flashcards") : setActiveTab(key as TabKey)}
               className={cn(
                 "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors",
@@ -509,6 +510,7 @@ const HomeTab = ({
         <div className="relative flex-1">
           <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
+            data-tour="paste-input"
             placeholder="https://youtube.com/watch?v=..."
             value={pasteUrl}
             onChange={(e) => setPasteUrl(e.target.value)}
@@ -878,7 +880,7 @@ const SettingsTab = ({
 
       {/* Languages */}
       <SettingsSection title="Languages" subtitle="Powers translations and pronunciation voices.">
-        <div>
+        <div data-tour="settings-native">
           <label className="text-sm font-medium text-foreground mb-2 block">Native language</label>
           <Select value={nativeLanguage} onValueChange={setNativeLanguage}>
             <SelectTrigger className="rounded-xl border-orange-100"><SelectValue /></SelectTrigger>
@@ -887,7 +889,7 @@ const SettingsTab = ({
             </SelectContent>
           </Select>
         </div>
-        <div>
+        <div data-tour="settings-learning">
           <label className="text-sm font-medium text-foreground mb-2 block">Learning</label>
           <Select value={learningLanguage} onValueChange={setLearningLanguage}>
             <SelectTrigger className="rounded-xl border-orange-100"><SelectValue /></SelectTrigger>
