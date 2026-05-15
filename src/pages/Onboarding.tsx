@@ -15,6 +15,8 @@ import { InteractiveDemo } from "@/components/InteractiveDemo";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useTour } from "@/contexts/TourContext";
+import { TOUR_TRAINING_YT_ID } from "@/lib/tourSteps";
 import { playDing } from "@/lib/sound";
 import { toast } from "sonner";
 
@@ -25,6 +27,8 @@ const Onboarding = () => {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const { setLearningLanguage } = useLanguage();
+  const { start: startTour } = useTour();
+  const [enteringDemo, setEnteringDemo] = useState(false);
 
   const [step, setStep] = useState(0);
   const [native, setNative] = useState("en");
@@ -245,13 +249,54 @@ const Onboarding = () => {
             {step === 3 && (
               <Card>
                 <Eyebrow icon={<Subtitles className="w-3.5 h-3.5" />}>Card 2 of 5</Eyebrow>
-                <Title>Continue to demo.</Title>
+                <Title>Now learn by doing.</Title>
                 <Sub>
-                  A guided walkthrough of the entire Linguascript loop on a real video. Follow the cursor.
+                  Watch the 30-second intro, then enter the guided demo. A cursor will walk you through the entire Linguascript loop on a real video.
                 </Sub>
 
-                <div className="mt-8">
-                  <InteractiveDemo onComplete={() => setDualClicked(true)} />
+                {/* Inline intro video — replace src with the Instagram intro reel when ready. */}
+                <div className="mt-8 rounded-3xl overflow-hidden border border-orange-100 aspect-video bg-neutral-900 shadow-[0_24px_60px_-30px_rgba(249,115,22,0.4)]">
+                  <iframe
+                    title="Linguascript intro"
+                    src={`https://www.youtube-nocookie.com/embed/${TOUR_TRAINING_YT_ID}?autoplay=0&modestbranding=1&rel=0&playsinline=1`}
+                    allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+                    allowFullScreen
+                    className="w-full h-full"
+                    frameBorder={0}
+                  />
+                </div>
+
+                <div className="mt-6 flex flex-col items-center gap-3">
+                  <Button
+                    onClick={async () => {
+                      setEnteringDemo(true);
+                      // Resolve training film by youtube_id
+                      const { data: film } = await supabase
+                        .from("films")
+                        .select("id")
+                        .or(`url.ilike.%${TOUR_TRAINING_YT_ID}%`)
+                        .limit(1)
+                        .maybeSingle();
+                      if (!film?.id) {
+                        toast.error("Training video missing from catalogue. Ask an admin to add it.");
+                        setEnteringDemo(false);
+                        return;
+                      }
+                      // Mark onboarded so /browse doesn't bounce them back here mid-tour
+                      if (user) {
+                        await supabase.from("profiles").update({ onboarded: true }).eq("user_id", user.id);
+                      }
+                      setDualClicked(true);
+                      startTour({ trainingFilmId: film.id });
+                      navigate(`/watch/${film.id}`);
+                    }}
+                    disabled={enteringDemo}
+                    className="h-12 px-8 rounded-full bg-orange-500 hover:bg-orange-600 text-white font-medium shadow-[0_8px_24px_-8px_rgba(249,115,22,0.6)] gap-2"
+                  >
+                    {enteringDemo ? "Loading…" : "Enter the demo"}
+                    <ArrowRight className="w-4 h-4" />
+                  </Button>
+                  <p className="text-xs text-neutral-500">A guided cursor will walk you through every feature.</p>
                 </div>
               </Card>
             )}
