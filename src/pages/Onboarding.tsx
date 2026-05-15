@@ -131,6 +131,38 @@ const Onboarding = () => {
           >
             {step === 0 && (
               <Card>
+                <Eyebrow icon={<Sparkles className="w-3.5 h-3.5" />}>How fluency works</Eyebrow>
+                <Title>The 3 pillars of language learning.</Title>
+                <Sub>Every fluent speaker balances these three. LinguaScript is built around them.</Sub>
+
+                <div className="mt-8 space-y-4">
+                  <PillarCard
+                    icon={<Headphones className="w-5 h-5" />}
+                    pillar="Input"
+                    aliases="Comprehension · Immersion"
+                    title="Soak it in"
+                    body="Videos, podcasts, books, real conversations. Linguascript turns YouTube into your daily input feed."
+                  />
+                  <PillarCard
+                    icon={<MessageCircle className="w-5 h-5" />}
+                    pillar="Output"
+                    aliases="Fluency · Interaction · Practice"
+                    title="Use the language"
+                    body="Speaking, journaling, shadowing, exchanges. Click any subtitle word, hear it, repeat it out loud."
+                  />
+                  <PillarCard
+                    icon={<RefreshCw className="w-5 h-5" />}
+                    pillar="Study & Review"
+                    aliases="Retention · Feedback · Consistency"
+                    title="Make it stick"
+                    body="Spaced-repetition flashcards, grammar nudges and corrections. The boring bit done painlessly."
+                  />
+                </div>
+              </Card>
+            )}
+
+            {step === 1 && (
+              <Card>
                 <Eyebrow icon={<Sparkles className="w-3.5 h-3.5" />}>Quick setup</Eyebrow>
                 <Title>Let's tune Linguascript to you.</Title>
                 <Sub>Tell us your languages and current level — this powers translations and recommendations.</Sub>
