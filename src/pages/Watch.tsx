@@ -17,6 +17,8 @@ interface FilmData {
   url: string;
   language: string | null;
   thumbnail_url: string | null;
+  is_public: boolean;
+  created_by: string | null;
 }
 
 interface SubtitleSegment {
@@ -274,6 +276,12 @@ const Watch = () => {
   }, [user]);
 
   // ── CAPTION LOADING — runs before overlay ──
+  // Two strict cases:
+  //   A) Admin/library film (is_public=true): use ONLY stored SRTs. Never fetch from
+  //      YouTube, never auto-translate. The user's profile language does NOT influence
+  //      what is shown — primary = film.language, secondary = any other stored track.
+  //   B) User-pasted YouTube link (is_public=false): auto-fetch from YouTube, and
+  //      auto-translate if the second-language track is missing.
   useEffect(() => {
     if (!film) return;
     let cancelled = false;
@@ -283,6 +291,37 @@ const Watch = () => {
       setCaptionsError(null);
       setCaptionsStatus(null);
 
+      // ── Case A: Admin/library film — stored SRTs only ──
+      if (film.is_public) {
+        setCaptionsStatus("Loading subtitles…");
+        const primaryLang = film.language || "fr";
+
+        // Discover what languages are stored for this film
+        const { data: langRows } = await supabase
+          .from("subtitles")
+          .select("language")
+          .eq("film_id", film.id);
+        const storedLangs = Array.from(new Set((langRows || []).map((r: any) => r.language)));
+
+        const primary = await loadStoredTrack(film.id, primaryLang);
+        const secondaryLang = storedLangs.find((l) => l !== primaryLang) || primaryLang;
+        const secondary = secondaryLang === primaryLang ? primary : await loadStoredTrack(film.id, secondaryLang);
+
+        if (cancelled) return;
+
+        if (primary.length > 0) {
+          setSubtitles(buildDisplaySubtitles(primary, secondary));
+          setCaptionsStatus(null);
+        } else {
+          setCaptionsError(
+            `No ${getLanguageLabel(primaryLang)} subtitles uploaded for this film yet.`
+          );
+        }
+        setCaptionsLoading(false);
+        return;
+      }
+
+      // ── Case B: User-pasted YouTube link — auto-fetch + auto-translate ──
       const primaryLang = learningLanguage || film.language || "fr";
       const secondaryLang = nativeLanguage || "en";
       const ytId = getYouTubeId(film.url);

@@ -89,11 +89,12 @@ const Admin = () => {
   const [thumbnailUrl, setThumbnailUrl] = useState("");
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
-  const [srtFileFr, setSrtFileFr] = useState<File | null>(null);
-  const [srtFileEn, setSrtFileEn] = useState<File | null>(null);
+  const [srtFileOriginal, setSrtFileOriginal] = useState<File | null>(null);
+  const [srtFileSecondary, setSrtFileSecondary] = useState<File | null>(null);
+  const [secondaryLanguage, setSecondaryLanguage] = useState("en");
   const [uploadingSubsFor, setUploadingSubsFor] = useState<string | null>(null);
-  const fileInputRefFr = useRef<HTMLInputElement>(null);
-  const fileInputRefEn = useRef<HTMLInputElement>(null);
+  const fileInputRefOriginal = useRef<HTMLInputElement>(null);
+  const fileInputRefSecondary = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -272,20 +273,20 @@ const Admin = () => {
     if (error) {
       toast({ title: "Error adding film", description: error.message, variant: "destructive" });
     } else {
-      if (srtFileFr && data) {
-        await parseSrtAndUpload(data.id, srtFileFr, "fr");
+      if (srtFileOriginal && data) {
+        await parseSrtAndUpload(data.id, srtFileOriginal, language);
       }
-      if (srtFileEn && data) {
-        await parseSrtAndUpload(data.id, srtFileEn, "en");
+      if (srtFileSecondary && data) {
+        await parseSrtAndUpload(data.id, srtFileSecondary, secondaryLanguage);
       }
       toast({ title: "Film added!" });
       setTitle("");
       setUrl("");
       setThumbnailUrl("");
-      setSrtFileFr(null);
-      setSrtFileEn(null);
-      if (fileInputRefFr.current) fileInputRefFr.current.value = "";
-      if (fileInputRefEn.current) fileInputRefEn.current.value = "";
+      setSrtFileOriginal(null);
+      setSrtFileSecondary(null);
+      if (fileInputRefOriginal.current) fileInputRefOriginal.current.value = "";
+      if (fileInputRefSecondary.current) fileInputRefSecondary.current.value = "";
       fetchFilms();
     }
     setAdding(false);
@@ -352,48 +353,60 @@ const Admin = () => {
             </SelectContent>
           </Select>
 
-          {/* French SRT Upload */}
+          {/* Original SRT Upload (matches film language) */}
           <div className="space-y-2">
             <label className="text-sm text-muted-foreground flex items-center gap-2">
-              <FileText className="w-4 h-4" /> 🇫🇷 French Subtitles (.srt) — optional
+              <FileText className="w-4 h-4" /> Original subtitles (.srt) — {LANGUAGES.find(l => l.code === language)?.label || language} — optional
             </label>
             <div className="flex items-center gap-3">
               <Input
-                ref={fileInputRefFr}
+                ref={fileInputRefOriginal}
                 type="file"
                 accept=".srt"
-                onChange={(e) => setSrtFileFr(e.target.files?.[0] ?? null)}
+                onChange={(e) => setSrtFileOriginal(e.target.files?.[0] ?? null)}
                 className="bg-secondary/50 border-border"
               />
-              {srtFileFr && (
+              {srtFileOriginal && (
                 <span className="text-xs text-primary flex items-center gap-1 whitespace-nowrap">
-                  <Check className="w-3 h-3" /> {srtFileFr.name}
+                  <Check className="w-3 h-3" /> {srtFileOriginal.name}
                 </span>
               )}
             </div>
           </div>
 
-          {/* English SRT Upload */}
+          {/* Second-language SRT Upload */}
           <div className="space-y-2">
             <label className="text-sm text-muted-foreground flex items-center gap-2">
-              <FileText className="w-4 h-4" /> 🇬🇧 English Subtitles (.srt) — optional
+              <FileText className="w-4 h-4" /> Second-language subtitles (.srt) — optional
             </label>
             <div className="flex items-center gap-3">
+              <Select value={secondaryLanguage} onValueChange={setSecondaryLanguage}>
+                <SelectTrigger className="bg-secondary/50 border-border w-[160px] shrink-0">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {LANGUAGES.filter(l => l.code !== language).map((lang) => (
+                    <SelectItem key={lang.code} value={lang.code}>
+                      {lang.flag} {lang.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <Input
-                ref={fileInputRefEn}
+                ref={fileInputRefSecondary}
                 type="file"
                 accept=".srt"
-                onChange={(e) => setSrtFileEn(e.target.files?.[0] ?? null)}
+                onChange={(e) => setSrtFileSecondary(e.target.files?.[0] ?? null)}
                 className="bg-secondary/50 border-border"
               />
-              {srtFileEn && (
+              {srtFileSecondary && (
                 <span className="text-xs text-primary flex items-center gap-1 whitespace-nowrap">
-                  <Check className="w-3 h-3" /> {srtFileEn.name}
+                  <Check className="w-3 h-3" /> {srtFileSecondary.name}
                 </span>
               )}
             </div>
             <p className="text-xs text-muted-foreground">
-              Upload .srt files per language. If not provided, LinguaScript will fetch and store tracks when the lesson is created or opened.
+              Upload SRT pairs per film. Library films use only these uploaded subtitles — they are never auto-translated or auto-fetched.
             </p>
           </div>
 
@@ -458,42 +471,50 @@ const Admin = () => {
                       "No subtitles uploaded"
                     )}
                   </div>
-                  <div className="flex items-center gap-2">
-                    {["fr", "en"].map((lang) => {
-                      const hasLang = (film.subtitle_languages ?? []).includes(lang);
-                      const langLabel = lang === "fr" ? "🇫🇷 FR" : "🇬🇧 EN";
-                      return (
-                        <div key={lang}>
-                          <input
-                            type="file"
-                            accept=".srt"
-                            className="hidden"
-                            id={`srt-${film.id}-${lang}`}
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) handleUploadSubsForExisting(film.id, file, lang);
-                              requestAnimationFrame(() => { e.target.value = ""; });
-                            }}
-                          />
-                          <Button
-                            variant="glass"
-                            size="sm"
-                            className="gap-1 text-xs"
-                            disabled={uploadingSubsFor === film.id}
-                            onClick={() => {
-                              document.getElementById(`srt-${film.id}-${lang}`)?.click();
-                            }}
-                          >
-                            {uploadingSubsFor === film.id ? (
-                              <Loader2 className="w-3 h-3 animate-spin" />
-                            ) : (
-                              <Upload className="w-3 h-3" />
-                            )}
-                            {hasLang ? `Replace ${langLabel}` : `Upload ${langLabel}`}
-                          </Button>
-                        </div>
-                      );
-                    })}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {(() => {
+                      const orig = film.language || "fr";
+                      const existing = film.subtitle_languages ?? [];
+                      const secondaryExisting = existing.find((l) => l !== orig);
+                      const slots: Array<{ lang: string; role: "Original" | "Second" }> = [
+                        { lang: orig, role: "Original" },
+                        { lang: secondaryExisting || (orig === "en" ? "fr" : "en"), role: "Second" },
+                      ];
+                      return slots.map((slot) => {
+                        const hasLang = existing.includes(slot.lang);
+                        const langInfo = LANGUAGES.find((l) => l.code === slot.lang);
+                        const label = `${langInfo?.flag ?? ""} ${langInfo?.label ?? slot.lang.toUpperCase()}`;
+                        return (
+                          <div key={slot.role}>
+                            <input
+                              type="file"
+                              accept=".srt"
+                              className="hidden"
+                              id={`srt-${film.id}-${slot.role}`}
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) handleUploadSubsForExisting(film.id, file, slot.lang);
+                                requestAnimationFrame(() => { e.target.value = ""; });
+                              }}
+                            />
+                            <Button
+                              variant="glass"
+                              size="sm"
+                              className="gap-1 text-xs"
+                              disabled={uploadingSubsFor === film.id}
+                              onClick={() => document.getElementById(`srt-${film.id}-${slot.role}`)?.click()}
+                            >
+                              {uploadingSubsFor === film.id ? (
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                              ) : (
+                                <Upload className="w-3 h-3" />
+                              )}
+                              {hasLang ? `Replace ${slot.role} (${label})` : `Upload ${slot.role} (${label})`}
+                            </Button>
+                          </div>
+                        );
+                      });
+                    })()}
                   </div>
                 </div>
               </div>
