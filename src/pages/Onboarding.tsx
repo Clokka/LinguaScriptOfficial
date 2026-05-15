@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowRight, ArrowLeft, Check, Sparkles, Languages, Subtitles,
   BookOpen, Brain, Mic, MousePointer2, Trophy, Flame,
+  Headphones, MessageCircle, RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
