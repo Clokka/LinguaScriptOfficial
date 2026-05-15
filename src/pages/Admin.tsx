@@ -11,10 +11,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Plus, Trash2, Film, Loader2, Upload, FileText, Check, Mail, Layers, X, ArrowUp, ArrowDown, Eye, EyeOff } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Film, Loader2, Upload, FileText, Check, Mail, Layers, X, ArrowUp, ArrowDown, Eye, EyeOff, Plug, BarChart3, Facebook, LineChart, Music2, Linkedin } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { Pencil } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { getIntegrations, saveIntegrations, type IntegrationKey, type IntegrationConfig } from "@/lib/integrations";
 
 function RowHeader({ row, onRename, onDelete }: { row: { id: string; title: string }; onRename: (id: string, title: string) => void; onDelete: (id: string) => void; }) {
   const [editing, setEditing] = useState(false);
@@ -615,6 +617,9 @@ const Admin = () => {
           })}
         </div>
 
+        {/* Integrations */}
+        <IntegrationsPanel />
+
         {/* Email Signups */}
         <h2 className="text-lg font-semibold text-foreground mb-4 mt-12 flex items-center gap-2">
           <Mail className="w-5 h-5 text-primary" /> Email Signups ({emails.length})
@@ -650,5 +655,73 @@ const Admin = () => {
     </div>
   );
 };
+
+function IntegrationsPanel() {
+  const { toast } = useToast();
+  const [cfg, setCfg] = useState(() => getIntegrations());
+
+  const update = (key: IntegrationKey, patch: Partial<IntegrationConfig>) => {
+    setCfg((prev) => ({ ...prev, [key]: { ...prev[key], ...patch } }));
+  };
+
+  const save = () => {
+    saveIntegrations(cfg);
+    toast({ title: "Integrations saved", description: "Reload any open tabs to apply changes." });
+  };
+
+  const cards: { key: IntegrationKey; name: string; desc: string; icon: any; placeholder: string; available: boolean; }[] = [
+    { key: "clarity", name: "Microsoft Clarity", desc: "Session replays & heatmaps.", icon: BarChart3, placeholder: "Project ID (e.g. wrmsg5geae)", available: true },
+    { key: "metaPixel", name: "Meta Pixel", desc: "Facebook & Instagram ad tracking.", icon: Facebook, placeholder: "Pixel ID", available: false },
+    { key: "googleAnalytics", name: "Google Analytics 4", desc: "Traffic & conversions.", icon: LineChart, placeholder: "Measurement ID (G-XXXXXXX)", available: false },
+    { key: "tiktokPixel", name: "TikTok Pixel", desc: "TikTok ad attribution.", icon: Music2, placeholder: "Pixel ID", available: false },
+    { key: "linkedinInsight", name: "LinkedIn Insight", desc: "B2B audience tracking.", icon: Linkedin, placeholder: "Partner ID", available: false },
+  ];
+
+  return (
+    <div className="mt-12">
+      <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+        <Plug className="w-5 h-5 text-primary" /> Integrations
+      </h2>
+      <p className="text-sm text-muted-foreground mb-4">Connect analytics & tracking tools. Settings are stored locally and applied site-wide on next page load.</p>
+      <div className="grid sm:grid-cols-2 gap-3">
+        {cards.map(({ key, name, desc, icon: Icon, placeholder, available }) => {
+          const c = cfg[key];
+          return (
+            <div key={key} className="glass-panel p-4 space-y-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                    <Icon className="w-4 h-4 text-primary" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-foreground font-medium truncate">{name}</p>
+                    <p className="text-xs text-muted-foreground truncate">{desc}</p>
+                  </div>
+                </div>
+                {available ? (
+                  <Switch checked={c.enabled} onCheckedChange={(v) => update(key, { enabled: v })} />
+                ) : (
+                  <span className="text-[10px] uppercase tracking-wide text-muted-foreground bg-secondary/50 rounded px-2 py-1">Soon</span>
+                )}
+              </div>
+              <Input
+                value={c.id}
+                onChange={(e) => update(key, { id: e.target.value })}
+                placeholder={placeholder}
+                disabled={!available}
+                className="bg-secondary/50 border-border"
+              />
+            </div>
+          );
+        })}
+      </div>
+      <div className="mt-4">
+        <Button variant="hero" onClick={save} className="gap-2">
+          <Check className="w-4 h-4" /> Save integrations
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 export default Admin;
