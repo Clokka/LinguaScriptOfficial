@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Layers, Mail, Lock, User } from "lucide-react";
@@ -21,17 +21,17 @@ const Auth = () => {
 
   const handleGoogle = async () => {
     setGoogleLoading(true);
-    const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin + next,
-      extraParams: { prompt: "select_account" },
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: window.location.origin + next,
+        queryParams: { prompt: "select_account", access_type: "offline" },
+      },
     });
-    if (result.error) {
-      toast({ title: "Google sign-in failed", description: String(result.error.message || result.error), variant: "destructive" });
+    if (error) {
+      toast({ title: "Google sign-in failed", description: error.message, variant: "destructive" });
       setGoogleLoading(false);
-      return;
     }
-    if (result.redirected) return;
-    navigate(next);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
