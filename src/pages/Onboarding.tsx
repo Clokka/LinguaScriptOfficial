@@ -223,7 +223,7 @@ const Onboarding = () => {
                     value={goal}
                     onChange={(e) => { setGoal(e.target.value); setGoalSaved(false); }}
                     placeholder="e.g. Hold a 10-minute conversation in French by summer."
-                    className="min-h-[110px] rounded-2xl border-orange-100 focus-visible:ring-orange-300"
+                    className="min-h-[110px] rounded-2xl border-orange-100 focus-visible:ring-orange-300 bg-white text-neutral-900"
                   />
                   <div className="mt-3 flex items-center gap-3">
                     <Button
