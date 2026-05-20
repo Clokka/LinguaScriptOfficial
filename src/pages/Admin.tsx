@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Plus, Trash2, Film, Loader2, Upload, FileText, Check, Mail, Layers, X, ArrowUp, ArrowDown, Eye, EyeOff, Plug, BarChart3, Facebook, LineChart, Music2, Linkedin } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Film, Loader2, Upload, FileText, Check, Mail, Layers, X, ArrowUp, ArrowDown, Eye, EyeOff, Plug, BarChart3, Facebook, LineChart, Music2, Linkedin, MessageCircle, ExternalLink } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { Pencil } from "lucide-react";
@@ -669,12 +669,13 @@ function IntegrationsPanel() {
     toast({ title: "Integrations saved", description: "Reload any open tabs to apply changes." });
   };
 
-  const cards: { key: IntegrationKey; name: string; desc: string; icon: any; placeholder: string; available: boolean; }[] = [
-    { key: "clarity", name: "Microsoft Clarity", desc: "Session replays & heatmaps.", icon: BarChart3, placeholder: "Project ID (e.g. wrmsg5geae)", available: true },
-    { key: "metaPixel", name: "Meta Pixel", desc: "Facebook & Instagram ad tracking.", icon: Facebook, placeholder: "Pixel ID", available: false },
-    { key: "googleAnalytics", name: "Google Analytics 4", desc: "Traffic & conversions.", icon: LineChart, placeholder: "Measurement ID (G-XXXXXXX)", available: false },
-    { key: "tiktokPixel", name: "TikTok Pixel", desc: "TikTok ad attribution.", icon: Music2, placeholder: "Pixel ID", available: false },
-    { key: "linkedinInsight", name: "LinkedIn Insight", desc: "B2B audience tracking.", icon: Linkedin, placeholder: "Partner ID", available: false },
+  const cards: { key: IntegrationKey; name: string; desc: string; icon: any; placeholder: string; available: boolean; dashboardUrl: string; dashboardLabel: string; }[] = [
+    { key: "clarity", name: "Microsoft Clarity", desc: "Session replays & heatmaps.", icon: BarChart3, placeholder: "Project ID (e.g. wrmsg5geae)", available: true, dashboardUrl: "https://clarity.microsoft.com/projects", dashboardLabel: "Open Clarity" },
+    { key: "manychat", name: "ManyChat", desc: "Chat automation & broadcasts.", icon: MessageCircle, placeholder: "Stored securely in backend", available: true, dashboardUrl: "https://app.manychat.com/", dashboardLabel: "Open ManyChat" },
+    { key: "metaPixel", name: "Meta Pixel", desc: "Facebook & Instagram ad tracking.", icon: Facebook, placeholder: "Pixel ID", available: false, dashboardUrl: "https://business.facebook.com/events_manager2", dashboardLabel: "Events Manager" },
+    { key: "googleAnalytics", name: "Google Analytics 4", desc: "Traffic & conversions.", icon: LineChart, placeholder: "Measurement ID (G-XXXXXXX)", available: false, dashboardUrl: "https://analytics.google.com/", dashboardLabel: "Open GA4" },
+    { key: "tiktokPixel", name: "TikTok Pixel", desc: "TikTok ad attribution.", icon: Music2, placeholder: "Pixel ID", available: false, dashboardUrl: "https://ads.tiktok.com/i18n/events_manager", dashboardLabel: "TikTok Events" },
+    { key: "linkedinInsight", name: "LinkedIn Insight", desc: "B2B audience tracking.", icon: Linkedin, placeholder: "Partner ID", available: false, dashboardUrl: "https://www.linkedin.com/campaignmanager/", dashboardLabel: "Campaign Manager" },
   ];
 
   return (
@@ -682,10 +683,11 @@ function IntegrationsPanel() {
       <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
         <Plug className="w-5 h-5 text-primary" /> Integrations
       </h2>
-      <p className="text-sm text-muted-foreground mb-4">Connect analytics & tracking tools. Settings are stored locally and applied site-wide on next page load.</p>
+      <p className="text-sm text-muted-foreground mb-4">Connect analytics & tracking tools. Each card has a quick link to its dashboard.</p>
       <div className="grid sm:grid-cols-2 gap-3">
-        {cards.map(({ key, name, desc, icon: Icon, placeholder, available }) => {
+        {cards.map(({ key, name, desc, icon: Icon, placeholder, available, dashboardUrl, dashboardLabel }) => {
           const c = cfg[key];
+          const isManychat = key === "manychat";
           return (
             <div key={key} className="glass-panel p-4 space-y-3">
               <div className="flex items-start justify-between gap-3">
@@ -699,7 +701,11 @@ function IntegrationsPanel() {
                   </div>
                 </div>
                 {available ? (
-                  <Switch checked={c.enabled} onCheckedChange={(v) => update(key, { enabled: v })} />
+                  isManychat ? (
+                    <span className="text-[10px] uppercase tracking-wide text-success bg-success/10 rounded px-2 py-1">Backend</span>
+                  ) : (
+                    <Switch checked={c.enabled} onCheckedChange={(v) => update(key, { enabled: v })} />
+                  )
                 ) : (
                   <span className="text-[10px] uppercase tracking-wide text-muted-foreground bg-secondary/50 rounded px-2 py-1">Soon</span>
                 )}
@@ -708,9 +714,17 @@ function IntegrationsPanel() {
                 value={c.id}
                 onChange={(e) => update(key, { id: e.target.value })}
                 placeholder={placeholder}
-                disabled={!available}
+                disabled={!available || isManychat}
                 className="bg-secondary/50 border-border"
               />
+              <a
+                href={dashboardUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 transition-colors"
+              >
+                <ExternalLink className="w-3 h-3" /> {dashboardLabel}
+              </a>
             </div>
           );
         })}
