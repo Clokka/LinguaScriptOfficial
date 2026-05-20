@@ -423,20 +423,38 @@ const Field = ({ label, children }: { label: string; children: React.ReactNode }
   </div>
 );
 
-const LangSelect = ({ value, onChange, exclude }: { value: string; onChange: (v: string) => void; exclude?: string }) => (
-  <Select value={value} onValueChange={onChange}>
-    <SelectTrigger className="rounded-xl border-orange-100 bg-white h-11">
-      <SelectValue />
-    </SelectTrigger>
-    <SelectContent>
-      {LANGUAGES.filter((l) => l.code !== exclude).map((l) => (
-        <SelectItem key={l.code} value={l.code}>
-          <span className="flex items-center gap-2"><span>{l.flag}</span> {l.label}</span>
-        </SelectItem>
-      ))}
-    </SelectContent>
-  </Select>
-);
+const POPULAR_LANGS = ["en", "es", "fr", "de", "it"];
+
+const LangSelect = ({ value, onChange, exclude }: { value: string; onChange: (v: string) => void; exclude?: string }) => {
+  const filtered = LANGUAGES.filter((l) => l.code !== exclude);
+  const popular = filtered.filter((l) => POPULAR_LANGS.includes(l.code));
+  const rest = filtered.filter((l) => !POPULAR_LANGS.includes(l.code));
+
+  return (
+    <Select value={value} onValueChange={onChange}>
+      <SelectTrigger className="rounded-xl border-orange-100 bg-white h-11 text-neutral-900">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent className="bg-white text-neutral-900">
+        {popular.map((l) => (
+          <SelectItem key={l.code} value={l.code}>
+            <span className="flex items-center gap-2"><span>{l.flag}</span> {l.label}</span>
+          </SelectItem>
+        ))}
+        {rest.length > 0 && (
+          <>
+            <SelectSeparator />
+            {rest.map((l) => (
+              <SelectItem key={l.code} value={l.code}>
+                <span className="flex items-center gap-2"><span>{l.flag}</span> {l.label}</span>
+              </SelectItem>
+            ))}
+          </>
+        )}
+      </SelectContent>
+    </Select>
+  );
+};
 
 const InfoTile = ({ icon, title, body }: { icon: React.ReactNode; title: string; body: string }) => (
   <div className="rounded-2xl border border-orange-100 bg-orange-50/40 p-5">
