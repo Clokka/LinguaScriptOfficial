@@ -43,6 +43,7 @@ const App = () => (
             </Routes>
             <TourOverlay />
             <DailyBriefing />
+            <StreakCelebrationModal />
           </TourProvider>
         </BrowserRouter>
       </LanguageProvider>
