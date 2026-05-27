@@ -113,6 +113,13 @@ export function useStreakStatus(): StreakStatus {
         .update({ streak_count: newCount, last_streak_date: today } as any)
         .eq("user_id", user.id);
       streakCount = newCount;
+
+      // Fire celebration event (once per ignition, guarded by alreadyMarkedToday above)
+      emitStreakIgnited({
+        streakCount: newCount,
+        wordsReviewed,
+        minutesWatched,
+      });
     }
 
     setState({
