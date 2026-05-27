@@ -32,8 +32,9 @@ const Onboarding = () => {
 
   const [step, setStep] = useState(0);
   const [native, setNative] = useState("en");
-  const [target, setTarget] = useState("fr");
+  const [target] = useState("fr"); // French-only — other languages "Coming soon"
   const [level, setLevel] = useState<Level | null>(null);
+  const [school, setSchool] = useState("");
   const [goal, setGoal] = useState("");
   const [goalSaved, setGoalSaved] = useState(false);
   const [dualClicked, setDualClicked] = useState(false);
@@ -48,9 +49,9 @@ const Onboarding = () => {
     supabase.from("profiles").select("*").eq("user_id", user.id).single().then(({ data }) => {
       if (data) {
         if (data.native_language) setNative(data.native_language);
-        if (data.learning_language) setTarget(data.learning_language);
         if ((data as any).cef_level) setLevel((data as any).cef_level as Level);
         if ((data as any).learning_goal) setGoal((data as any).learning_goal);
+        if ((data as any).school) setSchool((data as any).school);
         if ((data as any).onboarded) navigate("/browse");
       }
     });
@@ -73,7 +74,8 @@ const Onboarding = () => {
         native_language: native,
         learning_language: target,
         cef_level: level,
-      }).eq("user_id", user.id);
+        school: school.trim() || null,
+      } as any).eq("user_id", user.id);
       setLearningLanguage(target);
     }
     if (step < totalSteps - 1) {
@@ -176,7 +178,7 @@ const Onboarding = () => {
                     <LangSelect value={native} onChange={setNative} exclude={target} />
                   </Field>
                   <Field label="I want to learn">
-                    <LangSelect value={target} onChange={setTarget} exclude={native} />
+                    <FrenchOnlySelect />
                   </Field>
 
                   <Field label="My current level">
@@ -202,9 +204,22 @@ const Onboarding = () => {
                       </div>
                     )}
                   </Field>
+
+                  <Field label="School (optional)">
+                    <Input
+                      value={school}
+                      onChange={(e) => setSchool(e.target.value)}
+                      placeholder="e.g. Truro College"
+                      className="rounded-xl border-orange-100 bg-white h-11 focus-visible:ring-orange-300 text-neutral-900"
+                    />
+                    <p className="mt-2 text-xs text-neutral-500">
+                      Add your school or college so we can connect you with classmates later. Skip if you're learning solo.
+                    </p>
+                  </Field>
                 </div>
               </Card>
             )}
+
 
             {step === 2 && (
               <Card>
@@ -480,6 +495,40 @@ const PillarCard = ({
       </div>
       <p className="text-[13px] text-neutral-500 mt-0.5">{title}</p>
       <p className="mt-1.5 text-sm text-neutral-700 leading-relaxed">{body}</p>
+    </div>
+  </div>
+);
+
+
+const COMING_SOON_LANGS = [
+  { code: "es", label: "Spanish", flag: "🇪🇸" },
+  { code: "de", label: "German", flag: "🇩🇪" },
+  { code: "it", label: "Italian", flag: "🇮🇹" },
+  { code: "pt", label: "Portuguese", flag: "🇵🇹" },
+];
+
+const FrenchOnlySelect = () => (
+  <div className="space-y-2">
+    <div className="flex items-center gap-3 rounded-xl border border-orange-200 bg-gradient-to-br from-orange-50 to-white px-4 h-11">
+      <span className="text-xl">🇫🇷</span>
+      <span className="font-medium text-neutral-900">French</span>
+      <span className="ml-auto inline-flex items-center gap-1 text-[11px] font-medium uppercase tracking-wide text-orange-600 bg-orange-100/80 rounded-full px-2 py-0.5">
+        <Check className="w-3 h-3" /> Available
+      </span>
+    </div>
+    <div className="rounded-xl border border-neutral-200 bg-neutral-50/60 p-3">
+      <p className="text-[11px] font-medium uppercase tracking-wide text-neutral-500 mb-2">Coming soon</p>
+      <div className="grid grid-cols-2 gap-1.5">
+        {COMING_SOON_LANGS.map((l) => (
+          <div
+            key={l.code}
+            className="flex items-center gap-2 text-sm text-neutral-400 px-2 py-1.5 rounded-lg cursor-not-allowed"
+          >
+            <span>{l.flag}</span>
+            <span>{l.label}</span>
+          </div>
+        ))}
+      </div>
     </div>
   </div>
 );

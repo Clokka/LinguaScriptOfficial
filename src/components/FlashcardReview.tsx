@@ -1,8 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Flashcard } from "./Flashcard";
 import { Button } from "./ui/button";
-import { X, ChevronLeft, ChevronRight, Trophy } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, Trophy, ArrowLeftRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+type Direction = "learn-to-native" | "native-to-learn";
+const DIR_KEY = "flashcardDirection";
 
 interface FlashcardData {
   id: string;
@@ -25,6 +28,15 @@ export const FlashcardReview = ({ cards, onClose, className }: FlashcardReviewPr
   const [correct, setCorrect] = useState(0);
   const [incorrect, setIncorrect] = useState(0);
   const [isComplete, setIsComplete] = useState(false);
+  const [direction, setDirection] = useState<Direction>(() => {
+    return (localStorage.getItem(DIR_KEY) as Direction) || "native-to-learn";
+  });
+
+  useEffect(() => { localStorage.setItem(DIR_KEY, direction); }, [direction]);
+
+  const toggleDirection = () => {
+    setDirection((d) => (d === "learn-to-native" ? "native-to-learn" : "learn-to-native"));
+  };
 
   const handleCorrect = () => {
     setCorrect((prev) => prev + 1);
@@ -113,6 +125,19 @@ export const FlashcardReview = ({ cards, onClose, className }: FlashcardReviewPr
         <div className="w-10" />
       </div>
 
+      {/* Direction toggle */}
+      <div className="flex justify-center mb-6">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={toggleDirection}
+          className="gap-2 rounded-full text-xs"
+        >
+          <ArrowLeftRight className="w-3.5 h-3.5" />
+          {direction === "native-to-learn" ? "English → French" : "French → English"}
+        </Button>
+      </div>
+
       {/* Progress bar */}
       <div className="h-1 bg-muted rounded-full mb-8 overflow-hidden">
         <div
@@ -123,15 +148,18 @@ export const FlashcardReview = ({ cards, onClose, className }: FlashcardReviewPr
 
       {/* Flashcard */}
       <Flashcard
+        key={currentCard.id + direction}
         word={currentCard.word}
         translation={currentCard.translation}
         pronunciation={currentCard.pronunciation}
         ipa={currentCard.ipa}
         context={currentCard.context}
         contextTranslation={currentCard.contextTranslation}
+        direction={direction}
         onCorrect={handleCorrect}
         onIncorrect={handleIncorrect}
       />
+
 
       {/* Navigation */}
       <div className="flex justify-center gap-4 mt-8">
