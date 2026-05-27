@@ -257,6 +257,7 @@ export type Database = {
           learning_language: string | null
           native_language: string | null
           onboarded: boolean
+          school: string | null
           updated_at: string
           user_id: string
         }
@@ -271,6 +272,7 @@ export type Database = {
           learning_language?: string | null
           native_language?: string | null
           onboarded?: boolean
+          school?: string | null
           updated_at?: string
           user_id: string
         }
@@ -285,6 +287,7 @@ export type Database = {
           learning_language?: string | null
           native_language?: string | null
           onboarded?: boolean
+          school?: string | null
           updated_at?: string
           user_id?: string
         }

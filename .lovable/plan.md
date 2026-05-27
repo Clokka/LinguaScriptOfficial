@@ -1,77 +1,94 @@
-# Interactive Onboarding Walkthrough
+# Audit + Fix Plan
 
-A forced, cursor-guided tour that runs on **real pages** (Watch, Browse, Flashcards, Profile) — not a mocked demo. Users cannot skip; each step requires the prescribed click before advancing.
+## 1. French-only (other languages "Coming soon")
 
-## Architecture
+**File:** `src/pages/Onboarding.tsx` (step 1 language picker)
 
-A new global **`TourProvider`** (`src/contexts/TourContext.tsx`) wraps the app. It owns:
-- current step id
-- step config (target selector, tooltip copy, required interaction, next route)
-- `advance()` / `setStep()` / `endTour()`
+- In the "I want to learn" select, only **French** is selectable.
+- Render Spanish/German/Italian/Portuguese etc. as disabled rows with a "Coming soon" badge.
+- Force-set `target = "fr"` on mount; hide the level-blocking logic for other targets.
+- Leave the **native** language picker untouched (still 16 langs).
 
-A new global **`TourOverlay`** component (mounted in `App.tsx` inside `LanguageProvider`) renders:
-- animated fake cursor (framer-motion spring) that flies to the current target's bounding rect (resolved via `document.querySelector(selector)` + `getBoundingClientRect`, recomputed on resize/route change)
-- tooltip near the target with copy
-- a translucent "spotlight" that dims everything except the target
-- click interception: only the target is clickable; everything else is blocked
+No DB change required — `profiles.learning_language` already defaults to French use.
 
-Pages opt in by giving key elements stable `data-tour="..."` attributes. The overlay finds them by `[data-tour="..."]`.
+## 2. Optional "School" step in onboarding
 
-The tour is triggered from the existing `/onboarding` page via a new "Enter the demo" button after the intro video, which sets `tour.start("watch-dual")` and navigates to `/watch/<training-video-id>`.
+**Files:** `src/pages/Onboarding.tsx`, new migration
 
-## Step sequence
+- Add a new step (between current step 1 and 2) titled *"Are you learning with a school?"*
+- Single text input (autocomplete-style) — fully optional, skippable with "Skip" button.
+- Pre-fill / suggest **Truro College** if email domain matches `@truro-penwith.ac.uk` (or similar).
+- Persist to `profiles.school` (new nullable text column).
 
-| # | Route | Target (`data-tour`) | Tooltip | Required action |
-|---|---|---|---|---|
-| 1 | `/watch/:id` (training video) | `dual-subs-toggle` | "See two languages at once" | click toggle |
-| 2 | `/watch/:id` | `subtitle-word` (any word in overlay) | "Click any word to learn it" | click a word |
-| 3 | `/watch/:id` | `word-pronounce` (in WordPopup) | "Hear the word spoken" | click speaker |
-| 4 | `/watch/:id` | `fullscreen-btn` | "Immerse yourself" | click fullscreen |
-| — | auto-nav to `/browse` after 500ms | | | |
-| 5 | `/browse` sidebar | `nav-flashcards` | "Your saved words live here" | click |
-| 6 | `/flashcards` | `flashcard-body` | "Click the card to reveal translation" | click card |
-| 7 | `/flashcards` | `flashcard-got-it` / `flashcard-again` | "Green = Got it · Red = Again" | click either |
-| (repeat 6-7 once more) | | | | |
-| 8 | back arrow → `/browse` | `nav-back` | — | auto-advance after route |
-| 9 | `/browse` | `nav-calendar` | "Track your daily streaks" | click |
-| 10 | back → `/browse` | `nav-back` | — | |
-| 11 | `/browse` | `nav-settings` | "Set your languages" | click |
-| 12 | `/profile` | `native-lang-select` | "Choose your native language" | select value |
-| 13 | `/profile` | `target-lang-select` | "Choose what you're learning" | select value |
-| 14 | back → `/browse` | `paste-youtube-input` | "Linguascript works with YouTube videos you already love. Paste any link." | input gets focus + value (auto-filled with `SoafcM3xqlc` URL by the tour) |
-| 15 | `/watch/<new lesson>` | overlay finale | "You're ready. Happy learning." | dismiss |
+**Migration:**
+```sql
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS school text;
+```
 
-Each `data-tour` already-present-or-not is verified during implementation; missing ones are added with no visual change.
+## 3. Remove Google sign-in from onboarding/auth flow → Profile only
 
-## Onboarding intro video
+**Files:** `src/pages/Auth.tsx`, `src/pages/Profile.tsx`
 
-Replace the current Onboarding "demo" embed with the Instagram intro video, played **inline** via Instagram's official `<blockquote class="instagram-media">` embed (loaded with `instagram.com/embed.js`). Below it: an "Enter the demo" CTA that starts the tour and routes to `/watch/<training-video-db-id>`.
+- Strip the Google button + divider from `Auth.tsx`. Email + password only.
+- In `Profile.tsx`, add an **Account** section:
+  - If logged in via email → "Link Google account" button (calls `linkIdentity({ provider: 'google' })`).
+  - If logged out (viewing /profile bounce) → show "Sign in with Google" there.
+- Keep `supabase--configure_social_auth` Google enabled (already on) so linking works.
 
-The training video is `https://youtu.be/v7G2iPeiVVg`. We resolve its row in `films` by `youtube_id = 'v7G2iPeiVVg'` and route to `/watch/<row.id>`. If the row is missing, the tour falls back to opening the YT id directly.
+## 4. Mobile YouTube player feels "zoomed in"
 
-## Required UI hooks (add `data-tour` attributes)
+**File:** `src/pages/Watch.tsx` (around line 535–545)
 
-- `src/pages/Watch.tsx`: dual-subs toggle button, fullscreen button
-- `src/components/SubtitleOverlay.tsx`: each word span
-- `src/components/WordPopup.tsx`: pronunciation button
-- `src/components/NavBar.tsx` (sidebar): flashcards link, calendar link, settings link, back arrow
-- `src/pages/Profile.tsx`: native + target language selects
-- `src/pages/Browse.tsx`: paste-YouTube input
+Root cause: on a 414px viewport the 16:9 iframe fills edge-to-edge with no breathing room, header eats vertical space, and YT controls/title bar feel cramped.
 
-## New files
+Fixes:
+- Wrap the player in a centered container with **side padding on mobile** (`px-3 sm:px-0`) and a **rounded-2xl overflow-hidden** frame so it visually sits inside the page instead of bleeding to the edges.
+- Cap height with `max-h-[55vh]` on mobile (keeps it from filling the screen and pushing subtitles off).
+- Use `aspect-video` but center vertically with `my-auto` and add a soft black gradient surround for letterbox feel.
+- Subtitle overlay: move from `bottom-[8%]` to `bottom-[12%]` on mobile so it doesn't overlap YT controls.
 
-- `src/contexts/TourContext.tsx` — provider + hook
-- `src/components/TourOverlay.tsx` — cursor + tooltip + spotlight + click gate
-- `src/lib/tourSteps.ts` — declarative step config
+## 5. Flashcards — translation + orientation bugs
 
-## Edited files
+### A) Not translating French → English
 
-- `src/App.tsx` — wrap with TourProvider, render TourOverlay
-- `src/pages/Onboarding.tsx` — Instagram inline embed + "Enter the demo" CTA → starts tour
-- `src/pages/Watch.tsx`, `src/pages/Browse.tsx`, `src/pages/Profile.tsx`, `src/pages/Flashcards.tsx`, `src/components/NavBar.tsx`, `src/components/SubtitleOverlay.tsx`, `src/components/WordPopup.tsx` — add `data-tour` attributes; emit `tour.advance()` on the required interaction when that step is active
+**Investigation:**
+- `Watch.tsx` saves `saved_words` with `language: learningLanguage || "fr"` and AI-fetched `translation`. ✓
+- `Flashcards.tsx` auto-retranslates rows where `translation` is empty, calling `translate-word` with `fromLanguage = label(word.language)`, `toLanguage = label(nativeLang)`. ✓ logic
+- Likely culprits:
+  1. Old rows saved before `language` column existed → `language` defaults to `'fr'` but `translation` may have been stored as the French word itself (some early code path).
+  2. `translate-word` returns `{translation: word}` when the AI echoes input (gemini-2.5-flash-lite sometimes does on single tokens with no system context).
+  3. Native language never set → defaults to `'en'` so `fromLang === toLang` is impossible here, but worth logging.
 
-## Open questions
+**Fixes:**
+- Harden `supabase/functions/translate-word/index.ts`:
+  - Stronger system prompt: *"Never return the source word unchanged unless it is a proper noun."*
+  - Bump model from `gemini-2.5-flash-lite` → `google/gemini-2.5-flash` for accuracy.
+  - Validate: if `result.translation.toLowerCase() === word.toLowerCase()`, retry once with explicit "give the English meaning" instruction.
+- In `Flashcards.tsx`:
+  - Treat `translation === word` as "needs retranslation" alongside empty.
+  - Add a small "Re-translate" button per card in "All" mode for manual recovery.
+  - Show a toast when batch re-translation runs.
 
-1. **Instagram intro URL** — what is the Instagram reel/post URL to embed? (Not provided; need it to render the inline player.)
-2. **YouTube link demo (step 14)** — should the tour actually call the existing "create lesson from URL" pipeline (real fetch + DB insert + navigate to the new lesson), or just play a loading animation and stop? Real pipeline gives a true outcome; mock keeps the tour fast and avoids polluting the user's library.
-3. **Replay** — should completing the tour persist a `tour_completed_at` flag on the profile so it never re-runs, with a "Replay tour" button in Settings? (Recommended yes.)
+### B) Cards appearing "back to front"
+
+**Investigation:** `Flashcard.tsx` front = `word` (French, "Learning Language" label), back = `translation` (English, "Your Language"). For an A-Level French learner who wants **active recall** (English → recall French), this *is* backwards.
+
+**Fix:** add a direction toggle.
+- New prop `direction: "learn→native" | "native→learn"` on `Flashcard` (default `native→learn` for recall — show English, recall French).
+- Pill toggle in `FlashcardReview` header: **"Show: English → French / French → English"**.
+- Persist preference in `localStorage` (`flashcardDirection`).
+
+## Order of execution
+
+1. Migration: `profiles.school`
+2. Onboarding (French-only + school step)
+3. `Auth.tsx` (remove Google) + `Profile.tsx` (link account)
+4. `Watch.tsx` mobile aspect polish
+5. `translate-word` hardening + `Flashcards.tsx` re-translate logic
+6. `Flashcard` direction toggle
+
+## Out of scope (deferred)
+
+- Google Ads pre-roll (still on hold).
+- Glassmorphism re-skin of full platform (huge — separate workstream).
+- XP / leaderboards / schools admin dashboard.
