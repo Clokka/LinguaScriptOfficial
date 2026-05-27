@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { wordGoalForVideos, minuteGoalForVideos } from "@/lib/progressStats";
+import { emitStreakIgnited } from "@/components/StreakCelebrationModal";
 
 export interface StreakStatus {
   loading: boolean;
@@ -112,6 +113,13 @@ export function useStreakStatus(): StreakStatus {
         .update({ streak_count: newCount, last_streak_date: today } as any)
         .eq("user_id", user.id);
       streakCount = newCount;
+
+      // Fire celebration event (once per ignition, guarded by alreadyMarkedToday above)
+      emitStreakIgnited({
+        streakCount: newCount,
+        wordsReviewed,
+        minutesWatched,
+      });
     }
 
     setState({
