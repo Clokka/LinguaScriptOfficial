@@ -23,6 +23,7 @@ export const Flashcard = ({
   ipa,
   context,
   contextTranslation,
+  direction = "learn-to-native",
   onCorrect,
   onIncorrect,
 }: FlashcardProps) => {
@@ -31,30 +32,49 @@ export const Flashcard = ({
 
   const handleFlip = () => setIsFlipped(!isFlipped);
 
+  // Determine which side shows what based on direction
+  const showLearningFirst = direction === "learn-to-native";
+  const frontLabel = showLearningFirst ? "Learning Language" : "Your Language";
+  const frontText = showLearningFirst ? word : translation;
+  const frontSub = showLearningFirst ? ipa : pronunciation;
+  const backLabel = showLearningFirst ? "Your Language" : "Learning Language";
+  const backText = showLearningFirst ? translation : word;
+  const backSub = showLearningFirst ? pronunciation : ipa;
+  const frontHint = showLearningFirst ? "Tap to reveal translation" : "Tap to reveal the word";
+
   return (
     <div className="flashcard-container w-full max-w-md mx-auto">
       <div
         className={cn("flashcard w-full h-72 cursor-pointer", isFlipped && "flipped")}
         onClick={handleFlip}
       >
-        {/* Front — Learning language (word to learn) */}
+        {/* Front */}
         <div className="flashcard-face glass-panel-strong p-8 flex flex-col items-center justify-center shadow-float">
-          <p className="text-xs uppercase tracking-wider text-muted-foreground/60 mb-2">Learning Language</p>
-          <p className="text-4xl font-bold gradient-text mb-4">{word}</p>
-          <p className="text-muted-foreground text-lg">{ipa}</p>
-          {context && (
+          <p className="text-xs uppercase tracking-wider text-muted-foreground/60 mb-2">{frontLabel}</p>
+          <p className={cn("mb-4", showLearningFirst ? "text-4xl font-bold gradient-text" : "text-3xl font-bold text-foreground")}>
+            {frontText || "—"}
+          </p>
+          <p className="text-muted-foreground text-lg">{frontSub}</p>
+          {context && showLearningFirst && (
             <div className="mt-4 text-center space-y-1">
               <p className="text-sm text-muted-foreground italic">"{context}"</p>
             </div>
           )}
-          <p className="text-xs text-muted-foreground mt-6">Tap to reveal translation</p>
+          {contextTranslation && !showLearningFirst && (
+            <div className="mt-4 text-center space-y-1">
+              <p className="text-sm text-muted-foreground italic">"{contextTranslation}"</p>
+            </div>
+          )}
+          <p className="text-xs text-muted-foreground mt-6">{frontHint}</p>
         </div>
 
-        {/* Back — User's native language (translation) */}
+        {/* Back */}
         <div className="flashcard-face flashcard-back glass-panel-strong p-8 flex flex-col items-center justify-center shadow-float">
-          <p className="text-xs uppercase tracking-wider text-muted-foreground/60 mb-2">Your Language</p>
-          <p className="text-3xl font-bold text-foreground mb-3">{translation}</p>
-          <p className="text-muted-foreground">{pronunciation}</p>
+          <p className="text-xs uppercase tracking-wider text-muted-foreground/60 mb-2">{backLabel}</p>
+          <p className={cn("mb-3", showLearningFirst ? "text-3xl font-bold text-foreground" : "text-4xl font-bold gradient-text")}>
+            {backText || "—"}
+          </p>
+          <p className="text-muted-foreground">{backSub}</p>
           {context && (
             <div className="mt-4 text-center space-y-1 border-t border-border/30 pt-3">
               <p className="text-sm font-medium text-foreground/80 italic">"{context}"</p>
