@@ -7,6 +7,7 @@ import { LanguageProvider } from "@/contexts/LanguageContext";
 import { TourProvider } from "@/contexts/TourContext";
 import { TourOverlay } from "@/components/TourOverlay";
 import { DailyBriefing } from "@/components/DailyBriefing";
+import { StreakCelebrationModal } from "@/components/StreakCelebrationModal";
 import Landing from "./pages/Landing";
 import Browse from "./pages/Browse";
 import Auth from "./pages/Auth";
