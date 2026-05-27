@@ -143,33 +143,81 @@ export const ProgressDashboard = ({ variant = "light" }: ProgressDashboardProps)
 
   return (
     <div className="space-y-6">
-      {/* Streak hero */}
+      {/* Streak hero — DOMINANT */}
       <motion.div
-        initial={{ opacity: 0, y: 12 }}
+        initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
+        transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
         className={cn(
-          "relative overflow-hidden rounded-3xl p-6 sm:p-8 border",
+          "relative overflow-hidden rounded-3xl border p-6 sm:p-10",
           streak.streakActive
-            ? "border-orange-200 bg-gradient-to-br from-orange-50 via-white to-amber-50 shadow-[0_24px_60px_-30px_rgba(249,115,22,0.45)]"
-            : "border-neutral-200 bg-white",
+            ? "border-orange-200 bg-gradient-to-br from-orange-50 via-amber-50 to-rose-50 shadow-[0_30px_80px_-30px_rgba(249,115,22,0.55)]"
+            : "border-neutral-200 bg-gradient-to-br from-neutral-50 to-white",
         )}
       >
-        <div className="flex items-center gap-5">
-          <StreakLottie active={streak.streakActive} size={96} />
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-medium uppercase tracking-wider text-orange-600">
+        {/* Ambient heat orbs */}
+        <div
+          aria-hidden
+          className={cn(
+            "pointer-events-none absolute -top-24 -left-16 w-72 h-72 rounded-full blur-3xl transition-opacity",
+            streak.streakActive ? "bg-orange-400/60 opacity-100" : "bg-neutral-300/40 opacity-70",
+          )}
+        />
+        <div
+          aria-hidden
+          className={cn(
+            "pointer-events-none absolute -bottom-24 -right-16 w-80 h-80 rounded-full blur-3xl transition-opacity",
+            streak.streakActive ? "bg-indigo-400/40 opacity-100" : "bg-neutral-200/40 opacity-60",
+          )}
+        />
+
+        <div className="relative flex flex-col sm:flex-row items-center sm:items-stretch gap-6 sm:gap-8">
+          {/* Lottie */}
+          <div className="shrink-0 relative">
+            <div
+              className={cn(
+                "absolute inset-0 rounded-full blur-2xl",
+                streak.streakActive ? "bg-orange-400/50" : "bg-neutral-300/30",
+              )}
+            />
+            <StreakLottie active={streak.streakActive} size={180} className="relative" />
+          </div>
+
+          {/* Right side */}
+          <div className="flex-1 min-w-0 text-center sm:text-left">
+            <p className={cn(
+              "text-[11px] font-semibold uppercase tracking-[0.22em]",
+              streak.streakActive ? "text-orange-600" : "text-neutral-500",
+            )}>
               {streak.streakActive ? "Streak active" : "Today's mission"}
             </p>
-            <h2 className="text-3xl font-bold tracking-tight text-neutral-900 mt-1">
-              {streak.streakCount} day{streak.streakCount === 1 ? "" : "s"}
-            </h2>
+
+            <div className="mt-2 flex items-baseline gap-3 justify-center sm:justify-start">
+              <h2
+                className={cn(
+                  "font-black tracking-tight leading-none tabular-nums",
+                  "text-[clamp(64px,14vw,140px)]",
+                  streak.streakActive
+                    ? "bg-gradient-to-br from-orange-500 via-amber-500 to-rose-500 bg-clip-text text-transparent drop-shadow-[0_4px_24px_rgba(249,115,22,0.35)]"
+                    : "text-neutral-300",
+                )}
+              >
+                <AnimatedNumber value={streak.streakCount} />
+              </h2>
+              <span className={cn(
+                "text-lg sm:text-2xl font-semibold",
+                streak.streakActive ? "text-orange-700/80" : "text-neutral-400",
+              )}>
+                day{streak.streakCount === 1 ? "" : "s"}
+              </span>
+            </div>
+
             {!streak.streakActive ? (
-              <div className="mt-3 space-y-2">
-                <p className="text-sm text-neutral-700 leading-relaxed">
-                  Earn today's streak by completing both:
+              <div className="mt-4 space-y-3">
+                <p className="text-sm sm:text-base text-neutral-700 leading-relaxed max-w-md mx-auto sm:mx-0">
+                  Review your target words and watch time to ignite today's streak.
                 </p>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2 justify-center sm:justify-start">
                   <Pill done={streak.wordsGoalMet}>
                     {streak.wordsGoalMet
                       ? `${streak.wordGoal} words reviewed`
@@ -183,7 +231,7 @@ export const ProgressDashboard = ({ variant = "light" }: ProgressDashboardProps)
                 </div>
               </div>
             ) : (
-              <p className="mt-3 text-sm text-orange-600 font-medium">
+              <p className="mt-4 text-sm sm:text-base text-orange-700 font-medium">
                 🔥 Today's mission complete. Keep the fire alive tomorrow.
               </p>
             )}
