@@ -178,7 +178,7 @@ const Onboarding = () => {
                     <LangSelect value={native} onChange={setNative} exclude={target} />
                   </Field>
                   <Field label="I want to learn">
-                    <LangSelect value={target} onChange={setTarget} exclude={native} />
+                    <FrenchOnlySelect />
                   </Field>
 
                   <Field label="My current level">
@@ -204,9 +204,22 @@ const Onboarding = () => {
                       </div>
                     )}
                   </Field>
+
+                  <Field label="School (optional)">
+                    <Input
+                      value={school}
+                      onChange={(e) => setSchool(e.target.value)}
+                      placeholder="e.g. Truro College"
+                      className="rounded-xl border-orange-100 bg-white h-11 focus-visible:ring-orange-300 text-neutral-900"
+                    />
+                    <p className="mt-2 text-xs text-neutral-500">
+                      Add your school or college so we can connect you with classmates later. Skip if you're learning solo.
+                    </p>
+                  </Field>
                 </div>
               </Card>
             )}
+
 
             {step === 2 && (
               <Card>
