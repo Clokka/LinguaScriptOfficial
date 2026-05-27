@@ -3,6 +3,8 @@ import { Flashcard } from "./Flashcard";
 import { Button } from "./ui/button";
 import { X, ChevronLeft, ChevronRight, Trophy, ArrowLeftRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
 type Direction = "learn-to-native" | "native-to-learn";
 const DIR_KEY = "flashcardDirection";
@@ -24,6 +26,7 @@ interface FlashcardReviewProps {
 }
 
 export const FlashcardReview = ({ cards, onClose, className }: FlashcardReviewProps) => {
+  const { user } = useAuth();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [correct, setCorrect] = useState(0);
   const [incorrect, setIncorrect] = useState(0);
@@ -38,8 +41,35 @@ export const FlashcardReview = ({ cards, onClose, className }: FlashcardReviewPr
     setDirection((d) => (d === "learn-to-native" ? "native-to-learn" : "learn-to-native"));
   };
 
+  // Increment activity_log.words_reviewed for today (drives streak gating).
+  const logReview = async () => {
+    if (!user) return;
+    const today = new Date().toISOString().split("T")[0];
+    const { data: existing } = await supabase
+      .from("activity_log")
+      .select("id, words_reviewed")
+      .eq("user_id", user.id)
+      .eq("date", today)
+      .maybeSingle();
+    if (existing) {
+      await supabase
+        .from("activity_log")
+        .update({ words_reviewed: ((existing as any).words_reviewed || 0) + 1 } as any)
+        .eq("id", existing.id);
+    } else {
+      await supabase.from("activity_log").insert({
+        user_id: user.id,
+        date: today,
+        words_reviewed: 1,
+        minutes_watched: 0,
+        videos_watched: 0,
+      } as any);
+    }
+  };
+
   const handleCorrect = () => {
     setCorrect((prev) => prev + 1);
+    void logReview();
     if (currentIndex < cards.length - 1) {
       setCurrentIndex((prev) => prev + 1);
     } else {
@@ -49,6 +79,7 @@ export const FlashcardReview = ({ cards, onClose, className }: FlashcardReviewPr
 
   const handleIncorrect = () => {
     setIncorrect((prev) => prev + 1);
+    void logReview();
     if (currentIndex < cards.length - 1) {
       setCurrentIndex((prev) => prev + 1);
     } else {
