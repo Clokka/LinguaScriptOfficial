@@ -11,6 +11,7 @@ interface FlashcardProps {
   ipa: string;
   context?: string;
   contextTranslation?: string;
+  direction?: "learn-to-native" | "native-to-learn";
   onCorrect: () => void;
   onIncorrect: () => void;
 }
