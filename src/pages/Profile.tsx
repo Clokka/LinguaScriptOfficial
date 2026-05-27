@@ -56,10 +56,24 @@ const Profile = () => {
       setDisplayName(data.display_name ?? "");
       setAvatarUrl(data.avatar_url);
       setNativeLanguage(data.native_language ?? "en");
-      setLearningLanguage(data.learning_language ?? "es");
+      setLearningLanguage(data.learning_language ?? "fr");
+      setSchool((data as any).school ?? "");
     }
     setLoadingProfile(false);
   };
+
+  const handleLinkGoogle = async () => {
+    setLinkingGoogle(true);
+    const { error } = await (supabase.auth as any).linkIdentity({
+      provider: "google",
+      options: { redirectTo: window.location.origin + "/profile" },
+    });
+    if (error) {
+      toast({ title: "Couldn't link Google", description: error.message, variant: "destructive" });
+      setLinkingGoogle(false);
+    }
+  };
+
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
