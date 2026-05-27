@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { wordGoalForVideos, minuteGoalForVideos } from "@/lib/progressStats";
+import { emitStreakIgnited } from "@/components/StreakCelebrationModal";
 
 export interface StreakStatus {
   loading: boolean;
