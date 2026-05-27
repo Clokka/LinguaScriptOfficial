@@ -49,9 +49,9 @@ const Onboarding = () => {
     supabase.from("profiles").select("*").eq("user_id", user.id).single().then(({ data }) => {
       if (data) {
         if (data.native_language) setNative(data.native_language);
-        if (data.learning_language) setTarget(data.learning_language);
         if ((data as any).cef_level) setLevel((data as any).cef_level as Level);
         if ((data as any).learning_goal) setGoal((data as any).learning_goal);
+        if ((data as any).school) setSchool((data as any).school);
         if ((data as any).onboarded) navigate("/browse");
       }
     });
