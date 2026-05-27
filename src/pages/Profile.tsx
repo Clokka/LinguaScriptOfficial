@@ -24,10 +24,14 @@ const Profile = () => {
   const [displayName, setDisplayName] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [nativeLanguage, setNativeLanguage] = useState("en");
-  const [learningLanguage, setLearningLanguage] = useState("es");
+  const [learningLanguage, setLearningLanguage] = useState("fr");
+  const [school, setSchool] = useState("");
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [loadingProfile, setLoadingProfile] = useState(true);
+  const [linkingGoogle, setLinkingGoogle] = useState(false);
+
+  const hasGoogleLinked = !!user?.identities?.some((i) => i.provider === "google");
 
   useEffect(() => {
     if (!authLoading && !user) {
