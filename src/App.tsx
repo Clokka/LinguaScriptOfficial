@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { TourProvider } from "@/contexts/TourContext";
 import { TourOverlay } from "@/components/TourOverlay";
+import { DailyBriefing } from "@/components/DailyBriefing";
 import Landing from "./pages/Landing";
 import Browse from "./pages/Browse";
 import Auth from "./pages/Auth";
@@ -40,6 +41,7 @@ const App = () => (
               <Route path="*" element={<NotFound />} />
             </Routes>
             <TourOverlay />
+            <DailyBriefing />
           </TourProvider>
         </BrowserRouter>
       </LanguageProvider>

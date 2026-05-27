@@ -19,6 +19,8 @@ import { useTour } from "@/contexts/TourContext";
 import { TOUR_TRAINING_YT_ID } from "@/lib/tourSteps";
 import { playDing } from "@/lib/sound";
 import { toast } from "sonner";
+import { DailyGoalPicker } from "@/components/DailyGoalPicker";
+import { wordGoalForVideos } from "@/lib/progressStats";
 
 const LEVELS = ["below", "A1", "A2", "B1", "B2", "C1", "C2"] as const;
 type Level = typeof LEVELS[number];
@@ -35,6 +37,7 @@ const Onboarding = () => {
   const [target] = useState("fr"); // French-only — other languages "Coming soon"
   const [level, setLevel] = useState<Level | null>(null);
   const [school, setSchool] = useState("");
+  const [videoGoal, setVideoGoal] = useState<number>(1);
   const [goal, setGoal] = useState("");
   const [goalSaved, setGoalSaved] = useState(false);
   const [dualClicked, setDualClicked] = useState(false);
@@ -52,6 +55,7 @@ const Onboarding = () => {
         if ((data as any).cef_level) setLevel((data as any).cef_level as Level);
         if ((data as any).learning_goal) setGoal((data as any).learning_goal);
         if ((data as any).school) setSchool((data as any).school);
+        if ((data as any).daily_video_goal) setVideoGoal((data as any).daily_video_goal);
         if ((data as any).onboarded) navigate("/browse");
       }
     });
@@ -75,6 +79,8 @@ const Onboarding = () => {
         learning_language: target,
         cef_level: level,
         school: school.trim() || null,
+        daily_video_goal: videoGoal,
+        daily_word_goal: wordGoalForVideos(videoGoal),
       } as any).eq("user_id", user.id);
       setLearningLanguage(target);
     }
@@ -215,6 +221,10 @@ const Onboarding = () => {
                     <p className="mt-2 text-xs text-neutral-500">
                       Add your school or college so we can connect you with classmates later. Skip if you're learning solo.
                     </p>
+                  </Field>
+
+                  <Field label="Daily input goal">
+                    <DailyGoalPicker value={videoGoal} onChange={setVideoGoal} compact />
                   </Field>
                 </div>
               </Card>

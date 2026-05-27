@@ -18,29 +18,35 @@ export type Database = {
         Row: {
           created_at: string
           date: string
+          goal_met: boolean
           id: string
           minutes_watched: number | null
           user_id: string
           videos_watched: number | null
           words_learned: number | null
+          words_reviewed: number
         }
         Insert: {
           created_at?: string
           date?: string
+          goal_met?: boolean
           id?: string
           minutes_watched?: number | null
           user_id: string
           videos_watched?: number | null
           words_learned?: number | null
+          words_reviewed?: number
         }
         Update: {
           created_at?: string
           date?: string
+          goal_met?: boolean
           id?: string
           minutes_watched?: number | null
           user_id?: string
           videos_watched?: number | null
           words_learned?: number | null
+          words_reviewed?: number
         }
         Relationships: []
       }
@@ -250,14 +256,19 @@ export type Database = {
           avatar_url: string | null
           cef_level: string | null
           created_at: string
+          daily_video_goal: number
+          daily_word_goal: number
           display_name: string | null
           id: string
           is_public: boolean
+          last_streak_date: string | null
           learning_goal: string | null
           learning_language: string | null
           native_language: string | null
           onboarded: boolean
           school: string | null
+          show_daily_briefing: boolean
+          streak_count: number
           updated_at: string
           user_id: string
         }
@@ -265,14 +276,19 @@ export type Database = {
           avatar_url?: string | null
           cef_level?: string | null
           created_at?: string
+          daily_video_goal?: number
+          daily_word_goal?: number
           display_name?: string | null
           id?: string
           is_public?: boolean
+          last_streak_date?: string | null
           learning_goal?: string | null
           learning_language?: string | null
           native_language?: string | null
           onboarded?: boolean
           school?: string | null
+          show_daily_briefing?: boolean
+          streak_count?: number
           updated_at?: string
           user_id: string
         }
@@ -280,14 +296,19 @@ export type Database = {
           avatar_url?: string | null
           cef_level?: string | null
           created_at?: string
+          daily_video_goal?: number
+          daily_word_goal?: number
           display_name?: string | null
           id?: string
           is_public?: boolean
+          last_streak_date?: string | null
           learning_goal?: string | null
           learning_language?: string | null
           native_language?: string | null
           onboarded?: boolean
           school?: string | null
+          show_daily_briefing?: boolean
+          streak_count?: number
           updated_at?: string
           user_id?: string
         }
