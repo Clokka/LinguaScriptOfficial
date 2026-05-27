@@ -1,8 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Flashcard } from "./Flashcard";
 import { Button } from "./ui/button";
-import { X, ChevronLeft, ChevronRight, Trophy } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, Trophy, ArrowLeftRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+type Direction = "learn-to-native" | "native-to-learn";
+const DIR_KEY = "flashcardDirection";
 
 interface FlashcardData {
   id: string;
