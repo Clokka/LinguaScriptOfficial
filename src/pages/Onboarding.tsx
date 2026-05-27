@@ -74,7 +74,8 @@ const Onboarding = () => {
         native_language: native,
         learning_language: target,
         cef_level: level,
-      }).eq("user_id", user.id);
+        school: school.trim() || null,
+      } as any).eq("user_id", user.id);
       setLearningLanguage(target);
     }
     if (step < totalSteps - 1) {
