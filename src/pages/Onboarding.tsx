@@ -222,6 +222,10 @@ const Onboarding = () => {
                       Add your school or college so we can connect you with classmates later. Skip if you're learning solo.
                     </p>
                   </Field>
+
+                  <Field label="Daily input goal">
+                    <DailyGoalPicker value={videoGoal} onChange={setVideoGoal} compact />
+                  </Field>
                 </div>
               </Card>
             )}
