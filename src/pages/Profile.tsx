@@ -109,7 +109,8 @@ const Profile = () => {
         avatar_url: avatarUrl,
         native_language: nativeLanguage,
         learning_language: learningLanguage,
-      })
+        school: school.trim() || null,
+      } as any)
       .eq("user_id", user.id);
 
     if (error) {
