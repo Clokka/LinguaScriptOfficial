@@ -532,13 +532,15 @@ const Watch = () => {
         </div>
       </div>
 
-      <div className="relative flex-1 flex flex-col items-center justify-center bg-black">
+      <div className="relative flex-1 flex flex-col items-center justify-center bg-black px-3 sm:px-6 py-2 sm:py-4">
         {/* Fullscreen wrapper — subtitles are INSIDE this so they persist in fullscreen */}
         <div
           ref={videoContainerRef}
           className={cn(
-            "relative w-full bg-black",
-            isFullscreen ? "h-full flex items-center justify-center" : "max-w-5xl aspect-video"
+            "relative w-full bg-black overflow-hidden",
+            isFullscreen
+              ? "h-full flex items-center justify-center"
+              : "max-w-5xl aspect-video max-h-[60vh] sm:max-h-[78vh] rounded-2xl shadow-[0_24px_60px_-20px_rgba(0,0,0,0.8)] ring-1 ring-white/5 mx-auto my-auto"
           )}
         >
           <div id="yt-player" className={cn("w-full", isFullscreen ? "h-full" : "h-full")} />
@@ -562,7 +564,7 @@ const Watch = () => {
 
           {/* Subtitle overlay — rendered OUTSIDE the iframe but INSIDE the fullscreen container */}
           {currentSubtitle && (
-            <div className="absolute bottom-[8%] left-0 right-0 px-4 z-[9999] pointer-events-auto">
+            <div className="absolute bottom-[12%] sm:bottom-[8%] left-0 right-0 px-4 z-[9999] pointer-events-auto">
               <SubtitleOverlay
                 primaryText={currentSubtitle.primary}
                 secondaryText={currentSubtitle.secondary}
