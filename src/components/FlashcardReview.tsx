@@ -28,6 +28,15 @@ export const FlashcardReview = ({ cards, onClose, className }: FlashcardReviewPr
   const [correct, setCorrect] = useState(0);
   const [incorrect, setIncorrect] = useState(0);
   const [isComplete, setIsComplete] = useState(false);
+  const [direction, setDirection] = useState<Direction>(() => {
+    return (localStorage.getItem(DIR_KEY) as Direction) || "native-to-learn";
+  });
+
+  useEffect(() => { localStorage.setItem(DIR_KEY, direction); }, [direction]);
+
+  const toggleDirection = () => {
+    setDirection((d) => (d === "learn-to-native" ? "native-to-learn" : "learn-to-native"));
+  };
 
   const handleCorrect = () => {
     setCorrect((prev) => prev + 1);
