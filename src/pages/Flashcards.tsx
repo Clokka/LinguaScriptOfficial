@@ -57,7 +57,13 @@ const Flashcards = () => {
     const nativeLang = profileRes.data?.native_language || "en";
 
     // Auto-translate any words missing translations
-    const wordsNeedingTranslation = allWords.filter(w => !w.translation || w.translation.trim() === '' || w.translation === 'Translating...');
+    const wordsNeedingTranslation = allWords.filter(w => {
+      const t = (w.translation || "").trim();
+      if (!t) return true;
+      if (t.toLowerCase() === "translating...") return true;
+      if (t.toLowerCase() === (w.word || "").trim().toLowerCase()) return true; // AI echoed the source
+      return false;
+    });
     if (wordsNeedingTranslation.length > 0) {
       console.log(`Auto-translating ${wordsNeedingTranslation.length} words missing translations...`);
       const { getLanguageLabel: getLangLabel } = await import("@/lib/languages");
