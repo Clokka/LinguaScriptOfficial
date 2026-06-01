@@ -85,6 +85,7 @@ export const Flashcard = ({
             </div>
           )}
           <Button
+            data-tour="flashcard-pronounce"
             variant="glass"
             size="icon"
             className="mt-4"
