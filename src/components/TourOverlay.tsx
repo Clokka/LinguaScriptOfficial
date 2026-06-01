@@ -131,6 +131,34 @@ export const TourOverlay = () => {
     }
   }, [active, step, advance, end]);
 
+  // Reliable fullscreen step: advance & navigate when fullscreen actually opens,
+  // even if the user's first click missed the small icon button.
+  useEffect(() => {
+    if (!active || !step) return;
+    if (step.id !== "watch-fullscreen") return;
+    const handler = () => {
+      const fsEl = document.fullscreenElement || (document as any).webkitFullscreenElement;
+      if (!fsEl) return;
+      // Give the user a beat to feel the fullscreen, then exit + navigate back to /browse.
+      setTimeout(() => {
+        try {
+          if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen();
+          else if ((document as any).webkitFullscreenElement && (document as any).webkitExitFullscreen) {
+            (document as any).webkitExitFullscreen();
+          }
+        } catch { /* noop */ }
+        if (step.navigateTo) navigate(step.navigateTo);
+        advance();
+      }, 1400);
+    };
+    document.addEventListener("fullscreenchange", handler);
+    document.addEventListener("webkitfullscreenchange", handler);
+    return () => {
+      document.removeEventListener("fullscreenchange", handler);
+      document.removeEventListener("webkitfullscreenchange", handler);
+    };
+  }, [active, step, advance, navigate]);
+
   if (!active || !step) return null;
 
   const pad = step.pad ?? 8;
