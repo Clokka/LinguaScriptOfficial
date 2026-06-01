@@ -297,15 +297,10 @@ export const TourOverlay = () => {
         </motion.div>
       </motion.div>
 
-      {/* Skip-tour escape hatch (small, top-right, doesn't block view) */}
-      <button
-        data-tour-allow="true"
-        onClick={end}
-        style={{ position: "fixed", top: 12, right: 12, zIndex: Z_CURSOR }}
-        className="text-xs px-3 py-1.5 rounded-full bg-white/90 hover:bg-white text-neutral-600 shadow-md"
-      >
-        Skip tour
-      </button>
+    </>
+  );
+};
+
     </>
   );
 };
