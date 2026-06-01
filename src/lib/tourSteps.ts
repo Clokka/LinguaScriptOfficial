@@ -112,6 +112,9 @@ export const TOUR_STEPS: TourStep[] = [
     copy: "Shadow new words aloud — learners who do are 2–3× more likely to retain vocabulary long term.",
     placement: "top",
     allowFreeClicks: true,
+    // After tooltip, drift the guiding cursor toward the back arrow so the user
+    // sees exactly how to exit Flashcards next.
+    cursorSelector: '[data-tour="page-back"]',
   },
   {
     id: "flashcards-back",
@@ -138,6 +141,7 @@ export const TOUR_STEPS: TourStep[] = [
     copy: "Choose your native language.",
     placement: "bottom",
     pad: 6,
+    allowFreeClicks: true,
   },
   {
     id: "settings-learning",
