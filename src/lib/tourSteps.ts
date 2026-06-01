@@ -87,8 +87,9 @@ export const TOUR_STEPS: TourStep[] = [
   {
     id: "browse-flashcards",
     selector: '[data-tour="nav-flashcards"]',
-    copy: "Every word you save becomes part of your personal learning system.",
+    copy: "Every word you save lives here — click Flashcards to see your deck.",
     placement: "right",
+    cursorSelector: '[data-tour="nav-flashcards"]',
     expectRoute: "/flashcards",
   },
   {
