@@ -45,6 +45,7 @@ export const Flashcard = ({
   return (
     <div className="flashcard-container w-full max-w-md mx-auto">
       <div
+        data-tour="flashcard"
         className={cn("flashcard w-full h-72 cursor-pointer", isFlipped && "flipped")}
         onClick={handleFlip}
       >
@@ -84,6 +85,7 @@ export const Flashcard = ({
             </div>
           )}
           <Button
+            data-tour="flashcard-pronounce"
             variant="glass"
             size="icon"
             className="mt-4"

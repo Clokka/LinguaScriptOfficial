@@ -11,8 +11,12 @@ export type TourStepId =
   | "watch-dual"
   | "watch-word"
   | "watch-pron"
+  | "watch-save"
   | "watch-fullscreen"
   | "browse-flashcards"
+  | "flashcards-review"
+  | "flashcard-flip"
+  | "flashcard-pron"
   | "flashcards-back"
   | "browse-calendar"
   | "browse-settings"
@@ -37,7 +41,7 @@ export interface TourStep {
   /** Skip the click-to-advance contract: advance automatically when route matches. */
   expectRoute?: string;
   /** Auto-play action driven by the overlay (no user click required). */
-  autoAction?: "fill-paste-url" | "finish";
+  autoAction?: "fill-paste-url" | "finish" | "request-fullscreen";
   /** Disable the click guard for steps where the user must interact freely. */
   allowFreeClicks?: boolean;
 }
@@ -52,35 +56,65 @@ export const TOUR_STEPS: TourStep[] = [
   {
     id: "watch-word",
     selector: '[data-tour="subtitle-word"]',
-    copy: "Click any word to learn it.",
+    copy: "Click any word to learn it instantly.",
     placement: "top",
     pad: 4,
   },
   {
     id: "watch-pron",
     selector: '[data-tour="word-pronounce"]',
-    copy: "Hear the word spoken.",
+    copy: "Hear the word spoken aloud.",
     placement: "left",
+  },
+  {
+    id: "watch-save",
+    selector: '[data-tour="word-save"]',
+    copy: "Save useful words directly into your personal flashcard deck for long-term retention.",
+    placement: "top",
+    pad: 4,
+    postDelay: 400,
   },
   {
     id: "watch-fullscreen",
     selector: '[data-tour="fullscreen-btn"]',
-    copy: "Immerse yourself.",
+    copy: "Immerse yourself — tap to go fullscreen.",
     placement: "bottom",
-    navigateTo: "/browse",
-    postDelay: 800,
+    pad: 14,
+    postDelay: 200,
   },
   {
     id: "browse-flashcards",
     selector: '[data-tour="nav-flashcards"]',
-    copy: "Your saved words live here.",
+    copy: "Every word you save becomes part of your personal learning system.",
     placement: "right",
     expectRoute: "/flashcards",
   },
   {
+    id: "flashcards-review",
+    selector: '[data-tour="flashcards-review-btn"]',
+    copy: "Start a quick review session.",
+    placement: "top",
+    postDelay: 400,
+  },
+  {
+    id: "flashcard-flip",
+    selector: '[data-tour="flashcard"]',
+    copy: "Click the card to reveal the translation.",
+    placement: "top",
+    pad: 6,
+    postDelay: 600,
+  },
+  {
+    id: "flashcard-pron",
+    selector: '[data-tour="flashcard-pronounce"]',
+    copy: "Shadow new words aloud — learners who do are 2–3× more likely to retain vocabulary long term.",
+    placement: "top",
+    allowFreeClicks: true,
+  },
+  {
     id: "flashcards-back",
     selector: '[data-tour="page-back"]',
-    copy: "Head back to your library.",
+    copy: "Head back to your learning dashboard.",
     placement: "right",
     expectRoute: "/browse",
   },

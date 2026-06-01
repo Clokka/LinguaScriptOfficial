@@ -1,138 +1,84 @@
-# LinguaScript Growth OS Upgrade
+## Onboarding Flow Improvements & UX Refinements
 
-A motivation-first overhaul of onboarding, streaks, calendar, and progress. Designed around spaced repetition memory stages and daily compounding input.
+This is a large, multi-area overhaul of the onboarding experience. Before I start coding, here's the plan broken down into shippable phases so we can confirm scope.
 
-## 1. Database changes (one migration)
+---
 
-Add fields to support goals, streak gating, and SRS memory stage tracking.
+### Phase 1 — Frictionless Demo Start (no ads, smoother tooltips)
 
-```text
-profiles
-  + daily_video_goal        int   default 1    (1|2|3)
-  + daily_word_goal         int   default 10   (derived from video goal)
-  + streak_count            int   default 0
-  + last_streak_date        date  nullable
-  + show_daily_briefing     bool  default true (settings escape hatch, hidden in UI for now)
+1. **Suppress ads during onboarding**
+   - Add a `tourActive` / `onboardingActive` flag on `TourContext`.
+   - In `AdLoader` consumers (Watch / Story / demo player), skip the ad entirely when tour is active — start video immediately.
+   - Disable any mid-roll/house-ad triggers while tour is active.
 
-activity_log  (existing)
-  + words_reviewed          int   default 0
-  + goal_met                bool  default false
+2. **Re-sequence the Watch-page tour steps** so they don't collide with loaders:
+   - `enter-demo` → video plays immediately (no ad)
+   - `watch-dual` tooltip
+   - `watch-word` (click word) → translation popup
+   - **NEW** `watch-save` step → highlight "Save to flashcards" button with copy: *"Save useful words directly into your personal flashcard deck for long-term retention."*
+   - `watch-pron`
+   - `watch-fullscreen` — fix reliability (see below)
 
-saved_words  (existing)
-  - review_count already exists -> drives memory stage:
-      0-1   = RED   (short-term, "Must Review")
-      2-3   = AMBER (medium-term)
-      4+    = GREEN (long-term)
-```
+3. **Fullscreen reliability fix**
+   - In `TourOverlay`, the fullscreen step should programmatically call `requestFullscreen()` on the player container (not rely on synthetic click).
+   - Wait for `fullscreenchange` event before advancing.
 
-No new tables — we reuse `saved_words.review_count` and `activity_log` to keep the architecture lean.
+---
 
-## 2. Persistent Daily Briefing (replaces one-shot onboarding)
+### Phase 2 — Post-Video Continuation
 
-- New component `DailyBriefing` shown as a modal on every login if not yet completed today.
-- Shortened 3-step flow for returning users:
-  1. **Welcome back** — streak status + yesterday's recap
-  2. **Today's mission** — daily video + word goal restated with progress bar
-  3. **Go learn** — CTA into `/browse`
-- First-time users still see the existing full onboarding (`/onboarding`), with the new **Daily Goal** step added.
-- Tracked via `localStorage` key `briefing:<userId>:<YYYY-MM-DD>` + `profiles.show_daily_briefing` master switch.
+4. **Exit-video step**: when user exits/finishes demo, show tooltip over the top-left back button: *"Head back to your learning dashboard."* Cursor + spotlight on `[data-tour="page-back"]`.
 
-## 3. Daily Goal selector
+5. **Flashcard walkthrough** (extend `tourSteps.ts`):
+   - Hover Flashcards nav → tooltip about personal learning system.
+   - Open a flashcard.
+   - Click card → reveal translation tooltip.
+   - Pronunciation tooltip with shadowing stat (2–3× retention).
+   - Let user review a few cards before continuing (advance on N reviews or Skip button).
 
-New component `DailyGoalPicker` used in onboarding **and** the briefing.
+---
 
-Three glass cards (1 / 2 / 3 videos per day) showing:
-- Estimated new words/day
-- Projected yearly vocab
-- Fluency milestone tagline
-- Motivational subtitle: *"Language growth compounds through repetition and comprehensible input."*
+### Phase 3 — Calendar / Streak / Spaced Repetition Education
 
-Saves to `profiles.daily_video_goal` and derives `daily_word_goal` (10 / 20 / 40).
+6. **Calendar page tour**
+   - "Today's Mission" panel showing dynamic targets from `profiles.daily_word_goal` & `daily_video_goal` (already in DB). Compute remaining = goal − today's `activity_log` values.
+   - Tooltips for: Current Streak, Total Words, Avg/Day, Projected Annual Growth, Watch Time, Retention.
+   - Streak explainer tooltip.
 
-## 4. Streak gating + Lottie ignition
+7. **Spaced Repetition modal** on Calendar with YouTube embed `-uMMRjrzPmE`. Buttons: *Watch Video / Skip / I Already Understand*.
 
-New hook `useStreakStatus(userId)`:
-- Reads today's `activity_log` row
-- Returns `{ wordsReviewed, minutesWatched, wordsGoalMet, watchGoalMet, streakActive, streakCount }`
-- Streak ignites only when **both** goals met → writes `goal_met = true` and bumps `profiles.streak_count` (with yesterday-continuity check).
+8. **Memory Stage education** — explain Must Review / Reinforcing / Acquired stages (already exist as `MemoryStageCard`).
 
-`StreakBadge` rewrite:
-- **Inactive state**: greyscale flame + CTA *"Review X more words and watch Y more minutes to earn today's streak."*
-- **Active state**: plays the uploaded `Check-In Stream.lottie` once on ignition, then loops subtly.
+---
 
-Lottie wiring:
-- Copy `Check-In Stream.lottie` → `src/assets/check-in-stream.lottie`
-- Install `@lottiefiles/dotlottie-react` (lightweight, web-perf friendly)
-- Wrapper `<StreakLottie active loop />` used in calendar, briefing success, and badge.
+### Phase 4 — Account Creation & Personalisation
 
-## 5. Calendar + Memory dashboard
+9. **Account creation at end of onboarding**
+   - Modal/page with Google + Email + Student section (school name + school email).
+   - Note: *"Ask your teacher for your LinguaScript access password if your school participates."*
+   - On signup, migrate anonymous onboarding state (goals, native/learning lang) into the new profile — already partially supported.
 
-Rebuild `src/pages/Profile.tsx` calendar tab (or a new `/progress` route reachable from sidebar) into a **Learning Analytics Dashboard**.
+10. **Interests / Recommendation seed**
+    - Add `interests text[]` column to `profiles`.
+    - After signup, route to Settings with tooltip + free-text "What are you interested in?" with suggested chips (Football, History, Anime, Business, Travel, Tech, Gaming, Politics, Philosophy).
+    - Feed into recommendation queries (Browse).
 
-Sections:
+---
 
-**A. Top stat grid (glass cards, animated counters)**
-- Current Streak (with Lottie)
-- Total Words Learned
-- Avg Words/Day (last 30d)
-- Projected Vocab in 1 Year
-- Watch Time This Week
-- Retention Strength %
+### Technical Notes
 
-**B. Reviewed Words by Memory Stage**
-Three stacked bars / pill cards:
-- 🔴 **Short-Term (Must Review)** — `review_count ≤ 1`
-- 🟠 **Medium-Term** — `review_count 2–3`
-- 🟢 **Long-Term** — `review_count ≥ 4`
+- **TourContext** gains: `onboardingActive`, multi-page step list, helpers `markComplete(stepId)`, `awaitFullscreen()`.
+- **AdLoader** consumers read `useTour().onboardingActive` and skip.
+- **DB migration**: add `profiles.interests text[]` default `'{}'`.
+- **No business-logic changes** to flashcard SRS / activity logging — just UI tour layers on top.
 
-Each shows count + percentage + brief explainer.
+---
 
-**C. Activity Calendar**
-Existing month grid, recolored by `goal_met`:
-- Green dot = streak day
-- Amber = activity but goal not met
-- Empty = no activity
+### Suggested rollout
 
-## 6. Analytics math (client-side, no extra tables)
+Because this is large, I recommend shipping in 2 PRs:
 
-`src/lib/progressStats.ts` — pure functions:
-- `memoryStage(reviewCount) → 'short'|'medium'|'long'`
-- `retentionStrength(words)` → % of words in medium+long
-- `avgWordsPerDay(activity, days=30)`
-- `projectedYearlyVocab(avgPerDay)`
-- `watchTimeThisWeek(activity)`
+- **PR 1 (this turn):** Phase 1 + Phase 2 — kills ads in onboarding, fixes fullscreen, adds save-to-flashcard step, adds post-video → flashcard walkthrough.
+- **PR 2 (next turn):** Phase 3 + Phase 4 — calendar/streak tour, spaced-rep modal, account creation gate, interests field + migration.
 
-## 7. UX details
-
-- Mobile-first; all cards stack at `<md`
-- Framer Motion for counter rolls + card entrances
-- No new routes required — Briefing is a modal in `App.tsx`; dashboard lives inside `/profile`
-- Existing onboarding French-only lock, school field, and Auth changes are preserved
-
-## 8. Files
-
-**New**
-- `src/assets/check-in-stream.lottie`
-- `src/components/StreakLottie.tsx`
-- `src/components/DailyBriefing.tsx`
-- `src/components/DailyGoalPicker.tsx`
-- `src/components/MemoryStageCard.tsx`
-- `src/components/ProgressDashboard.tsx`
-- `src/hooks/useStreakStatus.ts`
-- `src/hooks/useDailyBriefing.ts`
-- `src/lib/progressStats.ts`
-
-**Edited**
-- `supabase/migrations/<new>.sql` — profile + activity columns
-- `src/pages/Onboarding.tsx` — insert goal step
-- `src/pages/Profile.tsx` — embed ProgressDashboard
-- `src/components/StreakBadge.tsx` — gated state + Lottie
-- `src/App.tsx` — mount DailyBriefing modal
-- `package.json` — add `@lottiefiles/dotlottie-react`
-
-## 9. Out of scope (this turn)
-- Settings toggle to permanently disable briefing (column is added, UI deferred per brief)
-- Server-side cron for streak resets (handled lazily on next login)
-- Pre-roll ads, XP overhaul
-
-Ready to implement on approval.
+**Reply "go" to ship PR 1 now**, or tell me to do everything in one pass (will be a much larger diff and slower to review).

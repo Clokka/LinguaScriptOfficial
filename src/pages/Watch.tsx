@@ -207,7 +207,7 @@ const Watch = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { learningLanguage } = useLanguage();
-  const { registerPlayer } = useTour();
+  const { registerPlayer, active: tourActive } = useTour();
   const playerRef = useRef<any>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval>>();
 
@@ -222,7 +222,10 @@ const Watch = () => {
   const [captionsError, setCaptionsError] = useState<string | null>(null);
   const [nativeLanguage, setNativeLanguage] = useState("en");
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [adDone, setAdDone] = useState(false);
+  // Skip the pre-roll house ad during the guided onboarding tour for a
+  // frictionless first impression. The first thing the new user sees should
+  // be the video + the teaching cursor, never an ad.
+  const [adDone, setAdDone] = useState(tourActive);
 
   const toggleFullscreen = useCallback(() => {
     const container = videoContainerRef.current;
@@ -375,9 +378,14 @@ const Watch = () => {
       videoId: ytId,
       width: "100%",
       height: "100%",
-      playerVars: { autoplay: 0, controls: 1, modestbranding: 1, rel: 0, cc_load_policy: 0 },
+      playerVars: { autoplay: tourActive ? 1 : 0, controls: 1, modestbranding: 1, rel: 0, cc_load_policy: 0 },
       events: {
-        onReady: () => { registerPlayer(playerRef.current); },
+        onReady: () => {
+          registerPlayer(playerRef.current);
+          if (tourActive) {
+            try { playerRef.current?.playVideo?.(); } catch { /* noop */ }
+          }
+        },
         onStateChange: (event: any) => {
           if (event.data === window.YT.PlayerState.PLAYING) {
             watchStartRef.current = Date.now();

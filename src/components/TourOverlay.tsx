@@ -80,6 +80,11 @@ export const TourOverlay = () => {
       const matched = target.closest(step.selector);
       const isAllowed = target.closest('[data-tour-allow="true"]');
       if (matched) {
+        // Fullscreen step: don't advance here — wait for the real
+        // fullscreenchange event so we only advance once the browser
+        // has actually entered fullscreen. This also lets the button's
+        // native onClick (real user gesture) trigger fullscreen reliably.
+        if (step.id === "watch-fullscreen") return;
         advanceLockRef.current = true;
         setTimeout(() => {
           advanceLockRef.current = false;
@@ -130,6 +135,34 @@ export const TourOverlay = () => {
       return () => clearTimeout(t);
     }
   }, [active, step, advance, end]);
+
+  // Reliable fullscreen step: advance & navigate when fullscreen actually opens,
+  // even if the user's first click missed the small icon button.
+  useEffect(() => {
+    if (!active || !step) return;
+    if (step.id !== "watch-fullscreen") return;
+    const handler = () => {
+      const fsEl = document.fullscreenElement || (document as any).webkitFullscreenElement;
+      if (!fsEl) return;
+      // Give the user a beat to feel the fullscreen, then exit + navigate back to /browse.
+      setTimeout(() => {
+        try {
+          if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen();
+          else if ((document as any).webkitFullscreenElement && (document as any).webkitExitFullscreen) {
+            (document as any).webkitExitFullscreen();
+          }
+        } catch { /* noop */ }
+        if (step.navigateTo) navigate(step.navigateTo);
+        advance();
+      }, 1400);
+    };
+    document.addEventListener("fullscreenchange", handler);
+    document.addEventListener("webkitfullscreenchange", handler);
+    return () => {
+      document.removeEventListener("fullscreenchange", handler);
+      document.removeEventListener("webkitfullscreenchange", handler);
+    };
+  }, [active, step, advance, navigate]);
 
   if (!active || !step) return null;
 
