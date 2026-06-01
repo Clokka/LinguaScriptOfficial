@@ -44,6 +44,8 @@ export interface TourStep {
   autoAction?: "fill-paste-url" | "finish" | "request-fullscreen";
   /** Disable the click guard for steps where the user must interact freely. */
   allowFreeClicks?: boolean;
+  /** Optional element selector to anchor the guiding cursor (defaults to `selector`). */
+  cursorSelector?: string;
 }
 
 export const TOUR_STEPS: TourStep[] = [
