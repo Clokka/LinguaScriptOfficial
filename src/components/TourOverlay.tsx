@@ -301,6 +301,3 @@ export const TourOverlay = () => {
   );
 };
 
-    </>
-  );
-};
