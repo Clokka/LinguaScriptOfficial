@@ -82,6 +82,7 @@ const Browse = () => {
   const { user } = useAuth();
   const { learningLanguage, setLearningLanguage } = useLanguage();
   const { toast } = useToast();
+  const tour = useTour();
 
   const [activeTab, setActiveTab] = useState<TabKey>("home");
   const [lessons, setLessons] = useState<UserLesson[]>([]);
