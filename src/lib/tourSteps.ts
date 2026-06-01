@@ -79,9 +79,8 @@ export const TOUR_STEPS: TourStep[] = [
     selector: '[data-tour="fullscreen-btn"]',
     copy: "Immerse yourself — tap to go fullscreen.",
     placement: "bottom",
-    autoAction: "request-fullscreen",
-    navigateTo: "/browse",
-    postDelay: 1200,
+    pad: 14,
+    postDelay: 200,
   },
   {
     id: "browse-flashcards",
