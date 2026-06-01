@@ -435,9 +435,19 @@ const Browse = () => {
           {activeTab === "settings" && (
             <SettingsTab
               nativeLanguage={nativeLanguage}
-              setNativeLanguage={setNativeLanguage}
+              setNativeLanguage={(v) => {
+                setNativeLanguage(v);
+                if (tour.active && tour.step?.id === "settings-native") {
+                  setTimeout(() => tour.advance(), 350);
+                }
+              }}
               learningLanguage={settingsLearning}
-              setLearningLanguage={setSettingsLearning}
+              setLearningLanguage={(v) => {
+                setSettingsLearning(v);
+                if (tour.active && tour.step?.id === "settings-learning") {
+                  setTimeout(() => tour.advance(), 350);
+                }
+              }}
               displayName={displayName}
               setDisplayName={setDisplayName}
               isPublic={isPublic}
