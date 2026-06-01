@@ -151,11 +151,8 @@ const Browse = () => {
       setSettingsLearning(data.learning_language || "fr");
       setDisplayName(data.display_name || "");
       setIsPublic(!!(data as any).is_public);
-      if ((data as any).onboarded === false) {
-        navigate("/onboarding");
-      }
     }
-  }, [user, navigate]);
+  }, [user]);
 
   useEffect(() => {
     fetchLessons();
