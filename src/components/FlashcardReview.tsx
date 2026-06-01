@@ -141,7 +141,7 @@ export const FlashcardReview = ({ cards, onClose, className }: FlashcardReviewPr
     <div className={cn("max-w-lg mx-auto", className)}>
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <Button variant="ghost" size="icon" onClick={onClose}>
+        <Button data-tour="page-back" variant="ghost" size="icon" onClick={onClose}>
           <X className="w-5 h-5" />
         </Button>
         <div className="flex items-center gap-4">
