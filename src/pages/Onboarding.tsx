@@ -97,8 +97,10 @@ const Onboarding = () => {
   const back = () => setStep((s) => Math.max(0, s - 1));
 
   const saveGoal = async () => {
-    if (!goal.trim() || !user) return;
-    await supabase.from("profiles").update({ learning_goal: goal.trim() }).eq("user_id", user.id);
+    if (!goal.trim()) return;
+    if (user) {
+      await supabase.from("profiles").update({ learning_goal: goal.trim() }).eq("user_id", user.id);
+    }
     setGoalSaved(true);
     playDing("success");
     toast.success("Goal saved");
