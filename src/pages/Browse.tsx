@@ -262,12 +262,15 @@ const Browse = () => {
       });
 
       if (filmId) {
-        await ensureSubtitleTracks({
+        // Fire-and-forget: caption ingestion runs in the background while the
+        // user is already on the Watch page seeing the thumbnail/title and
+        // can start the video immediately.
+        ensureSubtitleTracks({
           filmId,
           videoId: ytId,
           primaryLanguage: learningLanguage,
           secondaryLanguage: nativeLanguage,
-        });
+        }).catch((err) => console.warn("Background caption ingest failed:", err));
       }
 
       // Log activity
@@ -292,12 +295,12 @@ const Browse = () => {
         });
       }
 
-      toast({ title: "Lesson created! 🎬", description: `"${title}" is ready to watch.` });
+      toast({ title: "Lesson created! 🎬", description: `"${title}" — captions loading in the background.` });
       setPasteUrl("");
       fetchLessons();
       fetchActivity();
 
-      // Navigate to watch
+      // Navigate to watch immediately — captions stream in while video is ready.
       if (filmId) {
         navigate(`/watch/${filmId}`);
       }
