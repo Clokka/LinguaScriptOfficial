@@ -190,10 +190,12 @@ export const TourOverlay = () => {
       }
     : null;
 
-  // Cursor target = top-right of the spotlight (visual offset).
-  const cursorPos = ring
-    ? { left: ring.left + ring.width * 0.5, top: ring.top + ring.height * 0.5 }
-    : { left: window.innerWidth / 2, top: window.innerHeight / 2 };
+  // Cursor target = center of cursorRect (which may differ from spotlight).
+  const cursorPos = cursorRect
+    ? { left: cursorRect.left + cursorRect.width * 0.5, top: cursorRect.top + cursorRect.height * 0.5 }
+    : ring
+      ? { left: ring.left + ring.width * 0.5, top: ring.top + ring.height * 0.5 }
+      : { left: window.innerWidth / 2, top: window.innerHeight / 2 };
 
   // Tooltip placement.
   let tooltipStyle: React.CSSProperties = { zIndex: Z_TOOLTIP, position: "fixed", maxWidth: 280 };
