@@ -861,6 +861,17 @@ const SettingsTab = ({
   user: any;
   navigate: (p: string) => void;
 }) => {
+  const tour = useTour();
+  const onNativeOpenChange = (open: boolean) => {
+    if (!open && tour.active && tour.step?.id === "settings-native") {
+      setTimeout(() => tour.advance(), 250);
+    }
+  };
+  const onLearningOpenChange = (open: boolean) => {
+    if (!open && tour.active && tour.step?.id === "settings-learning") {
+      setTimeout(() => tour.advance(), 250);
+    }
+  };
   if (!user) {
     return (
       <div className="space-y-6">
