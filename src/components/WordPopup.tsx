@@ -82,6 +82,7 @@ export const WordPopup = ({ word, position, onClose, onSave }: WordPopupProps) =
           {/* Actions */}
           <div className="flex gap-2 pt-2">
             <Button
+              data-tour="word-save"
               variant="success"
               className="flex-1"
               onClick={onSave}

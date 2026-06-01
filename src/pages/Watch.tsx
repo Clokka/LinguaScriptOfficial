@@ -207,7 +207,7 @@ const Watch = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { learningLanguage } = useLanguage();
-  const { registerPlayer } = useTour();
+  const { registerPlayer, active: tourActive } = useTour();
   const playerRef = useRef<any>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval>>();
 
@@ -222,7 +222,10 @@ const Watch = () => {
   const [captionsError, setCaptionsError] = useState<string | null>(null);
   const [nativeLanguage, setNativeLanguage] = useState("en");
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [adDone, setAdDone] = useState(false);
+  // Skip the pre-roll house ad during the guided onboarding tour for a
+  // frictionless first impression. The first thing the new user sees should
+  // be the video + the teaching cursor, never an ad.
+  const [adDone, setAdDone] = useState(tourActive);
 
   const toggleFullscreen = useCallback(() => {
     const container = videoContainerRef.current;
