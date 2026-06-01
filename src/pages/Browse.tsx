@@ -22,6 +22,7 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useTour } from "@/contexts/TourContext";
 import { useToast } from "@/hooks/use-toast";
 import { getLanguageLabel, getLanguageFlag, LANGUAGES } from "@/lib/languages";
 import { ensureSubtitleTracks } from "@/lib/subtitleSync";
@@ -81,6 +82,7 @@ const Browse = () => {
   const { user } = useAuth();
   const { learningLanguage, setLearningLanguage } = useLanguage();
   const { toast } = useToast();
+  const tour = useTour();
 
   const [activeTab, setActiveTab] = useState<TabKey>("home");
   const [lessons, setLessons] = useState<UserLesson[]>([]);
@@ -260,12 +262,15 @@ const Browse = () => {
       });
 
       if (filmId) {
-        await ensureSubtitleTracks({
+        // Fire-and-forget: caption ingestion runs in the background while the
+        // user is already on the Watch page seeing the thumbnail/title and
+        // can start the video immediately.
+        ensureSubtitleTracks({
           filmId,
           videoId: ytId,
           primaryLanguage: learningLanguage,
           secondaryLanguage: nativeLanguage,
-        });
+        }).catch((err) => console.warn("Background caption ingest failed:", err));
       }
 
       // Log activity
@@ -290,12 +295,12 @@ const Browse = () => {
         });
       }
 
-      toast({ title: "Lesson created! 🎬", description: `"${title}" is ready to watch.` });
+      toast({ title: "Lesson created! 🎬", description: `"${title}" — captions loading in the background.` });
       setPasteUrl("");
       fetchLessons();
       fetchActivity();
 
-      // Navigate to watch
+      // Navigate to watch immediately — captions stream in while video is ready.
       if (filmId) {
         navigate(`/watch/${filmId}`);
       }
@@ -433,9 +438,19 @@ const Browse = () => {
           {activeTab === "settings" && (
             <SettingsTab
               nativeLanguage={nativeLanguage}
-              setNativeLanguage={setNativeLanguage}
+              setNativeLanguage={(v) => {
+                setNativeLanguage(v);
+                if (tour.active && tour.step?.id === "settings-native") {
+                  setTimeout(() => tour.advance(), 350);
+                }
+              }}
               learningLanguage={settingsLearning}
-              setLearningLanguage={setSettingsLearning}
+              setLearningLanguage={(v) => {
+                setSettingsLearning(v);
+                if (tour.active && tour.step?.id === "settings-learning") {
+                  setTimeout(() => tour.advance(), 350);
+                }
+              }}
               displayName={displayName}
               setDisplayName={setDisplayName}
               isPublic={isPublic}

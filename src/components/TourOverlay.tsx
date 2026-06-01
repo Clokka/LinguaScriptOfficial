@@ -22,24 +22,38 @@ export const TourOverlay = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [rect, setRect] = useState<Rect | null>(null);
+  const [cursorRect, setCursorRect] = useState<Rect | null>(null);
   const advanceLockRef = useRef(false);
 
-  // Resolve the target element (poll until it appears).
+  // Resolve target element (poll). Preserve last rect on transient nulls so the
+  // cursor never snaps to screen center during page navigations.
   useEffect(() => {
     if (!active || !step) {
       setRect(null);
+      setCursorRect(null);
       return;
     }
     let raf = 0;
     let cancelled = false;
+    let missCount = 0;
 
     const measure = () => {
       const el = document.querySelector(step.selector) as HTMLElement | null;
       if (el) {
+        missCount = 0;
         const r = el.getBoundingClientRect();
         setRect({ left: r.left, top: r.top, width: r.width, height: r.height });
       } else {
-        setRect(null);
+        missCount++;
+        if (missCount > 30) setRect(null);
+      }
+      const cursorSel = (step as any).cursorSelector as string | undefined;
+      const cEl = cursorSel
+        ? (document.querySelector(cursorSel) as HTMLElement | null)
+        : el;
+      if (cEl) {
+        const r = cEl.getBoundingClientRect();
+        setCursorRect({ left: r.left, top: r.top, width: r.width, height: r.height });
       }
       if (!cancelled) raf = requestAnimationFrame(measure);
     };
@@ -176,10 +190,12 @@ export const TourOverlay = () => {
       }
     : null;
 
-  // Cursor target = top-right of the spotlight (visual offset).
-  const cursorPos = ring
-    ? { left: ring.left + ring.width * 0.5, top: ring.top + ring.height * 0.5 }
-    : { left: window.innerWidth / 2, top: window.innerHeight / 2 };
+  // Cursor target = center of cursorRect (which may differ from spotlight).
+  const cursorPos = cursorRect
+    ? { left: cursorRect.left + cursorRect.width * 0.5, top: cursorRect.top + cursorRect.height * 0.5 }
+    : ring
+      ? { left: ring.left + ring.width * 0.5, top: ring.top + ring.height * 0.5 }
+      : { left: window.innerWidth / 2, top: window.innerHeight / 2 };
 
   // Tooltip placement.
   let tooltipStyle: React.CSSProperties = { zIndex: Z_TOOLTIP, position: "fixed", maxWidth: 280 };
@@ -266,7 +282,7 @@ export const TourOverlay = () => {
       <motion.div
         initial={false}
         animate={{ left: cursorPos.left, top: cursorPos.top }}
-        transition={{ type: "spring", stiffness: 90, damping: 18 }}
+        transition={{ type: "spring", stiffness: 55, damping: 16, mass: 1.1 }}
         style={{ position: "fixed", zIndex: Z_CURSOR, pointerEvents: "none" }}
       >
         <motion.div
