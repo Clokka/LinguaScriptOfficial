@@ -907,7 +907,7 @@ const SettingsTab = ({
       <SettingsSection title="Languages" subtitle="Powers translations and pronunciation voices.">
         <div data-tour="settings-native">
           <label className="text-sm font-medium text-foreground mb-2 block">Native language</label>
-          <Select value={nativeLanguage} onValueChange={setNativeLanguage}>
+          <Select value={nativeLanguage} onValueChange={setNativeLanguage} onOpenChange={onNativeOpenChange}>
             <SelectTrigger className="rounded-xl border-orange-100"><SelectValue /></SelectTrigger>
             <SelectContent>
               {LANGUAGES.map((l) => (<SelectItem key={l.code} value={l.code}>{l.flag} {l.label}</SelectItem>))}
@@ -916,7 +916,7 @@ const SettingsTab = ({
         </div>
         <div data-tour="settings-learning">
           <label className="text-sm font-medium text-foreground mb-2 block">Learning</label>
-          <Select value={learningLanguage} onValueChange={setLearningLanguage}>
+          <Select value={learningLanguage} onValueChange={setLearningLanguage} onOpenChange={onLearningOpenChange}>
             <SelectTrigger className="rounded-xl border-orange-100"><SelectValue /></SelectTrigger>
             <SelectContent>
               {LANGUAGES.filter((l) => l.code !== nativeLanguage).map((l) => (
