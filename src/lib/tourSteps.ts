@@ -149,6 +149,7 @@ export const TOUR_STEPS: TourStep[] = [
     copy: "Choose what you're learning.",
     placement: "top",
     pad: 6,
+    allowFreeClicks: true,
   },
   {
     id: "browse-home",
