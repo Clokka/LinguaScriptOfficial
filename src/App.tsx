@@ -30,7 +30,8 @@ const App = () => (
         <BrowserRouter>
           <TourProvider>
             <Routes>
-              <Route path="/" element={<Landing />} />
+              <Route path="/" element={<Onboarding />} />
+              <Route path="/landing" element={<Landing />} />
               <Route path="/browse" element={<Browse />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/profile" element={<Profile />} />
