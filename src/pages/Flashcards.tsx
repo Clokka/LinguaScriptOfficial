@@ -198,6 +198,7 @@ const Flashcards = () => {
           </div>
         ) : (
           <Button
+            data-tour="flashcards-review-btn"
             onClick={() => setReviewing(true)}
             className="w-full h-14 rounded-xl bg-gradient-to-r from-primary to-[hsl(280,100%,60%)] text-primary-foreground font-semibold text-lg gap-2"
           >
