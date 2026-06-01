@@ -42,11 +42,7 @@ const Onboarding = () => {
   const [goalSaved, setGoalSaved] = useState(false);
   const [dualClicked, setDualClicked] = useState(false);
 
-  useEffect(() => {
-    if (!authLoading && !user) navigate("/auth?next=/onboarding");
-  }, [user, authLoading, navigate]);
-
-  // Load any existing profile values
+  // Load any existing profile values (auth optional — anonymous users see onboarding too)
   useEffect(() => {
     if (!user) return;
     supabase.from("profiles").select("*").eq("user_id", user.id).single().then(({ data }) => {
@@ -56,7 +52,6 @@ const Onboarding = () => {
         if ((data as any).learning_goal) setGoal((data as any).learning_goal);
         if ((data as any).school) setSchool((data as any).school);
         if ((data as any).daily_video_goal) setVideoGoal((data as any).daily_video_goal);
-        if ((data as any).onboarded) navigate("/browse");
       }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
