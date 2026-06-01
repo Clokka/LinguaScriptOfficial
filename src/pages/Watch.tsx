@@ -378,9 +378,14 @@ const Watch = () => {
       videoId: ytId,
       width: "100%",
       height: "100%",
-      playerVars: { autoplay: 0, controls: 1, modestbranding: 1, rel: 0, cc_load_policy: 0 },
+      playerVars: { autoplay: tourActive ? 1 : 0, controls: 1, modestbranding: 1, rel: 0, cc_load_policy: 0 },
       events: {
-        onReady: () => { registerPlayer(playerRef.current); },
+        onReady: () => {
+          registerPlayer(playerRef.current);
+          if (tourActive) {
+            try { playerRef.current?.playVideo?.(); } catch { /* noop */ }
+          }
+        },
         onStateChange: (event: any) => {
           if (event.data === window.YT.PlayerState.PLAYING) {
             watchStartRef.current = Date.now();
