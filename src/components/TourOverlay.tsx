@@ -80,6 +80,11 @@ export const TourOverlay = () => {
       const matched = target.closest(step.selector);
       const isAllowed = target.closest('[data-tour-allow="true"]');
       if (matched) {
+        // Fullscreen step: don't advance here — wait for the real
+        // fullscreenchange event so we only advance once the browser
+        // has actually entered fullscreen. This also lets the button's
+        // native onClick (real user gesture) trigger fullscreen reliably.
+        if (step.id === "watch-fullscreen") return;
         advanceLockRef.current = true;
         setTimeout(() => {
           advanceLockRef.current = false;
