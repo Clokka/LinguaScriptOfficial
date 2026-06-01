@@ -22,24 +22,38 @@ export const TourOverlay = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [rect, setRect] = useState<Rect | null>(null);
+  const [cursorRect, setCursorRect] = useState<Rect | null>(null);
   const advanceLockRef = useRef(false);
 
-  // Resolve the target element (poll until it appears).
+  // Resolve target element (poll). Preserve last rect on transient nulls so the
+  // cursor never snaps to screen center during page navigations.
   useEffect(() => {
     if (!active || !step) {
       setRect(null);
+      setCursorRect(null);
       return;
     }
     let raf = 0;
     let cancelled = false;
+    let missCount = 0;
 
     const measure = () => {
       const el = document.querySelector(step.selector) as HTMLElement | null;
       if (el) {
+        missCount = 0;
         const r = el.getBoundingClientRect();
         setRect({ left: r.left, top: r.top, width: r.width, height: r.height });
       } else {
-        setRect(null);
+        missCount++;
+        if (missCount > 30) setRect(null);
+      }
+      const cursorSel = (step as any).cursorSelector as string | undefined;
+      const cEl = cursorSel
+        ? (document.querySelector(cursorSel) as HTMLElement | null)
+        : el;
+      if (cEl) {
+        const r = cEl.getBoundingClientRect();
+        setCursorRect({ left: r.left, top: r.top, width: r.width, height: r.height });
       }
       if (!cancelled) raf = requestAnimationFrame(measure);
     };
