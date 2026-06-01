@@ -282,7 +282,7 @@ export const TourOverlay = () => {
       <motion.div
         initial={false}
         animate={{ left: cursorPos.left, top: cursorPos.top }}
-        transition={{ type: "spring", stiffness: 90, damping: 18 }}
+        transition={{ type: "spring", stiffness: 55, damping: 16, mass: 1.1 }}
         style={{ position: "fixed", zIndex: Z_CURSOR, pointerEvents: "none" }}
       >
         <motion.div
