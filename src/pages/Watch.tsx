@@ -504,7 +504,7 @@ const Watch = () => {
   return (
     <div className="min-h-screen bg-black flex flex-col">
       <div className="flex items-center gap-3 p-4 bg-black/80 backdrop-blur z-20">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/browse")} className="text-white hover:bg-white/10">
+        <Button data-tour="page-back" variant="ghost" size="icon" onClick={() => navigate("/browse")} className="text-white hover:bg-white/10">
           <ArrowLeft className="w-5 h-5" />
         </Button>
         <div className="flex-1 min-w-0">
