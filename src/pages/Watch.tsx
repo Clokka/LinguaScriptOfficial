@@ -373,10 +373,19 @@ const Watch = () => {
         return;
       }
 
-      const { primary, secondary } = await loadAllCaptions(
-        film.id, ytId, primaryLang, secondaryLang,
-        (msg) => { if (!cancelled) setCaptionsStatus(msg); },
-      );
+      let primary: SubtitleSegment[] = [];
+      let secondary: SubtitleSegment[] = [];
+      let loadError: string | null = null;
+      try {
+        const res = await loadAllCaptions(
+          film.id, ytId, primaryLang, secondaryLang,
+          (msg) => { if (!cancelled) setCaptionsStatus(msg); },
+        );
+        primary = res.primary;
+        secondary = res.secondary;
+      } catch (e: any) {
+        loadError = e?.message || "Caption fetch failed";
+      }
 
       if (cancelled) return;
 
@@ -384,7 +393,11 @@ const Watch = () => {
         setSubtitles(buildDisplaySubtitles(primary, secondary));
         setCaptionsStatus(null);
       } else {
-        setCaptionsError(`Could not load ${getLanguageLabel(primaryLang)} captions for this video`);
+        const detail = loadError ? ` (${loadError})` : "";
+        setCaptionsError(
+          `Could not load ${getLanguageLabel(primaryLang)} captions for this video${detail}. ` +
+          `YouTube may not provide captions for it, or our caption provider is at its daily limit. Please try another video.`,
+        );
       }
       setCaptionsLoading(false);
     };
