@@ -13,6 +13,7 @@ export type TourStepId =
   | "watch-pron"
   | "watch-save"
   | "watch-fullscreen"
+  | "watch-back"
   | "browse-flashcards"
   | "flashcards-review"
   | "flashcard-flip"
@@ -83,6 +84,14 @@ export const TOUR_STEPS: TourStep[] = [
     placement: "bottom",
     pad: 14,
     postDelay: 200,
+  },
+  {
+    id: "watch-back",
+    selector: '[data-tour="page-back"]',
+    copy: "Head back to your dashboard to keep exploring.",
+    placement: "bottom",
+    pad: 6,
+    expectRoute: "/browse",
   },
   {
     id: "browse-flashcards",

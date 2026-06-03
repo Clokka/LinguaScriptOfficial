@@ -162,13 +162,23 @@ async function loadAllCaptions(
   }
 
   // 2) Fetch via edge function (proxies InnerTube + tlang to avoid CORS)
+  let edgeFailure: string | null = null;
   if (!primary.length || (primaryLang !== secondaryLang && !secondary.length)) {
     onStatus(`Downloading ${getLanguageLabel(primaryLang)} & ${getLanguageLabel(secondaryLang)} captions…`);
     try {
-      const { data, error } = await supabase.functions.invoke("fetch-captions", {
+      // 30s hard timeout so we never get stuck on a hung provider.
+      const invokePromise = supabase.functions.invoke("fetch-captions", {
         body: { videoId, language: primaryLang, nativeLanguage: secondaryLang },
       });
-      if (!error && data) {
+      const timeoutPromise = new Promise<{ data: null; error: Error }>((resolve) =>
+        setTimeout(() => resolve({ data: null, error: new Error("Caption service timed out after 30s") }), 30000),
+      );
+      const { data, error } = (await Promise.race([invokePromise, timeoutPromise])) as any;
+      if (error) {
+        edgeFailure = error.message || "Caption service unavailable";
+        console.warn("Edge caption fetch error:", error);
+      } else if (data) {
+        if (data.learningError) edgeFailure = data.learningError;
         if (!primary.length && data.subtitles?.length) {
           primary = data.subtitles;
           await persistTrack(filmId, primaryLang, primary);
@@ -178,15 +188,39 @@ async function loadAllCaptions(
           await persistTrack(filmId, secondaryLang, secondary);
         }
       }
-    } catch (e) {
+    } catch (e: any) {
+      edgeFailure = e?.message || "Caption service failed";
       console.warn("Edge caption fetch failed:", e);
     }
 
-    // Fallback: AI translate if one track still missing
+    // Fallback A: browser-side InnerTube fetch (bypasses paid provider quotas).
+    if (!primary.length || (primaryLang !== secondaryLang && !secondary.length)) {
+      onStatus("Provider unavailable — trying direct fetch…");
+      try {
+        const browserRes = await fetchCaptionsFromBrowser(videoId, primaryLang, secondaryLang);
+        if (!primary.length && browserRes.learning.length) {
+          primary = browserRes.learning;
+          await persistTrack(filmId, primaryLang, primary);
+        }
+        if (primaryLang !== secondaryLang && !secondary.length && browserRes.native.length) {
+          secondary = browserRes.native;
+          await persistTrack(filmId, secondaryLang, secondary);
+        }
+      } catch (e) {
+        console.warn("Browser caption fallback failed:", e);
+      }
+    }
+
+    // Fallback B: AI translate if one track still missing
     if (primary.length && !secondary.length && primaryLang !== secondaryLang) {
       onStatus(`Translating to ${getLanguageLabel(secondaryLang)}…`);
       secondary = await translateTrack(primary, primaryLang, secondaryLang);
       if (secondary.length) await persistTrack(filmId, secondaryLang, secondary);
+    }
+
+    if (!primary.length && edgeFailure) {
+      // Surface via thrown error so caller can show it.
+      throw new Error(edgeFailure);
     }
   }
 
@@ -339,10 +373,19 @@ const Watch = () => {
         return;
       }
 
-      const { primary, secondary } = await loadAllCaptions(
-        film.id, ytId, primaryLang, secondaryLang,
-        (msg) => { if (!cancelled) setCaptionsStatus(msg); },
-      );
+      let primary: SubtitleSegment[] = [];
+      let secondary: SubtitleSegment[] = [];
+      let loadError: string | null = null;
+      try {
+        const res = await loadAllCaptions(
+          film.id, ytId, primaryLang, secondaryLang,
+          (msg) => { if (!cancelled) setCaptionsStatus(msg); },
+        );
+        primary = res.primary;
+        secondary = res.secondary;
+      } catch (e: any) {
+        loadError = e?.message || "Caption fetch failed";
+      }
 
       if (cancelled) return;
 
@@ -350,7 +393,11 @@ const Watch = () => {
         setSubtitles(buildDisplaySubtitles(primary, secondary));
         setCaptionsStatus(null);
       } else {
-        setCaptionsError(`Could not load ${getLanguageLabel(primaryLang)} captions for this video`);
+        const detail = loadError ? ` (${loadError})` : "";
+        setCaptionsError(
+          `Could not load ${getLanguageLabel(primaryLang)} captions for this video${detail}. ` +
+          `YouTube may not provide captions for it, or our caption provider is at its daily limit. Please try another video.`,
+        );
       }
       setCaptionsLoading(false);
     };
@@ -504,7 +551,7 @@ const Watch = () => {
   return (
     <div className="min-h-screen bg-black flex flex-col">
       <div className="flex items-center gap-3 p-4 bg-black/80 backdrop-blur z-20">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/browse")} className="text-white hover:bg-white/10">
+        <Button data-tour="page-back" variant="ghost" size="icon" onClick={() => navigate("/browse")} className="text-white hover:bg-white/10">
           <ArrowLeft className="w-5 h-5" />
         </Button>
         <div className="flex-1 min-w-0">
