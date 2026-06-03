@@ -13,6 +13,7 @@ export type TourStepId =
   | "watch-pron"
   | "watch-save"
   | "watch-fullscreen"
+  | "watch-back"
   | "browse-flashcards"
   | "flashcards-review"
   | "flashcard-flip"
