@@ -37,15 +37,32 @@ export const TourOverlay = () => {
     let cancelled = false;
     let missCount = 0;
 
+    let scrolledForEl: Element | null = null;
     const measure = () => {
       const el = document.querySelector(step.selector) as HTMLElement | null;
       if (el) {
         missCount = 0;
         const r = el.getBoundingClientRect();
         setRect({ left: r.left, top: r.top, width: r.width, height: r.height });
+        // Auto-scroll target into view on small screens / when offscreen.
+        if (el !== scrolledForEl) {
+          const vh = window.innerHeight;
+          const vw = window.innerWidth;
+          const offscreen =
+            r.top < 80 || r.bottom > vh - 120 || r.left < 0 || r.right > vw;
+          if (offscreen) {
+            try {
+              el.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
+            } catch {
+              el.scrollIntoView();
+            }
+          }
+          scrolledForEl = el;
+        }
       } else {
         missCount++;
         if (missCount > 30) setRect(null);
+        scrolledForEl = null;
       }
       const cursorSel = (step as any).cursorSelector as string | undefined;
       const cEl = cursorSel
