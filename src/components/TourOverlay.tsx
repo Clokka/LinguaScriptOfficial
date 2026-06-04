@@ -104,17 +104,13 @@ export const TourOverlay = () => {
     if (!active || !step) return;
     if (step.autoAction || step.expectRoute) return;
 
-    const handler = (e: MouseEvent) => {
+    const handler = (e: MouseEvent | TouchEvent) => {
       if (advanceLockRef.current) return;
       const target = e.target as HTMLElement | null;
       if (!target) return;
       const matched = target.closest(step.selector);
       const isAllowed = target.closest('[data-tour-allow="true"]');
       if (matched) {
-        // Fullscreen step: don't advance here — wait for the real
-        // fullscreenchange event so we only advance once the browser
-        // has actually entered fullscreen. This also lets the button's
-        // native onClick (real user gesture) trigger fullscreen reliably.
         if (step.id === "watch-fullscreen") return;
         advanceLockRef.current = true;
         setTimeout(() => {
@@ -124,11 +120,15 @@ export const TourOverlay = () => {
         }, step.postDelay ?? 60);
       } else if (!step.allowFreeClicks && !isAllowed) {
         e.stopPropagation();
-        e.preventDefault();
+        if (e.cancelable) e.preventDefault();
       }
     };
     document.addEventListener("click", handler, true);
-    return () => document.removeEventListener("click", handler, true);
+    document.addEventListener("touchend", handler, true);
+    return () => {
+      document.removeEventListener("click", handler, true);
+      document.removeEventListener("touchend", handler, true);
+    };
   }, [active, step, advance, navigate]);
 
   // Route-change advance for steps that expect navigation.
