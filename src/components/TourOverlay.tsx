@@ -37,15 +37,32 @@ export const TourOverlay = () => {
     let cancelled = false;
     let missCount = 0;
 
+    let scrolledForEl: Element | null = null;
     const measure = () => {
       const el = document.querySelector(step.selector) as HTMLElement | null;
       if (el) {
         missCount = 0;
         const r = el.getBoundingClientRect();
         setRect({ left: r.left, top: r.top, width: r.width, height: r.height });
+        // Auto-scroll target into view on small screens / when offscreen.
+        if (el !== scrolledForEl) {
+          const vh = window.innerHeight;
+          const vw = window.innerWidth;
+          const offscreen =
+            r.top < 80 || r.bottom > vh - 120 || r.left < 0 || r.right > vw;
+          if (offscreen) {
+            try {
+              el.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
+            } catch {
+              el.scrollIntoView();
+            }
+          }
+          scrolledForEl = el;
+        }
       } else {
         missCount++;
         if (missCount > 30) setRect(null);
+        scrolledForEl = null;
       }
       const cursorSel = (step as any).cursorSelector as string | undefined;
       const cEl = cursorSel
@@ -87,17 +104,13 @@ export const TourOverlay = () => {
     if (!active || !step) return;
     if (step.autoAction || step.expectRoute) return;
 
-    const handler = (e: MouseEvent) => {
+    const handler = (e: MouseEvent | TouchEvent) => {
       if (advanceLockRef.current) return;
       const target = e.target as HTMLElement | null;
       if (!target) return;
       const matched = target.closest(step.selector);
       const isAllowed = target.closest('[data-tour-allow="true"]');
       if (matched) {
-        // Fullscreen step: don't advance here — wait for the real
-        // fullscreenchange event so we only advance once the browser
-        // has actually entered fullscreen. This also lets the button's
-        // native onClick (real user gesture) trigger fullscreen reliably.
         if (step.id === "watch-fullscreen") return;
         advanceLockRef.current = true;
         setTimeout(() => {
@@ -107,11 +120,15 @@ export const TourOverlay = () => {
         }, step.postDelay ?? 60);
       } else if (!step.allowFreeClicks && !isAllowed) {
         e.stopPropagation();
-        e.preventDefault();
+        if (e.cancelable) e.preventDefault();
       }
     };
     document.addEventListener("click", handler, true);
-    return () => document.removeEventListener("click", handler, true);
+    document.addEventListener("touchend", handler, true);
+    return () => {
+      document.removeEventListener("click", handler, true);
+      document.removeEventListener("touchend", handler, true);
+    };
   }, [active, step, advance, navigate]);
 
   // Route-change advance for steps that expect navigation.
@@ -197,18 +214,37 @@ export const TourOverlay = () => {
       ? { left: ring.left + ring.width * 0.5, top: ring.top + ring.height * 0.5 }
       : { left: window.innerWidth / 2, top: window.innerHeight / 2 };
 
-  // Tooltip placement.
-  let tooltipStyle: React.CSSProperties = { zIndex: Z_TOOLTIP, position: "fixed", maxWidth: 280 };
+  // Tooltip placement. pointerEvents:none so it never blocks taps on mobile.
+  const vw = typeof window !== "undefined" ? window.innerWidth : 1024;
+  const vh = typeof window !== "undefined" ? window.innerHeight : 768;
+  const isNarrow = vw < 640;
+  const ttMax = Math.min(280, vw - 24);
+  let tooltipStyle: React.CSSProperties = {
+    zIndex: Z_TOOLTIP,
+    position: "fixed",
+    maxWidth: ttMax,
+    width: isNarrow ? "calc(100vw - 24px)" : undefined,
+    pointerEvents: "none",
+  };
   if (ring) {
-    const placement = step.placement || "bottom";
+    let placement = step.placement || "bottom";
+    // On narrow screens, force top/bottom and clamp horizontally to viewport.
+    if (isNarrow && (placement === "left" || placement === "right")) {
+      placement = ring.top > vh / 2 ? "top" : "bottom";
+    }
     if (placement === "bottom") {
-      tooltipStyle = { ...tooltipStyle, left: ring.left + ring.width / 2, top: ring.top + ring.height + 16, transform: "translateX(-50%)" };
+      const top = Math.min(ring.top + ring.height + 16, vh - 80);
+      tooltipStyle = { ...tooltipStyle, left: "50%", top, transform: "translateX(-50%)" };
     } else if (placement === "top") {
-      tooltipStyle = { ...tooltipStyle, left: ring.left + ring.width / 2, top: ring.top - 16, transform: "translate(-50%, -100%)" };
+      const top = Math.max(ring.top - 16, 80);
+      tooltipStyle = { ...tooltipStyle, left: "50%", top, transform: "translate(-50%, -100%)" };
     } else if (placement === "right") {
       tooltipStyle = { ...tooltipStyle, left: ring.left + ring.width + 16, top: ring.top + ring.height / 2, transform: "translateY(-50%)" };
     } else {
       tooltipStyle = { ...tooltipStyle, left: ring.left - 16, top: ring.top + ring.height / 2, transform: "translate(-100%, -50%)" };
+    }
+    if (isNarrow) {
+      tooltipStyle.left = "50%";
     }
   } else {
     tooltipStyle = { ...tooltipStyle, left: "50%", top: "50%", transform: "translate(-50%, -50%)" };
