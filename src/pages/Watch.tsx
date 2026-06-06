@@ -257,6 +257,16 @@ const Watch = () => {
   const [captionsError, setCaptionsError] = useState<string | null>(null);
   const [nativeLanguage, setNativeLanguage] = useState("en");
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const isMobile = useIsMobile();
+  const [isLandscape, setIsLandscape] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mql = window.matchMedia("(orientation: landscape)");
+    const h = () => setIsLandscape(mql.matches);
+    h();
+    mql.addEventListener?.("change", h);
+    return () => mql.removeEventListener?.("change", h);
+  }, []);
   // Skip the pre-roll house ad during the guided onboarding tour for a
   // frictionless first impression. The first thing the new user sees should
   // be the video + the teaching cursor, never an ad.
