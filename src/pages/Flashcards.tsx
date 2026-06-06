@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { FlashcardReview } from "@/components/FlashcardReview";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { getGuestWords } from "@/lib/guestWords";
 
 interface SavedWord {
   id: string;
@@ -29,8 +30,17 @@ const Flashcards = () => {
   const [mode, setMode] = useState<"due" | "all">("due");
 
   const fetchCards = useCallback(async () => {
-    if (!user) { setLoading(false); return; }
     const today = new Date().toISOString().split("T")[0];
+
+    // Guest mode: pull from localStorage so onboarding works without an account.
+    if (!user) {
+      const guest = getGuestWords();
+      const due = guest.filter((w) => w.next_review <= today);
+      setAllCards(guest as unknown as SavedWord[]);
+      setDueCards(due as unknown as SavedWord[]);
+      setLoading(false);
+      return;
+    }
 
     // Also fetch user's language settings for translation
     const [dueRes, allRes, profileRes] = await Promise.all([
@@ -120,16 +130,6 @@ const Flashcards = () => {
     contextTranslation: c.contextTranslation,
   }));
 
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-muted-foreground mb-4">Sign in to access your flashcards</p>
-          <Button onClick={() => navigate("/auth")}>Sign In</Button>
-        </div>
-      </div>
-    );
-  }
 
   if (reviewing && flashcardData.length > 0) {
     return (
