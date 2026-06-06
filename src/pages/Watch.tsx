@@ -559,6 +559,99 @@ const Watch = () => {
     );
   }
 
+  // ── MOBILE LAYOUT (<768px) — desktop layout below is untouched ──
+  if (isMobile && !isFullscreen) {
+    const header = (
+      <div className="flex items-center gap-2 p-2 bg-black/80 backdrop-blur z-20">
+        <Button data-tour="page-back" variant="ghost" size="icon" onClick={() => navigate("/browse")} className="text-white hover:bg-white/10 shrink-0 h-9 w-9">
+          <ArrowLeft className="w-5 h-5" />
+        </Button>
+        <div className="flex-1 min-w-0">
+          <h1 className="text-white font-semibold truncate text-sm">{film.title}</h1>
+          <p className="text-white/60 text-[11px] truncate">
+            {getLanguageFlag(film.language ?? "fr")} {getLanguageLabel(film.language ?? "fr")}
+          </p>
+        </div>
+        <Button
+          data-tour="dual-toggle"
+          variant={subtitleMode === "dual" ? "default" : "ghost"}
+          size="sm"
+          onClick={() => setSubtitleMode(subtitleMode === "dual" ? "single" : "dual")}
+          className={cn("h-8 px-2 text-[11px] shrink-0", subtitleMode !== "dual" && "text-white hover:bg-white/10")}
+        >
+          {subtitleMode === "dual" ? "Dual: ON" : "Dual: OFF"}
+        </Button>
+        <Button data-tour="fullscreen-btn" variant="ghost" size="icon" onClick={toggleFullscreen} className="text-white hover:bg-white/10 shrink-0 h-9 w-9">
+          <Maximize className="w-5 h-5" />
+        </Button>
+      </div>
+    );
+
+    const videoBlock = (
+      <div
+        ref={videoContainerRef}
+        className="relative w-full bg-black overflow-hidden"
+        style={{ aspectRatio: "16 / 9", maxWidth: "100vw" }}
+      >
+        <div id="yt-player" className="absolute inset-0 w-full h-full" style={{ objectFit: "contain" }} />
+        {!adDone && <AdLoader onComplete={() => setAdDone(true)} />}
+        {captionsLoading && captionsStatus && (
+          <div className="absolute top-2 left-1/2 -translate-x-1/2 bg-black/70 text-white/80 text-xs px-3 py-1.5 rounded-lg flex items-center gap-2 z-[9999] max-w-[90%]">
+            <Loader2 className="w-3 h-3 animate-spin shrink-0" />
+            <span className="truncate">{captionsStatus}</span>
+          </div>
+        )}
+        {captionsError && (
+          <div className="absolute top-2 left-1/2 -translate-x-1/2 bg-destructive/80 text-destructive-foreground text-xs px-3 py-1.5 rounded-lg z-[9999] max-w-[90%]">
+            {captionsError}
+          </div>
+        )}
+      </div>
+    );
+
+    const subtitleBlock = currentSubtitle && (
+      <div
+        className="w-full px-3 py-2 bg-black/90 overflow-hidden"
+        style={{
+          maxHeight: "25vh",
+          fontSize: isLandscape ? "clamp(12px, 2vw, 16px)" : undefined,
+        }}
+      >
+        <SubtitleOverlay
+          primaryText={currentSubtitle.primary}
+          secondaryText={currentSubtitle.secondary}
+          words={currentSubtitle.words}
+          mode={subtitleMode}
+          onSaveWord={saveWordToFlashcards}
+          nativeLanguage={nativeLanguage}
+          className={isLandscape ? "!px-3 !py-2 [&_.subtitle-text]:!text-base" : "!px-4 !py-3 [&_.subtitle-text]:!text-lg"}
+        />
+      </div>
+    );
+
+    if (isLandscape) {
+      return (
+        <div className="min-h-screen bg-black flex flex-col">
+          {header}
+          <div className="flex-1 flex flex-row gap-2 p-2 overflow-hidden">
+            <div className="flex-[7] min-w-0 flex items-center">{videoBlock}</div>
+            <div className="flex-[3] min-w-0 overflow-y-auto">{subtitleBlock}</div>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="min-h-screen bg-black flex flex-col">
+        {header}
+        <div className="flex flex-col w-full">
+          {videoBlock}
+          {subtitleBlock}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-black flex flex-col">
       <div className="flex items-center gap-3 p-4 bg-black/80 backdrop-blur z-20">
