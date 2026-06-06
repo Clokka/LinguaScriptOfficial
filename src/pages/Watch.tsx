@@ -259,6 +259,7 @@ const Watch = () => {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const isMobile = useIsMobile();
   const [isLandscape, setIsLandscape] = useState(false);
+  const [landscapeBannerDismissed, setLandscapeBannerDismissed] = useState(false);
   useEffect(() => {
     if (typeof window === "undefined") return;
     const mql = window.matchMedia("(orientation: landscape)");
