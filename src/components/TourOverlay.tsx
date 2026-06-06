@@ -197,14 +197,19 @@ export const TourOverlay = () => {
 
   if (!active || !step) return null;
 
-  const pad = step.pad ?? 8;
+  const isMobileViewport = typeof window !== "undefined" && window.innerWidth < 768;
+  // Tighter pad on mobile so the ring hugs small buttons like "Dual: ON".
+  const pad = step.pad ?? (isMobileViewport ? 4 : 8);
   const ring = rect
-    ? {
-        left: rect.left - pad,
-        top: rect.top - pad,
-        width: rect.width + pad * 2,
-        height: rect.height + pad * 2,
-      }
+    ? (() => {
+        const vw = typeof window !== "undefined" ? window.innerWidth : 1024;
+        const vh = typeof window !== "undefined" ? window.innerHeight : 768;
+        const left = Math.max(2, rect.left - pad);
+        const top = Math.max(2, rect.top - pad);
+        const right = Math.min(vw - 2, rect.left + rect.width + pad);
+        const bottom = Math.min(vh - 2, rect.top + rect.height + pad);
+        return { left, top, width: right - left, height: bottom - top };
+      })()
     : null;
 
   // Cursor target = center of cursorRect (which may differ from spotlight).
@@ -257,7 +262,7 @@ export const TourOverlay = () => {
         <motion.div
           initial={false}
           animate={{ left: ring.left, top: ring.top, width: ring.width, height: ring.height }}
-          transition={{ type: "spring", stiffness: 220, damping: 28 }}
+          transition={isMobileViewport ? { type: "tween", duration: 0.12 } : { type: "spring", stiffness: 220, damping: 28 }}
           style={{
             position: "fixed",
             zIndex: Z_DIM,
@@ -284,7 +289,7 @@ export const TourOverlay = () => {
         <motion.div
           initial={false}
           animate={{ left: ring.left, top: ring.top, width: ring.width, height: ring.height }}
-          transition={{ type: "spring", stiffness: 220, damping: 28 }}
+          transition={isMobileViewport ? { type: "tween", duration: 0.12 } : { type: "spring", stiffness: 220, damping: 28 }}
           style={{
             position: "fixed",
             zIndex: Z_RING,

@@ -31,12 +31,22 @@ export const WordPopup = ({ word, position, onClose, onSave }: WordPopupProps) =
       {/* Popup */}
       <div
         className={cn(
-          "fixed z-50 glass-panel-strong p-5 w-80 animate-scale-in",
-          "shadow-float"
+          "fixed z-50 glass-panel-strong animate-scale-in shadow-float",
+          // Mobile: clamp width and center horizontally; Desktop: original 320px box
+          "p-4 md:p-5",
+          "w-[90vw] max-w-[340px] md:w-80",
+          "left-1/2 -translate-x-1/2 md:translate-x-0",
+          "text-[clamp(12px,3.6vw,16px)] md:text-base"
         )}
         style={{
-          left: Math.min(position.x - 160, window.innerWidth - 340),
-          top: Math.max(position.y - 200, 20),
+          // On md+, anchor near the click; on mobile, ignore x (centered via class)
+          ...(typeof window !== "undefined" && window.innerWidth >= 768
+            ? { left: Math.max(16, Math.min(position.x - 160, window.innerWidth - 340)) }
+            : {}),
+          top: Math.min(
+            Math.max(position.y - 200, 16),
+            (typeof window !== "undefined" ? window.innerHeight : 800) - 360,
+          ),
         }}
       >
         <button
