@@ -666,14 +666,22 @@ const Watch = () => {
       </div>
     );
 
+    const pcNudge = (
+      <div className="px-3 py-2 bg-muted/40 text-muted-foreground text-[11px] text-center border-t border-white/5">
+        💻 For the best experience, try LinguaScript on a laptop or PC
+      </div>
+    );
+
     if (isLandscape) {
       return (
         <div className="min-h-screen bg-black flex flex-col">
+          <LandscapeBanner />
           {header}
           <div className="flex-1 flex flex-row gap-2 p-2 overflow-hidden">
             <div className="flex-[7] min-w-0 flex items-center">{videoBlock}</div>
             <div className="flex-[3] min-w-0 overflow-y-auto">{subtitleBlock}</div>
           </div>
+          {pcNudge}
         </div>
       );
     }
@@ -684,10 +692,12 @@ const Watch = () => {
         <div className="flex flex-col w-full">
           {videoBlock}
           {subtitleBlock}
+          {pcNudge}
         </div>
       </div>
     );
   }
+
 
   return (
     <div className="min-h-screen bg-black flex flex-col">
