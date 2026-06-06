@@ -262,7 +262,7 @@ export const TourOverlay = () => {
         <motion.div
           initial={false}
           animate={{ left: ring.left, top: ring.top, width: ring.width, height: ring.height }}
-          transition={{ type: "spring", stiffness: 220, damping: 28 }}
+          transition={isMobileViewport ? { type: "tween", duration: 0.12 } : { type: "spring", stiffness: 220, damping: 28 }}
           style={{
             position: "fixed",
             zIndex: Z_DIM,
