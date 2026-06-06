@@ -168,32 +168,59 @@ export const TourOverlay = () => {
   }, [active, step, advance, end]);
 
   // Reliable fullscreen step: advance & navigate when fullscreen actually opens,
-  // even if the user's first click missed the small icon button.
+  // or after a short fallback on mobile/unsupported browsers where the
+  // fullscreen API may silently fail or fall back to CSS fullscreen.
   useEffect(() => {
     if (!active || !step) return;
     if (step.id !== "watch-fullscreen") return;
-    const handler = () => {
-      const fsEl = document.fullscreenElement || (document as any).webkitFullscreenElement;
-      if (!fsEl) return;
-      // Give the user a beat to feel the fullscreen, then exit + navigate back to /browse.
+    let advanced = false;
+    const doAdvance = (exitFs: boolean) => {
+      if (advanced) return;
+      advanced = true;
       setTimeout(() => {
-        try {
-          if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen();
-          else if ((document as any).webkitFullscreenElement && (document as any).webkitExitFullscreen) {
-            (document as any).webkitExitFullscreen();
-          }
-        } catch { /* noop */ }
+        if (exitFs) {
+          try {
+            if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen();
+            else if ((document as any).webkitFullscreenElement && (document as any).webkitExitFullscreen) {
+              (document as any).webkitExitFullscreen();
+            }
+          } catch { /* noop */ }
+        }
         if (step.navigateTo) navigate(step.navigateTo);
         advance();
-      }, 1400);
+      }, exitFs ? 1400 : 200);
     };
-    document.addEventListener("fullscreenchange", handler);
-    document.addEventListener("webkitfullscreenchange", handler);
+    const fsHandler = () => {
+      const fsEl = document.fullscreenElement || (document as any).webkitFullscreenElement;
+      if (!fsEl) return;
+      doAdvance(true);
+    };
+    // Listen for a tap on the fullscreen button itself — covers mobile browsers
+    // where requestFullscreen rejects silently and no fullscreenchange fires.
+    const clickHandler = (e: Event) => {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      if (target.closest('[data-tour="fullscreen-btn"]')) {
+        // Wait a moment to see if real fullscreen kicks in; otherwise advance.
+        setTimeout(() => {
+          const fsEl = document.fullscreenElement || (document as any).webkitFullscreenElement;
+          if (fsEl) return; // fsHandler will take it from here
+          doAdvance(false);
+        }, 900);
+      }
+    };
+    document.addEventListener("fullscreenchange", fsHandler);
+    document.addEventListener("webkitfullscreenchange", fsHandler);
+    document.addEventListener("click", clickHandler, true);
+    document.addEventListener("touchend", clickHandler, true);
     return () => {
-      document.removeEventListener("fullscreenchange", handler);
-      document.removeEventListener("webkitfullscreenchange", handler);
+      document.removeEventListener("fullscreenchange", fsHandler);
+      document.removeEventListener("webkitfullscreenchange", fsHandler);
+      document.removeEventListener("click", clickHandler, true);
+      document.removeEventListener("touchend", clickHandler, true);
     };
   }, [active, step, advance, navigate]);
+
 
   if (!active || !step) return null;
 
