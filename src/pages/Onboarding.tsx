@@ -276,50 +276,64 @@ const Onboarding = () => {
                   Watch the 30-second intro, then enter the guided demo. A cursor will walk you through the entire Linguascript loop on a real video.
                 </Sub>
 
-                {/* Inline intro video — replace src with the Instagram intro reel when ready. */}
-                <div className="mt-8 rounded-3xl overflow-hidden border border-orange-100 aspect-video bg-neutral-900 shadow-[0_24px_60px_-30px_rgba(249,115,22,0.4)]">
-                  <iframe
-                    title="Linguascript intro"
-                    src={`https://www.youtube-nocookie.com/embed/${TOUR_TRAINING_YT_ID}?autoplay=0&modestbranding=1&rel=0&playsinline=1`}
-                    allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
-                    allowFullScreen
-                    className="w-full h-full"
-                    frameBorder={0}
-                  />
-                </div>
+                {/* Inline intro video — clicking anywhere acts as "Enter the demo". */}
+                {(() => {
+                  const enterDemo = async () => {
+                    if (enteringDemo) return;
+                    setEnteringDemo(true);
+                    const { data: film } = await supabase
+                      .from("films")
+                      .select("id")
+                      .or(`url.ilike.%${TOUR_TRAINING_YT_ID}%`)
+                      .limit(1)
+                      .maybeSingle();
+                    if (!film?.id) {
+                      toast.error("Training video missing from catalogue. Ask an admin to add it.");
+                      setEnteringDemo(false);
+                      return;
+                    }
+                    if (user) {
+                      await supabase.from("profiles").update({ onboarded: true }).eq("user_id", user.id);
+                    }
+                    setDualClicked(true);
+                    startTour({ trainingFilmId: film.id });
+                    navigate(`/watch/${film.id}`);
+                  };
+                  return (
+                    <>
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        onClick={enterDemo}
+                        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") enterDemo(); }}
+                        className="mt-8 relative rounded-3xl overflow-hidden border border-orange-100 aspect-video bg-neutral-900 shadow-[0_24px_60px_-30px_rgba(249,115,22,0.4)] cursor-pointer group"
+                      >
+                        <iframe
+                          title="Linguascript intro"
+                          src={`https://www.youtube-nocookie.com/embed/${TOUR_TRAINING_YT_ID}?autoplay=0&modestbranding=1&rel=0&playsinline=1&controls=0&disablekb=1`}
+                          allow="autoplay; encrypted-media; picture-in-picture"
+                          className="w-full h-full pointer-events-none"
+                          frameBorder={0}
+                        />
+                        {/* Click-blocker overlay — keeps users in-app instead of bouncing to YouTube. */}
+                        <div className="absolute inset-0 bg-transparent group-hover:bg-black/10 transition-colors" aria-hidden />
+                      </div>
 
-                <div className="mt-6 flex flex-col items-center gap-3">
-                  <Button
-                    onClick={async () => {
-                      setEnteringDemo(true);
-                      // Resolve training film by youtube_id
-                      const { data: film } = await supabase
-                        .from("films")
-                        .select("id")
-                        .or(`url.ilike.%${TOUR_TRAINING_YT_ID}%`)
-                        .limit(1)
-                        .maybeSingle();
-                      if (!film?.id) {
-                        toast.error("Training video missing from catalogue. Ask an admin to add it.");
-                        setEnteringDemo(false);
-                        return;
-                      }
-                      // Mark onboarded so /browse doesn't bounce them back here mid-tour
-                      if (user) {
-                        await supabase.from("profiles").update({ onboarded: true }).eq("user_id", user.id);
-                      }
-                      setDualClicked(true);
-                      startTour({ trainingFilmId: film.id });
-                      navigate(`/watch/${film.id}`);
-                    }}
-                    disabled={enteringDemo}
-                    className="h-12 px-8 rounded-full bg-orange-500 hover:bg-orange-600 text-white font-medium shadow-[0_8px_24px_-8px_rgba(249,115,22,0.6)] gap-2"
-                  >
-                    {enteringDemo ? "Loading…" : "Enter the demo"}
-                    <ArrowRight className="w-4 h-4" />
-                  </Button>
-                  <p className="text-xs text-neutral-500">A guided cursor will walk you through every feature.</p>
-                </div>
+                      <div className="mt-6 flex flex-col items-center gap-3">
+                        <Button
+                          onClick={enterDemo}
+                          disabled={enteringDemo}
+                          className="h-12 px-8 rounded-full bg-orange-500 hover:bg-orange-600 text-white font-medium shadow-[0_8px_24px_-8px_rgba(249,115,22,0.6)] gap-2"
+                        >
+                          {enteringDemo ? "Loading…" : "Enter the demo"}
+                          <ArrowRight className="w-4 h-4" />
+                        </Button>
+                        <p className="text-xs text-neutral-500">A guided cursor will walk you through every feature.</p>
+                      </div>
+                    </>
+                  );
+                })()}
+
               </Card>
             )}
 
