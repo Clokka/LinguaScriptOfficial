@@ -305,6 +305,15 @@ const Watch = () => {
     setCssFullscreen(true);
   }, [cssFullscreen]);
 
+  // When the tour moves past the fullscreen step, drop CSS fullscreen so the
+  // back button (and the rest of the page chrome) is visible again on mobile.
+  useEffect(() => {
+    if (!tourActive) return;
+    if (tourStep && tourStep.id !== "watch-fullscreen" && cssFullscreen) {
+      setCssFullscreen(false);
+    }
+  }, [tourActive, tourStep, cssFullscreen]);
+
 
   const watchStartRef = useRef<number | null>(null);
   const videoContainerRef = useRef<HTMLDivElement>(null);
