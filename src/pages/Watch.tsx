@@ -242,7 +242,7 @@ const Watch = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { learningLanguage } = useLanguage();
-  const { registerPlayer, active: tourActive } = useTour();
+  const { registerPlayer, active: tourActive, step: tourStep } = useTour();
   const playerRef = useRef<any>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval>>();
 
@@ -304,6 +304,15 @@ const Watch = () => {
     // iOS Safari: no element fullscreen — use CSS-based fullscreen fallback.
     setCssFullscreen(true);
   }, [cssFullscreen]);
+
+  // When the tour moves past the fullscreen step, drop CSS fullscreen so the
+  // back button (and the rest of the page chrome) is visible again on mobile.
+  useEffect(() => {
+    if (!tourActive) return;
+    if (tourStep && tourStep.id !== "watch-fullscreen" && cssFullscreen) {
+      setCssFullscreen(false);
+    }
+  }, [tourActive, tourStep, cssFullscreen]);
 
 
   const watchStartRef = useRef<number | null>(null);
