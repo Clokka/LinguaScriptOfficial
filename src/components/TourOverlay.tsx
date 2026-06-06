@@ -38,8 +38,20 @@ export const TourOverlay = () => {
     let missCount = 0;
 
     let scrolledForEl: Element | null = null;
+    // Pick the FIRST visible element matching the selector. Many tour targets
+    // exist twice in the DOM (desktop sidebar + mobile tab row) where one is
+    // display:none on the current viewport. We must point the cursor at the
+    // one the user can actually see and tap.
+    const pickVisible = (sel: string): HTMLElement | null => {
+      const all = Array.from(document.querySelectorAll(sel)) as HTMLElement[];
+      for (const node of all) {
+        const r = node.getBoundingClientRect();
+        if (r.width > 0 && r.height > 0) return node;
+      }
+      return all[0] || null;
+    };
     const measure = () => {
-      const el = document.querySelector(step.selector) as HTMLElement | null;
+      const el = pickVisible(step.selector);
       if (el) {
         missCount = 0;
         const r = el.getBoundingClientRect();
