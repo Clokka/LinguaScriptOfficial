@@ -602,7 +602,7 @@ const Watch = () => {
           {subtitleMode === "dual" ? "Dual: ON" : "Dual: OFF"}
         </Button>
         <Button data-tour="fullscreen-btn" variant="ghost" size="icon" onClick={toggleFullscreen} className="text-white hover:bg-white/10 shrink-0 h-9 w-9">
-          <Maximize className="w-5 h-5" />
+          {cssFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
         </Button>
       </div>
     );
@@ -610,11 +610,28 @@ const Watch = () => {
     const videoBlock = (
       <div
         ref={videoContainerRef}
-        className="relative bg-black overflow-hidden mx-auto"
-        style={{ aspectRatio: "16 / 9", width: "100%", maxWidth: "100vw", maxHeight: "100%" }}
+        className={cn(
+          "relative bg-black overflow-hidden mx-auto",
+          cssFullscreen && "fixed inset-0 z-[10000] mx-0"
+        )}
+        style={
+          cssFullscreen
+            ? { width: "100vw", height: "100vh" }
+            : { aspectRatio: "16 / 9", width: "100%", maxWidth: "100vw", maxHeight: "100%" }
+        }
       >
         <div id="yt-player" className="absolute inset-0 w-full h-full" />
         {!adDone && <AdLoader onComplete={() => setAdDone(true)} />}
+        {cssFullscreen && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleFullscreen}
+            className="absolute top-3 right-3 z-[10001] text-white bg-black/50 hover:bg-black/70 h-10 w-10 rounded-full"
+          >
+            <Minimize className="w-5 h-5" />
+          </Button>
+        )}
         {captionsLoading && captionsStatus && (
           <div className="absolute top-2 left-1/2 -translate-x-1/2 bg-black/70 text-white/80 text-xs px-3 py-1.5 rounded-lg flex items-center gap-2 z-[9999] max-w-[90%]">
             <Loader2 className="w-3 h-3 animate-spin shrink-0" />
