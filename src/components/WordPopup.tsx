@@ -20,6 +20,7 @@ interface WordPopupProps {
 
 export const WordPopup = ({ word, position, onClose, onSave }: WordPopupProps) => {
   const { speak } = useLanguage();
+  const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
   return (
     <>
       {/* Backdrop */}
@@ -32,22 +33,24 @@ export const WordPopup = ({ word, position, onClose, onSave }: WordPopupProps) =
       <div
         className={cn(
           "fixed z-50 glass-panel-strong animate-scale-in shadow-float",
-          // Mobile: clamp width and center horizontally; Desktop: original 320px box
           "p-4 md:p-5",
-          "w-[90vw] max-w-[340px] md:w-80",
-          "left-1/2 -translate-x-1/2 md:translate-x-0",
-          "text-[clamp(12px,3.6vw,16px)] md:text-base"
+          // Mobile: pin to bottom of viewport so it sits below video + subtitles, not over them
+          "left-3 right-3 bottom-3 md:left-auto md:right-auto md:bottom-auto",
+          "md:w-80",
+          "text-[clamp(12px,3.6vw,16px)] md:text-base",
+          "max-h-[55vh] overflow-y-auto md:max-h-none md:overflow-visible"
         )}
-        style={{
-          // On md+, anchor near the click; on mobile, ignore x (centered via class)
-          ...(typeof window !== "undefined" && window.innerWidth >= 768
-            ? { left: Math.max(16, Math.min(position.x - 160, window.innerWidth - 340)) }
-            : {}),
-          top: Math.min(
-            Math.max(position.y - 200, 16),
-            (typeof window !== "undefined" ? window.innerHeight : 800) - 360,
-          ),
-        }}
+        style={
+          isMobile
+            ? { paddingBottom: "max(env(safe-area-inset-bottom), 12px)" }
+            : {
+                left: Math.max(16, Math.min(position.x - 160, window.innerWidth - 340)),
+                top: Math.min(
+                  Math.max(position.y - 200, 16),
+                  window.innerHeight - 360,
+                ),
+              }
+        }
       >
         <button
           onClick={onClose}

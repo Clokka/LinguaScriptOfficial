@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Loader2, Download, Maximize, Minimize } from "lucide-react";
+import { ArrowLeft, Loader2, Download, Maximize, Minimize, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SubtitleOverlay } from "@/components/SubtitleOverlay";
 import { supabase } from "@/integrations/supabase/client";
@@ -259,6 +259,7 @@ const Watch = () => {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const isMobile = useIsMobile();
   const [isLandscape, setIsLandscape] = useState(false);
+  const [landscapeBannerDismissed, setLandscapeBannerDismissed] = useState(false);
   useEffect(() => {
     if (typeof window === "undefined") return;
     const mql = window.matchMedia("(orientation: landscape)");
@@ -666,14 +667,29 @@ const Watch = () => {
       </div>
     );
 
+    const pcNudge = (
+      <div className="px-3 py-2 bg-muted/40 text-muted-foreground text-[11px] text-center border-t border-white/5">
+        💻 For the best experience, try LinguaScript on a laptop or PC
+      </div>
+    );
+
     if (isLandscape) {
       return (
         <div className="min-h-screen bg-black flex flex-col">
+          {isLandscape && !landscapeBannerDismissed && (
+            <div className="flex items-center justify-between gap-2 px-3 py-1.5 bg-orange-500 text-white text-xs">
+              <span>📱 Rotate to portrait for a better experience!</span>
+              <button onClick={() => setLandscapeBannerDismissed(true)} aria-label="Dismiss" className="p-1 hover:bg-white/20 rounded">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
           {header}
           <div className="flex-1 flex flex-row gap-2 p-2 overflow-hidden">
             <div className="flex-[7] min-w-0 flex items-center">{videoBlock}</div>
             <div className="flex-[3] min-w-0 overflow-y-auto">{subtitleBlock}</div>
           </div>
+          {pcNudge}
         </div>
       );
     }
@@ -684,10 +700,12 @@ const Watch = () => {
         <div className="flex flex-col w-full">
           {videoBlock}
           {subtitleBlock}
+          {pcNudge}
         </div>
       </div>
     );
   }
+
 
   return (
     <div className="min-h-screen bg-black flex flex-col">
