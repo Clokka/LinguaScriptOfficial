@@ -310,8 +310,8 @@ const Onboarding = () => {
                       >
                         <iframe
                           title="Linguascript intro"
-                          src={`https://www.youtube-nocookie.com/embed/${TOUR_TRAINING_YT_ID}?autoplay=0&modestbranding=1&rel=0&playsinline=1&controls=0&disablekb=1`}
-                          allow="autoplay; encrypted-media; picture-in-picture"
+                          src={`https://www.youtube-nocookie.com/embed/${TOUR_TRAINING_YT_ID}?autoplay=1&mute=1&playsinline=1&modestbranding=1&rel=0&controls=0&disablekb=1&loop=1&playlist=${TOUR_TRAINING_YT_ID}`}
+                          allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
                           className="w-full h-full pointer-events-none"
                           frameBorder={0}
                         />
