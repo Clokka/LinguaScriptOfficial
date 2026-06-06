@@ -11,6 +11,7 @@ import { getLanguageLabel, getLanguageFlag } from "@/lib/languages";
 import { cn } from "@/lib/utils";
 import { fetchCaptionsFromBrowser } from "@/lib/browserCaptionFetcher";
 import { AdLoader } from "@/components/AdLoader";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface FilmData {
   id: string;
