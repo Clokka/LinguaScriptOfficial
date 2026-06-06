@@ -272,6 +272,7 @@ const Watch = () => {
   // be the video + the teaching cursor, never an ad.
   const [adDone, setAdDone] = useState(tourActive);
 
+  const [cssFullscreen, setCssFullscreen] = useState(false);
   const toggleFullscreen = useCallback(() => {
     const container = videoContainerRef.current;
     if (!container) return;
@@ -279,11 +280,30 @@ const Watch = () => {
     if (fsEl) {
       if (document.exitFullscreen) document.exitFullscreen();
       else if ((document as any).webkitExitFullscreen) (document as any).webkitExitFullscreen();
-    } else {
-      if (container.requestFullscreen) container.requestFullscreen();
-      else if ((container as any).webkitRequestFullscreen) (container as any).webkitRequestFullscreen();
+      setCssFullscreen(false);
+      return;
     }
-  }, []);
+    if (cssFullscreen) {
+      setCssFullscreen(false);
+      return;
+    }
+    // Try native fullscreen on container, then iframe, with iOS variants.
+    const iframe = container.querySelector("iframe") as any;
+    const tryReq = (el: any): boolean => {
+      try {
+        if (!el) return false;
+        if (el.requestFullscreen) { el.requestFullscreen(); return true; }
+        if (el.webkitRequestFullscreen) { el.webkitRequestFullscreen(); return true; }
+        if (el.webkitEnterFullscreen) { el.webkitEnterFullscreen(); return true; }
+      } catch { /* fall through */ }
+      return false;
+    };
+    if (tryReq(container)) return;
+    if (tryReq(iframe)) return;
+    // iOS Safari: no element fullscreen — use CSS-based fullscreen fallback.
+    setCssFullscreen(true);
+  }, [cssFullscreen]);
+
 
   const watchStartRef = useRef<number | null>(null);
   const videoContainerRef = useRef<HTMLDivElement>(null);
