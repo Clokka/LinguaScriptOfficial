@@ -380,6 +380,7 @@ const Browse = () => {
               {SIDEBAR_ITEMS.map(({ icon: Icon, key }) => (
                 <button
                   key={key}
+                  data-tour={`nav-${key}`}
                   onClick={() => key === "flashcards" ? navigate("/flashcards") : setActiveTab(key as TabKey)}
                   className={cn(
                     "p-2 rounded-lg transition-colors",
