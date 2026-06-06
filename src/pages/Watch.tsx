@@ -676,7 +676,14 @@ const Watch = () => {
     if (isLandscape) {
       return (
         <div className="min-h-screen bg-black flex flex-col">
-          <LandscapeBanner />
+          {isLandscape && !landscapeBannerDismissed && (
+            <div className="flex items-center justify-between gap-2 px-3 py-1.5 bg-orange-500 text-white text-xs">
+              <span>📱 Rotate to portrait for a better experience!</span>
+              <button onClick={() => setLandscapeBannerDismissed(true)} aria-label="Dismiss" className="p-1 hover:bg-white/20 rounded">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
           {header}
           <div className="flex-1 flex flex-row gap-2 p-2 overflow-hidden">
             <div className="flex-[7] min-w-0 flex items-center">{videoBlock}</div>
