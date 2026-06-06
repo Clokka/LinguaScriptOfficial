@@ -77,9 +77,7 @@ export const TourOverlay = () => {
         scrolledForEl = null;
       }
       const cursorSel = (step as any).cursorSelector as string | undefined;
-      const cEl = cursorSel
-        ? (document.querySelector(cursorSel) as HTMLElement | null)
-        : el;
+      const cEl = cursorSel ? pickVisible(cursorSel) : el;
       if (cEl) {
         const r = cEl.getBoundingClientRect();
         setCursorRect({ left: r.left, top: r.top, width: r.width, height: r.height });
