@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { fetchCaptionsFromBrowser } from "@/lib/browserCaptionFetcher";
 import { AdLoader } from "@/components/AdLoader";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { saveGuestWord } from "@/lib/guestWords";
 
 interface FilmData {
   id: string;
@@ -519,11 +520,9 @@ const Watch = () => {
   };
 
   const saveWordToFlashcards = async (word: { id: string; text: string; translation: string; pronunciation: string; ipa: string }) => {
-    if (!user || !film) return;
-
     let { translation, pronunciation, ipa } = word;
     const context = currentSubtitle?.primary || "";
-    const langCode = learningLanguage || film.language || "fr";
+    const langCode = learningLanguage || film?.language || "fr";
     const fromLang = getLanguageLabel(langCode);
     const toLang = getLanguageLabel(nativeLanguage);
 
@@ -543,6 +542,20 @@ const Watch = () => {
       }
     }
 
+    // Guest mode: store in localStorage so onboarding works without sign-in.
+    if (!user) {
+      saveGuestWord({
+        word: word.text,
+        translation,
+        pronunciation,
+        ipa,
+        context,
+        language: langCode,
+      });
+      return;
+    }
+
+    if (!film) return;
     await supabase.from("saved_words").upsert({
       user_id: user.id,
       word: word.text,
