@@ -590,10 +590,10 @@ const Watch = () => {
     const videoBlock = (
       <div
         ref={videoContainerRef}
-        className="relative w-full bg-black overflow-hidden"
-        style={{ aspectRatio: "16 / 9", maxWidth: "100vw" }}
+        className="relative bg-black overflow-hidden mx-auto"
+        style={{ aspectRatio: "16 / 9", width: "100%", maxWidth: "100vw", maxHeight: "100%" }}
       >
-        <div id="yt-player" className="absolute inset-0 w-full h-full" style={{ objectFit: "contain" }} />
+        <div id="yt-player" className="absolute inset-0 w-full h-full" />
         {!adDone && <AdLoader onComplete={() => setAdDone(true)} />}
         {captionsLoading && captionsStatus && (
           <div className="absolute top-2 left-1/2 -translate-x-1/2 bg-black/70 text-white/80 text-xs px-3 py-1.5 rounded-lg flex items-center gap-2 z-[9999] max-w-[90%]">
