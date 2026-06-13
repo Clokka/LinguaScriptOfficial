@@ -49,13 +49,13 @@ const Flashcards = () => {
     const [dueRes, allRes, profileRes] = await Promise.all([
       supabase
         .from("saved_words")
-        .select("id, word, translation, pronunciation, ipa, context, language, next_review, review_count")
+        .select("id, word, translation, pronunciation, ipa, context, language, next_review, review_count, state, times_correct")
         .eq("user_id", user.id)
         .lte("next_review", today)
         .order("next_review", { ascending: true }),
       supabase
         .from("saved_words")
-        .select("id, word, translation, pronunciation, ipa, context, language, next_review, review_count")
+        .select("id, word, translation, pronunciation, ipa, context, language, next_review, review_count, state, times_correct")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false }),
       supabase
