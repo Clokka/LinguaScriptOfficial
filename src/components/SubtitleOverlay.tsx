@@ -48,6 +48,30 @@ export const SubtitleOverlay = ({
   const [popupPosition, setPopupPosition] = useState({ x: 0, y: 0 });
   const [translating, setTranslating] = useState(false);
   const { learningLanguage } = useLanguage();
+  const { user } = useAuth();
+  const [coreWords, setCoreWords] = useState<CoreWord[]>([]);
+  const [vocabStates, setVocabStates] = useState<Map<string, UserVocabRow>>(new Map());
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const w = await loadCoreVocabulary(learningLanguage || "fr");
+      const s = user ? await loadUserVocabState(user.id) : new Map();
+      if (!alive) return;
+      setCoreWords(w);
+      setVocabStates(s);
+    })();
+    return () => { alive = false; };
+  }, [user, learningLanguage]);
+
+  const lemmaIndex = buildLemmaIndex(coreWords);
+
+  const stateForToken = (text: string): VocabState | undefined => {
+    const n = normalizeToken(text);
+    const core = lemmaIndex.get(n);
+    if (!core) return undefined;
+    return (vocabStates.get(core.id)?.state ?? "red") as VocabState;
+  };
 
   const handleWordClick = async (word: Word, event: React.MouseEvent) => {
     const rect = event.currentTarget.getBoundingClientRect();
