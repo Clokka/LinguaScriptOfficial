@@ -124,16 +124,39 @@ export const SubtitleOverlay = ({
       const wordData = words.find(
         (w) => w.text.toLowerCase() === text.toLowerCase().replace(/[.,!?]/g, "")
       );
+      const vocabState = stateForToken(text);
+      const dotClass = vocabState ? STATE_META[vocabState].dot : undefined;
       return (
         <span
           key={index}
           data-tour={wordData ? "subtitle-word" : undefined}
           className={cn(
-            "subtitle-word",
+            "subtitle-word inline-flex items-baseline gap-1",
             wordData && "cursor-pointer"
           )}
-          onClick={(e) => wordData && handleWordClick(wordData, e)}
+          onClick={(e) => {
+            if (wordData) {
+              handleWordClick(wordData, e);
+              // Mark as encountered (orange) in the background.
+              const core = lemmaIndex.get(normalizeToken(text));
+              if (core && user && (vocabStates.get(core.id)?.state ?? "red") === "red") {
+                markEncountered(user.id, [core.id]).then(() => {
+                  setVocabStates((prev) => {
+                    const m = new Map(prev);
+                    m.set(core.id, {
+                      word_id: core.id, state: "orange",
+                      times_seen: 1, times_correct: 0, promoted_at: null,
+                    });
+                    return m;
+                  });
+                });
+              }
+            }
+          }}
         >
+          {dotClass && (
+            <span className={cn("inline-block w-1.5 h-1.5 rounded-full mr-0.5 align-middle", dotClass)} />
+          )}
           {text}
           {index < textWords.length - 1 && " "}
         </span>
