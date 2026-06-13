@@ -71,9 +71,19 @@ export const FlashcardReview = ({ cards, onClose, className }: FlashcardReviewPr
     }
   };
 
+  const promoteVocabState = async (correct: boolean) => {
+    if (!user) return;
+    const card = cards[currentIndex];
+    if (!card) return;
+    const core = findCoreWord(card.word, coreWords);
+    if (!core) return;
+    await recordReview(user.id, core.id, correct);
+  };
+
   const handleCorrect = () => {
     setCorrect((prev) => prev + 1);
     void logReview();
+    void promoteVocabState(true);
     if (currentIndex < cards.length - 1) {
       setCurrentIndex((prev) => prev + 1);
     } else {
@@ -84,6 +94,7 @@ export const FlashcardReview = ({ cards, onClose, className }: FlashcardReviewPr
   const handleIncorrect = () => {
     setIncorrect((prev) => prev + 1);
     void logReview();
+    void promoteVocabState(false);
     if (currentIndex < cards.length - 1) {
       setCurrentIndex((prev) => prev + 1);
     } else {
