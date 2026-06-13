@@ -11,6 +11,7 @@ interface FlashcardProps {
   ipa: string;
   context?: string;
   contextTranslation?: string;
+  imageUrl?: string;
   direction?: "learn-to-native" | "native-to-learn";
   onCorrect: () => void;
   onIncorrect: () => void;
@@ -23,6 +24,7 @@ export const Flashcard = ({
   ipa,
   context,
   contextTranslation,
+  imageUrl,
   direction = "learn-to-native",
   onCorrect,
   onIncorrect,
