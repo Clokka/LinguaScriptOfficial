@@ -32,9 +32,12 @@ export const FlashcardReview = ({ cards, onClose, className }: FlashcardReviewPr
   const [correct, setCorrect] = useState(0);
   const [incorrect, setIncorrect] = useState(0);
   const [isComplete, setIsComplete] = useState(false);
+  const [coreWords, setCoreWords] = useState<CoreWord[]>([]);
   const [direction, setDirection] = useState<Direction>(() => {
     return (localStorage.getItem(DIR_KEY) as Direction) || "native-to-learn";
   });
+
+  useEffect(() => { loadCoreVocabulary("fr").then(setCoreWords); }, []);
 
   useEffect(() => { localStorage.setItem(DIR_KEY, direction); }, [direction]);
 
