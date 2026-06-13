@@ -1,7 +1,7 @@
 // Lightweight integrations loader (Microsoft Clarity, etc.)
 // Settings live in localStorage so the admin can toggle without a deploy.
 
-export type IntegrationKey = "clarity" | "metaPixel" | "googleAnalytics" | "tiktokPixel" | "linkedinInsight" | "manychat";
+export type IntegrationKey = "clarity" | "metaPixel" | "googleAnalytics" | "tiktokPixel" | "linkedinInsight" | "manychat" | "supadata";
 
 export interface IntegrationConfig {
   enabled: boolean;
@@ -17,6 +17,7 @@ const DEFAULTS: Record<IntegrationKey, IntegrationConfig> = {
   tiktokPixel: { enabled: false, id: "" },
   linkedinInsight: { enabled: false, id: "" },
   manychat: { enabled: false, id: "" },
+  supadata: { enabled: true, id: "" },
 };
 
 export function getIntegrations(): Record<IntegrationKey, IntegrationConfig> {
