@@ -383,7 +383,7 @@ const Browse = () => {
                 <button
                   key={key}
                   data-tour={`nav-${key}`}
-                  onClick={() => key === "flashcards" ? navigate("/flashcards") : setActiveTab(key as TabKey)}
+                  onClick={() => key === "flashcards" ? navigate("/flashcards") : key === "vocabulary" ? navigate("/vocabulary") : setActiveTab(key as TabKey)}
                   className={cn(
                     "p-2 rounded-lg transition-colors",
                     activeTab === key ? "bg-primary/15 text-primary" : "text-muted-foreground"
