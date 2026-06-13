@@ -689,6 +689,8 @@ function IntegrationsPanel() {
         {cards.map(({ key, name, desc, icon: Icon, placeholder, available, dashboardUrl, dashboardLabel }) => {
           const c = cfg[key];
           const isManychat = key === "manychat";
+          const isSupadata = key === "supadata";
+          const isBackend = isManychat || isSupadata;
           return (
             <div key={key} className="glass-panel p-4 space-y-3">
               <div className="flex items-start justify-between gap-3">
@@ -702,7 +704,7 @@ function IntegrationsPanel() {
                   </div>
                 </div>
                 {available ? (
-                  isManychat ? (
+                  isBackend ? (
                     <span className="text-[10px] uppercase tracking-wide text-success bg-success/10 rounded px-2 py-1">Backend</span>
                   ) : (
                     <Switch checked={c.enabled} onCheckedChange={(v) => update(key, { enabled: v })} />
@@ -715,7 +717,7 @@ function IntegrationsPanel() {
                 value={c.id}
                 onChange={(e) => update(key, { id: e.target.value })}
                 placeholder={placeholder}
-                disabled={!available || isManychat}
+                disabled={!available || isBackend}
                 className="bg-secondary/50 border-border"
               />
               <a
