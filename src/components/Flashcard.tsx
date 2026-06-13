@@ -54,6 +54,9 @@ export const Flashcard = ({
         {/* Front */}
         <div className="flashcard-face glass-panel-strong p-8 flex flex-col items-center justify-center shadow-float">
           <p className="text-xs uppercase tracking-wider text-muted-foreground/60 mb-2">{frontLabel}</p>
+          {imageUrl && showLearningFirst && (
+            <img src={imageUrl} alt={word} className="w-28 h-28 object-cover rounded-2xl mb-3 shadow-md" />
+          )}
           <p className={cn("mb-4", showLearningFirst ? "text-4xl font-bold gradient-text" : "text-3xl font-bold text-foreground")}>
             {frontText || "—"}
           </p>
