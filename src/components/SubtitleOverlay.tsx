@@ -6,15 +6,11 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/hooks/useAuth";
 import { getLanguageLabel } from "@/lib/languages";
 import {
-  buildLemmaIndex,
-  CoreWord,
-  loadCoreVocabulary,
-  loadUserVocabState,
-  markEncountered,
-  normalizeToken,
+  DeckState,
+  SavedWordLite,
   STATE_META,
-  UserVocabRow,
-  VocabState,
+  loadDeckIndex,
+  normalizeToken,
 } from "@/lib/vocab";
 
 interface Word {
@@ -35,6 +31,12 @@ interface SubtitleOverlayProps {
   nativeLanguage?: string;
 }
 
+const STATE_TEXT: Record<DeckState, string> = {
+  red: "text-red-400",
+  orange: "text-amber-400",
+  green: "text-emerald-400",
+};
+
 export const SubtitleOverlay = ({
   primaryText,
   secondaryText,
@@ -46,31 +48,21 @@ export const SubtitleOverlay = ({
 }: SubtitleOverlayProps) => {
   const [selectedWord, setSelectedWord] = useState<Word | null>(null);
   const [popupPosition, setPopupPosition] = useState({ x: 0, y: 0 });
-  const [translating, setTranslating] = useState(false);
+  const [, setTranslating] = useState(false);
   const { learningLanguage } = useLanguage();
   const { user } = useAuth();
-  const [coreWords, setCoreWords] = useState<CoreWord[]>([]);
-  const [vocabStates, setVocabStates] = useState<Map<string, UserVocabRow>>(new Map());
+  const [deck, setDeck] = useState<Map<string, SavedWordLite>>(new Map());
 
   useEffect(() => {
     let alive = true;
-    (async () => {
-      const w = await loadCoreVocabulary(learningLanguage || "fr");
-      const s = user ? await loadUserVocabState(user.id) : new Map();
-      if (!alive) return;
-      setCoreWords(w);
-      setVocabStates(s);
-    })();
+    loadDeckIndex(user?.id ?? null, learningLanguage || "fr").then((m) => {
+      if (alive) setDeck(m);
+    });
     return () => { alive = false; };
   }, [user, learningLanguage]);
 
-  const lemmaIndex = buildLemmaIndex(coreWords);
-
-  const stateForToken = (text: string): VocabState | undefined => {
-    const n = normalizeToken(text);
-    const core = lemmaIndex.get(n);
-    if (!core) return undefined;
-    return (vocabStates.get(core.id)?.state ?? "red") as VocabState;
+  const stateForToken = (text: string): DeckState | undefined => {
+    return deck.get(normalizeToken(text))?.state;
   };
 
   const handleWordClick = async (word: Word, event: React.MouseEvent) => {
@@ -80,13 +72,11 @@ export const SubtitleOverlay = ({
       y: rect.top - 10,
     });
 
-    // If already translated, just show
     if (word.translation) {
       setSelectedWord(word);
       return;
     }
 
-    // Translate on click
     setSelectedWord({ ...word, translation: "Translating...", pronunciation: "", ipa: "" });
     setTranslating(true);
 
@@ -106,7 +96,6 @@ export const SubtitleOverlay = ({
           ipa: data.ipa || "",
         };
         setSelectedWord(translated);
-        // Update the word in-place so re-clicking doesn't re-translate
         word.translation = translated.translation;
         word.pronunciation = translated.pronunciation;
         word.ipa = translated.ipa;
@@ -124,34 +113,20 @@ export const SubtitleOverlay = ({
       const wordData = words.find(
         (w) => w.text.toLowerCase() === text.toLowerCase().replace(/[.,!?]/g, "")
       );
-      const vocabState = stateForToken(text);
-      const dotClass = vocabState ? STATE_META[vocabState].dot : undefined;
+      const deckState = stateForToken(text);
+      const dotClass = deckState ? STATE_META[deckState].dot : undefined;
+      const colorClass = deckState ? STATE_TEXT[deckState] : undefined;
       return (
         <span
           key={index}
           data-tour={wordData ? "subtitle-word" : undefined}
           className={cn(
             "subtitle-word inline-flex items-baseline gap-1",
-            wordData && "cursor-pointer"
+            wordData && "cursor-pointer",
+            colorClass,
           )}
           onClick={(e) => {
-            if (wordData) {
-              handleWordClick(wordData, e);
-              // Mark as encountered (orange) in the background.
-              const core = lemmaIndex.get(normalizeToken(text));
-              if (core && user && (vocabStates.get(core.id)?.state ?? "red") === "red") {
-                markEncountered(user.id, [core.id]).then(() => {
-                  setVocabStates((prev) => {
-                    const m = new Map(prev);
-                    m.set(core.id, {
-                      word_id: core.id, state: "orange",
-                      times_seen: 1, times_correct: 0, promoted_at: null,
-                    });
-                    return m;
-                  });
-                });
-              }
-            }
+            if (wordData) handleWordClick(wordData, e);
           }}
         >
           {dotClass && (
