@@ -381,6 +381,9 @@ export type Database = {
           next_review: string
           pronunciation: string
           review_count: number
+          state: string
+          state_changed_at: string | null
+          times_correct: number
           translation: string
           user_id: string
           word: string
@@ -397,6 +400,9 @@ export type Database = {
           next_review?: string
           pronunciation?: string
           review_count?: number
+          state?: string
+          state_changed_at?: string | null
+          times_correct?: number
           translation?: string
           user_id: string
           word: string
@@ -413,6 +419,9 @@ export type Database = {
           next_review?: string
           pronunciation?: string
           review_count?: number
+          state?: string
+          state_changed_at?: string | null
+          times_correct?: number
           translation?: string
           user_id?: string
           word?: string

@@ -5,7 +5,7 @@ import { X, ChevronLeft, ChevronRight, Trophy, ArrowLeftRight } from "lucide-rea
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { findCoreWord, loadCoreVocabulary, recordReview, CoreWord } from "@/lib/vocab";
+import { DeckState, recordReview } from "@/lib/vocab";
 
 type Direction = "learn-to-native" | "native-to-learn";
 const DIR_KEY = "flashcardDirection";
@@ -18,6 +18,8 @@ interface FlashcardData {
   ipa: string;
   context?: string;
   contextTranslation?: string;
+  state?: DeckState;
+  times_correct?: number;
 }
 
 interface FlashcardReviewProps {
@@ -32,12 +34,9 @@ export const FlashcardReview = ({ cards, onClose, className }: FlashcardReviewPr
   const [correct, setCorrect] = useState(0);
   const [incorrect, setIncorrect] = useState(0);
   const [isComplete, setIsComplete] = useState(false);
-  const [coreWords, setCoreWords] = useState<CoreWord[]>([]);
   const [direction, setDirection] = useState<Direction>(() => {
     return (localStorage.getItem(DIR_KEY) as Direction) || "native-to-learn";
   });
-
-  useEffect(() => { loadCoreVocabulary("fr").then(setCoreWords); }, []);
 
   useEffect(() => { localStorage.setItem(DIR_KEY, direction); }, [direction]);
 
@@ -45,7 +44,6 @@ export const FlashcardReview = ({ cards, onClose, className }: FlashcardReviewPr
     setDirection((d) => (d === "learn-to-native" ? "native-to-learn" : "learn-to-native"));
   };
 
-  // Increment activity_log.words_reviewed for today (drives streak gating).
   const logReview = async () => {
     if (!user) return;
     const today = new Date().toISOString().split("T")[0];
@@ -71,19 +69,22 @@ export const FlashcardReview = ({ cards, onClose, className }: FlashcardReviewPr
     }
   };
 
-  const promoteVocabState = async (correct: boolean) => {
+  const promoteDeckState = async (wasCorrect: boolean) => {
     if (!user) return;
     const card = cards[currentIndex];
-    if (!card) return;
-    const core = findCoreWord(card.word, coreWords);
-    if (!core) return;
-    await recordReview(user.id, core.id, correct);
+    if (!card || card.id.startsWith("guest-")) return;
+    await recordReview(
+      card.id,
+      (card.state ?? "red") as DeckState,
+      card.times_correct ?? 0,
+      wasCorrect,
+    );
   };
 
   const handleCorrect = () => {
     setCorrect((prev) => prev + 1);
     void logReview();
-    void promoteVocabState(true);
+    void promoteDeckState(true);
     if (currentIndex < cards.length - 1) {
       setCurrentIndex((prev) => prev + 1);
     } else {
@@ -94,7 +95,7 @@ export const FlashcardReview = ({ cards, onClose, className }: FlashcardReviewPr
   const handleIncorrect = () => {
     setIncorrect((prev) => prev + 1);
     void logReview();
-    void promoteVocabState(false);
+    void promoteDeckState(false);
     if (currentIndex < cards.length - 1) {
       setCurrentIndex((prev) => prev + 1);
     } else {

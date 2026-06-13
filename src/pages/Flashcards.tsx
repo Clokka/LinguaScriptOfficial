@@ -6,6 +6,7 @@ import { FlashcardReview } from "@/components/FlashcardReview";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { getGuestWords } from "@/lib/guestWords";
+import { DeckState } from "@/lib/vocab";
 
 interface SavedWord {
   id: string;
@@ -18,6 +19,8 @@ interface SavedWord {
   language?: string;
   next_review: string;
   review_count: number;
+  state?: DeckState;
+  times_correct?: number;
 }
 
 const Flashcards = () => {
@@ -46,13 +49,13 @@ const Flashcards = () => {
     const [dueRes, allRes, profileRes] = await Promise.all([
       supabase
         .from("saved_words")
-        .select("id, word, translation, pronunciation, ipa, context, language, next_review, review_count")
+        .select("id, word, translation, pronunciation, ipa, context, language, next_review, review_count, state, times_correct")
         .eq("user_id", user.id)
         .lte("next_review", today)
         .order("next_review", { ascending: true }),
       supabase
         .from("saved_words")
-        .select("id, word, translation, pronunciation, ipa, context, language, next_review, review_count")
+        .select("id, word, translation, pronunciation, ipa, context, language, next_review, review_count, state, times_correct")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false }),
       supabase
@@ -128,6 +131,8 @@ const Flashcards = () => {
     ipa: c.ipa,
     context: c.context,
     contextTranslation: c.contextTranslation,
+    state: (c.state ?? "red") as DeckState,
+    times_correct: c.times_correct ?? 0,
   }));
 
 
