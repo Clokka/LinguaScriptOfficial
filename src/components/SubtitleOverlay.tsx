@@ -1,9 +1,21 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { WordPopup } from "./WordPopup";
 import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useAuth } from "@/hooks/useAuth";
 import { getLanguageLabel } from "@/lib/languages";
+import {
+  buildLemmaIndex,
+  CoreWord,
+  loadCoreVocabulary,
+  loadUserVocabState,
+  markEncountered,
+  normalizeToken,
+  STATE_META,
+  UserVocabRow,
+  VocabState,
+} from "@/lib/vocab";
 
 interface Word {
   id: string;
@@ -36,6 +48,30 @@ export const SubtitleOverlay = ({
   const [popupPosition, setPopupPosition] = useState({ x: 0, y: 0 });
   const [translating, setTranslating] = useState(false);
   const { learningLanguage } = useLanguage();
+  const { user } = useAuth();
+  const [coreWords, setCoreWords] = useState<CoreWord[]>([]);
+  const [vocabStates, setVocabStates] = useState<Map<string, UserVocabRow>>(new Map());
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const w = await loadCoreVocabulary(learningLanguage || "fr");
+      const s = user ? await loadUserVocabState(user.id) : new Map();
+      if (!alive) return;
+      setCoreWords(w);
+      setVocabStates(s);
+    })();
+    return () => { alive = false; };
+  }, [user, learningLanguage]);
+
+  const lemmaIndex = buildLemmaIndex(coreWords);
+
+  const stateForToken = (text: string): VocabState | undefined => {
+    const n = normalizeToken(text);
+    const core = lemmaIndex.get(n);
+    if (!core) return undefined;
+    return (vocabStates.get(core.id)?.state ?? "red") as VocabState;
+  };
 
   const handleWordClick = async (word: Word, event: React.MouseEvent) => {
     const rect = event.currentTarget.getBoundingClientRect();
@@ -88,16 +124,39 @@ export const SubtitleOverlay = ({
       const wordData = words.find(
         (w) => w.text.toLowerCase() === text.toLowerCase().replace(/[.,!?]/g, "")
       );
+      const vocabState = stateForToken(text);
+      const dotClass = vocabState ? STATE_META[vocabState].dot : undefined;
       return (
         <span
           key={index}
           data-tour={wordData ? "subtitle-word" : undefined}
           className={cn(
-            "subtitle-word",
+            "subtitle-word inline-flex items-baseline gap-1",
             wordData && "cursor-pointer"
           )}
-          onClick={(e) => wordData && handleWordClick(wordData, e)}
+          onClick={(e) => {
+            if (wordData) {
+              handleWordClick(wordData, e);
+              // Mark as encountered (orange) in the background.
+              const core = lemmaIndex.get(normalizeToken(text));
+              if (core && user && (vocabStates.get(core.id)?.state ?? "red") === "red") {
+                markEncountered(user.id, [core.id]).then(() => {
+                  setVocabStates((prev) => {
+                    const m = new Map(prev);
+                    m.set(core.id, {
+                      word_id: core.id, state: "orange",
+                      times_seen: 1, times_correct: 0, promoted_at: null,
+                    });
+                    return m;
+                  });
+                });
+              }
+            }
+          }}
         >
+          {dotClass && (
+            <span className={cn("inline-block w-1.5 h-1.5 rounded-full mr-0.5 align-middle", dotClass)} />
+          )}
           {text}
           {index < textWords.length - 1 && " "}
         </span>

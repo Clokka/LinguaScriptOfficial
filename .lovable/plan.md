@@ -1,84 +1,77 @@
-## Onboarding Flow Improvements & UX Refinements
+# LinguaScript Core Learning System: Red → Orange → Green
 
-This is a large, multi-area overhaul of the onboarding experience. Before I start coding, here's the plan broken down into shippable phases so we can confirm scope.
+This is a large, defining feature. I'll break it into 4 phases so we can ship and validate each piece before moving on. Phase 1 is the foundation — let's confirm direction before I build the rest.
 
----
+## Concept
 
-### Phase 1 — Frictionless Demo Start (no ads, smoother tooltips)
+Every one of the 3,000 highest-frequency French words is in one of three states for each learner:
 
-1. **Suppress ads during onboarding**
-   - Add a `tourActive` / `onboardingActive` flag on `TourContext`.
-   - In `AdLoader` consumers (Watch / Story / demo player), skip the ad entirely when tour is active — start video immediately.
-   - Disable any mid-roll/house-ad triggers while tour is active.
+- 🔴 Red — unknown
+- 🟠 Orange — learning
+- 🟢 Green — known
 
-2. **Re-sequence the Watch-page tour steps** so they don't collide with loaders:
-   - `enter-demo` → video plays immediately (no ad)
-   - `watch-dual` tooltip
-   - `watch-word` (click word) → translation popup
-   - **NEW** `watch-save` step → highlight "Save to flashcards" button with copy: *"Save useful words directly into your personal flashcard deck for long-term retention."*
-   - `watch-pron`
-   - `watch-fullscreen` — fix reliability (see below)
-
-3. **Fullscreen reliability fix**
-   - In `TourOverlay`, the fullscreen step should programmatically call `requestFullscreen()` on the player container (not rely on synthetic click).
-   - Wait for `fullscreenchange` event before advancing.
+The headline metric becomes **frequency-weighted comprehension %**, not raw card counts.
 
 ---
 
-### Phase 2 — Post-Video Continuation
+## Phase 1 — Foundation (data + state engine)
 
-4. **Exit-video step**: when user exits/finishes demo, show tooltip over the top-left back button: *"Head back to your learning dashboard."* Cursor + spotlight on `[data-tour="page-back"]`.
+**New database tables**
 
-5. **Flashcard walkthrough** (extend `tourSteps.ts`):
-   - Hover Flashcards nav → tooltip about personal learning system.
-   - Open a flashcard.
-   - Click card → reveal translation tooltip.
-   - Pronunciation tooltip with shadowing stat (2–3× retention).
-   - Let user review a few cards before continuing (advance on N reviews or Skip button).
+- `core_vocabulary` — the 3,000-word master list. Columns: rank, word, lemma, translation, pos, example_fr, example_en, frequency_weight, audio_url, image_url, topic. Public read.
+- `user_vocabulary_state` — per-user state per word. Columns: user_id, word_id, state (`red`|`orange`|`green`), times_seen, times_correct, first_seen_at, promoted_at. RLS scoped to `auth.uid()`.
+- Seed `core_vocabulary` with the top ~500 words first (real frequency list), with a follow-up seed migration to reach 3,000. Lemma + translation initially from a curated CSV; images filled in over time.
 
----
+**State transition rules**
 
-### Phase 3 — Calendar / Streak / Spaced Repetition Education
+- New word clicked / appears in subtitles → Red (implicit, no row needed; default).
+- Saved or reviewed once → Orange.
+- Correctly reviewed 3+ times in flashcards with spacing → Green.
+- "Again" on a Green card drops it back to Orange.
 
-6. **Calendar page tour**
-   - "Today's Mission" panel showing dynamic targets from `profiles.daily_word_goal` & `daily_video_goal` (already in DB). Compute remaining = goal − today's `activity_log` values.
-   - Tooltips for: Current Streak, Total Words, Avg/Day, Projected Annual Growth, Watch Time, Retention.
-   - Streak explainer tooltip.
+**Comprehension score**
 
-7. **Spaced Repetition modal** on Calendar with YouTube embed `-uMMRjrzPmE`. Buttons: *Watch Video / Skip / I Already Understand*.
+```
+comprehension = Σ(frequency_weight of green words) / Σ(frequency_weight of all 3000) * 100
+```
 
-8. **Memory Stage education** — explain Must Review / Reinforcing / Acquired stages (already exist as `MemoryStageCard`).
+Orange words count at 0.5×. Calculated client-side from a single query; cached per session.
 
----
+## Phase 2 — Comprehension Dashboard
 
-### Phase 4 — Account Creation & Personalisation
+New `/progress` (or replace current dashboard tab) with:
 
-9. **Account creation at end of onboarding**
-   - Modal/page with Google + Email + Student section (school name + school email).
-   - Note: *"Ask your teacher for your LinguaScript access password if your school participates."*
-   - On signup, migrate anonymous onboarding state (goals, native/learning lang) into the new profile — already partially supported.
+- Big number: **74% French Comprehension** + animated progress bar.
+- Three stat cards: Green / Orange / Red counts with color-coded MemoryStageCard style.
+- Weekly delta: "+18 green, +42 orange, +2.1% comprehension this week" (uses `promoted_at` timestamps).
+- "Next 10 most valuable words to learn" list — highest-frequency Red words.
 
-10. **Interests / Recommendation seed**
-    - Add `interests text[]` column to `profiles`.
-    - After signup, route to Settings with tooltip + free-text "What are you interested in?" with suggested chips (Football, History, Anime, Business, Travel, Tech, Gaming, Politics, Philosophy).
-    - Feed into recommendation queries (Browse).
+## Phase 3 — Vocabulary Explorer
 
----
+New `/vocabulary` page:
 
-### Technical Notes
+- Grid/list of all 3,000 words with colored dot indicator.
+- Filters: state (red/orange/green), frequency band (1–500, 501–1500, 1501–3000), part of speech, topic.
+- Search box.
+- Click word → drawer with translation, audio, example sentence, "Mark as known" / "Reset" actions.
 
-- **TourContext** gains: `onboardingActive`, multi-page step list, helpers `markComplete(stepId)`, `awaitFullscreen()`.
-- **AdLoader** consumers read `useTour().onboardingActive` and skip.
-- **DB migration**: add `profiles.interests text[]` default `'{}'`.
-- **No business-logic changes** to flashcard SRS / activity logging — just UI tour layers on top.
+## Phase 4 — Subtitle Integration + Image Flashcards
 
----
+- **Subtitles**: `SubtitleOverlay` looks up each word's lemma in `user_vocabulary_state`; renders a small colored dot before/under the word (red/orange/green). Clicking still opens the existing `WordPopup` — accessibility unchanged.
+- **Flashcards**: when a word's `core_vocabulary.image_url` exists, show the image on the front of the card instead of (or above) the text. Correct answers promote state Red→Orange→Green.
 
-### Suggested rollout
+## Technical notes
 
-Because this is large, I recommend shipping in 2 PRs:
+- Reuse existing `saved_words` for SRS scheduling; add a join/sync so reviews update `user_vocabulary_state`.
+- Frequency weight uses Zipf-style scoring: `weight = 1 / rank` then normalized so top-3000 sums to 1.
+- Lemma matching in subtitles: simple lowercase + strip punctuation in v1; proper lemmatizer later.
+- Images: stored as URLs in `core_vocabulary.image_url`, served from Lovable Cloud storage. Initial seed has no images; we add them progressively.
+- All new tables get explicit GRANTs + RLS per project rules.
 
-- **PR 1 (this turn):** Phase 1 + Phase 2 — kills ads in onboarding, fixes fullscreen, adds save-to-flashcard step, adds post-video → flashcard walkthrough.
-- **PR 2 (next turn):** Phase 3 + Phase 4 — calendar/streak tour, spaced-rep modal, account creation gate, interests field + migration.
+## What I need from you
 
-**Reply "go" to ship PR 1 now**, or tell me to do everything in one pass (will be a much larger diff and slower to review).
+1. **Confirm phase 1 scope** — build foundation + seed top 500 words now, ship dashboard/explorer/subtitles in follow-ups?
+2. **Frequency list source** — OK to use a public CC-licensed French frequency list (e.g. OpenSubtitles-derived), or do you have a specific list you want me to use?
+3. **Replace or add?** — should the new Comprehension Dashboard replace the current progress view, or live alongside it at `/vocabulary`?
+
+Once you confirm, I'll start with the Phase 1 migration.

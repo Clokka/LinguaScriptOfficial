@@ -5,6 +5,7 @@ import { X, ChevronLeft, ChevronRight, Trophy, ArrowLeftRight } from "lucide-rea
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { findCoreWord, loadCoreVocabulary, recordReview, CoreWord } from "@/lib/vocab";
 
 type Direction = "learn-to-native" | "native-to-learn";
 const DIR_KEY = "flashcardDirection";
@@ -31,9 +32,12 @@ export const FlashcardReview = ({ cards, onClose, className }: FlashcardReviewPr
   const [correct, setCorrect] = useState(0);
   const [incorrect, setIncorrect] = useState(0);
   const [isComplete, setIsComplete] = useState(false);
+  const [coreWords, setCoreWords] = useState<CoreWord[]>([]);
   const [direction, setDirection] = useState<Direction>(() => {
     return (localStorage.getItem(DIR_KEY) as Direction) || "native-to-learn";
   });
+
+  useEffect(() => { loadCoreVocabulary("fr").then(setCoreWords); }, []);
 
   useEffect(() => { localStorage.setItem(DIR_KEY, direction); }, [direction]);
 
@@ -67,9 +71,19 @@ export const FlashcardReview = ({ cards, onClose, className }: FlashcardReviewPr
     }
   };
 
+  const promoteVocabState = async (correct: boolean) => {
+    if (!user) return;
+    const card = cards[currentIndex];
+    if (!card) return;
+    const core = findCoreWord(card.word, coreWords);
+    if (!core) return;
+    await recordReview(user.id, core.id, correct);
+  };
+
   const handleCorrect = () => {
     setCorrect((prev) => prev + 1);
     void logReview();
+    void promoteVocabState(true);
     if (currentIndex < cards.length - 1) {
       setCurrentIndex((prev) => prev + 1);
     } else {
@@ -80,6 +94,7 @@ export const FlashcardReview = ({ cards, onClose, className }: FlashcardReviewPr
   const handleIncorrect = () => {
     setIncorrect((prev) => prev + 1);
     void logReview();
+    void promoteVocabState(false);
     if (currentIndex < cards.length - 1) {
       setCurrentIndex((prev) => prev + 1);
     } else {

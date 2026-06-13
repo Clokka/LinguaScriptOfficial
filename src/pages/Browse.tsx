@@ -16,6 +16,7 @@ import {
   Languages,
   Download,
   BookOpen,
+  Target,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -57,9 +58,10 @@ interface ActivityDay {
 
 type TabKey = "home" | "discover" | "calendar" | "settings";
 
-const SIDEBAR_ITEMS: { icon: typeof Home; label: string; key: TabKey | "flashcards" }[] = [
+const SIDEBAR_ITEMS: { icon: typeof Home; label: string; key: TabKey | "flashcards" | "vocabulary" }[] = [
   { icon: Home, label: "Home", key: "home" },
   { icon: Compass, label: "Discover", key: "discover" },
+  { icon: Target, label: "Comprehension", key: "vocabulary" },
   { icon: BookOpen, label: "Flashcards", key: "flashcards" },
   { icon: CalendarIcon, label: "Calendar", key: "calendar" },
   { icon: Settings, label: "Settings", key: "settings" },
@@ -346,7 +348,7 @@ const Browse = () => {
             <button
               key={key}
               data-tour={`nav-${key}`}
-              onClick={() => key === "flashcards" ? navigate("/flashcards") : setActiveTab(key as TabKey)}
+              onClick={() => key === "flashcards" ? navigate("/flashcards") : key === "vocabulary" ? navigate("/vocabulary") : setActiveTab(key as TabKey)}
               className={cn(
                 "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors",
                 activeTab === key
@@ -381,7 +383,7 @@ const Browse = () => {
                 <button
                   key={key}
                   data-tour={`nav-${key}`}
-                  onClick={() => key === "flashcards" ? navigate("/flashcards") : setActiveTab(key as TabKey)}
+                  onClick={() => key === "flashcards" ? navigate("/flashcards") : key === "vocabulary" ? navigate("/vocabulary") : setActiveTab(key as TabKey)}
                   className={cn(
                     "p-2 rounded-lg transition-colors",
                     activeTab === key ? "bg-primary/15 text-primary" : "text-muted-foreground"
