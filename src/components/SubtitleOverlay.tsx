@@ -1,9 +1,21 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { WordPopup } from "./WordPopup";
 import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useAuth } from "@/hooks/useAuth";
 import { getLanguageLabel } from "@/lib/languages";
+import {
+  buildLemmaIndex,
+  CoreWord,
+  loadCoreVocabulary,
+  loadUserVocabState,
+  markEncountered,
+  normalizeToken,
+  STATE_META,
+  UserVocabRow,
+  VocabState,
+} from "@/lib/vocab";
 
 interface Word {
   id: string;
