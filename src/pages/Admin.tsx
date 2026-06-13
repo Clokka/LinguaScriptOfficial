@@ -670,6 +670,7 @@ function IntegrationsPanel() {
   };
 
   const cards: { key: IntegrationKey; name: string; desc: string; icon: any; placeholder: string; available: boolean; dashboardUrl: string; dashboardLabel: string; }[] = [
+    { key: "supadata", name: "Supadata", desc: "YouTube transcript API for subtitle fetching.", icon: FileText, placeholder: "API key stored in edge function secrets", available: true, dashboardUrl: "https://supadata.ai", dashboardLabel: "Open Supadata" },
     { key: "clarity", name: "Microsoft Clarity", desc: "Session replays & heatmaps.", icon: BarChart3, placeholder: "Project ID (e.g. wrmsg5geae)", available: true, dashboardUrl: "https://clarity.microsoft.com/projects", dashboardLabel: "Open Clarity" },
     { key: "manychat", name: "ManyChat", desc: "Chat automation & broadcasts.", icon: MessageCircle, placeholder: "Stored securely in backend", available: true, dashboardUrl: "https://app.manychat.com/", dashboardLabel: "Open ManyChat" },
     { key: "metaPixel", name: "Meta Pixel", desc: "Facebook & Instagram ad tracking.", icon: Facebook, placeholder: "Pixel ID", available: false, dashboardUrl: "https://business.facebook.com/events_manager2", dashboardLabel: "Events Manager" },
