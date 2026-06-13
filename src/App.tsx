@@ -14,6 +14,7 @@ import Auth from "./pages/Auth";
 import Profile from "./pages/Profile";
 import Watch from "./pages/Watch";
 import Flashcards from "./pages/Flashcards";
+import Vocabulary from "./pages/Vocabulary";
 import Admin from "./pages/Admin";
 import Story from "./pages/Story";
 import Onboarding from "./pages/Onboarding";
