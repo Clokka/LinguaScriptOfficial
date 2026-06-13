@@ -6,6 +6,7 @@ import { FlashcardReview } from "@/components/FlashcardReview";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { getGuestWords } from "@/lib/guestWords";
+import { DeckState } from "@/lib/vocab";
 
 interface SavedWord {
   id: string;
@@ -18,6 +19,8 @@ interface SavedWord {
   language?: string;
   next_review: string;
   review_count: number;
+  state?: DeckState;
+  times_correct?: number;
 }
 
 const Flashcards = () => {
