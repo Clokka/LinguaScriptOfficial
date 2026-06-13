@@ -128,6 +128,6 @@ export async function recordReview(
     times_correct: timesCorrect,
   };
   if (next !== current) patch.state_changed_at = new Date().toISOString();
-  await supabase.from("saved_words").update(patch).eq("id", savedWordId);
+  await supabase.from("saved_words").update(patch as any).eq("id", savedWordId);
   return next;
 }
