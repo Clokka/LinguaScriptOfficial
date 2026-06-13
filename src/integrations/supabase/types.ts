@@ -113,6 +113,60 @@ export type Database = {
         }
         Relationships: []
       }
+      core_vocabulary: {
+        Row: {
+          audio_url: string | null
+          created_at: string
+          example_en: string | null
+          example_fr: string | null
+          frequency_weight: number
+          id: string
+          image_url: string | null
+          language: string
+          lemma: string
+          pos: string | null
+          rank: number
+          topic: string | null
+          translation: string
+          updated_at: string
+          word: string
+        }
+        Insert: {
+          audio_url?: string | null
+          created_at?: string
+          example_en?: string | null
+          example_fr?: string | null
+          frequency_weight?: number
+          id?: string
+          image_url?: string | null
+          language?: string
+          lemma: string
+          pos?: string | null
+          rank: number
+          topic?: string | null
+          translation: string
+          updated_at?: string
+          word: string
+        }
+        Update: {
+          audio_url?: string | null
+          created_at?: string
+          example_en?: string | null
+          example_fr?: string | null
+          frequency_weight?: number
+          id?: string
+          image_url?: string | null
+          language?: string
+          lemma?: string
+          pos?: string | null
+          rank?: number
+          topic?: string | null
+          translation?: string
+          updated_at?: string
+          word?: string
+        }
+        Relationships: []
+      }
       email_send_log: {
         Row: {
           created_at: string
@@ -480,6 +534,53 @@ export type Database = {
         }
         Relationships: []
       }
+      user_vocabulary_state: {
+        Row: {
+          created_at: string
+          first_seen_at: string
+          id: string
+          promoted_at: string | null
+          state: Database["public"]["Enums"]["vocab_state"]
+          times_correct: number
+          times_seen: number
+          updated_at: string
+          user_id: string
+          word_id: string
+        }
+        Insert: {
+          created_at?: string
+          first_seen_at?: string
+          id?: string
+          promoted_at?: string | null
+          state?: Database["public"]["Enums"]["vocab_state"]
+          times_correct?: number
+          times_seen?: number
+          updated_at?: string
+          user_id: string
+          word_id: string
+        }
+        Update: {
+          created_at?: string
+          first_seen_at?: string
+          id?: string
+          promoted_at?: string | null
+          state?: Database["public"]["Enums"]["vocab_state"]
+          times_correct?: number
+          times_seen?: number
+          updated_at?: string
+          user_id?: string
+          word_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_vocabulary_state_word_id_fkey"
+            columns: ["word_id"]
+            isOneToOne: false
+            referencedRelation: "core_vocabulary"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -512,7 +613,7 @@ export type Database = {
       }
     }
     Enums: {
-      [_ in never]: never
+      vocab_state: "red" | "orange" | "green"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -639,6 +740,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      vocab_state: ["red", "orange", "green"],
+    },
   },
 } as const
