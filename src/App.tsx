@@ -38,6 +38,7 @@ const App = () => (
               <Route path="/profile" element={<Profile />} />
               <Route path="/watch/:id" element={<Watch />} />
               <Route path="/flashcards" element={<Flashcards />} />
+              <Route path="/vocabulary" element={<Vocabulary />} />
               <Route path="/admin" element={<Admin />} />
               <Route path="/story" element={<Story />} />
               <Route path="/onboarding" element={<Onboarding />} />
