@@ -809,6 +809,7 @@ const Watch = () => {
                 mode={subtitleMode}
                 onSaveWord={saveWordToFlashcards}
                 nativeLanguage={nativeLanguage}
+                contentLanguage={film.language ?? "fr"}
               />
             </div>
           )}
