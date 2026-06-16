@@ -51,17 +51,22 @@ export const SubtitleOverlay = ({
   const [selectedWord, setSelectedWord] = useState<Word | null>(null);
   const [popupPosition, setPopupPosition] = useState({ x: 0, y: 0 });
   const [, setTranslating] = useState(false);
-  const { learningLanguage } = useLanguage();
+  const { languageContext } = useLanguage();
+  // The deck — and every word interaction below — is scoped to the
+  // language actually on screen. Prefer the explicit `contentLanguage`
+  // prop from the player; only fall back to languageContext when the
+  // caller hasn't tagged the content yet.
+  const effectiveLang = contentLanguage || languageContext;
   const { user } = useAuth();
   const [deck, setDeck] = useState<Map<string, SavedWordLite>>(new Map());
 
   useEffect(() => {
     let alive = true;
-    loadDeckIndex(user?.id ?? null, learningLanguage || "fr").then((m) => {
+    loadDeckIndex(user?.id ?? null, effectiveLang).then((m) => {
       if (alive) setDeck(m);
     });
     return () => { alive = false; };
-  }, [user, learningLanguage]);
+  }, [user, effectiveLang]);
 
   const stateForToken = (text: string): DeckState | undefined => {
     return deck.get(normalizeToken(text))?.state;
@@ -83,7 +88,7 @@ export const SubtitleOverlay = ({
     setTranslating(true);
 
     try {
-      const fromLang = getLanguageLabel(learningLanguage || "fr");
+      const fromLang = getLanguageLabel(effectiveLang);
       const toLang = getLanguageLabel(nativeLanguage || "en");
 
       const { data, error } = await supabase.functions.invoke("translate-word", {
@@ -163,7 +168,7 @@ export const SubtitleOverlay = ({
         <WordPopup
           word={selectedWord}
           position={popupPosition}
-          language={contentLanguage || learningLanguage}
+          language={effectiveLang}
           onClose={() => setSelectedWord(null)}
           onSave={() => {
             if (onSaveWord && selectedWord) onSaveWord(selectedWord);
