@@ -436,6 +436,80 @@ export type Database = {
           },
         ]
       }
+      starter_deck_cards: {
+        Row: {
+          created_at: string
+          deck_id: string
+          id: string
+          ipa: string
+          position: number
+          reading: string
+          translation: string
+          word: string
+        }
+        Insert: {
+          created_at?: string
+          deck_id: string
+          id?: string
+          ipa?: string
+          position?: number
+          reading?: string
+          translation: string
+          word: string
+        }
+        Update: {
+          created_at?: string
+          deck_id?: string
+          id?: string
+          ipa?: string
+          position?: number
+          reading?: string
+          translation?: string
+          word?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "starter_deck_cards_deck_id_fkey"
+            columns: ["deck_id"]
+            isOneToOne: false
+            referencedRelation: "starter_decks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      starter_decks: {
+        Row: {
+          created_at: string
+          description: string
+          emoji: string
+          id: string
+          language: string
+          name: string
+          slug: string
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string
+          description?: string
+          emoji?: string
+          id?: string
+          language: string
+          name: string
+          slug: string
+          sort_order?: number
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          emoji?: string
+          id?: string
+          language?: string
+          name?: string
+          slug?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
       subtitles: {
         Row: {
           created_at: string
