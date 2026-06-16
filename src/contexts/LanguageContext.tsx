@@ -39,6 +39,14 @@ interface LanguageContextType {
   setLearningLanguage: (lang: string) => void;
   /** BCP-47 voice tag derived from `languageContext`. */
   ttsLang: string;
+  /** Pro subscription flag (read from profiles.is_pro). */
+  isPro: boolean;
+  /**
+   * Returns true when a piece of content (film) should be locked behind the
+   * Pro upgrade because its language does not match the active language and
+   * the user is not Pro. Returns false for content with no declared language.
+   */
+  isContentLocked: (filmLanguage?: string | null) => boolean;
   /**
    * Speak `text` strictly in `lang`. If `lang` is omitted, falls back to
    * `languageContext`. NEVER falls back to an English voice — if no matching
@@ -52,6 +60,8 @@ const LanguageContext = createContext<LanguageContextType>({
   learningLanguage: "fr",
   setLearningLanguage: () => {},
   ttsLang: "fr-FR",
+  isPro: false,
+  isContentLocked: () => false,
   speak: () => {},
 });
 
