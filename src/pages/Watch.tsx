@@ -11,6 +11,7 @@ import { getLanguageLabel, getLanguageFlag } from "@/lib/languages";
 import { cn } from "@/lib/utils";
 import { fetchCaptionsFromBrowser } from "@/lib/browserCaptionFetcher";
 import { AdLoader } from "@/components/AdLoader";
+import { ContentLockScreen } from "@/components/ContentLockScreen";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { saveGuestWord } from "@/lib/guestWords";
 
@@ -242,7 +243,7 @@ const Watch = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { learningLanguage } = useLanguage();
+  const { learningLanguage, languageContext, isContentLocked } = useLanguage();
   const { registerPlayer, active: tourActive, step: tourStep } = useTour();
   const playerRef = useRef<any>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval>>();
@@ -599,6 +600,23 @@ const Watch = () => {
           <Button variant="ghost" onClick={() => navigate("/browse")}>Go Home</Button>
         </div>
       </div>
+    );
+  }
+
+  // ── CONTENT LANGUAGE LOCK ──
+  // Free users can only open films matching their active learning language.
+  // Their own pasted lessons (is_public=false) are always allowed; only
+  // catalog/library films enforce the lock.
+  if (film.is_public && isContentLocked(film.language)) {
+    return (
+      <ContentLockScreen
+        contentLanguage={film.language}
+        activeLanguage={languageContext}
+        thumbnailUrl={film.thumbnail_url}
+        title={film.title}
+        onBack={() => navigate("/browse")}
+        onUpgrade={() => navigate("/browse")}
+      />
     );
   }
 

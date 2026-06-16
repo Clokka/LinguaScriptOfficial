@@ -17,7 +17,9 @@ import {
   Download,
   BookOpen,
   Target,
+  Lock,
 } from "lucide-react";
+import { UpgradeLockDialog } from "@/components/UpgradeLockDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
@@ -471,35 +473,68 @@ const Browse = () => {
 };
 
 /* ── CATALOG ROW STRIP ── */
-const CatalogStrip = ({ title, films, navigate }: { title: string; films: any[]; navigate: (p: string) => void }) => (
-  <section>
-    <h2 className="text-lg font-semibold text-foreground mb-4">{title}</h2>
-    <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin">
-      {films.map((film) => (
-        <button
-          key={film.id}
-          onClick={() => navigate(`/watch/${film.id}`)}
-          className="group shrink-0 w-[180px]"
-        >
-          <div className="relative rounded-xl overflow-hidden aspect-video bg-secondary mb-2 border border-border group-hover:border-primary/50 transition-all">
-            {film.thumbnail_url ? (
-              <img src={film.thumbnail_url} alt={film.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center"><Play className="w-8 h-8 text-muted-foreground" /></div>
-            )}
-            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-              <div className="w-10 h-10 rounded-full bg-primary/90 flex items-center justify-center">
-                <Play className="w-4 h-4 text-primary-foreground ml-0.5" />
+const CatalogStrip = ({ title, films, navigate }: { title: string; films: any[]; navigate: (p: string) => void }) => {
+  const { languageContext, isContentLocked } = useLanguage();
+  const [lockedLang, setLockedLang] = useState<string | null>(null);
+
+  return (
+    <section>
+      <h2 className="text-lg font-semibold text-foreground mb-4">{title}</h2>
+      <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin">
+        {films.map((film) => {
+          const locked = isContentLocked(film.language);
+          return (
+            <button
+              key={film.id}
+              onClick={() => {
+                if (locked) setLockedLang(film.language);
+                else navigate(`/watch/${film.id}`);
+              }}
+              className="group shrink-0 w-[180px]"
+            >
+              <div className="relative rounded-xl overflow-hidden aspect-video bg-secondary mb-2 border border-border group-hover:border-primary/50 transition-all">
+                {film.thumbnail_url ? (
+                  <img
+                    src={film.thumbnail_url}
+                    alt={film.title}
+                    className={cn(
+                      "w-full h-full object-cover transition-transform duration-300",
+                      locked ? "blur-md scale-110 opacity-60" : "group-hover:scale-105",
+                    )}
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center"><Play className="w-8 h-8 text-muted-foreground" /></div>
+                )}
+                {locked ? (
+                  <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center gap-1">
+                    <div className="w-9 h-9 rounded-full bg-amber-500/20 border border-amber-400/40 flex items-center justify-center">
+                      <Lock className="w-4 h-4 text-amber-300" />
+                    </div>
+                    <span className="text-[10px] uppercase tracking-wider text-amber-200/90 font-semibold">Pro</span>
+                  </div>
+                ) : (
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <div className="w-10 h-10 rounded-full bg-primary/90 flex items-center justify-center">
+                      <Play className="w-4 h-4 text-primary-foreground ml-0.5" />
+                    </div>
+                  </div>
+                )}
               </div>
-            </div>
-          </div>
-          <p className="text-sm text-foreground truncate text-left">{film.title}</p>
-          <p className="text-xs text-muted-foreground text-left">{getLanguageFlag(film.language ?? "fr")} {getLanguageLabel(film.language ?? "fr")}</p>
-        </button>
-      ))}
-    </div>
-  </section>
-);
+              <p className={cn("text-sm truncate text-left", locked ? "text-muted-foreground" : "text-foreground")}>{film.title}</p>
+              <p className="text-xs text-muted-foreground text-left">{getLanguageFlag(film.language ?? "fr")} {getLanguageLabel(film.language ?? "fr")}</p>
+            </button>
+          );
+        })}
+      </div>
+      <UpgradeLockDialog
+        open={!!lockedLang}
+        onOpenChange={(v) => !v && setLockedLang(null)}
+        contentLanguage={lockedLang}
+        activeLanguage={languageContext}
+      />
+    </section>
+  );
+};
 
 /* ── HOME TAB ── */
 const HomeTab = ({

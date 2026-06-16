@@ -39,6 +39,14 @@ interface LanguageContextType {
   setLearningLanguage: (lang: string) => void;
   /** BCP-47 voice tag derived from `languageContext`. */
   ttsLang: string;
+  /** Pro subscription flag (read from profiles.is_pro). */
+  isPro: boolean;
+  /**
+   * Returns true when a piece of content (film) should be locked behind the
+   * Pro upgrade because its language does not match the active language and
+   * the user is not Pro. Returns false for content with no declared language.
+   */
+  isContentLocked: (filmLanguage?: string | null) => boolean;
   /**
    * Speak `text` strictly in `lang`. If `lang` is omitted, falls back to
    * `languageContext`. NEVER falls back to an English voice — if no matching
@@ -52,6 +60,8 @@ const LanguageContext = createContext<LanguageContextType>({
   learningLanguage: "fr",
   setLearningLanguage: () => {},
   ttsLang: "fr-FR",
+  isPro: false,
+  isContentLocked: () => false,
   speak: () => {},
 });
 
@@ -69,12 +79,14 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
   const languageContext = activeLanguage;
   const ttsLang = TTS_VOICE_MAP[languageContext] || "fr-FR";
 
+  const [isPro, setIsPro] = useState(false);
+
   // Sync from profile on login
   useEffect(() => {
-    if (!user) return;
+    if (!user) { setIsPro(false); return; }
     supabase
       .from("profiles")
-      .select("learning_language")
+      .select("learning_language, is_pro")
       .eq("user_id", user.id)
       .single()
       .then(({ data }) => {
@@ -82,8 +94,15 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
           setActiveLanguage(data.learning_language);
           localStorage.setItem("learningLanguage", data.learning_language);
         }
+        setIsPro(!!(data as any)?.is_pro);
       });
   }, [user]);
+
+  const isContentLocked = (filmLanguage?: string | null) => {
+    if (isPro) return false;
+    if (!filmLanguage) return false;
+    return filmLanguage !== languageContext;
+  };
 
   const setLearningLanguage = (lang: string) => {
     setActiveLanguage(lang);
@@ -162,6 +181,8 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
         learningLanguage: languageContext, // back-compat alias
         setLearningLanguage,
         ttsLang,
+        isPro,
+        isContentLocked,
         speak,
       }}
     >
