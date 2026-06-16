@@ -132,7 +132,7 @@ export const FlashcardReview = ({ cards, onClose, className }: FlashcardReviewPr
         </div>
 
         <div className="flex gap-3">
-          <Button variant="outline" className="flex-1" onClick={onClose}>
+          <Button data-tour="review-close" variant="outline" className="flex-1" onClick={onClose}>
             Close
           </Button>
           <Button
