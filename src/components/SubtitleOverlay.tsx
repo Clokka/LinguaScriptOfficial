@@ -163,6 +163,7 @@ export const SubtitleOverlay = ({
         <WordPopup
           word={selectedWord}
           position={popupPosition}
+          language={contentLanguage || learningLanguage}
           onClose={() => setSelectedWord(null)}
           onSave={() => {
             if (onSaveWord && selectedWord) onSaveWord(selectedWord);
