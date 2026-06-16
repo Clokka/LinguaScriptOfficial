@@ -146,6 +146,7 @@ const Flashcards = () => {
                   return (
                     <button
                       key={key}
+                      data-tour={`deck-${key}`}
                       disabled={disabled}
                       onClick={() => setActiveDeck(key)}
                       className={cn(
