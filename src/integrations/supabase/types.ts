@@ -314,7 +314,9 @@ export type Database = {
           daily_word_goal: number
           display_name: string | null
           id: string
+          is_pro: boolean
           is_public: boolean
+          language_switches_used: number
           last_streak_date: string | null
           learning_goal: string | null
           learning_language: string | null
@@ -334,7 +336,9 @@ export type Database = {
           daily_word_goal?: number
           display_name?: string | null
           id?: string
+          is_pro?: boolean
           is_public?: boolean
+          language_switches_used?: number
           last_streak_date?: string | null
           learning_goal?: string | null
           learning_language?: string | null
@@ -354,7 +358,9 @@ export type Database = {
           daily_word_goal?: number
           display_name?: string | null
           id?: string
+          is_pro?: boolean
           is_public?: boolean
+          language_switches_used?: number
           last_streak_date?: string | null
           learning_goal?: string | null
           learning_language?: string | null
