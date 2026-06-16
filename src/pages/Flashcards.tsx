@@ -91,8 +91,15 @@ const Flashcards = () => {
     green: allCards.filter((c) => c.state === "green").length,
   };
 
+  // During the guided tour we deliberately scope each deck to a single card
+  // (the freshly-saved tour word, which sits at the top thanks to the
+  // state_changed_at desc order) so the user can always reach the
+  // "review-close" step regardless of how big their real deck is.
   const filteredCards = activeDeck
-    ? allCards.filter((c) => (c.state ?? "red") === activeDeck)
+    ? (() => {
+        const cards = allCards.filter((c) => (c.state ?? "red") === activeDeck);
+        return tourActive ? cards.slice(0, 1) : cards;
+      })()
     : [];
 
   const flashcardData = filteredCards.map((c) => ({
