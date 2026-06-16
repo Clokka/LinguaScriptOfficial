@@ -18,6 +18,7 @@ interface FlashcardData {
   ipa: string;
   context?: string;
   contextTranslation?: string;
+  language?: string;
   state?: DeckState;
   times_correct?: number;
 }
