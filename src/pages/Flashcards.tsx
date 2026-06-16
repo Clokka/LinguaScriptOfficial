@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { getGuestWords } from "@/lib/guestWords";
 import { DeckState } from "@/lib/vocab";
 import { cn } from "@/lib/utils";
+import { useTour } from "@/contexts/TourContext";
 
 interface SavedWord {
   id: string;
@@ -45,6 +46,7 @@ const DECK_CONFIG: Record<DeckKey, { label: string; subtitle: string; color: str
 const Flashcards = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { active: tourActive } = useTour();
   const [allCards, setAllCards] = useState<SavedWord[]>([]);
   const [starterDecks, setStarterDecks] = useState<StarterDeck[]>([]);
   const [loading, setLoading] = useState(true);
@@ -89,8 +91,15 @@ const Flashcards = () => {
     green: allCards.filter((c) => c.state === "green").length,
   };
 
+  // During the guided tour we deliberately scope each deck to a single card
+  // (the freshly-saved tour word, which sits at the top thanks to the
+  // state_changed_at desc order) so the user can always reach the
+  // "review-close" step regardless of how big their real deck is.
   const filteredCards = activeDeck
-    ? allCards.filter((c) => (c.state ?? "red") === activeDeck)
+    ? (() => {
+        const cards = allCards.filter((c) => (c.state ?? "red") === activeDeck);
+        return tourActive ? cards.slice(0, 1) : cards;
+      })()
     : [];
 
   const flashcardData = filteredCards.map((c) => ({
