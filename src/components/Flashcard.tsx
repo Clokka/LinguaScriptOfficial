@@ -129,6 +129,7 @@ export const Flashcard = ({
             <RotateCcw className="w-5 h-5" />
           </Button>
           <Button
+            data-tour="flashcard-got-it"
             variant="success"
             size="lg"
             onClick={() => {
