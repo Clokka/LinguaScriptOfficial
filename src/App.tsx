@@ -14,10 +14,12 @@ import Auth from "./pages/Auth";
 import Profile from "./pages/Profile";
 import Watch from "./pages/Watch";
 import Flashcards from "./pages/Flashcards";
+import StarterDeck from "./pages/StarterDeck";
 import Vocabulary from "./pages/Vocabulary";
 import Admin from "./pages/Admin";
 import Story from "./pages/Story";
 import Onboarding from "./pages/Onboarding";
+import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -31,13 +33,14 @@ const App = () => (
         <BrowserRouter>
           <TourProvider>
             <Routes>
-              <Route path="/" element={<Onboarding />} />
+              <Route path="/" element={<Index />} />
               <Route path="/landing" element={<Landing />} />
               <Route path="/browse" element={<Browse />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/watch/:id" element={<Watch />} />
               <Route path="/flashcards" element={<Flashcards />} />
+              <Route path="/flashcards/starter/:slug" element={<StarterDeck />} />
               <Route path="/vocabulary" element={<Vocabulary />} />
               <Route path="/admin" element={<Admin />} />
               <Route path="/story" element={<Story />} />
