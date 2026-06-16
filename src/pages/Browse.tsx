@@ -39,6 +39,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { ProgressDashboard } from "@/components/ProgressDashboard";
+import { ActivityCalendarDark } from "@/components/ActivityCalendarDark";
 
 interface UserLesson {
   id: string;
@@ -432,12 +433,8 @@ const Browse = () => {
             />
           )}
           {activeTab === "calendar" && (
-            <div className="max-w-4xl">
-              <div className="mb-6">
-                <h2 className="text-3xl font-semibold tracking-tight text-foreground mb-1">Your progress</h2>
-                <p className="text-muted-foreground text-sm">Streak, memory strength, and daily compounding input.</p>
-              </div>
-              <ProgressDashboard />
+            <div className="max-w-5xl">
+              <ActivityCalendarDark />
             </div>
           )}
           {activeTab === "settings" && (

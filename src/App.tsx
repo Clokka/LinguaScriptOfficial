@@ -9,6 +9,7 @@ import { TourOverlay } from "@/components/TourOverlay";
 import { DailyBriefing } from "@/components/DailyBriefing";
 import { StreakCelebrationModal } from "@/components/StreakCelebrationModal";
 import Landing from "./pages/Landing";
+import LandingPage2 from "./pages/LandingPage2";
 import Browse from "./pages/Browse";
 import Auth from "./pages/Auth";
 import Profile from "./pages/Profile";
@@ -35,6 +36,7 @@ const App = () => (
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/landing" element={<Landing />} />
+              <Route path="/landingpage2" element={<LandingPage2 />} />
               <Route path="/browse" element={<Browse />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/profile" element={<Profile />} />
