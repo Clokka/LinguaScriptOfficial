@@ -17,7 +17,9 @@ import {
   Download,
   BookOpen,
   Target,
+  Lock,
 } from "lucide-react";
+import { UpgradeLockDialog } from "@/components/UpgradeLockDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
