@@ -74,28 +74,27 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const speak = (text: string) => {
+  const speak = (text: string, langOverride?: string) => {
     if (!text || typeof window === "undefined" || !("speechSynthesis" in window)) return;
     try {
-      // iOS Safari: must be called synchronously inside the user gesture.
-      // Cancel any pending utterance so a tap always produces fresh audio.
       window.speechSynthesis.cancel();
 
+      const code = (langOverride || learningLanguage).toLowerCase();
+      const targetLang = TTS_VOICE_MAP[code] || code || ttsLang;
+
       const utter = new SpeechSynthesisUtterance(text);
-      utter.lang = ttsLang;
+      utter.lang = targetLang;
       utter.rate = 0.95;
       utter.volume = 1;
 
       const voices = window.speechSynthesis.getVoices();
       const match =
-        voices.find((v) => v.lang === ttsLang) ||
-        voices.find((v) => v.lang?.startsWith(ttsLang.split("-")[0]));
+        voices.find((v) => v.lang === targetLang) ||
+        voices.find((v) => v.lang?.startsWith(targetLang.split("-")[0]));
       if (match) utter.voice = match;
 
-      // Some mobile browsers need a tick before speaking after cancel().
       window.speechSynthesis.speak(utter);
 
-      // Fallback: if nothing started within 250ms, retry once (handles iOS race).
       setTimeout(() => {
         if (!window.speechSynthesis.speaking && !window.speechSynthesis.pending) {
           try { window.speechSynthesis.speak(utter); } catch {}
