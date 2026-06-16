@@ -74,32 +74,52 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const speak = (text: string, langOverride?: string) => {
+  const getVoicesAsync = (): Promise<SpeechSynthesisVoice[]> => {
+    return new Promise((resolve) => {
+      const existing = window.speechSynthesis.getVoices();
+      if (existing && existing.length) return resolve(existing);
+      let done = false;
+      const finish = () => {
+        if (done) return;
+        done = true;
+        resolve(window.speechSynthesis.getVoices() || []);
+      };
+      window.speechSynthesis.onvoiceschanged = finish;
+      // Some browsers need a nudge to populate voices
+      try { window.speechSynthesis.getVoices(); } catch {}
+      setTimeout(finish, 800);
+    });
+  };
+
+  const speak = async (text: string, langOverride?: string) => {
     if (!text || typeof window === "undefined" || !("speechSynthesis" in window)) return;
     try {
       window.speechSynthesis.cancel();
 
       const code = (langOverride || learningLanguage).toLowerCase();
       const targetLang = TTS_VOICE_MAP[code] || code || ttsLang;
+      const baseLang = targetLang.split("-")[0];
+
+      const voices = await getVoicesAsync();
+      const match =
+        voices.find((v) => v.lang?.toLowerCase() === targetLang.toLowerCase()) ||
+        voices.find((v) => v.lang?.toLowerCase().startsWith(baseLang + "-")) ||
+        voices.find((v) => v.lang?.toLowerCase().startsWith(baseLang));
+
+      if (!match) {
+        console.warn(
+          `[speak] No ${targetLang} voice installed on this device; skipping to avoid English fallback for "${text}".`
+        );
+        return;
+      }
 
       const utter = new SpeechSynthesisUtterance(text);
-      utter.lang = targetLang;
+      utter.voice = match;
+      utter.lang = match.lang;
       utter.rate = 0.95;
       utter.volume = 1;
 
-      const voices = window.speechSynthesis.getVoices();
-      const match =
-        voices.find((v) => v.lang === targetLang) ||
-        voices.find((v) => v.lang?.startsWith(targetLang.split("-")[0]));
-      if (match) utter.voice = match;
-
       window.speechSynthesis.speak(utter);
-
-      setTimeout(() => {
-        if (!window.speechSynthesis.speaking && !window.speechSynthesis.pending) {
-          try { window.speechSynthesis.speak(utter); } catch {}
-        }
-      }, 250);
     } catch (e) {
       console.error("speak failed", e);
     }
