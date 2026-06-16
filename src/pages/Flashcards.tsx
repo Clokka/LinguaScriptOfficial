@@ -46,6 +46,7 @@ const DECK_CONFIG: Record<DeckKey, { label: string; subtitle: string; color: str
 const Flashcards = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { active: tourActive } = useTour();
   const [allCards, setAllCards] = useState<SavedWord[]>([]);
   const [starterDecks, setStarterDecks] = useState<StarterDeck[]>([]);
   const [loading, setLoading] = useState(true);
