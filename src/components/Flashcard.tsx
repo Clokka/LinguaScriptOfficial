@@ -98,7 +98,7 @@ export const Flashcard = ({
             className="mt-4"
             onClick={(e) => {
               e.stopPropagation();
-              speak(word);
+              speak(word, language);
             }}
           >
             <Volume2 className="w-5 h-5" />
