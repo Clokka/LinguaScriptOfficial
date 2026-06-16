@@ -203,6 +203,7 @@ export const FlashcardReview = ({ cards, onClose, className }: FlashcardReviewPr
         ipa={currentCard.ipa}
         context={currentCard.context}
         contextTranslation={currentCard.contextTranslation}
+        language={currentCard.language}
         direction={direction}
         onCorrect={handleCorrect}
         onIncorrect={handleIncorrect}
