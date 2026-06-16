@@ -25,7 +25,7 @@ interface LanguageContextType {
   learningLanguage: string;
   setLearningLanguage: (lang: string) => void;
   ttsLang: string;
-  speak: (text: string) => void;
+  speak: (text: string, langOverride?: string) => void;
 }
 
 const LanguageContext = createContext<LanguageContextType>({
