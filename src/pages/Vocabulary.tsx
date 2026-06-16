@@ -203,7 +203,7 @@ export default function Vocabulary() {
                       variant="ghost"
                       size="icon"
                       className="shrink-0"
-                      onClick={() => speak(w.word)}
+                      onClick={() => speak(w.word, w.language)}
                       title="Pronounce"
                     >
                       <Volume2 className="w-4 h-4" />
