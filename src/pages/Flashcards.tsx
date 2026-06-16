@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { getGuestWords } from "@/lib/guestWords";
 import { DeckState } from "@/lib/vocab";
 import { cn } from "@/lib/utils";
+import { useTour } from "@/contexts/TourContext";
 
 interface SavedWord {
   id: string;
