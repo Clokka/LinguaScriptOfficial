@@ -181,6 +181,8 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
         learningLanguage: languageContext, // back-compat alias
         setLearningLanguage,
         ttsLang,
+        isPro,
+        isContentLocked,
         speak,
       }}
     >
