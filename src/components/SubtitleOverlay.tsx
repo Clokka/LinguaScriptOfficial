@@ -29,6 +29,7 @@ interface SubtitleOverlayProps {
   mode: "single" | "dual";
   onSaveWord?: (word: Word) => void;
   nativeLanguage?: string;
+  contentLanguage?: string;
 }
 
 const STATE_TEXT: Record<DeckState, string> = {
@@ -45,6 +46,7 @@ export const SubtitleOverlay = ({
   mode,
   onSaveWord,
   nativeLanguage,
+  contentLanguage,
 }: SubtitleOverlayProps) => {
   const [selectedWord, setSelectedWord] = useState<Word | null>(null);
   const [popupPosition, setPopupPosition] = useState({ x: 0, y: 0 });
