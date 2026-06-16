@@ -14,11 +14,12 @@ interface Word {
 interface WordPopupProps {
   word: Word;
   position: { x: number; y: number };
+  language?: string;
   onClose: () => void;
   onSave: () => void;
 }
 
-export const WordPopup = ({ word, position, onClose, onSave }: WordPopupProps) => {
+export const WordPopup = ({ word, position, language, onClose, onSave }: WordPopupProps) => {
   const { speak } = useLanguage();
   const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
   return (
