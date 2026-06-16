@@ -71,7 +71,7 @@ export const WordPopup = ({ word, position, language, onClose, onSave }: WordPop
               data-tour="word-pronounce"
               variant="glass"
               size="icon-sm"
-              onClick={() => speak(word.text)}
+              onClick={() => speak(word.text, language)}
             >
               <Volume2 className="w-4 h-4" />
             </Button>
