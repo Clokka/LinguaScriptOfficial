@@ -14,11 +14,12 @@ interface Word {
 interface WordPopupProps {
   word: Word;
   position: { x: number; y: number };
+  language?: string;
   onClose: () => void;
   onSave: () => void;
 }
 
-export const WordPopup = ({ word, position, onClose, onSave }: WordPopupProps) => {
+export const WordPopup = ({ word, position, language, onClose, onSave }: WordPopupProps) => {
   const { speak } = useLanguage();
   const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
   return (
@@ -70,7 +71,7 @@ export const WordPopup = ({ word, position, onClose, onSave }: WordPopupProps) =
               data-tour="word-pronounce"
               variant="glass"
               size="icon-sm"
-              onClick={() => speak(word.text)}
+              onClick={() => speak(word.text, language)}
             >
               <Volume2 className="w-4 h-4" />
             </Button>

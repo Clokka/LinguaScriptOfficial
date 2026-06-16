@@ -101,13 +101,13 @@ export async function loadDeckIndex(
  */
 export function nextState(
   current: DeckState,
-  timesCorrectAfter: number,
+  _timesCorrectAfter: number,
   correct: boolean,
 ): DeckState {
   if (correct) {
     if (current === "green") return "green";
     if (current === "red") return "orange";
-    return timesCorrectAfter >= 3 ? "green" : "orange";
+    return "green"; // orange → green on a correct recall
   }
   if (current === "green") return "orange";
   if (current === "orange") return "red";

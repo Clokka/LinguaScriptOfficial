@@ -101,6 +101,7 @@ const Flashcards = () => {
     ipa: c.ipa,
     context: c.context,
     contextTranslation: c.contextTranslation,
+    language: c.language,
     state: (c.state ?? "red") as DeckState,
     times_correct: c.times_correct ?? 0,
   }));

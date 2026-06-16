@@ -684,6 +684,7 @@ const Watch = () => {
           mode={subtitleMode}
           onSaveWord={saveWordToFlashcards}
           nativeLanguage={nativeLanguage}
+          contentLanguage={film.language ?? "fr"}
           className={isLandscape ? "!px-3 !py-2 [&_.subtitle-text]:!text-base" : "!px-4 !py-3 [&_.subtitle-text]:!text-lg"}
         />
       </div>
@@ -808,6 +809,7 @@ const Watch = () => {
                 mode={subtitleMode}
                 onSaveWord={saveWordToFlashcards}
                 nativeLanguage={nativeLanguage}
+                contentLanguage={film.language ?? "fr"}
               />
             </div>
           )}
