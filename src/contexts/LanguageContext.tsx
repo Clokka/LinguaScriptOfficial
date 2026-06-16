@@ -79,12 +79,14 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
   const languageContext = activeLanguage;
   const ttsLang = TTS_VOICE_MAP[languageContext] || "fr-FR";
 
+  const [isPro, setIsPro] = useState(false);
+
   // Sync from profile on login
   useEffect(() => {
-    if (!user) return;
+    if (!user) { setIsPro(false); return; }
     supabase
       .from("profiles")
-      .select("learning_language")
+      .select("learning_language, is_pro")
       .eq("user_id", user.id)
       .single()
       .then(({ data }) => {
@@ -92,8 +94,15 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
           setActiveLanguage(data.learning_language);
           localStorage.setItem("learningLanguage", data.learning_language);
         }
+        setIsPro(!!(data as any)?.is_pro);
       });
   }, [user]);
+
+  const isContentLocked = (filmLanguage?: string | null) => {
+    if (isPro) return false;
+    if (!filmLanguage) return false;
+    return filmLanguage !== languageContext;
+  };
 
   const setLearningLanguage = (lang: string) => {
     setActiveLanguage(lang);
