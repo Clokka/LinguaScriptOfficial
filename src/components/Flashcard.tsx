@@ -114,7 +114,7 @@ export const Flashcard = ({
             size="lg"
             onClick={() => {
               setIsFlipped(false);
-              setTimeout(onIncorrect, 300);
+              onIncorrect();
             }}
             className="border-destructive/50 text-destructive hover:bg-destructive/10"
           >
@@ -134,7 +134,7 @@ export const Flashcard = ({
             size="lg"
             onClick={() => {
               setIsFlipped(false);
-              setTimeout(onCorrect, 300);
+              onCorrect();
             }}
           >
             <Check className="w-5 h-5 mr-2" />
