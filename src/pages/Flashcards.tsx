@@ -51,6 +51,7 @@ const Flashcards = () => {
   const [starterDecks, setStarterDecks] = useState<StarterDeck[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeDeck, setActiveDeck] = useState<DeckKey | null>(null);
+  const [reviewCards, setReviewCards] = useState<SavedWord[]>([]);
 
   const fetchCards = useCallback(async () => {
     setLoading(true);
@@ -95,14 +96,13 @@ const Flashcards = () => {
   // (the freshly-saved tour word, which sits at the top thanks to the
   // state_changed_at desc order) so the user can always reach the
   // "review-close" step regardless of how big their real deck is.
-  const filteredCards = activeDeck
-    ? (() => {
-        const cards = allCards.filter((c) => (c.state ?? "red") === activeDeck);
-        return tourActive ? cards.slice(0, 1) : cards;
-      })()
-    : [];
+  const openDeck = (deck: DeckKey) => {
+    const cards = allCards.filter((c) => (c.state ?? "red") === deck);
+    setReviewCards(tourActive ? cards.slice(0, 1) : cards);
+    setActiveDeck(deck);
+  };
 
-  const flashcardData = filteredCards.map((c) => ({
+  const flashcardData = reviewCards.map((c) => ({
     id: c.id,
     word: c.word,
     translation: c.translation,
@@ -122,8 +122,9 @@ const Flashcards = () => {
           cards={flashcardData}
           onCardReviewed={(id, patch) => {
             setAllCards((prev) => prev.map((card) => (card.id === id ? { ...card, ...patch } : card)));
+            setReviewCards((prev) => prev.map((card) => (card.id === id ? { ...card, ...patch } : card)));
           }}
-          onClose={() => { setActiveDeck(null); fetchCards(); }}
+          onClose={() => { setActiveDeck(null); setReviewCards([]); fetchCards(); }}
         />
       </div>
     );
@@ -160,7 +161,7 @@ const Flashcards = () => {
                       key={key}
                       data-tour={`deck-${key}`}
                       disabled={disabled}
-                      onClick={() => setActiveDeck(key)}
+                      onClick={() => openDeck(key)}
                       className={cn(
                         "rounded-3xl p-8 text-left text-white shadow-xl transition-transform",
                         "flex flex-col gap-3 min-h-[200px]",
