@@ -41,13 +41,10 @@ export const FlashcardReview = ({ cards: initialCards, onClose, onCardReviewed, 
   const [direction, setDirection] = useState<Direction>(() => {
     return (localStorage.getItem(DIR_KEY) as Direction) || "native-to-learn";
   });
-  // Track in-flight DB writes so we can flush them before closing.
+  // DB writes fire in the background — we never block the UI on them.
   const pendingWrites = useRef<Promise<unknown>[]>([]);
-  const handleClose = async () => {
-    if (pendingWrites.current.length) {
-      try { await Promise.all(pendingWrites.current); } catch {}
-      pendingWrites.current = [];
-    }
+  const handleClose = () => {
+    // Don't await: writes are already in flight, parent state is already correct.
     onClose();
   };
 
