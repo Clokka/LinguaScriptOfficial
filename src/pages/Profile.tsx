@@ -33,20 +33,30 @@ const Profile = () => {
 
   const hasGoogleLinked = !!user?.identities?.some((i) => i.provider === "google");
 
-  useEffect(() => {
-    if (!authLoading && !user) {
-      navigate("/auth");
-    }
-  }, [authLoading, user, navigate]);
+  const GUEST_KEY = "ls.guestProfile.v1";
 
   useEffect(() => {
+    if (authLoading) return;
     if (user) {
       fetchProfile();
+    } else {
+      // Guest mode: load local prefs, no forced sign-in.
+      try {
+        const raw = localStorage.getItem(GUEST_KEY);
+        if (raw) {
+          const g = JSON.parse(raw);
+          setDisplayName(g.displayName ?? "");
+          setNativeLanguage(g.nativeLanguage ?? "en");
+          setLearningLanguage(g.learningLanguage ?? "fr");
+          setSchool(g.school ?? "");
+        }
+      } catch { /* ignore */ }
+      setLoadingProfile(false);
     }
-  }, [user]);
+  }, [authLoading, user]);
 
   const fetchProfile = async () => {
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("profiles")
       .select("*")
       .eq("user_id", user!.id)
