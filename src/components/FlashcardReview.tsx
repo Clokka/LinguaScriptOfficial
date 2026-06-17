@@ -101,20 +101,20 @@ export const FlashcardReview = ({ cards: initialCards, onClose, onCardReviewed, 
       };
       if (newState !== prevState) patch.state_changed_at = new Date().toISOString();
 
-      const p = supabase
-        .from("saved_words")
-        .update(patch as any)
-        .eq("id", card.id)
-        .eq("user_id", user.id)
-        .select("id")
-        .maybeSingle()
-        .then(({ data, error }) => {
-          if (error) throw error;
-          if (!data) throw new Error(`No saved_words row updated for ${card.id}`);
-        })
-        .catch((error) => {
+      const p = Promise.resolve(
+        supabase
+          .from("saved_words")
+          .update(patch as any)
+          .eq("id", card.id)
+          .eq("user_id", user.id)
+          .select("id")
+          .maybeSingle(),
+      ).then(({ data, error }) => {
+        if (error) throw error;
+        if (!data) throw new Error(`No saved_words row updated for ${card.id}`);
+      }).catch((error) => {
           console.error("[SRS] failed to persist deck transition", error);
-        });
+      });
       pendingWrites.current.push(p);
       p.finally(() => {
         pendingWrites.current = pendingWrites.current.filter((write) => write !== p);
