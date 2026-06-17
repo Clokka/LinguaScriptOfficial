@@ -23,6 +23,7 @@ import Admin from "./pages/Admin";
 import Story from "./pages/Story";
 import Friends from "./pages/Friends";
 import Onboarding from "./pages/Onboarding";
+import Unsubscribe from "./pages/Unsubscribe";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 
@@ -52,6 +53,7 @@ const App = () => (
                 <Route path="/story" element={<Story />} />
                 <Route path="/friends" element={<Friends />} />
                 <Route path="/onboarding" element={<Onboarding />} />
+                <Route path="/unsubscribe" element={<Unsubscribe />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
               <TourOverlay />

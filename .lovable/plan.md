@@ -1,124 +1,88 @@
-# Motivation & Engagement System
+# Leaderboard Privacy + Friend Messaging
 
-Three independent layers — SRS stays untouched. This plan adds the XP/motivation layer + the daily video credit loop, with hard rules preventing crossover into SRS or streak code.
+## Part 1 — Hide emails on the global leaderboard (privacy fix)
 
-## 1. Database (one migration)
+**Problem:** `get_global_leaderboard` returns `display_name`, which for users who signed up without setting a name is their raw email. Showing real emails to strangers is a privacy breach (especially since some users haven't even completed onboarding / consented to being public).
 
-Add motivation columns to `profiles` (additive, nullable, defaulted):
+**Fix:**
+1. Update `get_global_leaderboard` to never return raw emails. Logic:
+   - If `username` is set → show `@username`.
+   - Else if `display_name` exists AND doesn't look like an email → show it.
+   - Else → return a stable auto-generated handle like `Learner #A4F2` (derived from a hash of `user_id`, so it stays consistent across page loads).
+2. Apply the same rule to `get_friends_leaderboard` for non-self / non-accepted-friend rows. Friends you've explicitly added can still see your real display name.
+3. Frontend (`Friends.tsx`): drop the email-looking fallback in `LeaderboardRow` — trust the RPC.
 
-- `xp_total integer not null default 0`
-- `xp_level integer not null default 1`
-- `video_credit_date date` — last day the daily video was granted
-- `video_credit_remaining integer not null default 1`
-- `last_video_id uuid` — used to detect "video just finished" → reinforcement prompt
+This is fully server-side so emails never reach the browser.
 
-Add `xp_events` table (audit / debug — also future-proofs analytics):
+## Part 2 — "Add friend" + "Send message" from the global leaderboard
 
+Each global row gets two buttons:
+- **Add** → existing `add_friend_by_code` flow, but by `user_id` (new RPC `add_friend_by_user_id`).
+- **Message** → opens a small dialog to type a short note (max 500 chars).
+
+## Part 3 — Messaging system
+
+**New table `friend_messages`:**
+- `id`, `sender_id`, `recipient_id`, `body` (text, ≤500), `created_at`, `read_at`.
+- RLS: sender or recipient can `SELECT`; only authenticated users can `INSERT` where `sender_id = auth.uid()`; only recipient can `UPDATE` (to mark read).
+- Rate-limit via trigger: max 5 messages per sender per recipient per 24h, max 30 messages/day total per sender. Prevents spam abuse.
+
+**Edge Function `send-friend-message`:**
+1. Auth-checks the caller.
+2. Inserts the message row (rate-limit enforced by trigger).
+3. Looks up recipient's email via `auth.users` using service role.
+4. Invokes `send-transactional-email` with template `friend-message-notification`, idempotency key `msg-<message_id>`.
+5. Returns success/failure to client.
+
+**Email template `friend-message-notification.tsx`:**
+- From: `hello@linguascript.xyz` (the verified LinguaScript sender).
+- Subject: `{senderName} sent you a message on LinguaScript`.
+- Body: sender's display name/username, the message body, CTA button → `https://linguascript.xyz/friends?tab=inbox`.
+- Unsubscribe footer auto-appended by the system.
+
+Note on the `rowan@` vs `hello@` ask: emails will be sent from `hello@linguascript.xyz` (or whichever address is verified on the existing email domain). A personal `rowan@` From address would need that mailbox set up separately on the domain — happy to add it as a follow-up once you confirm.
+
+## Part 4 — Inbox UI
+
+New `Inbox` tab in `/friends`:
+- Lists messages received, newest first, with unread badge.
+- Clicking marks read.
+- Reply box (also goes through `send-friend-message`).
+
+Sidebar `Friends` link gets an unread-count dot.
+
+## Technical details
+
+```text
+DB:
+  friend_messages (id, sender_id, recipient_id, body, created_at, read_at)
+  RPC: add_friend_by_user_id(_target uuid)
+  RPC: get_unread_message_count() returns int
+  Trigger: enforce_message_rate_limit BEFORE INSERT
+  Updated RPCs: get_global_leaderboard, get_friends_leaderboard
+                → sanitize display_name, never return raw email
+
+Edge functions:
+  send-friend-message  (new)
+  send-transactional-email  (already exists, just register new template)
+
+Templates:
+  supabase/functions/_shared/transactional-email-templates/friend-message-notification.tsx
+  Register in registry.ts
+
+Frontend:
+  src/pages/Friends.tsx
+    - new "Inbox" tab
+    - Add/Message buttons on each LeaderboardRow
+    - MessageDialog component
+    - drop email fallback
+  src/lib/displayName.ts  (helper: stable "Learner #XXXX" from uuid, in case anywhere else needs it)
 ```
-id uuid pk default gen_random_uuid()
-user_id uuid not null references auth.users(id) on delete cascade
-action text not null   -- 'add_word' | 'review_card' | 'session_end' | 'video_watch' | 'reinforcement'
-amount integer not null
-meta jsonb
-created_at timestamptz not null default now()
-```
 
-RLS: user can `select/insert` rows where `user_id = auth.uid()`. Service role full. Standard GRANTs.
+## What this does NOT do (out of scope until you confirm)
+- Real-time message delivery (websockets/realtime) — initial version polls on tab open.
+- Image/file attachments — text only.
+- Blocking / reporting users — can add later.
+- Custom `rowan@linguascript.xyz` From address — needs mailbox setup.
 
-## 2. XP engine — single source of truth
-
-New file `src/lib/xp.ts`:
-
-```ts
-type XpAction = "add_word" | "review_card" | "session_end" | "video_watch" | "reinforcement";
-export const LEVEL_THRESHOLDS = [0, 100, 250, 500, 1000, 1750, 2750, 4000, 5500, 7500];
-export function levelFromXP(xp: number): { level: number; current: number; nextLevelXP: number }
-export async function awardXP(action: XpAction, meta?: { correct?: boolean; cards?: number }): Promise<void>
-```
-
-`awardXP` rules (exactly as spec):
-- `add_word` → +20
-- `review_card` → +5, +5 more if `meta.correct`
-- `video_watch` → +10
-- `reinforcement` → +5
-- `session_end` → +25 if `cards>=10`, else +10 if `cards>=5`, else 0
-
-Behavior:
-- Optimistic — pushes XP into an in-memory `XpContext` first, fires `supabase.rpc`/`update` in background. UI never waits.
-- Logs every grant to `xp_events`.
-- For guest users (no `user`), stores XP in `localStorage` under `linguascript.guestXP` and migrates on sign-in (added to `migrateGuestWords`).
-
-## 3. XpContext provider
-
-New `src/contexts/XpContext.tsx`:
-- Loads `xp_total` from `profiles` on auth.
-- Exposes `{ xp, level, nextLevelXP, award, recentGain }`.
-- `recentGain` is a transient `{ amount, action, key }` consumed by the floating "+XP" toast.
-
-Wrap `App.tsx` tree (`<AuthProvider> → <LanguageProvider> → <XpProvider> → <TourProvider>`).
-
-## 4. UI feedback (dopamine layer)
-
-- New `src/components/XpToast.tsx`: bottom-center floating `+20 XP` chip with spring animation (Framer Motion) when `recentGain` changes. Auto-dismisses 1.2s.
-- Update `src/components/XPProgress.tsx` to read from `useXp()` by default (props remain optional override).
-- Level-up: when `level` increases, fire a one-shot confetti + larger modal (`StreakCelebrationModal` styling, new copy "Level X reached!").
-
-## 5. Wire actions
-
-- `WordPopup.tsx` save handler → `award("add_word")`.
-- `FlashcardReview.tsx`:
-  - in `handleCorrect`/`handleIncorrect` call `award("review_card", { correct })`.
-  - in `handleClose` / when `isComplete` first becomes true, call `award("session_end", { cards: correct + incorrect })`.
-  - **No SRS code touched.** Award calls are fire-and-forget alongside existing `promoteDeckState`.
-- `Watch.tsx`:
-  - When the player reports completion (or 90% progress), call `award("video_watch")` once per video per day, and show the reinforcement prompt (see §6).
-
-## 6. Daily video credit loop
-
-New `src/lib/dailyVideo.ts`:
-- `getDailyVideoStatus(userId)` — reads `profiles.video_credit_date/remaining`; if date < today, resets to 1.
-- `consumeDailyVideo(userId, filmId)` — decrements, sets `last_video_id`.
-- `isFeaturedVideo(film)` — picks today's featured film deterministically (hash of `date + user_id` modulo `films` count). Used for Browse highlighting.
-
-UI:
-- `Browse.tsx` → add a small "Today's featured video" badge on the chosen film (non-blocking; everything else still playable).
-- `Watch.tsx` post-completion → bottom sheet "Great learning session — want to reinforce what you just learned?" with primary button → navigates to `/flashcards`; on arrival fires `award("reinforcement")`. Use a transient `sessionStorage` flag `reinforcement_pending` so it only triggers once and only via that button.
-
-## 7. Hard separation guardrails
-
-- `xp.ts` imports nothing from `vocab.ts`. Comment at top: `// MOTIVATION LAYER — must not import SRS modules.`
-- `vocab.ts` / `FlashcardReview` promotion code unchanged; the only new lines are `void award(...)` calls.
-- Streak code (`useStreakStatus`, `activity_log`) untouched.
-- No XP value ever read by SRS or deck-derivation logic.
-
-## 8. Files touched
-
-New:
-- `src/lib/xp.ts`
-- `src/lib/dailyVideo.ts`
-- `src/contexts/XpContext.tsx`
-- `src/components/XpToast.tsx`
-
-Edited:
-- `src/App.tsx` (provider + toast)
-- `src/components/XPProgress.tsx` (read from context)
-- `src/components/WordPopup.tsx` (award add_word)
-- `src/components/FlashcardReview.tsx` (award review_card + session_end)
-- `src/pages/Watch.tsx` (video_watch + reinforcement prompt + consume credit)
-- `src/pages/Browse.tsx` (featured badge)
-- `src/pages/Flashcards.tsx` (consume reinforcement flag → award)
-- `src/lib/guestWords.ts` (migrate guest XP)
-- `src/integrations/supabase/types.ts` (regenerated by migration)
-
-Migration:
-- `profiles` add columns
-- `xp_events` table + RLS + GRANTs
-
-## 9. Expected behavior
-
-- Saving a first word → instant `+20 XP` toast, progress bar animates.
-- Each flashcard answer → `+5/+10 XP` toast.
-- Finishing 10 cards → `+25 XP` session bonus toast.
-- Watching today's featured video → `+10 XP` + reinforcement CTA → tapping it → `/flashcards` and `+5 XP`.
-- Crossing a threshold → level-up celebration.
-- SRS red→orange→green transitions behave exactly as today; no new latency, no new failure modes.
+Approve and I'll build it.

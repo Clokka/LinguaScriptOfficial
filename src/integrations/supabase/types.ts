@@ -305,6 +305,33 @@ export type Database = {
         }
         Relationships: []
       }
+      friend_messages: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          read_at: string | null
+          recipient_id: string
+          sender_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          read_at?: string | null
+          recipient_id: string
+          sender_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          read_at?: string | null
+          recipient_id?: string
+          sender_id?: string
+        }
+        Relationships: []
+      }
       friendships: {
         Row: {
           created_at: string
@@ -755,6 +782,7 @@ export type Database = {
     Functions: {
       accept_friend_request: { Args: { _other: string }; Returns: boolean }
       add_friend_by_code: { Args: { _code: string }; Returns: string }
+      add_friend_by_user_id: { Args: { _target: string }; Returns: string }
       are_friends: { Args: { _a: string; _b: string }; Returns: boolean }
       delete_email: {
         Args: { message_id: number; queue_name: string }
@@ -790,6 +818,7 @@ export type Database = {
           xp_total: number
         }[]
       }
+      get_unread_message_count: { Args: never; Returns: number }
       move_to_dlq: {
         Args: {
           dlq_name: string
@@ -806,6 +835,10 @@ export type Database = {
           msg_id: number
           read_ct: number
         }[]
+      }
+      safe_display_name: {
+        Args: { _display: string; _user_id: string; _username: string }
+        Returns: string
       }
       set_username: { Args: { _username: string }; Returns: string }
     }
