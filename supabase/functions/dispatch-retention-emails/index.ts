@@ -113,24 +113,23 @@ async function processReviewReminders() {
 
 // ---------- Streak rescue ----------
 async function processStreakRescue() {
-  // Send when streak >=3 and last activity was yesterday (so streak ends at end of today UTC).
+  // Send when streak >=3 and last_streak_date is yesterday (so today's a rescue day).
   const { data: rows } = await svc.from('profiles')
-    .select('user_id, display_name, username, email_prefs, streak_count, streak_rescue_for_streak, last_active_at')
+    .select('user_id, display_name, username, email_prefs, streak_count, streak_rescue_for_streak, last_streak_date')
     .gte('streak_count', 3).limit(500)
   if (!rows?.length) return
-  const todayStr = new Date().toISOString().slice(0,10)
+  const today = new Date(); today.setUTCHours(0,0,0,0)
+  const yesterday = new Date(today.getTime() - 24 * 3600 * 1000).toISOString().slice(0,10)
   for (const p of rows as any[]) {
     if (!prefAllows(p.email_prefs, 'streak_rescue')) continue
     if (p.streak_rescue_for_streak === p.streak_count) continue
-    if (!p.last_active_at) continue
-    const lastDay = String(p.last_active_at).slice(0,10)
-    if (lastDay === todayStr) continue // already active today, no rescue needed
-    // Yesterday or older but streak still counted means risk now
+    if (!p.last_streak_date) continue
+    if (String(p.last_streak_date) !== yesterday) continue
     const email = await emailFor(p.user_id); if (!email) continue
     const ok = await sendTemplate('streak-rescue', email, `streak-${p.user_id}-${p.streak_count}`, {
       name: safeName(p), streak: p.streak_count, watchUrl: 'https://linguascript.xyz/browse',
     })
-    if (ok) await svc.from('profiles').update({ streak_rescue_for_streak: p.streak_count }).eq('user_id', p.user_id)
+    if (ok) await svc.from('profiles').update({ streak_rescue_for_streak: p.streak_count, last_streak_rescue_email_at: new Date().toISOString() }).eq('user_id', p.user_id)
   }
 }
 
