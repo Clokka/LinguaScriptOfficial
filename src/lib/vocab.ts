@@ -121,16 +121,6 @@ export async function recordReview(
   _currentTimesCorrect: number,
   _correct: boolean,
 ): Promise<DeckState> {
-  const { error, data } = await supabase
-    .from("saved_words")
-    .update({ review_count: (undefined as unknown) } as any)
-    .eq("id", savedWordId)
-    .select("id");
-  if (error) console.error("[recordReview] update failed", error);
-  else if (!data || data.length === 0) {
-    console.error("[recordReview] update affected 0 rows for id", savedWordId, "— row missing or RLS denied");
-  } else {
-    console.log("[recordReview] ok", savedWordId);
-  }
+  console.debug("[recordReview] analytics-only no-op", savedWordId);
   return current;
 }
