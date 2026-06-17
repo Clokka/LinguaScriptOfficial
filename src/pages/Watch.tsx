@@ -14,6 +14,8 @@ import { AdLoader } from "@/components/AdLoader";
 import { ContentLockScreen } from "@/components/ContentLockScreen";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { saveGuestWord } from "@/lib/guestWords";
+import { useXp } from "@/contexts/XpContext";
+import { recordDailyVideoWatch, setReinforcementPending } from "@/lib/dailyVideo";
 
 interface FilmData {
   id: string;
@@ -244,6 +246,8 @@ const Watch = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { learningLanguage, languageContext, isContentLocked } = useLanguage();
+  const { award } = useXp();
+  const videoWatchAwardedRef = useRef(false);
   const { registerPlayer, active: tourActive, step: tourStep } = useTour();
   const playerRef = useRef<any>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval>>();
