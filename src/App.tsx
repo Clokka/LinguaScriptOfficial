@@ -53,6 +53,7 @@ const App = () => (
                 <Route path="/story" element={<Story />} />
                 <Route path="/friends" element={<Friends />} />
                 <Route path="/onboarding" element={<Onboarding />} />
+                <Route path="/unsubscribe" element={<Unsubscribe />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
               <TourOverlay />
