@@ -16,7 +16,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTour } from "@/contexts/TourContext";
-import { TOUR_TRAINING_YT_ID } from "@/lib/tourSteps";
+import { TOUR_TRAINING_BY_LANG, TOUR_TRAINING_YT_ID } from "@/lib/tourSteps";
 import { playDing } from "@/lib/sound";
 import { toast } from "sonner";
 import { DailyGoalPicker } from "@/components/DailyGoalPicker";
