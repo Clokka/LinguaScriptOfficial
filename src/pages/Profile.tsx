@@ -13,11 +13,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Camera, ArrowLeft, Save, Loader2, LinkIcon } from "lucide-react";
+import { Camera, ArrowLeft, Save, Loader2, LinkIcon, LogOut } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const Profile = () => {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, signOut } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
