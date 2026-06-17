@@ -332,6 +332,33 @@ export type Database = {
         }
         Relationships: []
       }
+      friendship_events: {
+        Row: {
+          actor_id: string
+          created_at: string
+          email_sent_at: string | null
+          id: string
+          kind: string
+          recipient_id: string
+        }
+        Insert: {
+          actor_id: string
+          created_at?: string
+          email_sent_at?: string | null
+          id?: string
+          kind: string
+          recipient_id: string
+        }
+        Update: {
+          actor_id?: string
+          created_at?: string
+          email_sent_at?: string | null
+          id?: string
+          kind?: string
+          recipient_id?: string
+        }
+        Relationships: []
+      }
       friendships: {
         Row: {
           created_at: string
@@ -366,22 +393,32 @@ export type Database = {
           created_at: string
           daily_video_goal: number
           daily_word_goal: number
+          discoverable_by_search: boolean
           display_name: string | null
+          email_prefs: Json
           friend_code: string | null
           id: string
           is_pro: boolean
           is_public: boolean
           language_switches_used: number
+          last_friend_email_at: string | null
+          last_monthly_email_at: string | null
+          last_review_email_at: string | null
           last_streak_date: string | null
+          last_streak_rescue_email_at: string | null
           last_video_id: string | null
+          last_weekly_email_at: string | null
           learning_goal: string | null
           learning_language: string | null
           native_language: string | null
           onboarded: boolean
+          review_emails_week_count: number
+          review_emails_week_start: string | null
           school: string | null
           show_daily_briefing: boolean
           show_on_global_leaderboard: boolean
           streak_count: number
+          streak_rescue_for_streak: number | null
           updated_at: string
           user_id: string
           username: string | null
@@ -396,22 +433,32 @@ export type Database = {
           created_at?: string
           daily_video_goal?: number
           daily_word_goal?: number
+          discoverable_by_search?: boolean
           display_name?: string | null
+          email_prefs?: Json
           friend_code?: string | null
           id?: string
           is_pro?: boolean
           is_public?: boolean
           language_switches_used?: number
+          last_friend_email_at?: string | null
+          last_monthly_email_at?: string | null
+          last_review_email_at?: string | null
           last_streak_date?: string | null
+          last_streak_rescue_email_at?: string | null
           last_video_id?: string | null
+          last_weekly_email_at?: string | null
           learning_goal?: string | null
           learning_language?: string | null
           native_language?: string | null
           onboarded?: boolean
+          review_emails_week_count?: number
+          review_emails_week_start?: string | null
           school?: string | null
           show_daily_briefing?: boolean
           show_on_global_leaderboard?: boolean
           streak_count?: number
+          streak_rescue_for_streak?: number | null
           updated_at?: string
           user_id: string
           username?: string | null
@@ -426,22 +473,32 @@ export type Database = {
           created_at?: string
           daily_video_goal?: number
           daily_word_goal?: number
+          discoverable_by_search?: boolean
           display_name?: string | null
+          email_prefs?: Json
           friend_code?: string | null
           id?: string
           is_pro?: boolean
           is_public?: boolean
           language_switches_used?: number
+          last_friend_email_at?: string | null
+          last_monthly_email_at?: string | null
+          last_review_email_at?: string | null
           last_streak_date?: string | null
+          last_streak_rescue_email_at?: string | null
           last_video_id?: string | null
+          last_weekly_email_at?: string | null
           learning_goal?: string | null
           learning_language?: string | null
           native_language?: string | null
           onboarded?: boolean
+          review_emails_week_count?: number
+          review_emails_week_start?: string | null
           school?: string | null
           show_daily_briefing?: boolean
           show_on_global_leaderboard?: boolean
           streak_count?: number
+          streak_rescue_for_streak?: number | null
           updated_at?: string
           user_id?: string
           username?: string | null
@@ -841,6 +898,11 @@ export type Database = {
         Returns: string
       }
       set_username: { Args: { _username: string }; Returns: string }
+      update_email_prefs: { Args: { _prefs: Json }; Returns: Json }
+      update_privacy_settings: {
+        Args: { _discoverable: boolean; _show_on_leaderboard: boolean }
+        Returns: undefined
+      }
     }
     Enums: {
       vocab_state: "red" | "orange" | "green"
