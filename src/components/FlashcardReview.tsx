@@ -72,22 +72,25 @@ export const FlashcardReview = ({ cards: initialCards, onClose, className }: Fla
     }
   };
 
-  const promoteDeckState = async (wasCorrect: boolean) => {
-    if (!user) return;
+  const promoteDeckState = (wasCorrect: boolean) => {
     const card = cards[currentIndex];
-    if (!card || card.id.startsWith("guest-")) return;
-    await recordReview(
-      card.id,
-      (card.state ?? "red") as DeckState,
-      card.times_correct ?? 0,
-      wasCorrect,
-    );
+    if (!card) return;
+    const prevState = (card.state ?? "red") as DeckState;
+    const prevTimes = card.times_correct ?? 0;
+    const newTimes = prevTimes + (wasCorrect ? 1 : 0);
+    const newState = nextState(prevState, newTimes, wasCorrect);
+    // Optimistic local update — in-session card reflects the new deck state immediately.
+    setCards((prev) => prev.map((c, i) => (i === currentIndex ? { ...c, state: newState, times_correct: newTimes } : c)));
+    // Background sync — never await; UI must not wait on the network.
+    if (user && !card.id.startsWith("guest-")) {
+      void recordReview(card.id, prevState, prevTimes, wasCorrect);
+    }
   };
 
   const handleCorrect = () => {
     setCorrect((prev) => prev + 1);
     void logReview();
-    void promoteDeckState(true);
+    promoteDeckState(true);
     if (currentIndex < cards.length - 1) {
       setCurrentIndex((prev) => prev + 1);
     } else {
@@ -98,7 +101,7 @@ export const FlashcardReview = ({ cards: initialCards, onClose, className }: Fla
   const handleIncorrect = () => {
     setIncorrect((prev) => prev + 1);
     void logReview();
-    void promoteDeckState(false);
+    promoteDeckState(false);
     if (currentIndex < cards.length - 1) {
       setCurrentIndex((prev) => prev + 1);
     } else {
