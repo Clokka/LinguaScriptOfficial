@@ -34,7 +34,7 @@ const Onboarding = () => {
 
   const [step, setStep] = useState(0);
   const [native, setNative] = useState("en");
-  const [target] = useState("fr"); // French-only — other languages "Coming soon"
+  const [target, setTarget] = useState("fr");
   const [level, setLevel] = useState<Level | null>(null);
   const [school, setSchool] = useState("");
   const [videoGoal, setVideoGoal] = useState<number>(1);
