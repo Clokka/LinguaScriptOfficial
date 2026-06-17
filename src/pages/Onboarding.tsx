@@ -181,7 +181,7 @@ const Onboarding = () => {
                     <LangSelect value={native} onChange={setNative} exclude={target} />
                   </Field>
                   <Field label="I want to learn">
-                    <FrenchOnlySelect />
+                    <LearningLanguageSelect value={target} onChange={setTarget} exclude={native} />
                   </Field>
 
                   <Field label="My current level">
