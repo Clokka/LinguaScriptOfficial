@@ -23,6 +23,7 @@ import Admin from "./pages/Admin";
 import Story from "./pages/Story";
 import Friends from "./pages/Friends";
 import Onboarding from "./pages/Onboarding";
+import Unsubscribe from "./pages/Unsubscribe";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 
