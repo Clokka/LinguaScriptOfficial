@@ -15,7 +15,6 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Camera, ArrowLeft, Save, Loader2, LinkIcon, LogOut } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { EmailPreferencesSection } from "@/components/EmailPreferencesSection";
 
 const Profile = () => {
   const { user, loading: authLoading, signOut } = useAuth();
