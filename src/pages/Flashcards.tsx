@@ -9,6 +9,8 @@ import { getGuestWords } from "@/lib/guestWords";
 import { DeckState } from "@/lib/vocab";
 import { cn } from "@/lib/utils";
 import { useTour } from "@/contexts/TourContext";
+import { useXp } from "@/contexts/XpContext";
+import { consumeReinforcementPending } from "@/lib/dailyVideo";
 
 interface SavedWord {
   id: string;
@@ -47,6 +49,7 @@ const Flashcards = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { active: tourActive } = useTour();
+  const { award } = useXp();
   const [allCards, setAllCards] = useState<SavedWord[]>([]);
   const [starterDecks, setStarterDecks] = useState<StarterDeck[]>([]);
   const [loading, setLoading] = useState(true);
@@ -85,6 +88,13 @@ const Flashcards = () => {
   }, [user]);
 
   useEffect(() => { fetchCards(); }, [fetchCards]);
+
+  // Reinforcement bonus when user arrives from "Review now" CTA after a video.
+  useEffect(() => {
+    if (consumeReinforcementPending()) {
+      award("reinforcement");
+    }
+  }, [award]);
 
   const counts: Record<DeckKey, number> = {
     red: allCards.filter((c) => (c.state ?? "red") === "red").length,

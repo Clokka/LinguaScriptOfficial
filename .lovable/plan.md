@@ -1,77 +1,124 @@
-# LinguaScript Core Learning System: Red → Orange → Green
+# Motivation & Engagement System
 
-This is a large, defining feature. I'll break it into 4 phases so we can ship and validate each piece before moving on. Phase 1 is the foundation — let's confirm direction before I build the rest.
+Three independent layers — SRS stays untouched. This plan adds the XP/motivation layer + the daily video credit loop, with hard rules preventing crossover into SRS or streak code.
 
-## Concept
+## 1. Database (one migration)
 
-Every one of the 3,000 highest-frequency French words is in one of three states for each learner:
+Add motivation columns to `profiles` (additive, nullable, defaulted):
 
-- 🔴 Red — unknown
-- 🟠 Orange — learning
-- 🟢 Green — known
+- `xp_total integer not null default 0`
+- `xp_level integer not null default 1`
+- `video_credit_date date` — last day the daily video was granted
+- `video_credit_remaining integer not null default 1`
+- `last_video_id uuid` — used to detect "video just finished" → reinforcement prompt
 
-The headline metric becomes **frequency-weighted comprehension %**, not raw card counts.
-
----
-
-## Phase 1 — Foundation (data + state engine)
-
-**New database tables**
-
-- `core_vocabulary` — the 3,000-word master list. Columns: rank, word, lemma, translation, pos, example_fr, example_en, frequency_weight, audio_url, image_url, topic. Public read.
-- `user_vocabulary_state` — per-user state per word. Columns: user_id, word_id, state (`red`|`orange`|`green`), times_seen, times_correct, first_seen_at, promoted_at. RLS scoped to `auth.uid()`.
-- Seed `core_vocabulary` with the top ~500 words first (real frequency list), with a follow-up seed migration to reach 3,000. Lemma + translation initially from a curated CSV; images filled in over time.
-
-**State transition rules**
-
-- New word clicked / appears in subtitles → Red (implicit, no row needed; default).
-- Saved or reviewed once → Orange.
-- Correctly reviewed 3+ times in flashcards with spacing → Green.
-- "Again" on a Green card drops it back to Orange.
-
-**Comprehension score**
+Add `xp_events` table (audit / debug — also future-proofs analytics):
 
 ```
-comprehension = Σ(frequency_weight of green words) / Σ(frequency_weight of all 3000) * 100
+id uuid pk default gen_random_uuid()
+user_id uuid not null references auth.users(id) on delete cascade
+action text not null   -- 'add_word' | 'review_card' | 'session_end' | 'video_watch' | 'reinforcement'
+amount integer not null
+meta jsonb
+created_at timestamptz not null default now()
 ```
 
-Orange words count at 0.5×. Calculated client-side from a single query; cached per session.
+RLS: user can `select/insert` rows where `user_id = auth.uid()`. Service role full. Standard GRANTs.
 
-## Phase 2 — Comprehension Dashboard
+## 2. XP engine — single source of truth
 
-New `/progress` (or replace current dashboard tab) with:
+New file `src/lib/xp.ts`:
 
-- Big number: **74% French Comprehension** + animated progress bar.
-- Three stat cards: Green / Orange / Red counts with color-coded MemoryStageCard style.
-- Weekly delta: "+18 green, +42 orange, +2.1% comprehension this week" (uses `promoted_at` timestamps).
-- "Next 10 most valuable words to learn" list — highest-frequency Red words.
+```ts
+type XpAction = "add_word" | "review_card" | "session_end" | "video_watch" | "reinforcement";
+export const LEVEL_THRESHOLDS = [0, 100, 250, 500, 1000, 1750, 2750, 4000, 5500, 7500];
+export function levelFromXP(xp: number): { level: number; current: number; nextLevelXP: number }
+export async function awardXP(action: XpAction, meta?: { correct?: boolean; cards?: number }): Promise<void>
+```
 
-## Phase 3 — Vocabulary Explorer
+`awardXP` rules (exactly as spec):
+- `add_word` → +20
+- `review_card` → +5, +5 more if `meta.correct`
+- `video_watch` → +10
+- `reinforcement` → +5
+- `session_end` → +25 if `cards>=10`, else +10 if `cards>=5`, else 0
 
-New `/vocabulary` page:
+Behavior:
+- Optimistic — pushes XP into an in-memory `XpContext` first, fires `supabase.rpc`/`update` in background. UI never waits.
+- Logs every grant to `xp_events`.
+- For guest users (no `user`), stores XP in `localStorage` under `linguascript.guestXP` and migrates on sign-in (added to `migrateGuestWords`).
 
-- Grid/list of all 3,000 words with colored dot indicator.
-- Filters: state (red/orange/green), frequency band (1–500, 501–1500, 1501–3000), part of speech, topic.
-- Search box.
-- Click word → drawer with translation, audio, example sentence, "Mark as known" / "Reset" actions.
+## 3. XpContext provider
 
-## Phase 4 — Subtitle Integration + Image Flashcards
+New `src/contexts/XpContext.tsx`:
+- Loads `xp_total` from `profiles` on auth.
+- Exposes `{ xp, level, nextLevelXP, award, recentGain }`.
+- `recentGain` is a transient `{ amount, action, key }` consumed by the floating "+XP" toast.
 
-- **Subtitles**: `SubtitleOverlay` looks up each word's lemma in `user_vocabulary_state`; renders a small colored dot before/under the word (red/orange/green). Clicking still opens the existing `WordPopup` — accessibility unchanged.
-- **Flashcards**: when a word's `core_vocabulary.image_url` exists, show the image on the front of the card instead of (or above) the text. Correct answers promote state Red→Orange→Green.
+Wrap `App.tsx` tree (`<AuthProvider> → <LanguageProvider> → <XpProvider> → <TourProvider>`).
 
-## Technical notes
+## 4. UI feedback (dopamine layer)
 
-- Reuse existing `saved_words` for SRS scheduling; add a join/sync so reviews update `user_vocabulary_state`.
-- Frequency weight uses Zipf-style scoring: `weight = 1 / rank` then normalized so top-3000 sums to 1.
-- Lemma matching in subtitles: simple lowercase + strip punctuation in v1; proper lemmatizer later.
-- Images: stored as URLs in `core_vocabulary.image_url`, served from Lovable Cloud storage. Initial seed has no images; we add them progressively.
-- All new tables get explicit GRANTs + RLS per project rules.
+- New `src/components/XpToast.tsx`: bottom-center floating `+20 XP` chip with spring animation (Framer Motion) when `recentGain` changes. Auto-dismisses 1.2s.
+- Update `src/components/XPProgress.tsx` to read from `useXp()` by default (props remain optional override).
+- Level-up: when `level` increases, fire a one-shot confetti + larger modal (`StreakCelebrationModal` styling, new copy "Level X reached!").
 
-## What I need from you
+## 5. Wire actions
 
-1. **Confirm phase 1 scope** — build foundation + seed top 500 words now, ship dashboard/explorer/subtitles in follow-ups?
-2. **Frequency list source** — OK to use a public CC-licensed French frequency list (e.g. OpenSubtitles-derived), or do you have a specific list you want me to use?
-3. **Replace or add?** — should the new Comprehension Dashboard replace the current progress view, or live alongside it at `/vocabulary`?
+- `WordPopup.tsx` save handler → `award("add_word")`.
+- `FlashcardReview.tsx`:
+  - in `handleCorrect`/`handleIncorrect` call `award("review_card", { correct })`.
+  - in `handleClose` / when `isComplete` first becomes true, call `award("session_end", { cards: correct + incorrect })`.
+  - **No SRS code touched.** Award calls are fire-and-forget alongside existing `promoteDeckState`.
+- `Watch.tsx`:
+  - When the player reports completion (or 90% progress), call `award("video_watch")` once per video per day, and show the reinforcement prompt (see §6).
 
-Once you confirm, I'll start with the Phase 1 migration.
+## 6. Daily video credit loop
+
+New `src/lib/dailyVideo.ts`:
+- `getDailyVideoStatus(userId)` — reads `profiles.video_credit_date/remaining`; if date < today, resets to 1.
+- `consumeDailyVideo(userId, filmId)` — decrements, sets `last_video_id`.
+- `isFeaturedVideo(film)` — picks today's featured film deterministically (hash of `date + user_id` modulo `films` count). Used for Browse highlighting.
+
+UI:
+- `Browse.tsx` → add a small "Today's featured video" badge on the chosen film (non-blocking; everything else still playable).
+- `Watch.tsx` post-completion → bottom sheet "Great learning session — want to reinforce what you just learned?" with primary button → navigates to `/flashcards`; on arrival fires `award("reinforcement")`. Use a transient `sessionStorage` flag `reinforcement_pending` so it only triggers once and only via that button.
+
+## 7. Hard separation guardrails
+
+- `xp.ts` imports nothing from `vocab.ts`. Comment at top: `// MOTIVATION LAYER — must not import SRS modules.`
+- `vocab.ts` / `FlashcardReview` promotion code unchanged; the only new lines are `void award(...)` calls.
+- Streak code (`useStreakStatus`, `activity_log`) untouched.
+- No XP value ever read by SRS or deck-derivation logic.
+
+## 8. Files touched
+
+New:
+- `src/lib/xp.ts`
+- `src/lib/dailyVideo.ts`
+- `src/contexts/XpContext.tsx`
+- `src/components/XpToast.tsx`
+
+Edited:
+- `src/App.tsx` (provider + toast)
+- `src/components/XPProgress.tsx` (read from context)
+- `src/components/WordPopup.tsx` (award add_word)
+- `src/components/FlashcardReview.tsx` (award review_card + session_end)
+- `src/pages/Watch.tsx` (video_watch + reinforcement prompt + consume credit)
+- `src/pages/Browse.tsx` (featured badge)
+- `src/pages/Flashcards.tsx` (consume reinforcement flag → award)
+- `src/lib/guestWords.ts` (migrate guest XP)
+- `src/integrations/supabase/types.ts` (regenerated by migration)
+
+Migration:
+- `profiles` add columns
+- `xp_events` table + RLS + GRANTs
+
+## 9. Expected behavior
+
+- Saving a first word → instant `+20 XP` toast, progress bar animates.
+- Each flashcard answer → `+5/+10 XP` toast.
+- Finishing 10 cards → `+25 XP` session bonus toast.
+- Watching today's featured video → `+10 XP` + reinforcement CTA → tapping it → `/flashcards` and `+5 XP`.
+- Crossing a threshold → level-up celebration.
+- SRS red→orange→green transitions behave exactly as today; no new latency, no new failure modes.

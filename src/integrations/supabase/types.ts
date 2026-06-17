@@ -318,6 +318,7 @@ export type Database = {
           is_public: boolean
           language_switches_used: number
           last_streak_date: string | null
+          last_video_id: string | null
           learning_goal: string | null
           learning_language: string | null
           native_language: string | null
@@ -327,6 +328,10 @@ export type Database = {
           streak_count: number
           updated_at: string
           user_id: string
+          video_credit_date: string | null
+          video_credit_remaining: number
+          xp_level: number
+          xp_total: number
         }
         Insert: {
           avatar_url?: string | null
@@ -340,6 +345,7 @@ export type Database = {
           is_public?: boolean
           language_switches_used?: number
           last_streak_date?: string | null
+          last_video_id?: string | null
           learning_goal?: string | null
           learning_language?: string | null
           native_language?: string | null
@@ -349,6 +355,10 @@ export type Database = {
           streak_count?: number
           updated_at?: string
           user_id: string
+          video_credit_date?: string | null
+          video_credit_remaining?: number
+          xp_level?: number
+          xp_total?: number
         }
         Update: {
           avatar_url?: string | null
@@ -362,6 +372,7 @@ export type Database = {
           is_public?: boolean
           language_switches_used?: number
           last_streak_date?: string | null
+          last_video_id?: string | null
           learning_goal?: string | null
           learning_language?: string | null
           native_language?: string | null
@@ -371,6 +382,10 @@ export type Database = {
           streak_count?: number
           updated_at?: string
           user_id?: string
+          video_credit_date?: string | null
+          video_credit_remaining?: number
+          xp_level?: number
+          xp_total?: number
         }
         Relationships: []
       }
@@ -669,6 +684,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      xp_events: {
+        Row: {
+          action: string
+          amount: number
+          created_at: string
+          id: string
+          meta: Json | null
+          user_id: string
+        }
+        Insert: {
+          action: string
+          amount: number
+          created_at?: string
+          id?: string
+          meta?: Json | null
+          user_id: string
+        }
+        Update: {
+          action?: string
+          amount?: number
+          created_at?: string
+          id?: string
+          meta?: Json | null
+          user_id?: string
+        }
+        Relationships: []
       }
     }
     Views: {
