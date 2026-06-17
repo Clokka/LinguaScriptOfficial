@@ -5,7 +5,7 @@ import { X, ChevronLeft, ChevronRight, Trophy, ArrowLeftRight } from "lucide-rea
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { DeckState, recordReview, nextState } from "@/lib/vocab";
+import { DeckState, nextState } from "@/lib/vocab";
 
 type Direction = "learn-to-native" | "native-to-learn";
 const DIR_KEY = "flashcardDirection";
@@ -26,10 +26,11 @@ interface FlashcardData {
 interface FlashcardReviewProps {
   cards: FlashcardData[];
   onClose: () => void;
+  onCardReviewed?: (id: string, patch: Pick<FlashcardData, "state" | "times_correct">) => void;
   className?: string;
 }
 
-export const FlashcardReview = ({ cards: initialCards, onClose, className }: FlashcardReviewProps) => {
+export const FlashcardReview = ({ cards: initialCards, onClose, onCardReviewed, className }: FlashcardReviewProps) => {
   const { user } = useAuth();
   const [cards, setCards] = useState<FlashcardData[]>(initialCards);
   useEffect(() => { setCards(initialCards); }, [initialCards]);
@@ -88,12 +89,36 @@ export const FlashcardReview = ({ cards: initialCards, onClose, className }: Fla
     const prevTimes = card.times_correct ?? 0;
     const newTimes = prevTimes + (wasCorrect ? 1 : 0);
     const newState = nextState(prevState, newTimes, wasCorrect);
-    // Optimistic local update — in-session card reflects the new deck state immediately.
+    // Optimistic local update — React is only a temporary UI cache.
     setCards((prev) => prev.map((c, i) => (i === currentIndex ? { ...c, state: newState, times_correct: newTimes } : c)));
-    // Background sync — never await; UI must not wait on the network.
+    onCardReviewed?.(card.id, { state: newState, times_correct: newTimes });
+
+    // Persist the SRS transition immediately. Supabase saved_words.state is the source of truth.
     if (user && !card.id.startsWith("guest-")) {
-      const p = recordReview(card.id, prevState, prevTimes, wasCorrect);
+      const patch: Record<string, unknown> = {
+        state: newState,
+        times_correct: newTimes,
+      };
+      if (newState !== prevState) patch.state_changed_at = new Date().toISOString();
+
+      const p = Promise.resolve(
+        supabase
+          .from("saved_words")
+          .update(patch as any)
+          .eq("id", card.id)
+          .eq("user_id", user.id)
+          .select("id")
+          .maybeSingle(),
+      ).then(({ data, error }) => {
+        if (error) throw error;
+        if (!data) throw new Error(`No saved_words row updated for ${card.id}`);
+      }).catch((error) => {
+          console.error("[SRS] failed to persist deck transition", error);
+      });
       pendingWrites.current.push(p);
+      p.finally(() => {
+        pendingWrites.current = pendingWrites.current.filter((write) => write !== p);
+      });
     }
   };
 
