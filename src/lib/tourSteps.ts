@@ -259,6 +259,21 @@ export const TOUR_STEPS: TourStep[] = [
   },
 ];
 
-export const TOUR_TRAINING_YT_ID = "v7G2iPeiVVg";
+/**
+ * Language-specific training video shown during the onboarding tour.
+ * The admin must have a corresponding film in the catalogue (matched by URL
+ * containing this YouTube ID, or — as a fallback — by film.language).
+ */
+export const TOUR_TRAINING_BY_LANG: Record<string, string> = {
+  fr: "v7G2iPeiVVg",
+  ja: "bRecoD9OsaM",
+  es: "fcYeXCacyrk",
+  it: "jJz7UhAx2u4",
+  // de: admin must add a German training film; we fall back to any de film.
+};
+
+/** Back-compat default (French). Prefer `TOUR_TRAINING_BY_LANG[lang]`. */
+export const TOUR_TRAINING_YT_ID = TOUR_TRAINING_BY_LANG.fr;
+
 export const TOUR_PASTE_DEMO_URL =
   "https://www.youtube.com/watch?v=SoafcM3xqlc";
