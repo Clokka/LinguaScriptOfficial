@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowLeft, Copy, Mail, Share2, Trophy, Users, UserPlus, Loader2, Check, X, Flame } from "lucide-react";
+import { ArrowLeft, Copy, Mail, MessageSquare, Share2, Trophy, Users, UserPlus, Loader2, Check, X, Flame, Inbox, Send } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -24,9 +27,15 @@ interface LeaderRow {
 
 interface PendingRequest {
   user_id: string;
-  display_name: string | null;
-  username: string | null;
-  avatar_url: string | null;
+}
+
+interface InboxMsg {
+  id: string;
+  sender_id: string;
+  recipient_id: string;
+  body: string;
+  created_at: string;
+  read_at: string | null;
 }
 
 const Friends = () => {
@@ -42,8 +51,16 @@ const Friends = () => {
   const [friends, setFriends] = useState<LeaderRow[]>([]);
   const [global, setGlobal] = useState<LeaderRow[]>([]);
   const [pending, setPending] = useState<PendingRequest[]>([]);
+  const [inbox, setInbox] = useState<InboxMsg[]>([]);
+  const [unread, setUnread] = useState(0);
+  const [senders, setSenders] = useState<Record<string, LeaderRow>>({});
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState(false);
+
+  // Message dialog
+  const [msgTarget, setMsgTarget] = useState<LeaderRow | null>(null);
+  const [msgBody, setMsgBody] = useState("");
+  const [sending, setSending] = useState(false);
 
   const inviteLink = useMemo(() => {
     if (!me?.friend_code) return "";
@@ -57,7 +74,7 @@ const Friends = () => {
   const refresh = useCallback(async () => {
     if (!user) return;
     setLoading(true);
-    const [{ data: profile }, friendsRes, globalRes, pendingRes] = await Promise.all([
+    const [{ data: profile }, friendsRes, globalRes, pendingRes, inboxRes, unreadRes] = await Promise.all([
       supabase.from("profiles")
         .select("username, friend_code, show_on_global_leaderboard")
         .eq("user_id", user.id)
@@ -68,6 +85,12 @@ const Friends = () => {
         .select("user_id, status")
         .eq("friend_id", user.id)
         .eq("status", "pending") as any,
+      supabase.from("friend_messages" as any)
+        .select("id, sender_id, recipient_id, body, created_at, read_at")
+        .eq("recipient_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(100) as any,
+      (supabase.rpc as any)("get_unread_message_count"),
     ]);
 
     if (profile) {
@@ -76,19 +99,20 @@ const Friends = () => {
     }
     if (friendsRes?.data) setFriends(friendsRes.data as LeaderRow[]);
     if (globalRes?.data) setGlobal(globalRes.data as LeaderRow[]);
-
-    // Hydrate pending requester profiles via friends-allowed table read (requester is not yet a friend, so use RPC fallback)
-    const pendingIds = (pendingRes?.data ?? []).map((r: any) => r.user_id);
-    if (pendingIds.length) {
-      // Best-effort: requester profile won't be readable via RLS yet; show their friend_code anonymized
-      setPending(pendingIds.map((id: string) => ({ user_id: id, display_name: null, username: null, avatar_url: null })));
-    } else {
-      setPending([]);
-    }
+    setPending(((pendingRes?.data ?? []) as any[]).map((r) => ({ user_id: r.user_id })));
+    setInbox((inboxRes?.data ?? []) as InboxMsg[]);
+    if (typeof unreadRes?.data === "number") setUnread(unreadRes.data);
     setLoading(false);
   }, [user]);
 
   useEffect(() => { if (user) refresh(); }, [user, refresh]);
+
+  // Build sender lookup table from global + friends (already sanitized server-side)
+  useEffect(() => {
+    const map: Record<string, LeaderRow> = {};
+    [...friends, ...global].forEach((r) => { map[r.user_id] = r; });
+    setSenders(map);
+  }, [friends, global]);
 
   // Auto-handle ?addFriend=CODE
   useEffect(() => {
@@ -138,12 +162,22 @@ const Friends = () => {
     refresh();
   };
 
-  const acceptRequest = async (otherId: string) => {
-    const { error } = await (supabase.rpc as any)("accept_friend_request", { _other: otherId });
+  const addByUserId = async (target: LeaderRow) => {
+    const { error } = await (supabase.rpc as any)("add_friend_by_user_id", { _target: target.user_id });
     if (error) {
-      toast({ title: "Couldn't accept", description: error.message, variant: "destructive" });
+      const m = error.message ?? "";
+      const desc = m.includes("self") ? "That's you!" :
+                   m.includes("unknown_user") ? "User not found" : m;
+      toast({ title: "Couldn't add friend", description: desc, variant: "destructive" });
       return;
     }
+    toast({ title: "Friend request sent" });
+    refresh();
+  };
+
+  const acceptRequest = async (otherId: string) => {
+    const { error } = await (supabase.rpc as any)("accept_friend_request", { _other: otherId });
+    if (error) return toast({ title: "Couldn't accept", description: error.message, variant: "destructive" });
     toast({ title: "Friend added" });
     refresh();
   };
@@ -176,6 +210,30 @@ const Friends = () => {
     refresh();
   };
 
+  const sendMessage = async () => {
+    if (!msgTarget || !msgBody.trim()) return;
+    setSending(true);
+    const { data, error } = await supabase.functions.invoke("send-friend-message", {
+      body: { recipient_id: msgTarget.user_id, body: msgBody.trim() },
+    });
+    setSending(false);
+    if (error || (data as any)?.error) {
+      const m = (data as any)?.message || error?.message || "Couldn't send message";
+      toast({ title: "Message not sent", description: m, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Message sent", description: "They'll also get an email notification." });
+    setMsgTarget(null);
+    setMsgBody("");
+  };
+
+  const markRead = async (msg: InboxMsg) => {
+    if (msg.read_at) return;
+    await supabase.from("friend_messages" as any).update({ read_at: new Date().toISOString() } as any).eq("id", msg.id);
+    setInbox((arr) => arr.map((m) => m.id === msg.id ? { ...m, read_at: new Date().toISOString() } : m));
+    setUnread((n) => Math.max(0, n - 1));
+  };
+
   if (authLoading || !user) {
     return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>;
   }
@@ -194,7 +252,7 @@ const Friends = () => {
           </div>
           <div>
             <h1 className="text-3xl font-bold text-foreground">Friends</h1>
-            <p className="text-sm text-muted-foreground">Compete and learn together</p>
+            <p className="text-sm text-muted-foreground">Compete, message and learn together</p>
           </div>
         </div>
 
@@ -223,10 +281,14 @@ const Friends = () => {
         )}
 
         <Tabs defaultValue="leaderboard" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="leaderboard"><Trophy className="w-4 h-4 mr-2" />Friends</TabsTrigger>
-            <TabsTrigger value="add"><UserPlus className="w-4 h-4 mr-2" />Add</TabsTrigger>
-            <TabsTrigger value="global"><Flame className="w-4 h-4 mr-2" />Global</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="leaderboard"><Trophy className="w-4 h-4 mr-1.5" />Friends</TabsTrigger>
+            <TabsTrigger value="add"><UserPlus className="w-4 h-4 mr-1.5" />Add</TabsTrigger>
+            <TabsTrigger value="global"><Flame className="w-4 h-4 mr-1.5" />Global</TabsTrigger>
+            <TabsTrigger value="inbox" className="relative">
+              <Inbox className="w-4 h-4 mr-1.5" />Inbox
+              {unread > 0 && <Badge className="ml-1.5 h-5 px-1.5 text-[10px]" variant="destructive">{unread}</Badge>}
+            </TabsTrigger>
           </TabsList>
 
           {/* FRIENDS LEADERBOARD */}
@@ -239,7 +301,9 @@ const Friends = () => {
               ) : (
                 <ol className="space-y-2">
                   {friends.map((f, i) => (
-                    <LeaderboardRow key={f.user_id} row={f} rank={i + 1} showStreak />
+                    <LeaderboardRow key={f.user_id} row={f} rank={i + 1} showStreak
+                      onMessage={() => { setMsgTarget(f); setMsgBody(""); }}
+                    />
                   ))}
                 </ol>
               )}
@@ -297,25 +361,17 @@ const Friends = () => {
               <p className="text-sm font-medium">Invite by email</p>
               <p className="text-xs text-muted-foreground">Opens your mail app pre-filled with your invite link.</p>
               <div className="flex gap-2">
-                <Input
-                  type="email"
-                  value={inviteEmail}
-                  onChange={(e) => setInviteEmail(e.target.value)}
-                  placeholder="friend@example.com"
-                />
+                <Input type="email" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} placeholder="friend@example.com" />
                 <Button onClick={sendEmailInvite} disabled={!inviteEmail.trim()} variant="outline" className="gap-2">
                   <Mail className="w-4 h-4" /> Send
                 </Button>
               </div>
-              <Button
-                variant="ghost"
-                className="w-full gap-2"
+              <Button variant="ghost" className="w-full gap-2"
                 onClick={async () => {
                   if (navigator.share && inviteLink) {
                     try { await navigator.share({ title: "LinguaScript", text: "Learn languages with me!", url: inviteLink }); } catch {}
                   } else { copyInvite(); }
-                }}
-              >
+                }}>
                 <Share2 className="w-4 h-4" /> Share invite link
               </Button>
             </div>
@@ -328,10 +384,7 @@ const Friends = () => {
                 <p className="text-sm font-medium">Appear on global leaderboard</p>
                 <p className="text-xs text-muted-foreground">Other learners can see your @username and XP.</p>
               </div>
-              <Switch
-                checked={me?.show_on_global_leaderboard ?? true}
-                onCheckedChange={toggleGlobal}
-              />
+              <Switch checked={me?.show_on_global_leaderboard ?? true} onCheckedChange={toggleGlobal} />
             </div>
             <div className="glass-panel-strong p-4">
               {loading ? (
@@ -341,20 +394,103 @@ const Friends = () => {
               ) : (
                 <ol className="space-y-2">
                   {global.map((g, i) => (
-                    <LeaderboardRow key={g.user_id} row={g} rank={i + 1} />
+                    <LeaderboardRow
+                      key={g.user_id}
+                      row={g}
+                      rank={i + 1}
+                      onAdd={g.is_self ? undefined : () => addByUserId(g)}
+                      onMessage={g.is_self ? undefined : () => { setMsgTarget(g); setMsgBody(""); }}
+                    />
                   ))}
                 </ol>
               )}
             </div>
           </TabsContent>
+
+          {/* INBOX */}
+          <TabsContent value="inbox" className="mt-6">
+            <div className="glass-panel-strong p-4">
+              {loading ? (
+                <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
+              ) : inbox.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">No messages yet.</p>
+              ) : (
+                <ul className="space-y-2">
+                  {inbox.map((m) => {
+                    const s = senders[m.sender_id];
+                    const name = s ? (s.username ? `@${s.username}` : s.display_name || "A learner") : "A learner";
+                    return (
+                      <li
+                        key={m.id}
+                        onClick={() => markRead(m)}
+                        className={cn(
+                          "p-3 rounded-xl cursor-pointer transition-colors",
+                          m.read_at ? "bg-secondary/30" : "bg-primary/10 border border-primary/30",
+                        )}
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <Avatar className="w-7 h-7"><AvatarFallback>{name.charAt(name.startsWith("@") ? 1 : 0).toUpperCase()}</AvatarFallback></Avatar>
+                            <span className="text-sm font-medium truncate">{name}</span>
+                            {!m.read_at && <span className="w-2 h-2 rounded-full bg-primary shrink-0" />}
+                          </div>
+                          <span className="text-[10px] text-muted-foreground shrink-0">{new Date(m.created_at).toLocaleString()}</span>
+                        </div>
+                        <p className="text-sm text-foreground whitespace-pre-wrap pl-9">{m.body}</p>
+                        <div className="flex justify-end mt-2 pl-9">
+                          <Button size="sm" variant="ghost" className="h-7 gap-1.5 text-xs"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (s) { setMsgTarget(s); setMsgBody(""); }
+                            }}>
+                            <MessageSquare className="w-3.5 h-3.5" /> Reply
+                          </Button>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+          </TabsContent>
         </Tabs>
       </div>
+
+      {/* Message dialog */}
+      <Dialog open={!!msgTarget} onOpenChange={(o) => { if (!o) { setMsgTarget(null); setMsgBody(""); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Message {msgTarget?.username ? `@${msgTarget.username}` : msgTarget?.display_name || "learner"}</DialogTitle>
+            <DialogDescription>They'll also receive an email notification from hello@linguascript.xyz.</DialogDescription>
+          </DialogHeader>
+          <Textarea
+            value={msgBody}
+            onChange={(e) => setMsgBody(e.target.value.slice(0, 500))}
+            placeholder="Say hi, challenge them, share a tip…"
+            rows={5}
+            autoFocus
+          />
+          <div className="text-xs text-muted-foreground text-right">{msgBody.length}/500</div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setMsgTarget(null); setMsgBody(""); }}>Cancel</Button>
+            <Button onClick={sendMessage} disabled={sending || !msgBody.trim()} className="gap-2">
+              {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+              Send
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
 
-const LeaderboardRow = ({ row, rank, showStreak }: { row: LeaderRow; rank: number; showStreak?: boolean }) => {
-  const name = row.username ? `@${row.username}` : (row.display_name || "Anonymous learner");
+const LeaderboardRow = ({
+  row, rank, showStreak, onAdd, onMessage,
+}: {
+  row: LeaderRow; rank: number; showStreak?: boolean;
+  onAdd?: () => void; onMessage?: () => void;
+}) => {
+  const name = row.username ? `@${row.username}` : (row.display_name || "Learner");
   const medal = rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : `#${rank}`;
   return (
     <li
@@ -374,7 +510,7 @@ const LeaderboardRow = ({ row, rank, showStreak }: { row: LeaderRow; rank: numbe
         </p>
         <p className="text-xs text-muted-foreground">Level {row.xp_level}</p>
       </div>
-      <div className="text-right">
+      <div className="text-right shrink-0">
         <p className="font-bold text-foreground">{row.xp_total.toLocaleString()} XP</p>
         {showStreak && row.streak_count != null && row.streak_count > 0 && (
           <p className="text-xs text-orange-500 flex items-center gap-1 justify-end">
@@ -382,6 +518,20 @@ const LeaderboardRow = ({ row, rank, showStreak }: { row: LeaderRow; rank: numbe
           </p>
         )}
       </div>
+      {(onAdd || onMessage) && (
+        <div className="flex gap-1 shrink-0 ml-1">
+          {onMessage && (
+            <Button size="icon" variant="ghost" className="h-8 w-8" onClick={onMessage} title="Send message">
+              <MessageSquare className="w-4 h-4" />
+            </Button>
+          )}
+          {onAdd && (
+            <Button size="icon" variant="outline" className="h-8 w-8" onClick={onAdd} title="Add friend">
+              <UserPlus className="w-4 h-4" />
+            </Button>
+          )}
+        </div>
+      )}
     </li>
   );
 };
