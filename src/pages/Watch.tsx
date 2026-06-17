@@ -564,6 +564,7 @@ const Watch = () => {
         context,
         language: langCode,
       });
+      award("add_word");
       return;
     }
 
@@ -578,6 +579,7 @@ const Watch = () => {
       film_id: film.id,
       language: langCode,
     }, { onConflict: "user_id,word,language" });
+    award("add_word");
   };
 
   const downloadSrt = (type: "primary" | "secondary") => {
