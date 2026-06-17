@@ -147,7 +147,7 @@ export const FlashcardReview = ({ cards: initialCards, onClose, className }: Fla
         </div>
 
         <div className="flex gap-3">
-          <Button data-tour="review-close" variant="outline" className="flex-1" onClick={onClose}>
+          <Button data-tour="review-close" variant="outline" className="flex-1" onClick={handleClose}>
             Close
           </Button>
           <Button
@@ -173,7 +173,7 @@ export const FlashcardReview = ({ cards: initialCards, onClose, className }: Fla
     <div className={cn("max-w-lg mx-auto", className)}>
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <Button data-tour="page-back" variant="ghost" size="icon" onClick={onClose}>
+        <Button data-tour="page-back" variant="ghost" size="icon" onClick={handleClose}>
           <X className="w-5 h-5" />
         </Button>
         <div className="flex items-center gap-4">
