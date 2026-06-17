@@ -13,11 +13,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Camera, ArrowLeft, Save, Loader2, LinkIcon } from "lucide-react";
+import { Camera, ArrowLeft, Save, Loader2, LinkIcon, LogOut } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const Profile = () => {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, signOut } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -265,6 +265,20 @@ const Profile = () => {
                 <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.2-4.3 5.5l6 5.1C40.7 35.7 43.5 30.3 43.5 24c0-1.2-.1-2.3-.4-3.5z"/>
               </svg>
               {hasGoogleLinked ? "Google linked" : linkingGoogle ? "Connecting…" : "Link Google account"}
+            </Button>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="lg"
+              className="w-full gap-2 mt-3 border-destructive/40 text-destructive hover:bg-destructive/10"
+              onClick={async () => {
+                await signOut();
+                navigate("/");
+              }}
+            >
+              <LogOut className="w-4 h-4" />
+              Log out
             </Button>
           </div>
         </div>
