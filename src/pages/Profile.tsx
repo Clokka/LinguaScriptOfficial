@@ -33,20 +33,30 @@ const Profile = () => {
 
   const hasGoogleLinked = !!user?.identities?.some((i) => i.provider === "google");
 
-  useEffect(() => {
-    if (!authLoading && !user) {
-      navigate("/auth");
-    }
-  }, [authLoading, user, navigate]);
+  const GUEST_KEY = "ls.guestProfile.v1";
 
   useEffect(() => {
+    if (authLoading) return;
     if (user) {
       fetchProfile();
+    } else {
+      // Guest mode: load local prefs, no forced sign-in.
+      try {
+        const raw = localStorage.getItem(GUEST_KEY);
+        if (raw) {
+          const g = JSON.parse(raw);
+          setDisplayName(g.displayName ?? "");
+          setNativeLanguage(g.nativeLanguage ?? "en");
+          setLearningLanguage(g.learningLanguage ?? "fr");
+          setSchool(g.school ?? "");
+        }
+      } catch { /* ignore */ }
+      setLoadingProfile(false);
     }
-  }, [user]);
+  }, [authLoading, user]);
 
   const fetchProfile = async () => {
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("profiles")
       .select("*")
       .eq("user_id", user!.id)
@@ -99,8 +109,22 @@ const Profile = () => {
   };
 
   const handleSave = async () => {
-    if (!user) return;
     setSaving(true);
+
+    if (!user) {
+      // Guest: save locally only.
+      try {
+        localStorage.setItem(
+          GUEST_KEY,
+          JSON.stringify({ displayName, nativeLanguage, learningLanguage, school: school.trim() }),
+        );
+        toast({ title: "Saved locally", description: "Sign in to sync across devices." });
+      } catch (e: any) {
+        toast({ title: "Save failed", description: e.message, variant: "destructive" });
+      }
+      setSaving(false);
+      return;
+    }
 
     const { error } = await supabase
       .from("profiles")
@@ -245,41 +269,59 @@ const Profile = () => {
           {/* Account / Linked sign-in */}
           <div className="pt-4 border-t border-border/50">
             <p className="text-sm font-medium text-foreground mb-1">Account</p>
-            <p className="text-xs text-muted-foreground mb-3">
-              {hasGoogleLinked
-                ? "Your Google account is linked — you can sign in with Google."
-                : "Link Google to sign in faster next time."}
-            </p>
-            <Button
-              type="button"
-              variant="outline"
-              size="lg"
-              className="w-full gap-3 bg-background/60"
-              onClick={handleLinkGoogle}
-              disabled={hasGoogleLinked || linkingGoogle}
-            >
-              <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
-                <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.3 29.2 35.5 24 35.5c-6.4 0-11.5-5.1-11.5-11.5S17.6 12.5 24 12.5c2.9 0 5.5 1.1 7.5 2.8l5.7-5.7C33.6 6.3 29.1 4.5 24 4.5 13.2 4.5 4.5 13.2 4.5 24S13.2 43.5 24 43.5 43.5 34.8 43.5 24c0-1.2-.1-2.3-.4-3.5z"/>
-                <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 16 19 12.5 24 12.5c2.9 0 5.5 1.1 7.5 2.8l5.7-5.7C33.6 6.3 29.1 4.5 24 4.5 16.3 4.5 9.7 8.9 6.3 14.7z"/>
-                <path fill="#4CAF50" d="M24 43.5c5 0 9.5-1.7 13-4.6l-6-5.1c-1.9 1.4-4.3 2.2-7 2.2-5.2 0-9.6-3.2-11.3-7.6L6 33.6C9.4 39.3 16.1 43.5 24 43.5z"/>
-                <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.2-4.3 5.5l6 5.1C40.7 35.7 43.5 30.3 43.5 24c0-1.2-.1-2.3-.4-3.5z"/>
-              </svg>
-              {hasGoogleLinked ? "Google linked" : linkingGoogle ? "Connecting…" : "Link Google account"}
-            </Button>
-
-            <Button
-              type="button"
-              variant="outline"
-              size="lg"
-              className="w-full gap-2 mt-3 border-destructive/40 text-destructive hover:bg-destructive/10"
-              onClick={async () => {
-                await signOut();
-                navigate("/");
-              }}
-            >
-              <LogOut className="w-4 h-4" />
-              Log out
-            </Button>
+            {!user ? (
+              <>
+                <p className="text-xs text-muted-foreground mb-3">
+                  You're browsing as a guest. Sign in to sync your profile, XP and flashcards across devices.
+                </p>
+                <Button
+                  type="button"
+                  variant="hero"
+                  size="lg"
+                  className="w-full"
+                  onClick={() => navigate("/auth")}
+                >
+                  Sign in / Create account
+                </Button>
+              </>
+            ) : (
+              <>
+                <p className="text-xs text-muted-foreground mb-3">
+                  {hasGoogleLinked
+                    ? "Your Google account is linked — you can sign in with Google."
+                    : "Link Google to sign in faster next time."}
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="lg"
+                  className="w-full gap-3 bg-background/60"
+                  onClick={handleLinkGoogle}
+                  disabled={hasGoogleLinked || linkingGoogle}
+                >
+                  <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
+                    <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.3 29.2 35.5 24 35.5c-6.4 0-11.5-5.1-11.5-11.5S17.6 12.5 24 12.5c2.9 0 5.5 1.1 7.5 2.8l5.7-5.7C33.6 6.3 29.1 4.5 24 4.5 13.2 4.5 4.5 13.2 4.5 24S13.2 43.5 24 43.5 43.5 34.8 43.5 24c0-1.2-.1-2.3-.4-3.5z"/>
+                    <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 16 19 12.5 24 12.5c2.9 0 5.5 1.1 7.5 2.8l5.7-5.7C33.6 6.3 29.1 4.5 24 4.5 16.3 4.5 9.7 8.9 6.3 14.7z"/>
+                    <path fill="#4CAF50" d="M24 43.5c5 0 9.5-1.7 13-4.6l-6-5.1c-1.9 1.4-4.3 2.2-7 2.2-5.2 0-9.6-3.2-11.3-7.6L6 33.6C9.4 39.3 16.1 43.5 24 43.5z"/>
+                    <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.2-4.3 5.5l6 5.1C40.7 35.7 43.5 30.3 43.5 24c0-1.2-.1-2.3-.4-3.5z"/>
+                  </svg>
+                  {hasGoogleLinked ? "Google linked" : linkingGoogle ? "Connecting…" : "Link Google account"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="lg"
+                  className="w-full gap-2 mt-3 border-destructive/40 text-destructive hover:bg-destructive/10"
+                  onClick={async () => {
+                    await signOut();
+                    navigate("/");
+                  }}
+                >
+                  <LogOut className="w-4 h-4" />
+                  Log out
+                </Button>
+              </>
+            )}
           </div>
         </div>
 
