@@ -266,8 +266,6 @@ const Profile = () => {
             Save Changes
           </Button>
 
-          {user && <EmailPreferencesSection userId={user.id} />}
-
           {/* Account / Linked sign-in */}
           <div className="pt-4 border-t border-border/50">
             <p className="text-sm font-medium text-foreground mb-1">Account</p>
