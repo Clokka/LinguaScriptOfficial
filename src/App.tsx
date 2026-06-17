@@ -21,6 +21,7 @@ import StarterDeck from "./pages/StarterDeck";
 import Vocabulary from "./pages/Vocabulary";
 import Admin from "./pages/Admin";
 import Story from "./pages/Story";
+import Friends from "./pages/Friends";
 import Onboarding from "./pages/Onboarding";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
@@ -49,6 +50,7 @@ const App = () => (
                 <Route path="/vocabulary" element={<Vocabulary />} />
                 <Route path="/admin" element={<Admin />} />
                 <Route path="/story" element={<Story />} />
+                <Route path="/friends" element={<Friends />} />
                 <Route path="/onboarding" element={<Onboarding />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
