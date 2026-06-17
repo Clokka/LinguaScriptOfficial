@@ -278,15 +278,28 @@ const Onboarding = () => {
 
                 {/* Inline intro video — clicking anywhere acts as "Enter the demo". */}
                 {(() => {
+                  const trainingYtId = TOUR_TRAINING_BY_LANG[target] ?? TOUR_TRAINING_YT_ID;
                   const enterDemo = async () => {
                     if (enteringDemo) return;
                     setEnteringDemo(true);
-                    const { data: film } = await supabase
+                    // 1) Try the language-specific training YouTube ID.
+                    let { data: film } = await supabase
                       .from("films")
                       .select("id")
-                      .or(`url.ilike.%${TOUR_TRAINING_YT_ID}%`)
+                      .or(`url.ilike.%${trainingYtId}%`)
                       .limit(1)
                       .maybeSingle();
+                    // 2) Fallback: any public film in the chosen language.
+                    if (!film?.id) {
+                      const { data: anyFilm } = await supabase
+                        .from("films")
+                        .select("id")
+                        .eq("language", target)
+                        .eq("is_public", true)
+                        .limit(1)
+                        .maybeSingle();
+                      film = anyFilm ?? null;
+                    }
                     if (!film?.id) {
                       toast.error("Training video missing from catalogue. Ask an admin to add it.");
                       setEnteringDemo(false);
@@ -310,7 +323,7 @@ const Onboarding = () => {
                       >
                         <iframe
                           title="Linguascript intro"
-                          src={`https://www.youtube-nocookie.com/embed/${TOUR_TRAINING_YT_ID}?autoplay=1&mute=1&playsinline=1&modestbranding=1&rel=0&controls=0&disablekb=1&loop=1&playlist=${TOUR_TRAINING_YT_ID}`}
+                          src={`https://www.youtube-nocookie.com/embed/${trainingYtId}?autoplay=1&mute=1&playsinline=1&modestbranding=1&rel=0&controls=0&disablekb=1&loop=1&playlist=${trainingYtId}`}
                           allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
                           className="w-full h-full pointer-events-none"
                           frameBorder={0}
