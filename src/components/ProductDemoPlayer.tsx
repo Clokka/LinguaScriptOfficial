@@ -372,7 +372,7 @@ const SceneClick = () => (
           <p className="text-[10px] text-white/50 mt-1">/bɔ̃.ʒuʁ/</p>
         </div>
         <div className="w-7 h-7 rounded-md bg-white/10 ring-1 ring-white/15 flex items-center justify-center">
-          <Speaker className="w-3.5 h-3.5 text-white" />
+          <Volume2 className="w-3.5 h-3.5 text-white" />
         </div>
       </div>
       <div className="bg-white/5 rounded-lg px-2.5 py-2 mb-2">
