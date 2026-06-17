@@ -266,6 +266,20 @@ const Profile = () => {
               </svg>
               {hasGoogleLinked ? "Google linked" : linkingGoogle ? "Connecting…" : "Link Google account"}
             </Button>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="lg"
+              className="w-full gap-2 mt-3 border-destructive/40 text-destructive hover:bg-destructive/10"
+              onClick={async () => {
+                await signOut();
+                navigate("/");
+              }}
+            >
+              <LogOut className="w-4 h-4" />
+              Log out
+            </Button>
           </div>
         </div>
 
