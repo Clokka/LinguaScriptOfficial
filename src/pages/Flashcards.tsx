@@ -124,7 +124,7 @@ const Flashcards = () => {
             setAllCards((prev) => prev.map((card) => (card.id === id ? { ...card, ...patch } : card)));
             setReviewCards((prev) => prev.map((card) => (card.id === id ? { ...card, ...patch } : card)));
           }}
-          onClose={() => { setActiveDeck(null); setReviewCards([]); void fetchCards(false); }}
+          onClose={() => { setActiveDeck(null); setReviewCards([]); }}
         />
       </div>
     );
