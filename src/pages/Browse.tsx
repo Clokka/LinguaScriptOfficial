@@ -18,6 +18,7 @@ import {
   BookOpen,
   Target,
   Lock,
+  Users,
 } from "lucide-react";
 import { UpgradeLockDialog } from "@/components/UpgradeLockDialog";
 import { Button } from "@/components/ui/button";
@@ -61,11 +62,12 @@ interface ActivityDay {
 
 type TabKey = "home" | "discover" | "calendar" | "settings";
 
-const SIDEBAR_ITEMS: { icon: typeof Home; label: string; key: TabKey | "flashcards" | "vocabulary" }[] = [
+const SIDEBAR_ITEMS: { icon: typeof Home; label: string; key: TabKey | "flashcards" | "vocabulary" | "friends" }[] = [
   { icon: Home, label: "Home", key: "home" },
   { icon: Compass, label: "Discover", key: "discover" },
   { icon: Target, label: "Comprehension", key: "vocabulary" },
   { icon: BookOpen, label: "Flashcards", key: "flashcards" },
+  { icon: Users, label: "Friends", key: "friends" },
   { icon: CalendarIcon, label: "Calendar", key: "calendar" },
   { icon: Settings, label: "Settings", key: "settings" },
 ];
