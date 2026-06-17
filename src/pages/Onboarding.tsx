@@ -40,6 +40,7 @@ const Onboarding = () => {
   const [videoGoal, setVideoGoal] = useState<number>(1);
   const [goal, setGoal] = useState("");
   const [goalSaved, setGoalSaved] = useState(false);
+  const [showOnLeaderboard, setShowOnLeaderboard] = useState(true);
   const [dualClicked, setDualClicked] = useState(false);
 
   // Load any existing profile values (auth optional — anonymous users see onboarding too)
@@ -99,7 +100,11 @@ const Onboarding = () => {
   const saveGoal = async () => {
     if (!goal.trim()) return;
     if (user) {
-      await supabase.from("profiles").update({ learning_goal: goal.trim() }).eq("user_id", user.id);
+      await supabase.from("profiles").update({
+        learning_goal: goal.trim(),
+        show_on_global_leaderboard: showOnLeaderboard,
+        discoverable_by_search: showOnLeaderboard,
+      } as any).eq("user_id", user.id);
     }
     setGoalSaved(true);
     playDing("success");
