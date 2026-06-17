@@ -109,8 +109,22 @@ const Profile = () => {
   };
 
   const handleSave = async () => {
-    if (!user) return;
     setSaving(true);
+
+    if (!user) {
+      // Guest: save locally only.
+      try {
+        localStorage.setItem(
+          GUEST_KEY,
+          JSON.stringify({ displayName, nativeLanguage, learningLanguage, school: school.trim() }),
+        );
+        toast({ title: "Saved locally", description: "Sign in to sync across devices." });
+      } catch (e: any) {
+        toast({ title: "Save failed", description: e.message, variant: "destructive" });
+      }
+      setSaving(false);
+      return;
+    }
 
     const { error } = await supabase
       .from("profiles")
