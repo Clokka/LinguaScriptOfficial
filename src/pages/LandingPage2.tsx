@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { ProductDemoPlayer } from "@/components/ProductDemoPlayer";
 
 /**
  * LinguaScript Landing Page v2 — product-walkthrough style.
@@ -157,7 +158,7 @@ const LandingPage2 = () => {
           variants={fadeUp}
           className="glass-panel-strong rounded-3xl overflow-hidden border border-border/60 shadow-[0_40px_120px_-40px_hsl(var(--primary)/0.5)]"
         >
-          <MockPlayer />
+          <ProductDemoPlayer />
         </motion.div>
       </section>
 
