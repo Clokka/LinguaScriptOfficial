@@ -16,7 +16,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTour } from "@/contexts/TourContext";
-import { TOUR_TRAINING_YT_ID } from "@/lib/tourSteps";
+import { TOUR_TRAINING_BY_LANG, TOUR_TRAINING_YT_ID } from "@/lib/tourSteps";
 import { playDing } from "@/lib/sound";
 import { toast } from "sonner";
 import { DailyGoalPicker } from "@/components/DailyGoalPicker";
@@ -34,7 +34,7 @@ const Onboarding = () => {
 
   const [step, setStep] = useState(0);
   const [native, setNative] = useState("en");
-  const [target] = useState("fr"); // French-only — other languages "Coming soon"
+  const [target, setTarget] = useState("fr");
   const [level, setLevel] = useState<Level | null>(null);
   const [school, setSchool] = useState("");
   const [videoGoal, setVideoGoal] = useState<number>(1);
@@ -181,7 +181,7 @@ const Onboarding = () => {
                     <LangSelect value={native} onChange={setNative} exclude={target} />
                   </Field>
                   <Field label="I want to learn">
-                    <FrenchOnlySelect />
+                    <LearningLanguageSelect value={target} onChange={setTarget} exclude={native} />
                   </Field>
 
                   <Field label="My current level">
@@ -278,15 +278,28 @@ const Onboarding = () => {
 
                 {/* Inline intro video — clicking anywhere acts as "Enter the demo". */}
                 {(() => {
+                  const trainingYtId = TOUR_TRAINING_BY_LANG[target] ?? TOUR_TRAINING_YT_ID;
                   const enterDemo = async () => {
                     if (enteringDemo) return;
                     setEnteringDemo(true);
-                    const { data: film } = await supabase
+                    // 1) Try the language-specific training YouTube ID.
+                    let { data: film } = await supabase
                       .from("films")
                       .select("id")
-                      .or(`url.ilike.%${TOUR_TRAINING_YT_ID}%`)
+                      .or(`url.ilike.%${trainingYtId}%`)
                       .limit(1)
                       .maybeSingle();
+                    // 2) Fallback: any public film in the chosen language.
+                    if (!film?.id) {
+                      const { data: anyFilm } = await supabase
+                        .from("films")
+                        .select("id")
+                        .eq("language", target)
+                        .eq("is_public", true)
+                        .limit(1)
+                        .maybeSingle();
+                      film = anyFilm ?? null;
+                    }
                     if (!film?.id) {
                       toast.error("Training video missing from catalogue. Ask an admin to add it.");
                       setEnteringDemo(false);
@@ -310,7 +323,7 @@ const Onboarding = () => {
                       >
                         <iframe
                           title="Linguascript intro"
-                          src={`https://www.youtube-nocookie.com/embed/${TOUR_TRAINING_YT_ID}?autoplay=1&mute=1&playsinline=1&modestbranding=1&rel=0&controls=0&disablekb=1&loop=1&playlist=${TOUR_TRAINING_YT_ID}`}
+                          src={`https://www.youtube-nocookie.com/embed/${trainingYtId}?autoplay=1&mute=1&playsinline=1&modestbranding=1&rel=0&controls=0&disablekb=1&loop=1&playlist=${trainingYtId}`}
                           allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
                           className="w-full h-full pointer-events-none"
                           frameBorder={0}
@@ -521,37 +534,42 @@ const PillarCard = ({
 );
 
 
-const COMING_SOON_LANGS = [
+const AVAILABLE_LEARNING_LANGS = [
+  { code: "fr", label: "French", flag: "🇫🇷" },
   { code: "es", label: "Spanish", flag: "🇪🇸" },
   { code: "de", label: "German", flag: "🇩🇪" },
   { code: "it", label: "Italian", flag: "🇮🇹" },
   { code: "pt", label: "Portuguese", flag: "🇵🇹" },
+  { code: "ja", label: "Japanese", flag: "🇯🇵" },
 ];
 
-const FrenchOnlySelect = () => (
-  <div className="space-y-2">
-    <div className="flex items-center gap-3 rounded-xl border border-orange-200 bg-gradient-to-br from-orange-50 to-white px-4 h-11">
-      <span className="text-xl">🇫🇷</span>
-      <span className="font-medium text-neutral-900">French</span>
-      <span className="ml-auto inline-flex items-center gap-1 text-[11px] font-medium uppercase tracking-wide text-orange-600 bg-orange-100/80 rounded-full px-2 py-0.5">
-        <Check className="w-3 h-3" /> Available
-      </span>
-    </div>
-    <div className="rounded-xl border border-neutral-200 bg-neutral-50/60 p-3">
-      <p className="text-[11px] font-medium uppercase tracking-wide text-neutral-500 mb-2">Coming soon</p>
-      <div className="grid grid-cols-2 gap-1.5">
-        {COMING_SOON_LANGS.map((l) => (
-          <div
+const LearningLanguageSelect = ({
+  value, onChange, exclude,
+}: { value: string; onChange: (v: string) => void; exclude?: string }) => {
+  const options = AVAILABLE_LEARNING_LANGS.filter((l) => l.code !== exclude);
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+      {options.map((l) => {
+        const active = value === l.code;
+        return (
+          <button
             key={l.code}
-            className="flex items-center gap-2 text-sm text-neutral-400 px-2 py-1.5 rounded-lg cursor-not-allowed"
+            type="button"
+            onClick={() => onChange(l.code)}
+            className={`flex items-center gap-2 rounded-xl border px-3 h-11 text-sm font-medium transition ${
+              active
+                ? "bg-orange-500 border-orange-500 text-white shadow-[0_6px_18px_-6px_rgba(249,115,22,0.6)]"
+                : "bg-white border-orange-100 text-neutral-700 hover:border-orange-300"
+            }`}
           >
-            <span>{l.flag}</span>
+            <span className="text-lg leading-none">{l.flag}</span>
             <span>{l.label}</span>
-          </div>
-        ))}
-      </div>
+            {active && <Check className="w-4 h-4 ml-auto" />}
+          </button>
+        );
+      })}
     </div>
-  </div>
-);
+  );
+};
 
 export default Onboarding;

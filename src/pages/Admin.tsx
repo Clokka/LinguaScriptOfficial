@@ -261,15 +261,23 @@ const Admin = () => {
       }
     }
 
-    // Get current user (RLS now requires auth + records owner)
+    // Get current user (RLS requires authenticated)
     const { data: authData } = await supabase.auth.getUser();
+    if (!authData.user?.id) {
+      toast({
+        title: "Sign in required",
+        description: "You must be signed in to add films. Open /auth and log in first.",
+        variant: "destructive",
+      });
+      return;
+    }
     const { data, error } = await supabase.from("films").insert({
       title,
       url,
       language,
       thumbnail_url: thumb,
       is_public: true,
-      created_by: authData.user?.id ?? null,
+      created_by: authData.user.id,
     }).select().single();
 
     if (error) {
