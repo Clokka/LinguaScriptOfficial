@@ -5,7 +5,7 @@ import { X, ChevronLeft, ChevronRight, Trophy, ArrowLeftRight } from "lucide-rea
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { DeckState, recordReview } from "@/lib/vocab";
+import { DeckState, recordReview, nextState } from "@/lib/vocab";
 
 type Direction = "learn-to-native" | "native-to-learn";
 const DIR_KEY = "flashcardDirection";
