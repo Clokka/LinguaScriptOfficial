@@ -847,6 +847,34 @@ const Watch = () => {
 
         </div>
       </div>
+
+      {showReinforce && (
+        <div className="fixed inset-x-0 bottom-0 z-[80] p-4 pointer-events-none">
+          <div className="glass-panel-strong max-w-md mx-auto p-5 pointer-events-auto animate-bounce-in shadow-float">
+            <div className="text-sm uppercase tracking-widest text-primary mb-1">+10 XP</div>
+            <h3 className="text-lg font-bold mb-1">Great learning session</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Want to reinforce what you just learned? Earn a bonus by reviewing flashcards now.
+            </p>
+            <div className="flex gap-2">
+              <Button variant="ghost" className="flex-1" onClick={() => setShowReinforce(false)}>
+                Later
+              </Button>
+              <Button
+                variant="hero"
+                className="flex-1"
+                onClick={() => {
+                  setReinforcementPending();
+                  setShowReinforce(false);
+                  navigate("/flashcards");
+                }}
+              >
+                Review now
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
