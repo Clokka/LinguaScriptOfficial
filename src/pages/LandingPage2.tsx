@@ -57,7 +57,7 @@ const LandingPage2 = () => {
             </Button>
             <Button
               size="sm"
-              onClick={() => navigate("/browse")}
+              onClick={() => navigate("/onboarding")}
               className="bg-gradient-to-r from-primary to-[hsl(280,100%,60%)] text-primary-foreground"
             >
               Open App
@@ -288,7 +288,7 @@ const LandingPage2 = () => {
           <motion.div variants={fadeUp} custom={2}>
             <Button
               size="lg"
-              onClick={() => navigate("/browse")}
+              onClick={() => navigate("/onboarding")}
               className="h-14 px-10 text-base rounded-full bg-gradient-to-r from-primary via-[hsl(280,100%,60%)] to-accent shadow-glow-primary gap-3 text-primary-foreground font-semibold"
             >
               <Play className="w-5 h-5 fill-current" />

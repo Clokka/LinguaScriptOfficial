@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Flashcard } from "./Flashcard";
 import { Button } from "./ui/button";
 import { X, ChevronLeft, ChevronRight, Trophy, ArrowLeftRight } from "lucide-react";
@@ -40,6 +40,15 @@ export const FlashcardReview = ({ cards: initialCards, onClose, className }: Fla
   const [direction, setDirection] = useState<Direction>(() => {
     return (localStorage.getItem(DIR_KEY) as Direction) || "native-to-learn";
   });
+  // Track in-flight DB writes so we can flush them before closing.
+  const pendingWrites = useRef<Promise<unknown>[]>([]);
+  const handleClose = async () => {
+    if (pendingWrites.current.length) {
+      try { await Promise.all(pendingWrites.current); } catch {}
+      pendingWrites.current = [];
+    }
+    onClose();
+  };
 
   useEffect(() => { localStorage.setItem(DIR_KEY, direction); }, [direction]);
 
@@ -83,7 +92,8 @@ export const FlashcardReview = ({ cards: initialCards, onClose, className }: Fla
     setCards((prev) => prev.map((c, i) => (i === currentIndex ? { ...c, state: newState, times_correct: newTimes } : c)));
     // Background sync — never await; UI must not wait on the network.
     if (user && !card.id.startsWith("guest-")) {
-      void recordReview(card.id, prevState, prevTimes, wasCorrect);
+      const p = recordReview(card.id, prevState, prevTimes, wasCorrect);
+      pendingWrites.current.push(p);
     }
   };
 
@@ -137,7 +147,7 @@ export const FlashcardReview = ({ cards: initialCards, onClose, className }: Fla
         </div>
 
         <div className="flex gap-3">
-          <Button data-tour="review-close" variant="outline" className="flex-1" onClick={onClose}>
+          <Button data-tour="review-close" variant="outline" className="flex-1" onClick={handleClose}>
             Close
           </Button>
           <Button
@@ -163,7 +173,7 @@ export const FlashcardReview = ({ cards: initialCards, onClose, className }: Fla
     <div className={cn("max-w-lg mx-auto", className)}>
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <Button data-tour="page-back" variant="ghost" size="icon" onClick={onClose}>
+        <Button data-tour="page-back" variant="ghost" size="icon" onClick={handleClose}>
           <X className="w-5 h-5" />
         </Button>
         <div className="flex items-center gap-4">
