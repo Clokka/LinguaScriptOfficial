@@ -7,7 +7,6 @@ import {
   Maximize,
   MousePointer2,
   Star,
-  Volume2 as Speaker,
   Check,
   Flame,
   Sparkles,
