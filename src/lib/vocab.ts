@@ -114,30 +114,23 @@ export function nextState(
   return "red";
 }
 
-/** Apply a flashcard outcome to a saved word row. */
+/** Log a flashcard review without controlling SRS deck transitions. */
 export async function recordReview(
   savedWordId: string,
   current: DeckState,
-  currentTimesCorrect: number,
-  correct: boolean,
+  _currentTimesCorrect: number,
+  _correct: boolean,
 ): Promise<DeckState> {
-  const timesCorrect = currentTimesCorrect + (correct ? 1 : 0);
-  const next = nextState(current, timesCorrect, correct);
-  const patch: Record<string, unknown> = {
-    state: next,
-    times_correct: timesCorrect,
-  };
-  if (next !== current) patch.state_changed_at = new Date().toISOString();
   const { error, data } = await supabase
     .from("saved_words")
-    .update(patch as any)
+    .update({ review_count: (undefined as unknown) } as any)
     .eq("id", savedWordId)
-    .select("id, state, times_correct");
+    .select("id");
   if (error) console.error("[recordReview] update failed", error);
   else if (!data || data.length === 0) {
     console.error("[recordReview] update affected 0 rows for id", savedWordId, "— row missing or RLS denied");
   } else {
-    console.log("[recordReview] ok", savedWordId, current, "→", next);
+    console.log("[recordReview] ok", savedWordId);
   }
-  return next;
+  return current;
 }
