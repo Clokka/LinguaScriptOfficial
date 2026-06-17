@@ -29,8 +29,10 @@ interface FlashcardReviewProps {
   className?: string;
 }
 
-export const FlashcardReview = ({ cards, onClose, className }: FlashcardReviewProps) => {
+export const FlashcardReview = ({ cards: initialCards, onClose, className }: FlashcardReviewProps) => {
   const { user } = useAuth();
+  const [cards, setCards] = useState<FlashcardData[]>(initialCards);
+  useEffect(() => { setCards(initialCards); }, [initialCards]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [correct, setCorrect] = useState(0);
   const [incorrect, setIncorrect] = useState(0);
