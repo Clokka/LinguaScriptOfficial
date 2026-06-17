@@ -120,6 +120,9 @@ const Flashcards = () => {
       <div className="min-h-screen bg-background px-4 py-8">
         <FlashcardReview
           cards={flashcardData}
+          onCardReviewed={(id, patch) => {
+            setAllCards((prev) => prev.map((card) => (card.id === id ? { ...card, ...patch } : card)));
+          }}
           onClose={() => { setActiveDeck(null); fetchCards(); }}
         />
       </div>
