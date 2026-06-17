@@ -269,7 +269,8 @@ export const TOUR_TRAINING_BY_LANG: Record<string, string> = {
   ja: "bRecoD9OsaM",
   es: "fcYeXCacyrk",
   it: "jJz7UhAx2u4",
-  // de: admin must add a German training film; we fall back to any de film.
+  pt: "wWoDedyb91w",
+  de: "y-sOwSKvTNU",
 };
 
 /** Back-compat default (French). Prefer `TOUR_TRAINING_BY_LANG[lang]`. */
