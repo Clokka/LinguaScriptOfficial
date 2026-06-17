@@ -128,6 +128,16 @@ export async function recordReview(
     times_correct: timesCorrect,
   };
   if (next !== current) patch.state_changed_at = new Date().toISOString();
-  await supabase.from("saved_words").update(patch as any).eq("id", savedWordId);
+  const { error, data } = await supabase
+    .from("saved_words")
+    .update(patch as any)
+    .eq("id", savedWordId)
+    .select("id, state, times_correct");
+  if (error) console.error("[recordReview] update failed", error);
+  else if (!data || data.length === 0) {
+    console.error("[recordReview] update affected 0 rows for id", savedWordId, "— row missing or RLS denied");
+  } else {
+    console.log("[recordReview] ok", savedWordId, current, "→", next);
+  }
   return next;
 }
