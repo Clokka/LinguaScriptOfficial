@@ -256,6 +256,7 @@ const Watch = () => {
   const [loading, setLoading] = useState(true);
   const [currentTime, setCurrentTime] = useState(0);
   const [subtitleMode, setSubtitleMode] = useState<"single" | "dual">("dual");
+  const [showReinforce, setShowReinforce] = useState(false);
   const [apiReady, setApiReady] = useState(!!window.YT?.Player);
   const [subtitles, setSubtitles] = useState<DisplaySubtitle[]>([]);
   const [captionsLoading, setCaptionsLoading] = useState(false);
@@ -494,6 +495,12 @@ const Watch = () => {
               const mins = Math.round((Date.now() - watchStartRef.current) / 60000);
               if (mins > 0) logWatchTime(mins);
               watchStartRef.current = null;
+            }
+            if (event.data === window.YT.PlayerState.ENDED && !videoWatchAwardedRef.current) {
+              videoWatchAwardedRef.current = true;
+              award("video_watch", { videoId: film?.id });
+              if (user && film) void recordDailyVideoWatch(user.id, film.id);
+              setShowReinforce(true);
             }
           }
         },
