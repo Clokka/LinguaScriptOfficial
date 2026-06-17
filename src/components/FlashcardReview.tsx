@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { DeckState, nextState } from "@/lib/vocab";
+import { useXp } from "@/contexts/XpContext";
 
 type Direction = "learn-to-native" | "native-to-learn";
 const DIR_KEY = "flashcardDirection";
@@ -32,6 +33,8 @@ interface FlashcardReviewProps {
 
 export const FlashcardReview = ({ cards: initialCards, onClose, onCardReviewed, className }: FlashcardReviewProps) => {
   const { user } = useAuth();
+  const { award } = useXp();
+  const sessionBonusFired = useRef(false);
   const [cards, setCards] = useState<FlashcardData[]>(initialCards);
   useEffect(() => { setCards(initialCards); }, [initialCards]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -119,26 +122,32 @@ export const FlashcardReview = ({ cards: initialCards, onClose, onCardReviewed, 
     }
   };
 
-  const handleCorrect = () => {
-    setCorrect((prev) => prev + 1);
-    void logReview();
-    promoteDeckState(true);
+  const advance = (totalReviewed: number) => {
     if (currentIndex < cards.length - 1) {
       setCurrentIndex((prev) => prev + 1);
     } else {
       setIsComplete(true);
+      if (!sessionBonusFired.current) {
+        sessionBonusFired.current = true;
+        award("session_end", { cards: totalReviewed });
+      }
     }
+  };
+
+  const handleCorrect = () => {
+    setCorrect((prev) => prev + 1);
+    void logReview();
+    award("review_card", { correct: true });
+    promoteDeckState(true);
+    advance(correct + incorrect + 1);
   };
 
   const handleIncorrect = () => {
     setIncorrect((prev) => prev + 1);
     void logReview();
+    award("review_card", { correct: false });
     promoteDeckState(false);
-    if (currentIndex < cards.length - 1) {
-      setCurrentIndex((prev) => prev + 1);
-    } else {
-      setIsComplete(true);
-    }
+    advance(correct + incorrect + 1);
   };
 
   const progress = ((currentIndex + (isComplete ? 1 : 0)) / cards.length) * 100;
