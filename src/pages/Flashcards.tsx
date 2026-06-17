@@ -53,8 +53,8 @@ const Flashcards = () => {
   const [activeDeck, setActiveDeck] = useState<DeckKey | null>(null);
   const [reviewCards, setReviewCards] = useState<SavedWord[]>([]);
 
-  const fetchCards = useCallback(async () => {
-    setLoading(true);
+  const fetchCards = useCallback(async (showSpinner = true) => {
+    if (showSpinner) setLoading(true);
     if (!user) {
       const guest = getGuestWords();
       setAllCards(guest as unknown as SavedWord[]);
@@ -124,7 +124,7 @@ const Flashcards = () => {
             setAllCards((prev) => prev.map((card) => (card.id === id ? { ...card, ...patch } : card)));
             setReviewCards((prev) => prev.map((card) => (card.id === id ? { ...card, ...patch } : card)));
           }}
-          onClose={() => { setActiveDeck(null); setReviewCards([]); fetchCards(); }}
+          onClose={() => { setActiveDeck(null); setReviewCards([]); void fetchCards(false); }}
         />
       </div>
     );
