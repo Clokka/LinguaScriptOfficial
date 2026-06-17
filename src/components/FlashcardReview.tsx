@@ -5,7 +5,7 @@ import { X, ChevronLeft, ChevronRight, Trophy, ArrowLeftRight } from "lucide-rea
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { DeckState, recordReview } from "@/lib/vocab";
+import { DeckState, recordReview, nextState } from "@/lib/vocab";
 
 type Direction = "learn-to-native" | "native-to-learn";
 const DIR_KEY = "flashcardDirection";
@@ -29,8 +29,10 @@ interface FlashcardReviewProps {
   className?: string;
 }
 
-export const FlashcardReview = ({ cards, onClose, className }: FlashcardReviewProps) => {
+export const FlashcardReview = ({ cards: initialCards, onClose, className }: FlashcardReviewProps) => {
   const { user } = useAuth();
+  const [cards, setCards] = useState<FlashcardData[]>(initialCards);
+  useEffect(() => { setCards(initialCards); }, [initialCards]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [correct, setCorrect] = useState(0);
   const [incorrect, setIncorrect] = useState(0);
@@ -70,22 +72,25 @@ export const FlashcardReview = ({ cards, onClose, className }: FlashcardReviewPr
     }
   };
 
-  const promoteDeckState = async (wasCorrect: boolean) => {
-    if (!user) return;
+  const promoteDeckState = (wasCorrect: boolean) => {
     const card = cards[currentIndex];
-    if (!card || card.id.startsWith("guest-")) return;
-    await recordReview(
-      card.id,
-      (card.state ?? "red") as DeckState,
-      card.times_correct ?? 0,
-      wasCorrect,
-    );
+    if (!card) return;
+    const prevState = (card.state ?? "red") as DeckState;
+    const prevTimes = card.times_correct ?? 0;
+    const newTimes = prevTimes + (wasCorrect ? 1 : 0);
+    const newState = nextState(prevState, newTimes, wasCorrect);
+    // Optimistic local update — in-session card reflects the new deck state immediately.
+    setCards((prev) => prev.map((c, i) => (i === currentIndex ? { ...c, state: newState, times_correct: newTimes } : c)));
+    // Background sync — never await; UI must not wait on the network.
+    if (user && !card.id.startsWith("guest-")) {
+      void recordReview(card.id, prevState, prevTimes, wasCorrect);
+    }
   };
 
   const handleCorrect = () => {
     setCorrect((prev) => prev + 1);
     void logReview();
-    void promoteDeckState(true);
+    promoteDeckState(true);
     if (currentIndex < cards.length - 1) {
       setCurrentIndex((prev) => prev + 1);
     } else {
@@ -96,7 +101,7 @@ export const FlashcardReview = ({ cards, onClose, className }: FlashcardReviewPr
   const handleIncorrect = () => {
     setIncorrect((prev) => prev + 1);
     void logReview();
-    void promoteDeckState(false);
+    promoteDeckState(false);
     if (currentIndex < cards.length - 1) {
       setCurrentIndex((prev) => prev + 1);
     } else {
