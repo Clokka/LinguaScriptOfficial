@@ -151,8 +151,13 @@ async function processWeekly() {
     const { data: xpRows } = await svc.from('xp_events').select('amount').eq('user_id', p.user_id).gte('created_at', weekStartIso)
     const xpGained = (xpRows ?? []).reduce((a, r: any) => a + (r.amount || 0), 0)
     if (xpGained <= 0) continue
-    const { count: cardsReviewed } = await svc.from('saved_words').select('id', { count: 'exact', head: true })
-      .eq('user_id', p.user_id).gte('last_reviewed_at' as any, weekStartIso)
+    // cards reviewed this week: approximate via xp_events count (schema-tolerant)
+    let cardsReviewed = 0
+    try {
+      const { count } = await svc.from('xp_events').select('id', { count: 'exact', head: true })
+        .eq('user_id', p.user_id).gte('created_at', weekStartIso)
+      cardsReviewed = count ?? 0
+    } catch { /* ignore */ }
     const { count: wordsLearned } = await svc.from('saved_words').select('id', { count: 'exact', head: true })
       .eq('user_id', p.user_id).gte('created_at', weekStartIso)
     const email = await emailFor(p.user_id); if (!email) continue
