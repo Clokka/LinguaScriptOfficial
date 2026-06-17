@@ -15,7 +15,6 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Camera, ArrowLeft, Save, Loader2, LinkIcon, LogOut } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { EmailPreferencesSection } from "@/components/EmailPreferencesSection";
 
 const Profile = () => {
   const { user, loading: authLoading, signOut } = useAuth();
@@ -266,8 +265,6 @@ const Profile = () => {
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             Save Changes
           </Button>
-
-          {user && <EmailPreferencesSection userId={user.id} />}
 
           {/* Account / Linked sign-in */}
           <div className="pt-4 border-t border-border/50">
