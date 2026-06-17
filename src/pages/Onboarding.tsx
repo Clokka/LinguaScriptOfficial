@@ -270,6 +270,30 @@ const Onboarding = () => {
                     )}
                   </div>
                 </div>
+
+                <div className="mt-8 rounded-2xl border border-orange-100 bg-white p-5">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Trophy className="w-4 h-4 text-orange-500" />
+                    <span className="text-sm font-semibold text-neutral-900">Join the LinguaScript Leaderboard 🏆</span>
+                  </div>
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={showOnLeaderboard}
+                      onChange={(e) => setShowOnLeaderboard(e.target.checked)}
+                      className="mt-1 w-4 h-4 accent-orange-500"
+                    />
+                    <span className="text-sm text-neutral-700 leading-relaxed">
+                      Appear on the public LinguaScript leaderboard.<br />
+                      <span className="text-xs text-neutral-500">Compete with other learners, earn XP, build streaks, climb the rankings.</span>
+                    </span>
+                  </label>
+                  {!showOnLeaderboard && (
+                    <div className="mt-3 rounded-xl bg-orange-50/60 border border-orange-100 p-3 text-xs text-neutral-600 leading-relaxed">
+                      Hidden from: public leaderboards, XP rankings, friend discovery. Existing friends can still see your profile.
+                    </div>
+                  )}
+                </div>
               </Card>
             )}
 
