@@ -305,6 +305,33 @@ export type Database = {
         }
         Relationships: []
       }
+      friendships: {
+        Row: {
+          created_at: string
+          friend_id: string
+          id: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          friend_id: string
+          id?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          friend_id?: string
+          id?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -313,6 +340,7 @@ export type Database = {
           daily_video_goal: number
           daily_word_goal: number
           display_name: string | null
+          friend_code: string | null
           id: string
           is_pro: boolean
           is_public: boolean
@@ -325,9 +353,11 @@ export type Database = {
           onboarded: boolean
           school: string | null
           show_daily_briefing: boolean
+          show_on_global_leaderboard: boolean
           streak_count: number
           updated_at: string
           user_id: string
+          username: string | null
           video_credit_date: string | null
           video_credit_remaining: number
           xp_level: number
@@ -340,6 +370,7 @@ export type Database = {
           daily_video_goal?: number
           daily_word_goal?: number
           display_name?: string | null
+          friend_code?: string | null
           id?: string
           is_pro?: boolean
           is_public?: boolean
@@ -352,9 +383,11 @@ export type Database = {
           onboarded?: boolean
           school?: string | null
           show_daily_briefing?: boolean
+          show_on_global_leaderboard?: boolean
           streak_count?: number
           updated_at?: string
           user_id: string
+          username?: string | null
           video_credit_date?: string | null
           video_credit_remaining?: number
           xp_level?: number
@@ -367,6 +400,7 @@ export type Database = {
           daily_video_goal?: number
           daily_word_goal?: number
           display_name?: string | null
+          friend_code?: string | null
           id?: string
           is_pro?: boolean
           is_public?: boolean
@@ -379,9 +413,11 @@ export type Database = {
           onboarded?: boolean
           school?: string | null
           show_daily_briefing?: boolean
+          show_on_global_leaderboard?: boolean
           streak_count?: number
           updated_at?: string
           user_id?: string
+          username?: string | null
           video_credit_date?: string | null
           video_credit_remaining?: number
           xp_level?: number
@@ -717,6 +753,9 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accept_friend_request: { Args: { _other: string }; Returns: boolean }
+      add_friend_by_code: { Args: { _code: string }; Returns: string }
+      are_friends: { Args: { _a: string; _b: string }; Returns: boolean }
       delete_email: {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
@@ -724,6 +763,32 @@ export type Database = {
       enqueue_email: {
         Args: { payload: Json; queue_name: string }
         Returns: number
+      }
+      gen_friend_code: { Args: never; Returns: string }
+      get_friends_leaderboard: {
+        Args: never
+        Returns: {
+          avatar_url: string
+          display_name: string
+          is_self: boolean
+          streak_count: number
+          user_id: string
+          username: string
+          xp_level: number
+          xp_total: number
+        }[]
+      }
+      get_global_leaderboard: {
+        Args: never
+        Returns: {
+          avatar_url: string
+          display_name: string
+          is_self: boolean
+          user_id: string
+          username: string
+          xp_level: number
+          xp_total: number
+        }[]
       }
       move_to_dlq: {
         Args: {
@@ -742,6 +807,7 @@ export type Database = {
           read_ct: number
         }[]
       }
+      set_username: { Args: { _username: string }; Returns: string }
     }
     Enums: {
       vocab_state: "red" | "orange" | "green"
