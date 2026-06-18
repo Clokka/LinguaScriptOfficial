@@ -88,10 +88,11 @@ const Friends = () => {
         .eq("status", "pending") as any,
       supabase.from("friend_messages" as any)
         .select("id, sender_id, recipient_id, body, created_at, read_at")
-        .eq("recipient_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(100) as any,
+        .or(`sender_id.eq.${user.id},recipient_id.eq.${user.id}`)
+        .order("created_at", { ascending: true })
+        .limit(500) as any,
       (supabase.rpc as any)("get_unread_message_count"),
+
     ]);
 
     if (profile) {
