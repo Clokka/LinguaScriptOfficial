@@ -400,6 +400,7 @@ const Browse = () => {
             </div>
             <div className="flex-1" />
             <div className="flex items-center gap-3">
+              <ActiveLanguageBadge />
               {user ? (
                 <Button variant="ghost" size="sm" onClick={() => navigate("/profile")} className="text-muted-foreground">
                   Profile
