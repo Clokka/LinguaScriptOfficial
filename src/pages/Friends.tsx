@@ -52,7 +52,7 @@ const Friends = () => {
   const [friends, setFriends] = useState<LeaderRow[]>([]);
   const [global, setGlobal] = useState<LeaderRow[]>([]);
   const [pending, setPending] = useState<PendingRequest[]>([]);
-  const [inbox, setInbox] = useState<InboxMsg[]>([]);
+  const [inbox, setInbox] = useState<ChatMsg[]>([]);
   const [unread, setUnread] = useState(0);
   const [senders, setSenders] = useState<Record<string, LeaderRow>>({});
   const [loading, setLoading] = useState(true);
@@ -101,7 +101,7 @@ const Friends = () => {
     if (friendsRes?.data) setFriends(friendsRes.data as LeaderRow[]);
     if (globalRes?.data) setGlobal(globalRes.data as LeaderRow[]);
     setPending(((pendingRes?.data ?? []) as any[]).map((r) => ({ user_id: r.user_id })));
-    setInbox((inboxRes?.data ?? []) as InboxMsg[]);
+    setInbox((inboxRes?.data ?? []) as ChatMsg[]);
     if (typeof unreadRes?.data === "number") setUnread(unreadRes.data);
     setLoading(false);
   }, [user]);
@@ -228,7 +228,7 @@ const Friends = () => {
     setMsgBody("");
   };
 
-  const markRead = async (msg: InboxMsg) => {
+  const markRead = async (msg: ChatMsg) => {
     if (msg.read_at) return;
     await supabase.from("friend_messages" as any).update({ read_at: new Date().toISOString() } as any).eq("id", msg.id);
     setInbox((arr) => arr.map((m) => m.id === msg.id ? { ...m, read_at: new Date().toISOString() } : m));
