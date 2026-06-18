@@ -236,11 +236,61 @@ const Friends = () => {
   };
 
   const markRead = async (msg: ChatMsg) => {
-    if (msg.read_at) return;
+    if (msg.read_at || msg.recipient_id !== user?.id) return;
     await supabase.from("friend_messages" as any).update({ read_at: new Date().toISOString() } as any).eq("id", msg.id);
     setInbox((arr) => arr.map((m) => m.id === msg.id ? { ...m, read_at: new Date().toISOString() } : m));
     setUnread((n) => Math.max(0, n - 1));
   };
+
+  // Group messages into conversations keyed by the other party's user_id
+  const conversations = useMemo(() => {
+    if (!user) return [] as { otherId: string; last: ChatMsg; unread: number; all: ChatMsg[] }[];
+    const byOther: Record<string, ChatMsg[]> = {};
+    for (const m of inbox) {
+      const other = m.sender_id === user.id ? m.recipient_id : m.sender_id;
+      (byOther[other] ||= []).push(m);
+    }
+    return Object.entries(byOther).map(([otherId, all]) => {
+      const sorted = [...all].sort((a, b) => a.created_at.localeCompare(b.created_at));
+      const unread = sorted.filter((m) => !m.read_at && m.recipient_id === user.id).length;
+      return { otherId, last: sorted[sorted.length - 1], unread, all: sorted };
+    }).sort((a, b) => b.last.created_at.localeCompare(a.last.created_at));
+  }, [inbox, user]);
+
+  const activeThread = useMemo(() => {
+    if (!activeChat) return null;
+    return conversations.find((c) => c.otherId === activeChat)
+      ?? { otherId: activeChat, last: null as any, unread: 0, all: [] };
+  }, [activeChat, conversations]);
+
+  useEffect(() => {
+    if (!activeThread || !user) return;
+    activeThread.all.filter((m) => !m.read_at && m.recipient_id === user.id).forEach((m) => { void markRead(m); });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeChat]);
+
+  const sendInThread = async () => {
+    if (!activeChat || !threadBody.trim() || !user) return;
+    setThreadSending(true);
+    const text = threadBody.trim();
+    const { data, error } = await supabase.functions.invoke("send-friend-message", {
+      body: { recipient_id: activeChat, body: text },
+    });
+    setThreadSending(false);
+    if (error || (data as any)?.error) {
+      const m = (data as any)?.message || error?.message || "Couldn't send message";
+      toast({ title: "Message not sent", description: m, variant: "destructive" });
+      return;
+    }
+    setThreadBody("");
+    const tempId = (data as any)?.id ?? `tmp-${Date.now()}`;
+    setInbox((arr) => [...arr, {
+      id: tempId, sender_id: user.id, recipient_id: activeChat, body: text,
+      created_at: new Date().toISOString(), read_at: new Date().toISOString(),
+    }]);
+    refresh();
+  };
+
 
   if (authLoading || !user) {
     return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>;
