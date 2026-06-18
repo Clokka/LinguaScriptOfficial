@@ -3,6 +3,7 @@ import {
   Body, Button, Container, Head, Heading, Hr, Html, Preview, Section, Text,
 } from 'npm:@react-email/components@0.0.22'
 import type { TemplateEntry } from './registry.ts'
+import { BrandHeader } from './brand-header.tsx'
 
 interface Props { name?: string; cardCount?: number; languageLabel?: string; reviewUrl?: string }
 
