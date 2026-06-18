@@ -32,16 +32,36 @@ const Onboarding = () => {
   const { start: startTour } = useTour();
   const [enteringDemo, setEnteringDemo] = useState(false);
 
-  const [step, setStep] = useState(0);
-  const [native, setNative] = useState("en");
-  const [target, setTarget] = useState("fr");
-  const [level, setLevel] = useState<Level | null>(null);
-  const [school, setSchool] = useState("");
-  const [videoGoal, setVideoGoal] = useState<number>(1);
-  const [goal, setGoal] = useState("");
-  const [goalSaved, setGoalSaved] = useState(false);
-  const [showOnLeaderboard, setShowOnLeaderboard] = useState(true);
-  const [dualClicked, setDualClicked] = useState(false);
+  // Persist onboarding progress so users can never lose their place if they
+  // refresh, leave, or skip around — they always end up on the final paste-
+  // a-YouTube-link step.
+  const ONBOARDING_KEY = "ls.onboardingState.v1";
+  const initialPersisted = (() => {
+    try {
+      const raw = typeof window !== "undefined" ? localStorage.getItem(ONBOARDING_KEY) : null;
+      return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+  })();
+
+  const [step, setStep] = useState<number>(initialPersisted?.step ?? 0);
+  const [native, setNative] = useState(initialPersisted?.native ?? "en");
+  const [target, setTarget] = useState(initialPersisted?.target ?? "fr");
+  const [level, setLevel] = useState<Level | null>(initialPersisted?.level ?? null);
+  const [school, setSchool] = useState(initialPersisted?.school ?? "");
+  const [videoGoal, setVideoGoal] = useState<number>(initialPersisted?.videoGoal ?? 1);
+  const [goal, setGoal] = useState(initialPersisted?.goal ?? "");
+  const [goalSaved, setGoalSaved] = useState<boolean>(initialPersisted?.goalSaved ?? false);
+  const [showOnLeaderboard, setShowOnLeaderboard] = useState<boolean>(initialPersisted?.showOnLeaderboard ?? true);
+  const [dualClicked, setDualClicked] = useState<boolean>(initialPersisted?.dualClicked ?? false);
+
+  // Save snapshot whenever anything changes so a refresh resumes exactly here.
+  useEffect(() => {
+    try {
+      localStorage.setItem(ONBOARDING_KEY, JSON.stringify({
+        step, native, target, level, school, videoGoal, goal, goalSaved, showOnLeaderboard, dualClicked,
+      }));
+    } catch { /* ignore */ }
+  }, [step, native, target, level, school, videoGoal, goal, goalSaved, showOnLeaderboard, dualClicked]);
 
   // Load any existing profile values (auth optional — anonymous users see onboarding too)
   useEffect(() => {
