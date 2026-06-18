@@ -18,12 +18,48 @@ const Z_TOOLTIP = 100002;
 const Z_CURSOR = 100003;
 
 export const TourOverlay = () => {
-  const { active, step, advance, end, getPlayer } = useTour();
+  const { active, step, advance, end, getPlayer, trainingFilmId } = useTour();
   const navigate = useNavigate();
   const location = useLocation();
   const [rect, setRect] = useState<Rect | null>(null);
   const [cursorRect, setCursorRect] = useState<Rect | null>(null);
   const advanceLockRef = useRef(false);
+
+  // Map a step id to the route where its target lives. Used to recover when
+  // the user lands on the wrong page mid-tour so we can ferry them back
+  // automatically instead of getting stuck (especially for the final
+  // "paste a YouTube link" step on /browse).
+  const expectedRouteForStep = (id: string): string | null => {
+    if (id.startsWith("watch-")) return trainingFilmId ? `/watch/${trainingFilmId}` : null;
+    if (id.startsWith("flashcards-") || id.startsWith("deck-") || id.startsWith("red-") || id.startsWith("orange-") || id.startsWith("green-")) return "/flashcards";
+    if (id.startsWith("browse-") || id.startsWith("settings-") || id === "finale") return "/browse";
+    return null;
+  };
+
+  // Stale-step recovery: if a step's target never appears, ferry the user
+  // back to its expected route, then skip the step entirely as a last
+  // resort. Guarantees the tour always reaches the final paste step.
+  useEffect(() => {
+    if (!active || !step) return;
+    const startedAt = Date.now();
+    let navigated = false;
+    let skipped = false;
+    const expected = expectedRouteForStep(step.id);
+    const tick = setInterval(() => {
+      if (rect) return; // target found, no recovery needed
+      const elapsed = Date.now() - startedAt;
+      if (!navigated && expected && location.pathname !== expected && elapsed > 4000) {
+        navigated = true;
+        navigate(expected);
+      }
+      if (!skipped && elapsed > 14000) {
+        skipped = true;
+        advance();
+      }
+    }, 800);
+    return () => clearInterval(tick);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, step?.id, rect, location.pathname, trainingFilmId]);
 
   // Resolve target element (poll). Preserve last rect on transient nulls so the
   // cursor never snaps to screen center during page navigations.
@@ -375,7 +411,18 @@ export const TourOverlay = () => {
         </motion.div>
       </motion.div>
 
+      {/* Always-available escape hatch so a stuck tour can never trap the user. */}
+      <button
+        type="button"
+        onClick={end}
+        style={{ position: "fixed", top: 12, right: 12, zIndex: Z_TOOLTIP + 1 }}
+        className="rounded-full bg-white/90 hover:bg-white text-neutral-700 text-xs font-medium px-3 py-1.5 shadow-lg border border-orange-100"
+      >
+        Skip tour
+      </button>
+
     </>
   );
 };
+
 
