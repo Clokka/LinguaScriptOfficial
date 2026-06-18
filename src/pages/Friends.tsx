@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowLeft, Copy, Mail, MessageSquare, Share2, Trophy, Users, UserPlus, Loader2, Check, X, Flame, Inbox, Send } from "lucide-react";
+import { ArrowLeft, Copy, Mail, MessageSquare, Share2, Trophy, Users, UserPlus, Loader2, Check, X, Flame, Send } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
