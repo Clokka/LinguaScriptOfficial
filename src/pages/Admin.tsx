@@ -17,6 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Pencil } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { getIntegrations, saveIntegrations, type IntegrationKey, type IntegrationConfig } from "@/lib/integrations";
+import { AdminProGrants } from "@/components/AdminProGrants";
 
 function RowHeader({ row, onRename, onDelete }: { row: { id: string; title: string }; onRename: (id: string, title: string) => void; onDelete: (id: string) => void; }) {
   const [editing, setEditing] = useState(false);
