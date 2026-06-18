@@ -147,7 +147,7 @@ export const LanguageSelector = () => {
           </DialogHeader>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setUpgradeOpen(false)}>Maybe later</Button>
-            <Button onClick={() => setUpgradeOpen(false)}>
+            <Button onClick={() => { setUpgradeOpen(false); navigate("/pricing"); }}>
               <Sparkles className="w-4 h-4 mr-1" /> Upgrade to Pro
             </Button>
           </DialogFooter>
