@@ -338,16 +338,17 @@ const Friends = () => {
           </div>
         )}
 
-        <Tabs defaultValue="leaderboard" className="w-full">
+        <Tabs value={(params.get("tab") as any) || "leaderboard"} onValueChange={(v) => setParams((p) => { const np = new URLSearchParams(p); np.set("tab", v); return np; }, { replace: true })} className="w-full">
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="leaderboard"><Trophy className="w-4 h-4 mr-1.5" />Friends</TabsTrigger>
             <TabsTrigger value="add"><UserPlus className="w-4 h-4 mr-1.5" />Add</TabsTrigger>
             <TabsTrigger value="global"><Flame className="w-4 h-4 mr-1.5" />Global</TabsTrigger>
             <TabsTrigger value="inbox" className="relative">
-              <Inbox className="w-4 h-4 mr-1.5" />Inbox
+              <MessageSquare className="w-4 h-4 mr-1.5" />Messages
               {unread > 0 && <Badge className="ml-1.5 h-5 px-1.5 text-[10px]" variant="destructive">{unread}</Badge>}
             </TabsTrigger>
           </TabsList>
+
 
           {/* FRIENDS LEADERBOARD */}
           <TabsContent value="leaderboard" className="mt-6">
