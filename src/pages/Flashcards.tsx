@@ -149,6 +149,7 @@ const Flashcards = () => {
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <h1 className="text-lg font-bold text-foreground">Flashcards</h1>
+          <div className="ml-auto"><ActiveLanguageBadge /></div>
         </div>
       </header>
 
