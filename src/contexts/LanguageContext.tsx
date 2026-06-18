@@ -70,12 +70,15 @@ export const useLanguage = () => useContext(LanguageContext);
 export const LanguageProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth();
   const [activeLanguage, setActiveLanguage] = useState(() => {
-    return localStorage.getItem("learningLanguage") || "fr";
+    return (localStorage.getItem("learningLanguage") || "fr").toLowerCase();
   });
+  // Becomes true once we've resolved the language from the user's profile (or
+  // confirmed there is no signed-in user). Until then we MUST NOT lock any
+  // content — otherwise a freshly signed-up Spanish learner sees their Spanish
+  // film blocked against the stale "fr" localStorage default during the
+  // profile-fetch race.
+  const [ready, setReady] = useState(false);
 
-  // Resolver: today Free + Pro both read from active_learning_language.
-  // When Pro multi-language tabs land, this becomes:
-  //   isPro ? selectedTab : activeLanguage
   const languageContext = activeLanguage;
   const ttsLang = TTS_VOICE_MAP[languageContext] || "fr-FR";
 
@@ -83,25 +86,29 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
 
   // Sync from profile on login
   useEffect(() => {
-    if (!user) { setIsPro(false); return; }
+    if (!user) { setIsPro(false); setReady(true); return; }
+    setReady(false);
     supabase
       .from("profiles")
       .select("learning_language, is_pro")
       .eq("user_id", user.id)
-      .single()
+      .maybeSingle()
       .then(({ data }) => {
-        if (data?.learning_language) {
-          setActiveLanguage(data.learning_language);
-          localStorage.setItem("learningLanguage", data.learning_language);
+        const lang = (data as any)?.learning_language?.toLowerCase();
+        if (lang) {
+          setActiveLanguage(lang);
+          localStorage.setItem("learningLanguage", lang);
         }
         setIsPro(!!(data as any)?.is_pro);
+        setReady(true);
       });
   }, [user]);
 
   const isContentLocked = (filmLanguage?: string | null) => {
     if (isPro) return false;
     if (!filmLanguage) return false;
-    return filmLanguage !== languageContext;
+    if (!ready) return false; // avoid false-positive lock during profile load
+    return filmLanguage.toLowerCase() !== languageContext.toLowerCase();
   };
 
   const setLearningLanguage = (lang: string) => {
