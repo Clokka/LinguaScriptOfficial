@@ -31,6 +31,7 @@ export const UpgradeLockDialog = ({
   contentLanguage,
   activeLanguage,
 }: UpgradeLockDialogProps) => {
+  const navigate = useNavigate();
   const targetLabel = contentLanguage ? getLanguageLabel(contentLanguage) : "this language";
   const targetFlag = contentLanguage ? getLanguageFlag(contentLanguage) : "";
   const activeLabel = getLanguageLabel(activeLanguage);
