@@ -1,6 +1,7 @@
 import * as React from 'npm:react@18.3.1'
 import { Body, Button, Container, Head, Heading, Hr, Html, Preview, Section, Text } from 'npm:@react-email/components@0.0.22'
 import type { TemplateEntry } from './registry.ts'
+import { BrandHeader } from './brand-header.tsx'
 
 interface Props { friendName?: string; friendsUrl?: string }
 const PRIMARY = '#6366f1'; const ACCENT = '#f97316'; const INK = '#0f172a'; const MUTED = '#64748b'
@@ -8,7 +9,7 @@ const PRIMARY = '#6366f1'; const ACCENT = '#f97316'; const INK = '#0f172a'; cons
 const Email = ({ friendName = 'A learner', friendsUrl = 'https://linguascript.xyz/friends' }: Props) => (
   <Html lang="en"><Head /><Preview>{`${friendName} accepted your friend request`}</Preview>
     <Body style={main}><Container style={container}>
-      <Text style={brand}>LinguaScript</Text>
+      <BrandHeader />
       <Heading style={h}>You're now friends with {friendName} 🎉</Heading>
       <Text style={p}>They'll show up on your friends leaderboard — see who's ahead on XP, streaks and words learned this week.</Text>
       <Section style={{ textAlign: 'center', padding: '24px 0' }}>

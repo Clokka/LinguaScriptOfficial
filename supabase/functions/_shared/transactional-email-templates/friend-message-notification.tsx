@@ -3,6 +3,7 @@ import {
   Body, Button, Container, Head, Heading, Hr, Html, Preview, Section, Text,
 } from 'npm:@react-email/components@0.0.22'
 import type { TemplateEntry } from './registry.ts'
+import { BrandHeader } from './brand-header.tsx'
 
 interface Props {
   senderName?: string
@@ -25,9 +26,7 @@ const Email = ({
     <Preview>{`${senderName} sent you a message on LinguaScript`}</Preview>
     <Body style={main}>
       <Container style={container}>
-        <Section style={{ paddingBottom: 8 }}>
-          <Text style={brand}>LinguaScript</Text>
-        </Section>
+        <BrandHeader />
         <Heading style={heading}>You have a new message</Heading>
         <Text style={lead}>
           <strong style={{ color: INK }}>{senderName}</strong> sent you a message

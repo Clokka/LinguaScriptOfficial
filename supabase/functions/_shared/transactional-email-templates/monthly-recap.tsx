@@ -1,6 +1,7 @@
 import * as React from 'npm:react@18.3.1'
 import { Body, Button, Container, Head, Heading, Hr, Html, Preview, Section, Text, Row, Column } from 'npm:@react-email/components@0.0.22'
 import type { TemplateEntry } from './registry.ts'
+import { BrandHeader } from './brand-header.tsx'
 
 interface Props {
   name?: string; totalMinutes?: number; wordsSaved?: number; wordsMastered?: number;
@@ -20,7 +21,7 @@ const Stat = ({ label, value }: { label: string; value: React.ReactNode }) => (
 const Email = ({ name = 'there', totalMinutes = 0, wordsSaved = 0, wordsMastered = 0, xpGrowth = 0, longestStreak = 0, dashboardUrl = 'https://linguascript.xyz/browse' }: Props) => (
   <Html lang="en"><Head /><Preview>Look how far you've come</Preview>
     <Body style={main}><Container style={container}>
-      <Text style={brand}>LinguaScript</Text>
+      <BrandHeader />
       <Heading style={h}>Look how far you've come 🌍</Heading>
       <Text style={p}>Hi {name}, here's your month at a glance.</Text>
       <Section><Row><Stat label="Total minutes" value={totalMinutes} /><Stat label="XP gained" value={`+${xpGrowth}`} /></Row>

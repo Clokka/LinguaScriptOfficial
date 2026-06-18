@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowLeft, Copy, Mail, MessageSquare, Share2, Trophy, Users, UserPlus, Loader2, Check, X, Flame, Inbox, Send } from "lucide-react";
+import { ArrowLeft, Copy, Mail, MessageSquare, Share2, Trophy, Users, UserPlus, Loader2, Check, X, Flame, Send } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,7 +29,7 @@ interface PendingRequest {
   user_id: string;
 }
 
-interface InboxMsg {
+interface ChatMsg {
   id: string;
   sender_id: string;
   recipient_id: string;
@@ -37,6 +37,7 @@ interface InboxMsg {
   created_at: string;
   read_at: string | null;
 }
+
 
 const Friends = () => {
   const navigate = useNavigate();
@@ -51,16 +52,22 @@ const Friends = () => {
   const [friends, setFriends] = useState<LeaderRow[]>([]);
   const [global, setGlobal] = useState<LeaderRow[]>([]);
   const [pending, setPending] = useState<PendingRequest[]>([]);
-  const [inbox, setInbox] = useState<InboxMsg[]>([]);
+  const [inbox, setInbox] = useState<ChatMsg[]>([]);
   const [unread, setUnread] = useState(0);
   const [senders, setSenders] = useState<Record<string, LeaderRow>>({});
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState(false);
 
-  // Message dialog
+  // Message dialog (used from leaderboards)
   const [msgTarget, setMsgTarget] = useState<LeaderRow | null>(null);
   const [msgBody, setMsgBody] = useState("");
   const [sending, setSending] = useState(false);
+
+  // Threaded conversations
+  const [activeChat, setActiveChat] = useState<string | null>(null);
+  const [threadBody, setThreadBody] = useState("");
+  const [threadSending, setThreadSending] = useState(false);
+
 
   const inviteLink = useMemo(() => {
     if (!me?.friend_code) return "";
@@ -87,10 +94,11 @@ const Friends = () => {
         .eq("status", "pending") as any,
       supabase.from("friend_messages" as any)
         .select("id, sender_id, recipient_id, body, created_at, read_at")
-        .eq("recipient_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(100) as any,
+        .or(`sender_id.eq.${user.id},recipient_id.eq.${user.id}`)
+        .order("created_at", { ascending: true })
+        .limit(500) as any,
       (supabase.rpc as any)("get_unread_message_count"),
+
     ]);
 
     if (profile) {
@@ -100,7 +108,7 @@ const Friends = () => {
     if (friendsRes?.data) setFriends(friendsRes.data as LeaderRow[]);
     if (globalRes?.data) setGlobal(globalRes.data as LeaderRow[]);
     setPending(((pendingRes?.data ?? []) as any[]).map((r) => ({ user_id: r.user_id })));
-    setInbox((inboxRes?.data ?? []) as InboxMsg[]);
+    setInbox((inboxRes?.data ?? []) as ChatMsg[]);
     if (typeof unreadRes?.data === "number") setUnread(unreadRes.data);
     setLoading(false);
   }, [user]);
@@ -227,12 +235,62 @@ const Friends = () => {
     setMsgBody("");
   };
 
-  const markRead = async (msg: InboxMsg) => {
-    if (msg.read_at) return;
+  const markRead = async (msg: ChatMsg) => {
+    if (msg.read_at || msg.recipient_id !== user?.id) return;
     await supabase.from("friend_messages" as any).update({ read_at: new Date().toISOString() } as any).eq("id", msg.id);
     setInbox((arr) => arr.map((m) => m.id === msg.id ? { ...m, read_at: new Date().toISOString() } : m));
     setUnread((n) => Math.max(0, n - 1));
   };
+
+  // Group messages into conversations keyed by the other party's user_id
+  const conversations = useMemo(() => {
+    if (!user) return [] as { otherId: string; last: ChatMsg; unread: number; all: ChatMsg[] }[];
+    const byOther: Record<string, ChatMsg[]> = {};
+    for (const m of inbox) {
+      const other = m.sender_id === user.id ? m.recipient_id : m.sender_id;
+      (byOther[other] ||= []).push(m);
+    }
+    return Object.entries(byOther).map(([otherId, all]) => {
+      const sorted = [...all].sort((a, b) => a.created_at.localeCompare(b.created_at));
+      const unread = sorted.filter((m) => !m.read_at && m.recipient_id === user.id).length;
+      return { otherId, last: sorted[sorted.length - 1], unread, all: sorted };
+    }).sort((a, b) => b.last.created_at.localeCompare(a.last.created_at));
+  }, [inbox, user]);
+
+  const activeThread = useMemo(() => {
+    if (!activeChat) return null;
+    return conversations.find((c) => c.otherId === activeChat)
+      ?? { otherId: activeChat, last: null as any, unread: 0, all: [] };
+  }, [activeChat, conversations]);
+
+  useEffect(() => {
+    if (!activeThread || !user) return;
+    activeThread.all.filter((m) => !m.read_at && m.recipient_id === user.id).forEach((m) => { void markRead(m); });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeChat]);
+
+  const sendInThread = async () => {
+    if (!activeChat || !threadBody.trim() || !user) return;
+    setThreadSending(true);
+    const text = threadBody.trim();
+    const { data, error } = await supabase.functions.invoke("send-friend-message", {
+      body: { recipient_id: activeChat, body: text },
+    });
+    setThreadSending(false);
+    if (error || (data as any)?.error) {
+      const m = (data as any)?.message || error?.message || "Couldn't send message";
+      toast({ title: "Message not sent", description: m, variant: "destructive" });
+      return;
+    }
+    setThreadBody("");
+    const tempId = (data as any)?.id ?? `tmp-${Date.now()}`;
+    setInbox((arr) => [...arr, {
+      id: tempId, sender_id: user.id, recipient_id: activeChat, body: text,
+      created_at: new Date().toISOString(), read_at: new Date().toISOString(),
+    }]);
+    refresh();
+  };
+
 
   if (authLoading || !user) {
     return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>;
@@ -280,16 +338,17 @@ const Friends = () => {
           </div>
         )}
 
-        <Tabs defaultValue="leaderboard" className="w-full">
+        <Tabs value={(params.get("tab") as any) || "leaderboard"} onValueChange={(v) => setParams((p) => { const np = new URLSearchParams(p); np.set("tab", v); return np; }, { replace: true })} className="w-full">
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="leaderboard"><Trophy className="w-4 h-4 mr-1.5" />Friends</TabsTrigger>
             <TabsTrigger value="add"><UserPlus className="w-4 h-4 mr-1.5" />Add</TabsTrigger>
             <TabsTrigger value="global"><Flame className="w-4 h-4 mr-1.5" />Global</TabsTrigger>
             <TabsTrigger value="inbox" className="relative">
-              <Inbox className="w-4 h-4 mr-1.5" />Inbox
+              <MessageSquare className="w-4 h-4 mr-1.5" />Messages
               {unread > 0 && <Badge className="ml-1.5 h-5 px-1.5 text-[10px]" variant="destructive">{unread}</Badge>}
             </TabsTrigger>
           </TabsList>
+
 
           {/* FRIENDS LEADERBOARD */}
           <TabsContent value="leaderboard" className="mt-6">
@@ -302,9 +361,15 @@ const Friends = () => {
                 <ol className="space-y-2">
                   {friends.map((f, i) => (
                     <LeaderboardRow key={f.user_id} row={f} rank={i + 1} showStreak
-                      onMessage={() => { setMsgTarget(f); setMsgBody(""); }}
+                      onMessage={() => {
+                        setActiveChat(f.user_id);
+                        setThreadBody("");
+                        setParams((p) => { const np = new URLSearchParams(p); np.set("tab", "inbox"); return np; }, { replace: true });
+                      }}
                     />
                   ))}
+
+
                 </ol>
               )}
             </div>
@@ -407,54 +472,118 @@ const Friends = () => {
             </div>
           </TabsContent>
 
-          {/* INBOX */}
+          {/* MESSAGES / CONVERSATIONS */}
           <TabsContent value="inbox" className="mt-6">
-            <div className="glass-panel-strong p-4">
-              {loading ? (
-                <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
-              ) : inbox.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-8">No messages yet.</p>
-              ) : (
-                <ul className="space-y-2">
-                  {inbox.map((m) => {
-                    const s = senders[m.sender_id];
-                    const name = s ? (s.username ? `@${s.username}` : s.display_name || "A learner") : "A learner";
-                    return (
-                      <li
-                        key={m.id}
-                        onClick={() => markRead(m)}
-                        className={cn(
-                          "p-3 rounded-xl cursor-pointer transition-colors",
-                          m.read_at ? "bg-secondary/30" : "bg-primary/10 border border-primary/30",
-                        )}
-                      >
-                        <div className="flex items-center justify-between mb-1">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <Avatar className="w-7 h-7"><AvatarFallback>{name.charAt(name.startsWith("@") ? 1 : 0).toUpperCase()}</AvatarFallback></Avatar>
-                            <span className="text-sm font-medium truncate">{name}</span>
-                            {!m.read_at && <span className="w-2 h-2 rounded-full bg-primary shrink-0" />}
+            {!activeChat ? (
+              <div className="glass-panel-strong p-4">
+                {loading ? (
+                  <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
+                ) : conversations.length === 0 ? (
+                  <div className="text-center py-8 space-y-2">
+                    <p className="text-sm text-muted-foreground">No conversations yet.</p>
+                    <p className="text-xs text-muted-foreground">Tap the message icon next to a friend to start chatting.</p>
+                  </div>
+                ) : (
+                  <ul className="space-y-2">
+                    {conversations.map((c) => {
+                      const s = senders[c.otherId];
+                      const name = s ? (s.username ? `@${s.username}` : s.display_name || "A learner") : "A learner";
+                      const fromMe = c.last.sender_id === user.id;
+                      return (
+                        <li
+                          key={c.otherId}
+                          onClick={() => { setActiveChat(c.otherId); setThreadBody(""); }}
+                          className={cn(
+                            "p-3 rounded-xl cursor-pointer transition-colors flex items-center gap-3",
+                            c.unread > 0 ? "bg-primary/10 border border-primary/30" : "bg-secondary/40 hover:bg-secondary/60",
+                          )}
+                        >
+                          <Avatar className="w-10 h-10">
+                            <AvatarImage src={s?.avatar_url ?? undefined} />
+                            <AvatarFallback>{name.charAt(name.startsWith("@") ? 1 : 0).toUpperCase()}</AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-sm font-medium truncate">{name}</span>
+                              <span className="text-[10px] text-muted-foreground shrink-0">{new Date(c.last.created_at).toLocaleString()}</span>
+                            </div>
+                            <p className="text-xs text-muted-foreground truncate">
+                              {fromMe && <span className="text-foreground/60">You: </span>}
+                              {c.last.body}
+                            </p>
                           </div>
-                          <span className="text-[10px] text-muted-foreground shrink-0">{new Date(m.created_at).toLocaleString()}</span>
-                        </div>
-                        <p className="text-sm text-foreground whitespace-pre-wrap pl-9">{m.body}</p>
-                        <div className="flex justify-end mt-2 pl-9">
-                          <Button size="sm" variant="ghost" className="h-7 gap-1.5 text-xs"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (s) { setMsgTarget(s); setMsgBody(""); }
-                            }}>
-                            <MessageSquare className="w-3.5 h-3.5" /> Reply
-                          </Button>
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </div>
+                          {c.unread > 0 && <Badge className="h-5 px-1.5 text-[10px]" variant="destructive">{c.unread}</Badge>}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
+            ) : (
+              (() => {
+                const s = senders[activeChat];
+                const name = s ? (s.username ? `@${s.username}` : s.display_name || "A learner") : "A learner";
+                return (
+                  <div className="glass-panel-strong p-4 flex flex-col" style={{ minHeight: 480 }}>
+                    <div className="flex items-center gap-3 pb-3 border-b border-border/50 mb-3">
+                      <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setActiveChat(null)}>
+                        <ArrowLeft className="w-4 h-4" />
+                      </Button>
+                      <Avatar className="w-9 h-9">
+                        <AvatarImage src={s?.avatar_url ?? undefined} />
+                        <AvatarFallback>{name.charAt(name.startsWith("@") ? 1 : 0).toUpperCase()}</AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold truncate">{name}</p>
+                        <p className="text-[10px] text-muted-foreground">Messages also notify by email</p>
+                      </div>
+                    </div>
+                    <div className="flex-1 space-y-2 overflow-y-auto pr-1" style={{ maxHeight: 420 }}>
+                      {activeThread!.all.length === 0 ? (
+                        <p className="text-xs text-muted-foreground text-center py-8">Say hi 👋</p>
+                      ) : activeThread!.all.map((m) => {
+                        const mine = m.sender_id === user.id;
+                        return (
+                          <div key={m.id} className={cn("flex", mine ? "justify-end" : "justify-start")}>
+                            <div className={cn(
+                              "max-w-[78%] px-3 py-2 rounded-2xl text-sm whitespace-pre-wrap break-words",
+                              mine
+                                ? "bg-primary text-primary-foreground rounded-br-sm"
+                                : "bg-secondary text-foreground rounded-bl-sm",
+                            )}>
+                              {m.body}
+                              <div className={cn("text-[10px] mt-1 opacity-70", mine ? "text-right" : "text-left")}>
+                                {new Date(m.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="mt-3 flex gap-2 items-end">
+                      <Textarea
+                        value={threadBody}
+                        onChange={(e) => setThreadBody(e.target.value.slice(0, 500))}
+                        placeholder="Type a message…"
+                        rows={2}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendInThread(); }
+                        }}
+                      />
+                      <Button onClick={sendInThread} disabled={threadSending || !threadBody.trim()} className="gap-1.5 shrink-0">
+                        {threadSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                        Send
+                      </Button>
+                    </div>
+                    <div className="text-[10px] text-muted-foreground text-right mt-1">{threadBody.length}/500 · Enter to send, Shift+Enter for newline</div>
+                  </div>
+                );
+              })()
+            )}
           </TabsContent>
         </Tabs>
       </div>
+
 
       {/* Message dialog */}
       <Dialog open={!!msgTarget} onOpenChange={(o) => { if (!o) { setMsgTarget(null); setMsgBody(""); } }}>

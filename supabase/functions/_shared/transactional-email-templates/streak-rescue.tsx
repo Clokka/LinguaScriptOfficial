@@ -3,6 +3,7 @@ import {
   Body, Button, Container, Head, Heading, Hr, Html, Preview, Section, Text,
 } from 'npm:@react-email/components@0.0.22'
 import type { TemplateEntry } from './registry.ts'
+import { BrandHeader } from './brand-header.tsx'
 
 interface Props { name?: string; streak?: number; watchUrl?: string }
 
@@ -11,7 +12,7 @@ const PRIMARY = '#6366f1'; const ACCENT = '#f97316'; const INK = '#0f172a'; cons
 const Email = ({ name = 'there', streak = 0, watchUrl = 'https://linguascript.xyz/browse' }: Props) => (
   <Html lang="en"><Head /><Preview>Don't lose your streak</Preview>
     <Body style={main}><Container style={container}>
-      <Text style={brand}>LinguaScript</Text>
+      <BrandHeader />
       <Heading style={h}>Don't lose your {streak}-day streak 🔥</Heading>
       <Text style={p}>Hi {name}, your <strong style={{ color: ACCENT }}>{streak}-day streak</strong> ends in a few hours. One short video is all it takes to keep it alive.</Text>
       <Section style={{ textAlign: 'center', padding: '24px 0' }}>
