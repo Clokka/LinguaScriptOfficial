@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { fetchCaptionsFromBrowser } from "@/lib/browserCaptionFetcher";
 import { AdLoader } from "@/components/AdLoader";
 import { ContentLockScreen } from "@/components/ContentLockScreen";
+import { ActiveLanguageBadge } from "@/components/ActiveLanguageBadge";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { saveGuestWord } from "@/lib/guestWords";
 import { useXp } from "@/contexts/XpContext";
@@ -646,6 +647,7 @@ const Watch = () => {
             {getLanguageFlag(film.language ?? "fr")} {getLanguageLabel(film.language ?? "fr")}
           </p>
         </div>
+        <ActiveLanguageBadge variant="dark" className="hidden xs:inline-flex" />
         <Button
           data-tour="dual-toggle"
           variant={subtitleMode === "dual" ? "default" : "ghost"}
@@ -773,6 +775,7 @@ const Watch = () => {
             {getLanguageFlag(film.language ?? "fr")} {getLanguageLabel(film.language ?? "fr")}
           </p>
         </div>
+        <ActiveLanguageBadge variant="dark" />
         <div className="flex items-center gap-2">
           {captionsLoading && <Loader2 className="w-4 h-4 text-white/60 animate-spin" />}
           <Button

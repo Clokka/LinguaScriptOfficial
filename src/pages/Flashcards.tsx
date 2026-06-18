@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { useTour } from "@/contexts/TourContext";
 import { useXp } from "@/contexts/XpContext";
 import { consumeReinforcementPending } from "@/lib/dailyVideo";
+import { ActiveLanguageBadge } from "@/components/ActiveLanguageBadge";
 
 interface SavedWord {
   id: string;
@@ -148,6 +149,7 @@ const Flashcards = () => {
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <h1 className="text-lg font-bold text-foreground">Flashcards</h1>
+          <div className="ml-auto"><ActiveLanguageBadge /></div>
         </div>
       </header>
 
