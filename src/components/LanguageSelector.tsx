@@ -32,6 +32,7 @@ const SUPPORTED_LANGUAGES = [
 const FREE_SWITCH_ALLOWANCE = 1;
 
 export const LanguageSelector = () => {
+  const navigate = useNavigate();
   const { learningLanguage, setLearningLanguage } = useLanguage();
   const { user } = useAuth();
   const [isPro, setIsPro] = useState(false);
