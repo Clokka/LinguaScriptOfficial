@@ -58,10 +58,16 @@ const Friends = () => {
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState(false);
 
-  // Message dialog
+  // Message dialog (used from leaderboards)
   const [msgTarget, setMsgTarget] = useState<LeaderRow | null>(null);
   const [msgBody, setMsgBody] = useState("");
   const [sending, setSending] = useState(false);
+
+  // Threaded conversations
+  const [activeChat, setActiveChat] = useState<string | null>(null);
+  const [threadBody, setThreadBody] = useState("");
+  const [threadSending, setThreadSending] = useState(false);
+
 
   const inviteLink = useMemo(() => {
     if (!me?.friend_code) return "";
