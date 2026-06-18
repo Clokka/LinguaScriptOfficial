@@ -112,12 +112,13 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const setLearningLanguage = (lang: string) => {
-    setActiveLanguage(lang);
-    localStorage.setItem("learningLanguage", lang);
+    const norm = (lang || "").toLowerCase();
+    setActiveLanguage(norm);
+    localStorage.setItem("learningLanguage", norm);
     if (user) {
       supabase
         .from("profiles")
-        .update({ learning_language: lang })
+        .update({ learning_language: norm })
         .eq("user_id", user.id)
         .then(() => {});
     }
