@@ -12,7 +12,7 @@ const PRIMARY = '#6366f1'; const ACCENT = '#f97316'; const INK = '#0f172a'; cons
 const Email = ({ name = 'there', cardCount = 0, languageLabel = 'Your', reviewUrl = 'https://linguascript.xyz/flashcards' }: Props) => (
   <Html lang="en"><Head /><Preview>{`${cardCount} cards ready for review`}</Preview>
     <Body style={main}><Container style={container}>
-      <Text style={brand}>LinguaScript</Text>
+      <BrandHeader />
       <Heading style={h}>Your {languageLabel} words are waiting</Heading>
       <Text style={p}>Hi {name}, you have <strong style={{ color: ACCENT }}>{cardCount} flashcards</strong> ready for review. Five focused minutes today keeps everything you've learned this week.</Text>
       <Section style={{ textAlign: 'center', padding: '24px 0' }}>

@@ -9,7 +9,7 @@ const PRIMARY = '#6366f1'; const INK = '#0f172a'; const MUTED = '#64748b'
 const Email = ({ senderName = 'A LinguaScript learner', friendsUrl = 'https://linguascript.xyz/friends' }: Props) => (
   <Html lang="en"><Head /><Preview>{`${senderName} wants to be your friend on LinguaScript`}</Preview>
     <Body style={main}><Container style={container}>
-      <Text style={brand}>LinguaScript</Text>
+      <BrandHeader />
       <Heading style={h}>New friend request</Heading>
       <Text style={p}><strong>{senderName}</strong> wants to be your friend on LinguaScript. Friends appear on your private leaderboard so you can race each other to fluency.</Text>
       <Section style={{ textAlign: 'center', padding: '24px 0' }}>

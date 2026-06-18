@@ -21,7 +21,7 @@ const Stat = ({ label, value }: { label: string; value: React.ReactNode }) => (
 const Email = ({ name = 'there', xpGained = 0, cardsReviewed = 0, wordsLearned = 0, streak = 0, rank = null, minutes = 0, dashboardUrl = 'https://linguascript.xyz/browse' }: Props) => (
   <Html lang="en"><Head /><Preview>Your LinguaScript week in numbers</Preview>
     <Body style={main}><Container style={container}>
-      <Text style={brand}>LinguaScript</Text>
+      <BrandHeader />
       <Heading style={h}>Your week in review 📈</Heading>
       <Text style={p}>Hi {name}, here's what you got done this week.</Text>
       <Section><Row><Stat label="XP gained" value={`+${xpGained}`} /><Stat label="Minutes learned" value={minutes} /></Row>
