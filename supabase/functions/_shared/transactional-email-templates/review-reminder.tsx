@@ -18,7 +18,7 @@ const Email = ({ name = 'there', cardCount = 0, languageLabel = 'Your', reviewUr
         <Button href={reviewUrl} style={cta}>Start reviewing</Button>
       </Section>
       <Hr style={hr} />
-      <Text style={footer}>We only email you when there's real review work waiting — never more than 3 review reminders a week.</Text>
+      <Text style={footer}>We only email you when there's real review work waiting — never more than 3 review reminders a week. If you don't want these emails, you can unsubscribe below.</Text>
     </Container></Body></Html>
 )
 

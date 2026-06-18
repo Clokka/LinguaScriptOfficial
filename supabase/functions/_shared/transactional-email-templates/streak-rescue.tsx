@@ -18,7 +18,7 @@ const Email = ({ name = 'there', streak = 0, watchUrl = 'https://linguascript.xy
         <Button href={watchUrl} style={cta}>Watch something now</Button>
       </Section>
       <Hr style={hr} />
-      <Text style={footer}>You'll only ever get one streak-rescue email per streak.</Text>
+      <Text style={footer}>You'll only ever get one streak-rescue email per streak. If you don't want these emails, you can unsubscribe below.</Text>
     </Container></Body></Html>
 )
 

@@ -15,7 +15,7 @@ const Email = ({ senderName = 'A LinguaScript learner', friendsUrl = 'https://li
         <Button href={friendsUrl} style={cta}>Accept on LinguaScript</Button>
       </Section>
       <Hr style={hr} />
-      <Text style={footer}>You can turn off these alerts in Profile → Email preferences.</Text>
+      <Text style={footer}>You can unsubscribe from friend notifications at any time using the link below.</Text>
     </Container></Body></Html>
 )
 

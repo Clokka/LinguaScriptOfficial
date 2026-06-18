@@ -30,7 +30,7 @@ const Email = ({ name = 'there', totalMinutes = 0, wordsSaved = 0, wordsMastered
         <Button href={dashboardUrl} style={cta}>Continue learning</Button>
       </Section>
       <Hr style={hr} />
-      <Text style={footer}>You can turn off the monthly recap in Profile → Email preferences.</Text>
+      <Text style={footer}>You can unsubscribe from the monthly recap at any time using the link below.</Text>
     </Container></Body></Html>
 )
 
