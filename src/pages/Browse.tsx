@@ -462,6 +462,7 @@ const Browse = () => {
               saving={savingSettings}
               onSave={saveSettings}
               user={user}
+              authLoading={authLoading}
               navigate={navigate}
             />
           )}
