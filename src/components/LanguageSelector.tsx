@@ -88,6 +88,7 @@ export const LanguageSelector = () => {
     <>
       <div className="flex items-center gap-2">
         <Globe className="w-4 h-4 text-muted-foreground" />
+        <span className="text-xs uppercase tracking-wider text-muted-foreground hidden sm:inline">Learning</span>
         <Select value={learningLanguage} onValueChange={handleSelect}>
           <SelectTrigger className="w-[130px] h-8 bg-secondary/50 border-border text-sm">
             <SelectValue />
