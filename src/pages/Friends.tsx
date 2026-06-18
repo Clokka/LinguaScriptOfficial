@@ -360,9 +360,16 @@ const Friends = () => {
                 <ol className="space-y-2">
                   {friends.map((f, i) => (
                     <LeaderboardRow key={f.user_id} row={f} rank={i + 1} showStreak
-                      onMessage={() => { setMsgTarget(f); setMsgBody(""); }}
+                      onMessage={() => {
+                        setActiveChat(f.user_id);
+                        setThreadBody("");
+                        setParams((p) => { const np = new URLSearchParams(p); np.set("tab", "inbox"); return np; }, { replace: true });
+                        const trigger = document.querySelector<HTMLButtonElement>('[data-state][value="inbox"], [role="tab"][value="inbox"]');
+                        trigger?.click();
+                      }}
                     />
                   ))}
+
                 </ol>
               )}
             </div>
