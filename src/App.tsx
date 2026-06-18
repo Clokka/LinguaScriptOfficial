@@ -56,6 +56,8 @@ const App = () => (
                 <Route path="/friends" element={<Friends />} />
                 <Route path="/onboarding" element={<Onboarding />} />
                 <Route path="/unsubscribe" element={<Unsubscribe />} />
+                <Route path="/pricing" element={<Pricing />} />
+                <Route path="/checkout/return" element={<CheckoutReturn />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
               <TourOverlay />
