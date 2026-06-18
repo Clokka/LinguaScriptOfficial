@@ -17,3 +17,11 @@ project_id = "ffephracinqeylfhqkiz"
     verify_jwt = true
   [functions.dispatch-retention-emails]
     verify_jwt = false
+  [functions.create-checkout]
+    verify_jwt = false
+  [functions.payments-webhook]
+    verify_jwt = false
+  [functions.create-portal-session]
+    verify_jwt = false
+  [functions.admin-pro]
+    verify_jwt = false

@@ -20,6 +20,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { useNavigate } from "react-router-dom";
 
 const SUPPORTED_LANGUAGES = [
   { code: "fr", label: "French", flag: "🇫🇷" },
@@ -31,6 +32,7 @@ const SUPPORTED_LANGUAGES = [
 const FREE_SWITCH_ALLOWANCE = 1;
 
 export const LanguageSelector = () => {
+  const navigate = useNavigate();
   const { learningLanguage, setLearningLanguage } = useLanguage();
   const { user } = useAuth();
   const [isPro, setIsPro] = useState(false);
@@ -145,7 +147,7 @@ export const LanguageSelector = () => {
           </DialogHeader>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setUpgradeOpen(false)}>Maybe later</Button>
-            <Button onClick={() => setUpgradeOpen(false)}>
+            <Button onClick={() => { setUpgradeOpen(false); navigate("/pricing"); }}>
               <Sparkles className="w-4 h-4 mr-1" /> Upgrade to Pro
             </Button>
           </DialogFooter>

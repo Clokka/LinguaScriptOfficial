@@ -629,7 +629,7 @@ const Watch = () => {
         thumbnailUrl={film.thumbnail_url}
         title={film.title}
         onBack={() => navigate("/browse")}
-        onUpgrade={() => navigate("/browse")}
+        onUpgrade={() => navigate("/pricing")}
       />
     );
   }

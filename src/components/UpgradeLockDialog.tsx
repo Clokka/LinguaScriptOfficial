@@ -1,4 +1,5 @@
 import { Lock, Sparkles } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import {
   Dialog,
   DialogContent,
@@ -30,6 +31,7 @@ export const UpgradeLockDialog = ({
   contentLanguage,
   activeLanguage,
 }: UpgradeLockDialogProps) => {
+  const navigate = useNavigate();
   const targetLabel = contentLanguage ? getLanguageLabel(contentLanguage) : "this language";
   const targetFlag = contentLanguage ? getLanguageFlag(contentLanguage) : "";
   const activeLabel = getLanguageLabel(activeLanguage);
@@ -51,7 +53,7 @@ export const UpgradeLockDialog = ({
         </DialogHeader>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Maybe later</Button>
-          <Button onClick={() => onOpenChange(false)}>
+          <Button onClick={() => { onOpenChange(false); navigate("/pricing"); }}>
             <Sparkles className="w-4 h-4 mr-1" /> Upgrade to Pro
           </Button>
         </DialogFooter>
