@@ -365,11 +365,10 @@ const Friends = () => {
                         setActiveChat(f.user_id);
                         setThreadBody("");
                         setParams((p) => { const np = new URLSearchParams(p); np.set("tab", "inbox"); return np; }, { replace: true });
-                        const trigger = document.querySelector<HTMLButtonElement>('[data-state][value="inbox"], [role="tab"][value="inbox"]');
-                        trigger?.click();
                       }}
                     />
                   ))}
+
 
                 </ol>
               )}
