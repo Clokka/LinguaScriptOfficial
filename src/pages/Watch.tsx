@@ -774,6 +774,7 @@ const Watch = () => {
             {getLanguageFlag(film.language ?? "fr")} {getLanguageLabel(film.language ?? "fr")}
           </p>
         </div>
+        <ActiveLanguageBadge variant="dark" />
         <div className="flex items-center gap-2">
           {captionsLoading && <Loader2 className="w-4 h-4 text-white/60 animate-spin" />}
           <Button
