@@ -465,54 +465,118 @@ const Friends = () => {
             </div>
           </TabsContent>
 
-          {/* INBOX */}
+          {/* MESSAGES / CONVERSATIONS */}
           <TabsContent value="inbox" className="mt-6">
-            <div className="glass-panel-strong p-4">
-              {loading ? (
-                <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
-              ) : inbox.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-8">No messages yet.</p>
-              ) : (
-                <ul className="space-y-2">
-                  {inbox.map((m) => {
-                    const s = senders[m.sender_id];
-                    const name = s ? (s.username ? `@${s.username}` : s.display_name || "A learner") : "A learner";
-                    return (
-                      <li
-                        key={m.id}
-                        onClick={() => markRead(m)}
-                        className={cn(
-                          "p-3 rounded-xl cursor-pointer transition-colors",
-                          m.read_at ? "bg-secondary/30" : "bg-primary/10 border border-primary/30",
-                        )}
-                      >
-                        <div className="flex items-center justify-between mb-1">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <Avatar className="w-7 h-7"><AvatarFallback>{name.charAt(name.startsWith("@") ? 1 : 0).toUpperCase()}</AvatarFallback></Avatar>
-                            <span className="text-sm font-medium truncate">{name}</span>
-                            {!m.read_at && <span className="w-2 h-2 rounded-full bg-primary shrink-0" />}
+            {!activeChat ? (
+              <div className="glass-panel-strong p-4">
+                {loading ? (
+                  <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
+                ) : conversations.length === 0 ? (
+                  <div className="text-center py-8 space-y-2">
+                    <p className="text-sm text-muted-foreground">No conversations yet.</p>
+                    <p className="text-xs text-muted-foreground">Tap the message icon next to a friend to start chatting.</p>
+                  </div>
+                ) : (
+                  <ul className="space-y-2">
+                    {conversations.map((c) => {
+                      const s = senders[c.otherId];
+                      const name = s ? (s.username ? `@${s.username}` : s.display_name || "A learner") : "A learner";
+                      const fromMe = c.last.sender_id === user.id;
+                      return (
+                        <li
+                          key={c.otherId}
+                          onClick={() => { setActiveChat(c.otherId); setThreadBody(""); }}
+                          className={cn(
+                            "p-3 rounded-xl cursor-pointer transition-colors flex items-center gap-3",
+                            c.unread > 0 ? "bg-primary/10 border border-primary/30" : "bg-secondary/40 hover:bg-secondary/60",
+                          )}
+                        >
+                          <Avatar className="w-10 h-10">
+                            <AvatarImage src={s?.avatar_url ?? undefined} />
+                            <AvatarFallback>{name.charAt(name.startsWith("@") ? 1 : 0).toUpperCase()}</AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-sm font-medium truncate">{name}</span>
+                              <span className="text-[10px] text-muted-foreground shrink-0">{new Date(c.last.created_at).toLocaleString()}</span>
+                            </div>
+                            <p className="text-xs text-muted-foreground truncate">
+                              {fromMe && <span className="text-foreground/60">You: </span>}
+                              {c.last.body}
+                            </p>
                           </div>
-                          <span className="text-[10px] text-muted-foreground shrink-0">{new Date(m.created_at).toLocaleString()}</span>
-                        </div>
-                        <p className="text-sm text-foreground whitespace-pre-wrap pl-9">{m.body}</p>
-                        <div className="flex justify-end mt-2 pl-9">
-                          <Button size="sm" variant="ghost" className="h-7 gap-1.5 text-xs"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (s) { setMsgTarget(s); setMsgBody(""); }
-                            }}>
-                            <MessageSquare className="w-3.5 h-3.5" /> Reply
-                          </Button>
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </div>
+                          {c.unread > 0 && <Badge className="h-5 px-1.5 text-[10px]" variant="destructive">{c.unread}</Badge>}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
+            ) : (
+              (() => {
+                const s = senders[activeChat];
+                const name = s ? (s.username ? `@${s.username}` : s.display_name || "A learner") : "A learner";
+                return (
+                  <div className="glass-panel-strong p-4 flex flex-col" style={{ minHeight: 480 }}>
+                    <div className="flex items-center gap-3 pb-3 border-b border-border/50 mb-3">
+                      <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setActiveChat(null)}>
+                        <ArrowLeft className="w-4 h-4" />
+                      </Button>
+                      <Avatar className="w-9 h-9">
+                        <AvatarImage src={s?.avatar_url ?? undefined} />
+                        <AvatarFallback>{name.charAt(name.startsWith("@") ? 1 : 0).toUpperCase()}</AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold truncate">{name}</p>
+                        <p className="text-[10px] text-muted-foreground">Messages also notify by email</p>
+                      </div>
+                    </div>
+                    <div className="flex-1 space-y-2 overflow-y-auto pr-1" style={{ maxHeight: 420 }}>
+                      {activeThread!.all.length === 0 ? (
+                        <p className="text-xs text-muted-foreground text-center py-8">Say hi 👋</p>
+                      ) : activeThread!.all.map((m) => {
+                        const mine = m.sender_id === user.id;
+                        return (
+                          <div key={m.id} className={cn("flex", mine ? "justify-end" : "justify-start")}>
+                            <div className={cn(
+                              "max-w-[78%] px-3 py-2 rounded-2xl text-sm whitespace-pre-wrap break-words",
+                              mine
+                                ? "bg-primary text-primary-foreground rounded-br-sm"
+                                : "bg-secondary text-foreground rounded-bl-sm",
+                            )}>
+                              {m.body}
+                              <div className={cn("text-[10px] mt-1 opacity-70", mine ? "text-right" : "text-left")}>
+                                {new Date(m.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="mt-3 flex gap-2 items-end">
+                      <Textarea
+                        value={threadBody}
+                        onChange={(e) => setThreadBody(e.target.value.slice(0, 500))}
+                        placeholder="Type a message…"
+                        rows={2}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendInThread(); }
+                        }}
+                      />
+                      <Button onClick={sendInThread} disabled={threadSending || !threadBody.trim()} className="gap-1.5 shrink-0">
+                        {threadSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                        Send
+                      </Button>
+                    </div>
+                    <div className="text-[10px] text-muted-foreground text-right mt-1">{threadBody.length}/500 · Enter to send, Shift+Enter for newline</div>
+                  </div>
+                );
+              })()
+            )}
           </TabsContent>
         </Tabs>
       </div>
+
 
       {/* Message dialog */}
       <Dialog open={!!msgTarget} onOpenChange={(o) => { if (!o) { setMsgTarget(null); setMsgBody(""); } }}>
