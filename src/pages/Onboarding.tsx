@@ -110,6 +110,7 @@ const Onboarding = () => {
           learning_goal: goal || null,
         }).eq("user_id", user.id);
       }
+      try { localStorage.removeItem(ONBOARDING_KEY); } catch { /* ignore */ }
       playDing("success");
       navigate("/browse");
     }
