@@ -15,7 +15,7 @@ const Email = ({ friendName = 'A learner', friendsUrl = 'https://linguascript.xy
         <Button href={friendsUrl} style={cta}>View leaderboard</Button>
       </Section>
       <Hr style={hr} />
-      <Text style={footer}>You can turn off friend notifications in Profile → Email preferences.</Text>
+      <Text style={footer}>You can unsubscribe from friend notifications at any time using the link below.</Text>
     </Container></Body></Html>
 )
 

@@ -30,7 +30,7 @@ const Email = ({ name = 'there', xpGained = 0, cardsReviewed = 0, wordsLearned =
         <Button href={dashboardUrl} style={cta}>Keep the momentum</Button>
       </Section>
       <Hr style={hr} />
-      <Text style={footer}>You can turn off weekly summaries in Profile → Email preferences.</Text>
+      <Text style={footer}>You can unsubscribe from weekly summaries at any time using the link below.</Text>
     </Container></Body></Html>
 )
 
