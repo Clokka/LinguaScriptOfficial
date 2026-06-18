@@ -884,7 +884,7 @@ const SettingsTab = ({
   learningLanguage, setLearningLanguage,
   displayName, setDisplayName,
   isPublic, setIsPublic,
-  saving, onSave, user, navigate,
+  saving, onSave, user, authLoading, navigate,
 }: {
   nativeLanguage: string;
   setNativeLanguage: (v: string) => void;
@@ -897,6 +897,7 @@ const SettingsTab = ({
   saving: boolean;
   onSave: () => void;
   user: any;
+  authLoading?: boolean;
   navigate: (p: string) => void;
 }) => {
   const tour = useTour();
@@ -910,6 +911,16 @@ const SettingsTab = ({
       setTimeout(() => tour.advance(), 250);
     }
   };
+  // While the auth session is still restoring, show a spinner instead of a
+  // sign-in barrier — otherwise a logged-in user briefly sees "Sign in" on
+  // refresh, which feels like a glitch/lockout.
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <Loader2 className="w-6 h-6 animate-spin text-orange-500" />
+      </div>
+    );
+  }
   if (!user) {
     return (
       <div className="space-y-6">
