@@ -647,6 +647,7 @@ const Watch = () => {
             {getLanguageFlag(film.language ?? "fr")} {getLanguageLabel(film.language ?? "fr")}
           </p>
         </div>
+        <ActiveLanguageBadge variant="dark" className="hidden xs:inline-flex" />
         <Button
           data-tour="dual-toggle"
           variant={subtitleMode === "dual" ? "default" : "ghost"}
