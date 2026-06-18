@@ -53,7 +53,7 @@ export const UpgradeLockDialog = ({
         </DialogHeader>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Maybe later</Button>
-          <Button onClick={() => onOpenChange(false)}>
+          <Button onClick={() => { onOpenChange(false); navigate("/pricing"); }}>
             <Sparkles className="w-4 h-4 mr-1" /> Upgrade to Pro
           </Button>
         </DialogFooter>
