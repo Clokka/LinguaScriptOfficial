@@ -412,6 +412,10 @@ export type Database = {
           learning_language: string | null
           native_language: string | null
           onboarded: boolean
+          pro_expires_at: string | null
+          pro_granted_at: string | null
+          pro_granted_by: string | null
+          pro_source: string
           review_emails_week_count: number
           review_emails_week_start: string | null
           school: string | null
@@ -452,6 +456,10 @@ export type Database = {
           learning_language?: string | null
           native_language?: string | null
           onboarded?: boolean
+          pro_expires_at?: string | null
+          pro_granted_at?: string | null
+          pro_granted_by?: string | null
+          pro_source?: string
           review_emails_week_count?: number
           review_emails_week_start?: string | null
           school?: string | null
@@ -492,6 +500,10 @@ export type Database = {
           learning_language?: string | null
           native_language?: string | null
           onboarded?: boolean
+          pro_expires_at?: string | null
+          pro_granted_at?: string | null
+          pro_granted_by?: string | null
+          pro_source?: string
           review_emails_week_count?: number
           review_emails_week_start?: string | null
           school?: string | null
@@ -651,6 +663,54 @@ export type Database = {
         }
         Relationships: []
       }
+      subscriptions: {
+        Row: {
+          cancel_at_period_end: boolean | null
+          created_at: string
+          current_period_end: string | null
+          current_period_start: string | null
+          environment: string
+          id: string
+          price_id: string | null
+          product_id: string | null
+          status: string
+          stripe_customer_id: string
+          stripe_subscription_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cancel_at_period_end?: boolean | null
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
+          environment?: string
+          id?: string
+          price_id?: string | null
+          product_id?: string | null
+          status?: string
+          stripe_customer_id: string
+          stripe_subscription_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cancel_at_period_end?: boolean | null
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
+          environment?: string
+          id?: string
+          price_id?: string | null
+          product_id?: string | null
+          status?: string
+          stripe_customer_id?: string
+          stripe_subscription_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       subtitles: {
         Row: {
           created_at: string
@@ -758,6 +818,27 @@ export type Database = {
         }
         Relationships: []
       }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_vocabulary_state: {
         Row: {
           created_at: string
@@ -840,6 +921,35 @@ export type Database = {
       accept_friend_request: { Args: { _other: string }; Returns: boolean }
       add_friend_by_code: { Args: { _code: string }; Returns: string }
       add_friend_by_user_id: { Args: { _target: string }; Returns: string }
+      admin_grant_pro: {
+        Args: { _days?: number; _user_id: string }
+        Returns: boolean
+      }
+      admin_list_pro_users: {
+        Args: never
+        Returns: {
+          display_name: string
+          email: string
+          pro_expires_at: string
+          pro_granted_at: string
+          pro_source: string
+          user_id: string
+          username: string
+        }[]
+      }
+      admin_revoke_pro: { Args: { _user_id: string }; Returns: boolean }
+      admin_search_users: {
+        Args: { _q: string }
+        Returns: {
+          display_name: string
+          email: string
+          is_pro: boolean
+          pro_expires_at: string
+          pro_source: string
+          user_id: string
+          username: string
+        }[]
+      }
       are_friends: { Args: { _a: string; _b: string }; Returns: boolean }
       delete_email: {
         Args: { message_id: number; queue_name: string }
@@ -876,6 +986,13 @@ export type Database = {
         }[]
       }
       get_unread_message_count: { Args: never; Returns: number }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
       move_to_dlq: {
         Args: {
           dlq_name: string
@@ -905,6 +1022,7 @@ export type Database = {
       }
     }
     Enums: {
+      app_role: "admin" | "user"
       vocab_state: "red" | "orange" | "green"
     }
     CompositeTypes: {
@@ -1033,6 +1151,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      app_role: ["admin", "user"],
       vocab_state: ["red", "orange", "green"],
     },
   },
