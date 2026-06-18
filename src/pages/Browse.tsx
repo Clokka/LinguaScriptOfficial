@@ -86,7 +86,7 @@ function formatDuration(seconds: number): string {
 
 const Browse = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { learningLanguage, setLearningLanguage } = useLanguage();
   const { toast } = useToast();
   const tour = useTour();
