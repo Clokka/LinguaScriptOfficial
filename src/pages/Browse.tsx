@@ -41,6 +41,7 @@ import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { ProgressDashboard } from "@/components/ProgressDashboard";
 import { ActivityCalendarDark } from "@/components/ActivityCalendarDark";
+import { ActiveLanguageBadge } from "@/components/ActiveLanguageBadge";
 
 interface UserLesson {
   id: string;
