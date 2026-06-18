@@ -29,7 +29,7 @@ interface PendingRequest {
   user_id: string;
 }
 
-interface InboxMsg {
+interface ChatMsg {
   id: string;
   sender_id: string;
   recipient_id: string;
@@ -37,6 +37,7 @@ interface InboxMsg {
   created_at: string;
   read_at: string | null;
 }
+
 
 const Friends = () => {
   const navigate = useNavigate();
