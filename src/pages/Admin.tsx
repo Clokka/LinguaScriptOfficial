@@ -326,6 +326,10 @@ const Admin = () => {
         <h1 className="text-3xl font-bold text-foreground mb-2">Admin Dashboard</h1>
         <p className="text-muted-foreground mb-8">Add films and upload subtitle tracks, or let fetched YouTube captions auto-save here per film.</p>
 
+        <AdminProGrants />
+
+
+
         {/* Add Film Form */}
         <form onSubmit={addFilm} className="glass-panel-strong p-6 space-y-4 mb-8">
           <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
