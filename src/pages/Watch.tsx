@@ -17,6 +17,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { saveGuestWord } from "@/lib/guestWords";
 import { useXp } from "@/contexts/XpContext";
 import { recordDailyVideoWatch, setReinforcementPending } from "@/lib/dailyVideo";
+import { ComprehensionPanel } from "@/components/ComprehensionPanel";
 
 interface FilmData {
   id: string;
@@ -850,6 +851,18 @@ const Watch = () => {
 
         </div>
       </div>
+
+      {/* Comprehension Engine — deterministic vocab-coverage score */}
+      {film && getYouTubeId(film.url) && (
+        <div className="max-w-5xl mx-auto w-full px-3 sm:px-6 py-6">
+          <ComprehensionPanel
+            videoId={getYouTubeId(film.url)!}
+            title={film.title}
+          />
+        </div>
+      )}
+
+
 
       {showReinforce && (
         <div className="fixed inset-x-0 bottom-0 z-[80] p-4 pointer-events-none">
