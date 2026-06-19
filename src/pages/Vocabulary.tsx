@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { DeckState, STATE_META } from "@/lib/vocab";
+import { DeckState, STATE_META, coerceDeckState } from "@/lib/vocab";
 import { getGuestWords } from "@/lib/guestWords";
 import { cn } from "@/lib/utils";
 
@@ -20,9 +20,8 @@ interface DeckWord {
 }
 
 const DECKS: { key: DeckState; title: string; subtitle: string }[] = [
-  { key: "red",    title: "Red Deck",    subtitle: "New — just saved" },
-  { key: "orange", title: "Orange Deck", subtitle: "Learning" },
-  { key: "green",  title: "Green Deck",  subtitle: "Learned" },
+  { key: "orange", title: "Learning", subtitle: "Actively reviewing" },
+  { key: "green",  title: "Known",    subtitle: "Acquired words" },
 ];
 
 export default function Vocabulary() {
@@ -34,18 +33,28 @@ export default function Vocabulary() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | DeckState>("all");
   const [search, setSearch] = useState("");
+  const [coreTotal, setCoreTotal] = useState<number | null>(null);
 
   useEffect(() => {
     let alive = true;
     (async () => {
+      const lang = learningLanguage || "fr";
+
+      // High-frequency vocabulary size for this language (basis for "unassessed" estimate).
+      supabase
+        .from("core_vocabulary")
+        .select("id", { count: "exact", head: true })
+        .eq("language", lang)
+        .then(({ count }) => { if (alive) setCoreTotal(count ?? 0); });
+
       if (!user) {
         const guest = getGuestWords()
-          .filter((g) => g.language === (learningLanguage || "fr"))
+          .filter((g) => g.language === lang)
           .map<DeckWord>((g) => ({
             id: g.id,
             word: g.word,
             translation: g.translation,
-            state: "red",
+            state: "orange",
           }));
         if (alive) {
           setWords(guest);
@@ -57,20 +66,29 @@ export default function Vocabulary() {
         .from("saved_words")
         .select("id, word, translation, state, state_changed_at")
         .eq("user_id", user.id)
-        .eq("language", learningLanguage || "fr")
+        .eq("language", lang)
         .order("created_at", { ascending: false });
       if (!alive) return;
-      setWords(((data as any[]) || []) as DeckWord[]);
+      setWords(
+        ((data as any[]) || []).map((w) => ({ ...w, state: coerceDeckState(w.state) })) as DeckWord[],
+      );
       setLoading(false);
     })();
     return () => { alive = false; };
   }, [user, learningLanguage]);
 
   const counts = useMemo(() => {
-    const c = { red: 0, orange: 0, green: 0 };
+    const c: Record<DeckState, number> = { orange: 0, green: 0 };
     for (const w of words) c[w.state] = (c[w.state] ?? 0) + 1;
     return c;
   }, [words]);
+
+  // ⚪ Unassessed = high-frequency words in this language we haven't seen the
+  // learner save yet. Never goes negative; falls back to 0 until we know.
+  const unassessed = useMemo(() => {
+    if (coreTotal == null) return null;
+    return Math.max(0, coreTotal - words.length);
+  }, [coreTotal, words.length]);
 
   const learnedThisWeek = useMemo(() => {
     const since = Date.now() - 7 * 24 * 60 * 60 * 1000;
@@ -96,12 +114,12 @@ export default function Vocabulary() {
           <Button variant="ghost" size="icon" onClick={() => navigate("/browse")}>
             <ArrowLeft className="w-5 h-5" />
           </Button>
-          <h1 className="text-lg font-bold text-foreground">Your Decks</h1>
+          <h1 className="text-lg font-bold text-foreground">Your Vocabulary</h1>
         </div>
       </header>
 
       <div className="max-w-5xl mx-auto px-6 py-8 space-y-8">
-        {/* Deck counts */}
+        {/* Three-state overview: Known · Learning · Unassessed */}
         <section className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {DECKS.map((d, i) => {
             const meta = STATE_META[d.key];
@@ -129,6 +147,23 @@ export default function Vocabulary() {
               </motion.button>
             );
           })}
+
+          {/* Unassessed — neutral, never punishes the learner. */}
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="text-left rounded-2xl border border-border/60 bg-muted/30 p-5"
+          >
+            <div className="flex items-center gap-2 mb-1">
+              <span className="w-2.5 h-2.5 rounded-full bg-white border border-border" />
+              <p className="font-semibold text-foreground">Unassessed</p>
+            </div>
+            <p className="text-4xl font-bold tabular-nums text-muted-foreground">
+              {unassessed == null ? "—" : unassessed.toLocaleString()}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">Not yet tested</p>
+          </motion.div>
         </section>
 
         {/* Totals */}
@@ -152,7 +187,7 @@ export default function Vocabulary() {
         {/* Filter + search */}
         <section className="space-y-4">
           <div className="flex flex-wrap items-center gap-2">
-            {(["all", "red", "orange", "green"] as const).map((f) => (
+            {(["all", "orange", "green"] as const).map((f) => (
               <button
                 key={f}
                 onClick={() => setFilter(f)}
