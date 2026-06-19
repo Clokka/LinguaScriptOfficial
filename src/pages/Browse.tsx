@@ -320,6 +320,84 @@ const Browse = () => {
     setCreating(false);
   };
 
+  /**
+   * Import a YouTube video by ID (used by Discover search results so a
+   * single click goes straight from search → watching, no paste required).
+   */
+  const importYoutubeId = async (ytId: string, titleHint?: string, thumbHint?: string) => {
+    if (!user) {
+      toast({ title: "Sign in required", description: "Please sign in to save lessons.", variant: "destructive" });
+      navigate("/auth");
+      return;
+    }
+    setCreating(true);
+    try {
+      let title = titleHint || "YouTube Video";
+      if (!titleHint) {
+        try {
+          const oembedRes = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${ytId}&format=json`);
+          if (oembedRes.ok) {
+            const oembedData = await oembedRes.json();
+            title = oembedData.title || title;
+          }
+        } catch { /* non-fatal */ }
+      }
+      const thumbnail = thumbHint || `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`;
+      const filmUrl = `https://www.youtube.com/watch?v=${ytId}`;
+
+      // Reuse an existing private film for this user if we already have one.
+      const { data: existingFilm } = await supabase
+        .from("films")
+        .select("id")
+        .eq("url", filmUrl)
+        .eq("created_by", user.id)
+        .maybeSingle();
+      let filmId = existingFilm?.id || "";
+      if (!filmId) {
+        const { data: newFilm } = await supabase.from("films").insert({
+          title,
+          url: filmUrl,
+          thumbnail_url: thumbnail,
+          language: learningLanguage,
+          is_public: false,
+          created_by: user.id,
+        }).select("id").single();
+        filmId = newFilm?.id || "";
+      }
+
+      // user_lessons is idempotent on (user_id, youtube_id) — upsert-style insert.
+      const { data: existingLesson } = await supabase
+        .from("user_lessons")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("youtube_id", ytId)
+        .maybeSingle();
+      if (!existingLesson) {
+        await supabase.from("user_lessons").insert({
+          user_id: user.id,
+          youtube_id: ytId,
+          title,
+          thumbnail_url: thumbnail,
+          original_language: learningLanguage,
+        });
+      }
+
+      if (filmId) {
+        ensureSubtitleTracks({
+          filmId,
+          videoId: ytId,
+          primaryLanguage: learningLanguage,
+          secondaryLanguage: nativeLanguage,
+        }).catch((err) => console.warn("Background caption ingest failed:", err));
+        navigate(`/watch/${filmId}`);
+      }
+      fetchLessons();
+    } catch (err: any) {
+      toast({ title: "Error opening video", description: err.message, variant: "destructive" });
+    }
+    setCreating(false);
+  };
+
   const deleteLesson = async (lessonId: string) => {
     await supabase.from("user_lessons").delete().eq("id", lessonId);
     fetchLessons();
