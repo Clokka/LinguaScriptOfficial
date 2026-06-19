@@ -513,7 +513,9 @@ const Browse = () => {
               films={discoverFilms}
               navigate={navigate}
               learningLanguage={learningLanguage}
-              onPickVideo={(url) => { setPasteUrl(url); setActiveTab("home"); }}
+              interests={interests}
+              importing={creating}
+              onWatch={importYoutubeId}
             />
           )}
           {activeTab === "calendar" && (
