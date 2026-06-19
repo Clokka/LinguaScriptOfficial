@@ -90,14 +90,25 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
     setReady(false);
     supabase
       .from("profiles")
-      .select("learning_language, is_pro")
+      .select("learning_language, is_pro, cef_level")
       .eq("user_id", user.id)
       .maybeSingle()
       .then(({ data }) => {
         const lang = (data as any)?.learning_language?.toLowerCase();
+        const level = (data as any)?.cef_level;
         if (lang) {
           setActiveLanguage(lang);
           localStorage.setItem("learningLanguage", lang);
+          // Backfill green seed for the active language. Idempotent — only
+          // inserts words not already saved, so it's safe to run on every
+          // login and ensures language switches done before this code shipped
+          // still get their A1–C1 head-start.
+          if (level && level !== "below") {
+            supabase.rpc("seed_known_vocabulary" as any, {
+              _language: lang,
+              _level: level,
+            }).then(() => {});
+          }
         }
         setIsPro(!!(data as any)?.is_pro);
         setReady(true);
@@ -121,6 +132,23 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
         .update({ learning_language: norm })
         .eq("user_id", user.id)
         .then(() => {});
+      // Seed known vocabulary for the newly-selected language based on the
+      // user's CEFR level so switching to a new language doesn't drop them
+      // back to 0% green. Idempotent server-side (ON CONFLICT DO NOTHING).
+      supabase
+        .from("profiles")
+        .select("cef_level")
+        .eq("user_id", user.id)
+        .maybeSingle()
+        .then(({ data }) => {
+          const level = (data as any)?.cef_level;
+          if (level && level !== "below") {
+            supabase.rpc("seed_known_vocabulary" as any, {
+              _language: norm,
+              _level: level,
+            }).then(() => {});
+          }
+        });
     }
   };
 
