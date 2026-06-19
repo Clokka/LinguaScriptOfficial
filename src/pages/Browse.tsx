@@ -43,6 +43,7 @@ import { ProgressDashboard } from "@/components/ProgressDashboard";
 import { ActivityCalendarDark } from "@/components/ActivityCalendarDark";
 import { ActiveLanguageBadge } from "@/components/ActiveLanguageBadge";
 import { INTERESTS, type Interest } from "@/lib/interests";
+import { PersonalizedRails } from "@/components/PersonalizedRails";
 
 const INTERESTS_BY_ID: Record<string, Interest> = Object.fromEntries(
   INTERESTS.map((i) => [i.id, i]),
@@ -516,6 +517,8 @@ const Browse = () => {
               navigate={navigate}
               discoverFilms={discoverFilms}
               catalogRows={catalogRows}
+              interests={interests}
+              onWatchYoutube={importYoutubeId}
             />
           )}
           {activeTab === "discover" && (
@@ -632,7 +635,7 @@ const CatalogStrip = ({ title, films, navigate }: { title: string; films: any[];
 
 /* ── HOME TAB ── */
 const HomeTab = ({
-  lessons, loading, pasteUrl, setPasteUrl, creating, createLesson, deleteLesson, navigate, discoverFilms, catalogRows,
+  lessons, loading, pasteUrl, setPasteUrl, creating, createLesson, deleteLesson, navigate, discoverFilms, catalogRows, interests, onWatchYoutube,
 }: {
   lessons: UserLesson[];
   loading: boolean;
@@ -644,8 +647,13 @@ const HomeTab = ({
   navigate: (path: string) => void;
   discoverFilms: any[];
   catalogRows: { id: string; title: string; films: any[] }[];
+  interests: string[];
+  onWatchYoutube: (ytId: string, titleHint?: string, thumbHint?: string) => Promise<void>;
 }) => (
   <div className="space-y-8">
+    {/* Personalized rails: Continue Watching + YouTube discovery */}
+    <PersonalizedRails interests={interests} onWatch={onWatchYoutube} importing={creating} />
+
     {/* Paste YouTube Link */}
     <div className="glass-panel-strong p-6 rounded-2xl">
       <h2 className="text-lg font-bold text-foreground mb-1">Paste a YouTube Link</h2>
