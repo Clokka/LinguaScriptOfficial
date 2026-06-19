@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Play,
@@ -42,6 +42,11 @@ import { cn } from "@/lib/utils";
 import { ProgressDashboard } from "@/components/ProgressDashboard";
 import { ActivityCalendarDark } from "@/components/ActivityCalendarDark";
 import { ActiveLanguageBadge } from "@/components/ActiveLanguageBadge";
+import { INTERESTS, type Interest } from "@/lib/interests";
+
+const INTERESTS_BY_ID: Record<string, Interest> = Object.fromEntries(
+  INTERESTS.map((i) => [i.id, i]),
+);
 
 interface UserLesson {
   id: string;
