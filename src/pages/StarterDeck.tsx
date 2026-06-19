@@ -86,7 +86,7 @@ const StarterDeck = () => {
         pronunciation: s?.pronunciation || c.reading,
         ipa: s?.ipa || c.ipa,
         context: "",
-        state: ((s?.state === "green" ? "green" : "orange") as DeckState),
+        state: (s?.state ?? "red") as DeckState,
         times_correct: s?.times_correct ?? 0,
       };
     });
