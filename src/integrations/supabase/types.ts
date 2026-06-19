@@ -443,6 +443,7 @@ export type Database = {
           email_prefs: Json
           friend_code: string | null
           id: string
+          interests: string[]
           is_pro: boolean
           is_public: boolean
           language_switches_used: number
@@ -487,6 +488,7 @@ export type Database = {
           email_prefs?: Json
           friend_code?: string | null
           id?: string
+          interests?: string[]
           is_pro?: boolean
           is_public?: boolean
           language_switches_used?: number
@@ -531,6 +533,7 @@ export type Database = {
           email_prefs?: Json
           friend_code?: string | null
           id?: string
+          interests?: string[]
           is_pro?: boolean
           is_public?: boolean
           language_switches_used?: number
