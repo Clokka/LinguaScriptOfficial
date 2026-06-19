@@ -1127,6 +1127,10 @@ export type Database = {
         Args: { _display: string; _user_id: string; _username: string }
         Returns: string
       }
+      seed_known_vocabulary: {
+        Args: { _language: string; _level: string }
+        Returns: number
+      }
       set_username: { Args: { _username: string }; Returns: string }
       update_email_prefs: { Args: { _prefs: Json }; Returns: Json }
       update_privacy_settings: {
