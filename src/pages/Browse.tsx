@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Play,
@@ -42,6 +42,11 @@ import { cn } from "@/lib/utils";
 import { ProgressDashboard } from "@/components/ProgressDashboard";
 import { ActivityCalendarDark } from "@/components/ActivityCalendarDark";
 import { ActiveLanguageBadge } from "@/components/ActiveLanguageBadge";
+import { INTERESTS, type Interest } from "@/lib/interests";
+
+const INTERESTS_BY_ID: Record<string, Interest> = Object.fromEntries(
+  INTERESTS.map((i) => [i.id, i]),
+);
 
 interface UserLesson {
   id: string;
@@ -104,6 +109,7 @@ const Browse = () => {
   const [displayName, setDisplayName] = useState("");
   const [isPublic, setIsPublic] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
+  const [interests, setInterests] = useState<string[]>([]);
 
   // Calendar state
   const [activityData, setActivityData] = useState<ActivityDay[]>([]);
@@ -161,6 +167,7 @@ const Browse = () => {
       setSettingsLearning(data.learning_language || "fr");
       setDisplayName(data.display_name || "");
       setIsPublic(!!(data as any).is_public);
+      setInterests(Array.isArray((data as any).interests) ? (data as any).interests : []);
     }
   }, [user]);
 
@@ -318,6 +325,84 @@ const Browse = () => {
     setCreating(false);
   };
 
+  /**
+   * Import a YouTube video by ID (used by Discover search results so a
+   * single click goes straight from search → watching, no paste required).
+   */
+  const importYoutubeId = async (ytId: string, titleHint?: string, thumbHint?: string) => {
+    if (!user) {
+      toast({ title: "Sign in required", description: "Please sign in to save lessons.", variant: "destructive" });
+      navigate("/auth");
+      return;
+    }
+    setCreating(true);
+    try {
+      let title = titleHint || "YouTube Video";
+      if (!titleHint) {
+        try {
+          const oembedRes = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${ytId}&format=json`);
+          if (oembedRes.ok) {
+            const oembedData = await oembedRes.json();
+            title = oembedData.title || title;
+          }
+        } catch { /* non-fatal */ }
+      }
+      const thumbnail = thumbHint || `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`;
+      const filmUrl = `https://www.youtube.com/watch?v=${ytId}`;
+
+      // Reuse an existing private film for this user if we already have one.
+      const { data: existingFilm } = await supabase
+        .from("films")
+        .select("id")
+        .eq("url", filmUrl)
+        .eq("created_by", user.id)
+        .maybeSingle();
+      let filmId = existingFilm?.id || "";
+      if (!filmId) {
+        const { data: newFilm } = await supabase.from("films").insert({
+          title,
+          url: filmUrl,
+          thumbnail_url: thumbnail,
+          language: learningLanguage,
+          is_public: false,
+          created_by: user.id,
+        }).select("id").single();
+        filmId = newFilm?.id || "";
+      }
+
+      // user_lessons is idempotent on (user_id, youtube_id) — upsert-style insert.
+      const { data: existingLesson } = await supabase
+        .from("user_lessons")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("youtube_id", ytId)
+        .maybeSingle();
+      if (!existingLesson) {
+        await supabase.from("user_lessons").insert({
+          user_id: user.id,
+          youtube_id: ytId,
+          title,
+          thumbnail_url: thumbnail,
+          original_language: learningLanguage,
+        });
+      }
+
+      if (filmId) {
+        ensureSubtitleTracks({
+          filmId,
+          videoId: ytId,
+          primaryLanguage: learningLanguage,
+          secondaryLanguage: nativeLanguage,
+        }).catch((err) => console.warn("Background caption ingest failed:", err));
+        navigate(`/watch/${filmId}`);
+      }
+      fetchLessons();
+    } catch (err: any) {
+      toast({ title: "Error opening video", description: err.message, variant: "destructive" });
+    }
+    setCreating(false);
+  };
+
   const deleteLesson = async (lessonId: string) => {
     await supabase.from("user_lessons").delete().eq("id", lessonId);
     fetchLessons();
@@ -433,7 +518,9 @@ const Browse = () => {
               films={discoverFilms}
               navigate={navigate}
               learningLanguage={learningLanguage}
-              onPickVideo={(url) => { setPasteUrl(url); setActiveTab("home"); }}
+              interests={interests}
+              importing={creating}
+              onWatch={importYoutubeId}
             />
           )}
           {activeTab === "calendar" && (
@@ -671,26 +758,71 @@ const LessonCard = ({
 };
 
 /* ── DISCOVER TAB ── */
+const DIFFICULTY_BADGES: Record<string, { label: string; cls: string }> = {
+  beginner:     { label: "🟢 Beginner",     cls: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30" },
+  intermediate: { label: "🟠 Intermediate", cls: "bg-amber-500/15 text-amber-300 border-amber-500/30" },
+  advanced:     { label: "🔴 Advanced",     cls: "bg-rose-500/15 text-rose-300 border-rose-500/30" },
+};
+
+function formatSearchDuration(s: number): string {
+  if (!s || s <= 0) return "";
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  if (h > 0) return `${h}:${m.toString().padStart(2, "0")}:${sec.toString().padStart(2, "0")}`;
+  return `${m}:${sec.toString().padStart(2, "0")}`;
+}
+
+function formatRelativeDate(iso?: string): string {
+  if (!iso) return "";
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return "";
+  const days = Math.max(0, Math.floor((Date.now() - then) / 86400000));
+  if (days < 1) return "today";
+  if (days < 7) return `${days}d ago`;
+  if (days < 30) return `${Math.floor(days / 7)}w ago`;
+  if (days < 365) return `${Math.floor(days / 30)}mo ago`;
+  return `${Math.floor(days / 365)}y ago`;
+}
+
 const DiscoverTab = ({
-  films, navigate, learningLanguage, onPickVideo,
+  films, navigate, learningLanguage, interests, importing, onWatch,
 }: {
   films: any[];
   navigate: (p: string) => void;
   learningLanguage: string;
-  onPickVideo: (url: string) => void;
+  interests: string[];
+  importing: boolean;
+  onWatch: (ytId: string, titleHint?: string, thumbHint?: string) => Promise<void>;
 }) => {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<any[]>([]);
   const [searching, setSearching] = useState(false);
+  const [pendingId, setPendingId] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const runSearch = async () => {
-    if (!query.trim()) return;
+  // Build interest chip queries scoped to the learning language so a French
+  // learner clicking "History" actually gets French history content.
+  const interestChips = useMemo(() => {
+    const langLabel = getLanguageLabel(learningLanguage);
+    return (interests || [])
+      .map((id) => {
+        const meta = INTERESTS_BY_ID[id];
+        if (!meta) return null;
+        return { id, label: meta.label, emoji: meta.emoji, q: `${langLabel} ${meta.query}` };
+      })
+      .filter(Boolean) as { id: string; label: string; emoji: string; q: string }[];
+  }, [interests, learningLanguage]);
+
+  const runSearch = async (overrideQuery?: string) => {
+    const q = (overrideQuery ?? query).trim();
+    if (!q) return;
+    if (overrideQuery !== undefined) setQuery(overrideQuery);
     setSearching(true);
     setResults([]);
     try {
       const { data, error } = await supabase.functions.invoke("youtube-search", {
-        body: { q: query, lang: learningLanguage },
+        body: { q, lang: learningLanguage },
       });
       if (error) throw error;
       if ((data as any)?.error) throw new Error((data as any).error);
@@ -701,11 +833,23 @@ const DiscoverTab = ({
     setSearching(false);
   };
 
+  const handlePick = async (r: any) => {
+    if (importing || pendingId) return;
+    setPendingId(r.videoId);
+    try {
+      await onWatch(r.videoId, r.title, r.thumbnail);
+    } finally {
+      setPendingId(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-foreground mb-2">Discover</h2>
-        <p className="text-muted-foreground">Search YouTube or browse the curated catalog.</p>
+        <p className="text-muted-foreground">
+          Search YouTube in {getLanguageLabel(learningLanguage)}. Click a result to start watching — captions load automatically.
+        </p>
       </div>
 
       {/* YouTube search */}
@@ -721,34 +865,72 @@ const DiscoverTab = ({
               className="pl-10 h-11 bg-secondary/50 border-border rounded-xl"
             />
           </div>
-          <Button onClick={runSearch} disabled={searching || !query.trim()} className="h-11 px-5 rounded-xl">
+          <Button onClick={() => runSearch()} disabled={searching || !query.trim()} className="h-11 px-5 rounded-xl">
             {searching ? <Loader2 className="w-4 h-4 animate-spin" /> : "Search"}
           </Button>
         </div>
+
+        {interestChips.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            <span className="text-xs text-muted-foreground self-center mr-1">For you:</span>
+            {interestChips.map((chip) => (
+              <button
+                key={chip.id}
+                onClick={() => runSearch(chip.q)}
+                disabled={searching}
+                className="text-xs px-3 h-8 rounded-full border border-border bg-secondary/40 hover:bg-secondary text-foreground transition disabled:opacity-50"
+              >
+                <span className="mr-1">{chip.emoji}</span>{chip.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {results.length > 0 && (
         <section>
           <h3 className="text-sm font-medium text-muted-foreground mb-3">YouTube results</h3>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-            {results.map((r) => (
-              <button
-                key={r.videoId}
-                onClick={() => onPickVideo(`https://www.youtube.com/watch?v=${r.videoId}`)}
-                className="group text-left"
-              >
-                <div className="relative rounded-xl overflow-hidden aspect-video bg-secondary mb-2 border border-border group-hover:border-primary/50 transition-all">
-                  {r.thumbnail && <img src={r.thumbnail} alt={r.title} className="w-full h-full object-cover" />}
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <div className="w-10 h-10 rounded-full bg-primary/90 flex items-center justify-center">
-                      <Play className="w-4 h-4 text-primary-foreground ml-0.5" />
+            {results.map((r) => {
+              const badge = DIFFICULTY_BADGES[r.difficulty] || DIFFICULTY_BADGES.intermediate;
+              const dur = formatSearchDuration(r.durationSeconds || 0);
+              const loading = pendingId === r.videoId;
+              return (
+                <button
+                  key={r.videoId}
+                  onClick={() => handlePick(r)}
+                  disabled={importing || !!pendingId}
+                  className="group text-left disabled:opacity-60 disabled:cursor-wait"
+                >
+                  <div className="relative rounded-xl overflow-hidden aspect-video bg-secondary mb-2 border border-border group-hover:border-primary/50 transition-all">
+                    {r.thumbnail && <img src={r.thumbnail} alt={r.title} className="w-full h-full object-cover" />}
+                    {dur && (
+                      <div className="absolute bottom-2 right-2 bg-black/80 text-white text-[11px] font-medium px-1.5 py-0.5 rounded">
+                        {dur}
+                      </div>
+                    )}
+                    <div className={cn(
+                      "absolute top-2 left-2 text-[10px] font-semibold px-2 py-0.5 rounded-full border backdrop-blur-sm",
+                      badge.cls,
+                    )}>
+                      {badge.label}
+                    </div>
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <div className="w-10 h-10 rounded-full bg-primary/90 flex items-center justify-center">
+                        {loading
+                          ? <Loader2 className="w-4 h-4 text-primary-foreground animate-spin" />
+                          : <Play className="w-4 h-4 text-primary-foreground ml-0.5" />}
+                      </div>
                     </div>
                   </div>
-                </div>
-                <p className="text-sm text-foreground truncate font-medium" dangerouslySetInnerHTML={{ __html: r.title }} />
-                <p className="text-xs text-muted-foreground truncate">{r.channel}</p>
-              </button>
-            ))}
+                  <p className="text-sm text-foreground line-clamp-2 font-medium leading-snug" dangerouslySetInnerHTML={{ __html: r.title }} />
+                  <p className="text-xs text-muted-foreground truncate mt-1">{r.channel}</p>
+                  {r.publishedAt && (
+                    <p className="text-[11px] text-muted-foreground/80 mt-0.5">{formatRelativeDate(r.publishedAt)}</p>
+                  )}
+                </button>
+              );
+            })}
           </div>
         </section>
       )}
