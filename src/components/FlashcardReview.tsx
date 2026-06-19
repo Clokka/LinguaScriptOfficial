@@ -85,7 +85,7 @@ export const FlashcardReview = ({ cards: initialCards, onClose, onCardReviewed, 
   const promoteDeckState = (wasCorrect: boolean) => {
     const card = cards[currentIndex];
     if (!card) return;
-    const prevState = (card.state === "green" ? "green" : "orange") as DeckState;
+    const prevState = (card.state ?? "red") as DeckState;
     const prevTimes = card.times_correct ?? 0;
     const newTimes = prevTimes + (wasCorrect ? 1 : 0);
     const newState = nextState(prevState, newTimes, wasCorrect);

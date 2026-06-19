@@ -20,6 +20,7 @@ interface DeckWord {
 }
 
 const DECKS: { key: DeckState; title: string; subtitle: string }[] = [
+  { key: "red",    title: "Unknown",  subtitle: "Just saved" },
   { key: "orange", title: "Learning", subtitle: "Actively reviewing" },
   { key: "green",  title: "Known",    subtitle: "Acquired words" },
 ];
@@ -54,7 +55,7 @@ export default function Vocabulary() {
             id: g.id,
             word: g.word,
             translation: g.translation,
-            state: "orange",
+            state: "red",
           }));
         if (alive) {
           setWords(guest);
@@ -78,7 +79,7 @@ export default function Vocabulary() {
   }, [user, learningLanguage]);
 
   const counts = useMemo(() => {
-    const c: Record<DeckState, number> = { orange: 0, green: 0 };
+    const c: Record<DeckState, number> = { red: 0, orange: 0, green: 0 };
     for (const w of words) c[w.state] = (c[w.state] ?? 0) + 1;
     return c;
   }, [words]);
@@ -120,7 +121,7 @@ export default function Vocabulary() {
 
       <div className="max-w-5xl mx-auto px-6 py-8 space-y-8">
         {/* Three-state overview: Known · Learning · Unassessed */}
-        <section className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <section className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {DECKS.map((d, i) => {
             const meta = STATE_META[d.key];
             return (
@@ -187,7 +188,7 @@ export default function Vocabulary() {
         {/* Filter + search */}
         <section className="space-y-4">
           <div className="flex flex-wrap items-center gap-2">
-            {(["all", "orange", "green"] as const).map((f) => (
+            {(["all", "red", "orange", "green"] as const).map((f) => (
               <button
                 key={f}
                 onClick={() => setFilter(f)}
