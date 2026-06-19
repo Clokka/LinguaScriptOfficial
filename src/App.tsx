@@ -28,6 +28,7 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Pricing from "./pages/Pricing";
 import CheckoutReturn from "./pages/CheckoutReturn";
+import Comprehension from "./pages/Comprehension";
 
 const queryClient = new QueryClient();
 
@@ -58,6 +59,7 @@ const App = () => (
                 <Route path="/unsubscribe" element={<Unsubscribe />} />
                 <Route path="/pricing" element={<Pricing />} />
                 <Route path="/checkout/return" element={<CheckoutReturn />} />
+                <Route path="/comprehension" element={<Comprehension />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
               <TourOverlay />
