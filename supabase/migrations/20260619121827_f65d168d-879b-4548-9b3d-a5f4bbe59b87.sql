@@ -1,0 +1,1 @@
+ALTER TABLE public.saved_words ALTER COLUMN state SET DEFAULT 'red';
