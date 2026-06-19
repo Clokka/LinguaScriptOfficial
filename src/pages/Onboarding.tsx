@@ -88,16 +88,15 @@ const Onboarding = () => {
   const canContinue = useMemo(() => {
     if (step === 0) return true; // 3-pillars intro
     if (step === 1) return !!native && !!target && native !== target && !!level && level !== "below";
-    if (step === 2) return goalSaved;
-    if (step === 3) return dualClicked;
-    if (step === 7) return interests.length >= 1;
+    if (step === 2) return interests.length >= 1;
+    if (step === 3) return goalSaved;
+    if (step === 4) return dualClicked;
     return true;
   }, [step, native, target, level, goalSaved, dualClicked, interests]);
 
   const toggleInterest = (id: string) => {
     setInterests((curr) => {
       if (curr.includes(id)) return curr.filter((x) => x !== id);
-      if (curr.length >= MAX_INTERESTS) return curr;
       return [...curr, id];
     });
   };
@@ -113,6 +112,9 @@ const Onboarding = () => {
         daily_word_goal: wordGoalForVideos(videoGoal),
       } as any).eq("user_id", user.id);
       setLearningLanguage(target);
+    }
+    if (step === 2 && user) {
+      await supabase.from("profiles").update({ interests } as any).eq("user_id", user.id);
     }
     if (step < totalSteps - 1) {
       setStep((s) => s + 1);
