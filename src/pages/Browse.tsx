@@ -104,6 +104,7 @@ const Browse = () => {
   const [displayName, setDisplayName] = useState("");
   const [isPublic, setIsPublic] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
+  const [interests, setInterests] = useState<string[]>([]);
 
   // Calendar state
   const [activityData, setActivityData] = useState<ActivityDay[]>([]);
@@ -161,6 +162,7 @@ const Browse = () => {
       setSettingsLearning(data.learning_language || "fr");
       setDisplayName(data.display_name || "");
       setIsPublic(!!(data as any).is_public);
+      setInterests(Array.isArray((data as any).interests) ? (data as any).interests : []);
     }
   }, [user]);
 
