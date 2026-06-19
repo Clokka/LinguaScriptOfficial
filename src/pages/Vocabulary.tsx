@@ -55,7 +55,7 @@ export default function Vocabulary() {
             id: g.id,
             word: g.word,
             translation: g.translation,
-            state: "orange",
+            state: "red",
           }));
         if (alive) {
           setWords(guest);
