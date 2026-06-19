@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import { WordPopup } from "./WordPopup";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,10 +8,10 @@ import { getLanguageLabel } from "@/lib/languages";
 import {
   DeckState,
   SavedWordLite,
-  STATE_META,
   loadDeckIndex,
   normalizeToken,
 } from "@/lib/vocab";
+import { greenScoreForLine } from "@/lib/understanding";
 
 interface Word {
   id: string;
@@ -32,10 +32,12 @@ interface SubtitleOverlayProps {
   contentLanguage?: string;
 }
 
-const STATE_TEXT: Record<DeckState, string> = {
-  red: "text-red-400",
-  orange: "text-amber-400",
-  green: "text-emerald-400",
+// LinguaScript visual identity: green words = understood (dim, low-attention);
+// every other token = unknown (bright white, high-attention). Orange/red flash
+// only briefly via a small status dot for cards the learner is actively
+// reviewing — they should NOT compete with the green-vs-white contrast.
+const STATE_TEXT: Partial<Record<DeckState, string>> = {
+  green: "text-emerald-400/70",
 };
 
 export const SubtitleOverlay = ({
@@ -114,6 +116,12 @@ export const SubtitleOverlay = ({
     }
   };
 
+  // Per-line green % using the weighted understanding model.
+  const greenScore = useMemo(
+    () => greenScoreForLine(primaryText, effectiveLang, deck),
+    [primaryText, effectiveLang, deck],
+  );
+
   const renderWords = () => {
     const textWords = primaryText.split(" ");
     return textWords.map((text, index) => {
@@ -121,14 +129,16 @@ export const SubtitleOverlay = ({
         (w) => w.text.toLowerCase() === text.toLowerCase().replace(/[.,!?]/g, "")
       );
       const deckState = stateForToken(text);
-      const dotClass = deckState ? STATE_META[deckState].dot : undefined;
-      const colorClass = deckState ? STATE_TEXT[deckState] : undefined;
+      const isGreen = deckState === "green";
+      const colorClass = isGreen
+        ? STATE_TEXT.green
+        : "text-white font-medium"; // unknown / learning → bright, draws the eye
       return (
         <span
           key={index}
           data-tour={wordData ? "subtitle-word" : undefined}
           className={cn(
-            "subtitle-word inline-flex items-baseline gap-1",
+            "subtitle-word inline-flex items-baseline",
             wordData && "cursor-pointer",
             colorClass,
           )}
@@ -136,9 +146,6 @@ export const SubtitleOverlay = ({
             if (wordData) handleWordClick(wordData, e);
           }}
         >
-          {dotClass && (
-            <span className={cn("inline-block w-1.5 h-1.5 rounded-full mr-0.5 align-middle", dotClass)} />
-          )}
           {text}
           {index < textWords.length - 1 && " "}
         </span>
@@ -150,11 +157,16 @@ export const SubtitleOverlay = ({
     <>
       <div
         className={cn(
-          "glass-panel-strong px-8 py-4 text-center max-w-4xl mx-auto",
+          "glass-panel-strong px-8 py-4 text-center max-w-4xl mx-auto relative",
           className
         )}
       >
-        <p className="subtitle-text text-foreground leading-relaxed">
+        {greenScore.totalCount > 0 && (
+          <div className="absolute -top-3 right-4 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 backdrop-blur">
+            {greenScore.pct}% green
+          </div>
+        )}
+        <p className="subtitle-text leading-relaxed">
           {renderWords()}
         </p>
         {mode === "dual" && secondaryText && (
@@ -163,6 +175,7 @@ export const SubtitleOverlay = ({
           </p>
         )}
       </div>
+
 
       {selectedWord && (
         <WordPopup

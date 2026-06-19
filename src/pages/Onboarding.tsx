@@ -23,7 +23,9 @@ import { DailyGoalPicker } from "@/components/DailyGoalPicker";
 import { wordGoalForVideos } from "@/lib/progressStats";
 import { INTERESTS, MAX_INTERESTS } from "@/lib/interests";
 
-const LEVELS = ["below", "A1", "A2", "B1", "B2", "C1", "C2"] as const;
+// LinguaScript targets learners beyond beginner. A1 learners are gated to
+// "below" with a suggestion to start elsewhere; we don't offer A1 or C2.
+const LEVELS = ["below", "A2", "B1", "B2", "C1"] as const;
 type Level = typeof LEVELS[number];
 
 const Onboarding = () => {
