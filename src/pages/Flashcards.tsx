@@ -97,8 +97,7 @@ const Flashcards = () => {
   }, [award]);
 
   const counts: Record<DeckKey, number> = {
-    red: allCards.filter((c) => (c.state ?? "red") === "red").length,
-    orange: allCards.filter((c) => c.state === "orange").length,
+    orange: allCards.filter((c) => (c.state ?? "orange") !== "green").length,
     green: allCards.filter((c) => c.state === "green").length,
   };
 
@@ -107,7 +106,9 @@ const Flashcards = () => {
   // state_changed_at desc order) so the user can always reach the
   // "review-close" step regardless of how big their real deck is.
   const openDeck = (deck: DeckKey) => {
-    const cards = allCards.filter((c) => (c.state ?? "red") === deck);
+    const cards = allCards.filter((c) =>
+      deck === "green" ? c.state === "green" : (c.state ?? "orange") !== "green",
+    );
     setReviewCards(tourActive ? cards.slice(0, 1) : cards);
     setActiveDeck(deck);
   };
