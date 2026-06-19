@@ -38,12 +38,11 @@ interface StarterDeck {
   card_count: number;
 }
 
-type DeckKey = "red" | "orange" | "green";
+type DeckKey = "orange" | "green";
 
 const DECK_CONFIG: Record<DeckKey, { label: string; subtitle: string; color: string; emoji: string; cta: string }> = {
-  red:    { label: "NEW",      subtitle: "Newly saved words",     color: "#FF3B30", emoji: "🔴", cta: "Review" },
-  orange: { label: "LEARNING", subtitle: "Strengthening words",   color: "#FF8A00", emoji: "🟠", cta: "Review" },
-  green:  { label: "LEARNED",  subtitle: "Mastered words",        color: "#34C759", emoji: "🟢", cta: "Browse" },
+  orange: { label: "LEARNING", subtitle: "Strengthening words", color: "#FF8A00", emoji: "🟠", cta: "Review" },
+  green:  { label: "KNOWN",    subtitle: "Acquired words",      color: "#34C759", emoji: "🟢", cta: "Browse" },
 };
 
 const Flashcards = () => {
