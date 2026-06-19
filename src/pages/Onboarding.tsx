@@ -480,6 +480,48 @@ const Onboarding = () => {
                 </div>
               </Card>
             )}
+            {step === 7 && (
+              <Card>
+                <Eyebrow icon={<Sparkles className="w-3.5 h-3.5" />}>One last thing</Eyebrow>
+                <Title>What do you enjoy watching?</Title>
+                <Sub>
+                  Pick up to {MAX_INTERESTS}. We'll use these — together with your learning language — to
+                  surface YouTube videos you'll actually want to watch.
+                </Sub>
+
+                <div className="mt-8 flex flex-wrap gap-2">
+                  {INTERESTS.map((interest) => {
+                    const active = interests.includes(interest.id);
+                    const disabled = !active && interests.length >= MAX_INTERESTS;
+                    return (
+                      <button
+                        key={interest.id}
+                        type="button"
+                        onClick={() => toggleInterest(interest.id)}
+                        disabled={disabled}
+                        className={`px-4 h-11 rounded-full border text-sm font-medium transition flex items-center gap-2 ${
+                          active
+                            ? "bg-orange-500 border-orange-500 text-white shadow-[0_6px_18px_-6px_rgba(249,115,22,0.6)]"
+                            : disabled
+                              ? "bg-neutral-50 border-neutral-200 text-neutral-400 cursor-not-allowed"
+                              : "bg-white border-orange-100 text-neutral-700 hover:border-orange-300"
+                        }`}
+                      >
+                        <span className="text-base leading-none">{interest.emoji}</span>
+                        {interest.label}
+                        {active && <Check className="w-4 h-4" />}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <p className="mt-6 text-xs text-neutral-500">
+                  {interests.length === 0
+                    ? "Pick at least one to continue."
+                    : `${interests.length} of ${MAX_INTERESTS} selected.`}
+                </p>
+              </Card>
+            )}
           </motion.div>
         </AnimatePresence>
 
