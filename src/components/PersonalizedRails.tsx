@@ -107,10 +107,15 @@ export const PersonalizedRails = ({
         if (!cancelled) setContinueItems((data as any) || []);
       }
 
-      const [rec, tr, bg] = await Promise.all([
+      // Top-level rec rail uses a broad blend of selected interests so it feels
+      // like a personalised homepage rather than a single-topic feed.
+      const blendQuery = selectedInterests.slice(0, 3).map((i) => i.query).join(" OR ");
+      const blendKey = selectedInterests.slice(0, 3).map((i) => i.id).join("+") || "default";
+
+      const [rec, tr, bg, ...perInterest] = await Promise.all([
         cachedSearch(
-          `rails:rec:${learningLanguage}:${focusInterest.id}`,
-          `${langLabel} ${focusInterest.query}`,
+          `rails:rec:${learningLanguage}:${blendKey}`,
+          `${langLabel} ${blendQuery}`,
           learningLanguage,
         ),
         cachedSearch(
@@ -123,6 +128,13 @@ export const PersonalizedRails = ({
           `${langLabel} for beginners slow easy`,
           learningLanguage,
         ),
+        ...interestRailDefs.map((i) =>
+          cachedSearch(
+            `rails:interest:${learningLanguage}:${i.id}`,
+            `${langLabel} ${i.query}`,
+            learningLanguage,
+          ),
+        ),
       ]);
       if (cancelled) return;
       setRecommended(rec.slice(0, 12));
@@ -132,11 +144,14 @@ export const PersonalizedRails = ({
           ? bg.filter((x) => x.difficulty === "beginner").slice(0, 12)
           : bg.slice(0, 12),
       );
+      const perMap: Record<string, YTItem[]> = {};
+      interestRailDefs.forEach((i, idx) => { perMap[i.id] = (perInterest[idx] || []).slice(0, 12); });
+      setInterestRails(perMap);
       setLoading(false);
     };
     void load();
     return () => { cancelled = true; };
-  }, [user, learningLanguage, focusInterest.id, langLabel]);
+  }, [user, learningLanguage, langLabel, interestRailDefs, selectedInterests]);
 
   const pick = async (it: YTItem) => {
     if (importing || pendingId) return;
