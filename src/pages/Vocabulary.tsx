@@ -188,7 +188,7 @@ export default function Vocabulary() {
         {/* Filter + search */}
         <section className="space-y-4">
           <div className="flex flex-wrap items-center gap-2">
-            {(["all", "orange", "green"] as const).map((f) => (
+            {(["all", "red", "orange", "green"] as const).map((f) => (
               <button
                 key={f}
                 onClick={() => setFilter(f)}
