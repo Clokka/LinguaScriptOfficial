@@ -66,6 +66,7 @@ const App = () => (
               <DailyBriefing />
               <StreakCelebrationModal />
               <XpToast />
+              <InterestsPromptModal />
             </TourProvider>
           </XpProvider>
         </BrowserRouter>
