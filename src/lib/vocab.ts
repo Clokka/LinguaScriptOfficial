@@ -100,23 +100,22 @@ export async function loadDeckIndex(
 }
 
 /**
- * Compute the next deck state from a flashcard outcome.
+ * Forward-only progression: cards NEVER move backwards.
  *  - Correct:   red→orange, orange→green, green stays.
- *  - Incorrect: green→orange, orange→red, red stays.
+ *  - Incorrect: card stays in its current deck (no demotion).
+ *
+ * LinguaScript mission: Turn the Language Green. Every successful interaction
+ * is forward progress; a single forgotten word never undoes prior effort.
  */
 export function nextState(
   current: DeckState,
   _timesCorrectAfter: number,
   correct: boolean,
 ): DeckState {
-  if (correct) {
-    if (current === "green") return "green";
-    if (current === "red") return "orange";
-    return "green";
-  }
-  if (current === "green") return "orange";
-  if (current === "orange") return "red";
-  return "red";
+  if (!correct) return current;
+  if (current === "red") return "orange";
+  if (current === "orange") return "green";
+  return "green";
 }
 
 /** Log a flashcard review without controlling SRS deck transitions. */
