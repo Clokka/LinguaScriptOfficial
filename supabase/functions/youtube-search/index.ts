@@ -76,12 +76,13 @@ Deno.serve(async (req) => {
       }))
       .filter((x: any) => x.videoId);
 
-    // 2) videos.list for contentDetails (duration). One batched call, cheap.
+    // 2) videos.list for contentDetails (duration) + snippet (language metadata).
     let durations = new Map<string, number>();
+    let audioLangs = new Map<string, string>();
     if (base.length) {
       const idsCsv = base.map((b: any) => b.videoId).join(",");
       const vidUrl = new URL("https://www.googleapis.com/youtube/v3/videos");
-      vidUrl.searchParams.set("part", "contentDetails");
+      vidUrl.searchParams.set("part", "contentDetails,snippet");
       vidUrl.searchParams.set("id", idsCsv);
       vidUrl.searchParams.set("key", apiKey);
       try {
@@ -90,19 +91,35 @@ Deno.serve(async (req) => {
           const vidData = await vidRes.json();
           for (const item of vidData.items || []) {
             durations.set(item.id, isoDurationToSeconds(item.contentDetails?.duration));
+            const al = item.snippet?.defaultAudioLanguage || item.snippet?.defaultLanguage || "";
+            if (al) audioLangs.set(item.id, String(al).toLowerCase());
           }
         }
       } catch (_) { /* non-fatal */ }
     }
 
-    const items = base.map((b: any) => {
+    const langPrefix = (lang || "").toLowerCase().slice(0, 2);
+
+    let items = base.map((b: any) => {
       const seconds = durations.get(b.videoId) || 0;
+      const audioLang = audioLangs.get(b.videoId) || "";
       return {
         ...b,
         durationSeconds: seconds,
+        audioLang,
         difficulty: estimateDifficulty(b.title || "", b.channel || "", seconds),
       };
     });
+
+    // Language purity: when YouTube tells us a video's audio language and it
+    // doesn't match the learner's target, drop it. We keep videos with no
+    // declared language (most of YouTube) and rely on relevanceLanguage there.
+    if (langPrefix) {
+      items = items.filter((it: any) => {
+        if (!it.audioLang) return true;
+        return it.audioLang.startsWith(langPrefix);
+      });
+    }
 
     return new Response(JSON.stringify({ items }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

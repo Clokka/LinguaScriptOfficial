@@ -77,14 +77,18 @@ export const PersonalizedRails = ({
 
   const langLabel = useMemo(() => getLanguageLabel(learningLanguage), [learningLanguage]);
 
-  // Pick a deterministic "interest of the day" so the rail is stable per session.
-  const focusInterest = useMemo(() => {
-    const pool = (interests && interests.length > 0)
+  // Resolve selected interests into ordered Interest objects (deterministic).
+  const selectedInterests = useMemo(() => {
+    const ids = (interests && interests.length > 0)
       ? interests
-      : INTERESTS.slice(0, 6).map((i) => i.id);
-    const idx = new Date().getDate() % pool.length;
-    return interestById(pool[idx]) || INTERESTS[0];
+      : INTERESTS.slice(0, 3).map((i) => i.id);
+    return ids.map((id) => interestById(id)).filter(Boolean) as typeof INTERESTS;
   }, [interests]);
+
+  // Per-interest rails: cap to 3 so we don't burn YouTube quota.
+  const interestRailDefs = useMemo(() => selectedInterests.slice(0, 3), [selectedInterests]);
+
+  const [interestRails, setInterestRails] = useState<Record<string, YTItem[]>>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -103,10 +107,15 @@ export const PersonalizedRails = ({
         if (!cancelled) setContinueItems((data as any) || []);
       }
 
-      const [rec, tr, bg] = await Promise.all([
+      // Top-level rec rail uses a broad blend of selected interests so it feels
+      // like a personalised homepage rather than a single-topic feed.
+      const blendQuery = selectedInterests.slice(0, 3).map((i) => i.query).join(" OR ");
+      const blendKey = selectedInterests.slice(0, 3).map((i) => i.id).join("+") || "default";
+
+      const [rec, tr, bg, ...perInterest] = await Promise.all([
         cachedSearch(
-          `rails:rec:${learningLanguage}:${focusInterest.id}`,
-          `${langLabel} ${focusInterest.query}`,
+          `rails:rec:${learningLanguage}:${blendKey}`,
+          `${langLabel} ${blendQuery}`,
           learningLanguage,
         ),
         cachedSearch(
@@ -119,6 +128,13 @@ export const PersonalizedRails = ({
           `${langLabel} for beginners slow easy`,
           learningLanguage,
         ),
+        ...interestRailDefs.map((i) =>
+          cachedSearch(
+            `rails:interest:${learningLanguage}:${i.id}`,
+            `${langLabel} ${i.query}`,
+            learningLanguage,
+          ),
+        ),
       ]);
       if (cancelled) return;
       setRecommended(rec.slice(0, 12));
@@ -128,11 +144,14 @@ export const PersonalizedRails = ({
           ? bg.filter((x) => x.difficulty === "beginner").slice(0, 12)
           : bg.slice(0, 12),
       );
+      const perMap: Record<string, YTItem[]> = {};
+      interestRailDefs.forEach((i, idx) => { perMap[i.id] = (perInterest[idx] || []).slice(0, 12); });
+      setInterestRails(perMap);
       setLoading(false);
     };
     void load();
     return () => { cancelled = true; };
-  }, [user, learningLanguage, focusInterest.id, langLabel]);
+  }, [user, learningLanguage, langLabel, interestRailDefs, selectedInterests]);
 
   const pick = async (it: YTItem) => {
     if (importing || pendingId) return;
@@ -187,12 +206,24 @@ export const PersonalizedRails = ({
       )}
 
       {recommended.length > 0 && (
-        <Rail title={`Recommended for you · ${focusInterest.emoji} ${focusInterest.label}`}>
+        <Rail title={`🎯 Recommended for you in ${langLabel}`}>
           {recommended.map((it) => (
             <YTCard key={it.videoId} it={it} onPick={pick} loading={pendingId === it.videoId} />
           ))}
         </Rail>
       )}
+
+      {interestRailDefs.map((i) => {
+        const items = interestRails[i.id] || [];
+        if (items.length === 0) return null;
+        return (
+          <Rail key={i.id} title={`${i.emoji} Because you like ${i.label}`}>
+            {items.map((it) => (
+              <YTCard key={it.videoId} it={it} onPick={pick} loading={pendingId === it.videoId} />
+            ))}
+          </Rail>
+        );
+      })}
 
       {trending.length > 0 && (
         <Rail title={`Trending in ${langLabel}`}>
