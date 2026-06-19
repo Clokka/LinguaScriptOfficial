@@ -10,6 +10,7 @@ import { TourOverlay } from "@/components/TourOverlay";
 import { DailyBriefing } from "@/components/DailyBriefing";
 import { StreakCelebrationModal } from "@/components/StreakCelebrationModal";
 import { XpToast } from "@/components/XpToast";
+import { InterestsPromptModal } from "@/components/InterestsPromptModal";
 import Landing from "./pages/Landing";
 import LandingPage2 from "./pages/LandingPage2";
 import Browse from "./pages/Browse";
@@ -65,6 +66,7 @@ const App = () => (
               <DailyBriefing />
               <StreakCelebrationModal />
               <XpToast />
+              <InterestsPromptModal />
             </TourProvider>
           </XpProvider>
         </BrowserRouter>
