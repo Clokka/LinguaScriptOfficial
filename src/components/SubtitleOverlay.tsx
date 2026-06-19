@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import { WordPopup } from "./WordPopup";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,10 +8,10 @@ import { getLanguageLabel } from "@/lib/languages";
 import {
   DeckState,
   SavedWordLite,
-  STATE_META,
   loadDeckIndex,
   normalizeToken,
 } from "@/lib/vocab";
+import { greenScoreForLine } from "@/lib/understanding";
 
 interface Word {
   id: string;
@@ -32,10 +32,12 @@ interface SubtitleOverlayProps {
   contentLanguage?: string;
 }
 
-const STATE_TEXT: Record<DeckState, string> = {
-  red: "text-red-400",
-  orange: "text-amber-400",
-  green: "text-emerald-400",
+// LinguaScript visual identity: green words = understood (dim, low-attention);
+// every other token = unknown (bright white, high-attention). Orange/red flash
+// only briefly via a small status dot for cards the learner is actively
+// reviewing — they should NOT compete with the green-vs-white contrast.
+const STATE_TEXT: Partial<Record<DeckState, string>> = {
+  green: "text-emerald-400/70",
 };
 
 export const SubtitleOverlay = ({
