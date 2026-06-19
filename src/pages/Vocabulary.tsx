@@ -121,7 +121,7 @@ export default function Vocabulary() {
 
       <div className="max-w-5xl mx-auto px-6 py-8 space-y-8">
         {/* Three-state overview: Known · Learning · Unassessed */}
-        <section className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <section className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {DECKS.map((d, i) => {
             const meta = STATE_META[d.key];
             return (
