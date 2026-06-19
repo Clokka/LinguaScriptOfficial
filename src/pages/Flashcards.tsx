@@ -38,9 +38,10 @@ interface StarterDeck {
   card_count: number;
 }
 
-type DeckKey = "orange" | "green";
+type DeckKey = "red" | "orange" | "green";
 
 const DECK_CONFIG: Record<DeckKey, { label: string; subtitle: string; color: string; emoji: string; cta: string }> = {
+  red:    { label: "UNKNOWN",  subtitle: "Newly saved words",   color: "#FF3B30", emoji: "🔴", cta: "Review" },
   orange: { label: "LEARNING", subtitle: "Strengthening words", color: "#FF8A00", emoji: "🟠", cta: "Review" },
   green:  { label: "KNOWN",    subtitle: "Acquired words",      color: "#34C759", emoji: "🟢", cta: "Browse" },
 };
