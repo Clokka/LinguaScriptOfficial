@@ -273,6 +273,49 @@ const Onboarding = () => {
 
             {step === 2 && (
               <Card>
+                <Eyebrow icon={<Sparkles className="w-3.5 h-3.5" />}>Personalise your feed</Eyebrow>
+                <Title>What do you enjoy watching?</Title>
+                <Sub>
+                  Select all that apply. We'll mix these with your learning language to surface
+                  YouTube videos you'll actually want to watch.
+                </Sub>
+
+                <div className="mt-8 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                  {INTERESTS.map((interest) => {
+                    const active = interests.includes(interest.id);
+                    return (
+                      <button
+                        key={interest.id}
+                        type="button"
+                        onClick={() => toggleInterest(interest.id)}
+                        className={`relative rounded-2xl border p-4 flex flex-col items-center justify-center gap-2 transition text-center min-h-[104px] ${
+                          active
+                            ? "bg-orange-500 border-orange-500 text-white shadow-[0_10px_24px_-10px_rgba(249,115,22,0.7)] scale-[1.02]"
+                            : "bg-white border-orange-100 text-neutral-800 hover:border-orange-300 hover:-translate-y-0.5"
+                        }`}
+                      >
+                        {active && (
+                          <span className="absolute top-2 right-2 w-5 h-5 rounded-full bg-white text-orange-500 flex items-center justify-center">
+                            <Check className="w-3.5 h-3.5" strokeWidth={3} />
+                          </span>
+                        )}
+                        <span className="text-3xl leading-none">{interest.emoji}</span>
+                        <span className="text-sm font-medium">{interest.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <p className="mt-6 text-xs text-neutral-500">
+                  {interests.length === 0
+                    ? "Pick at least one to continue."
+                    : `${interests.length} selected.`}
+                </p>
+              </Card>
+            )}
+
+            {step === 3 && (
+              <Card>
                 <Eyebrow icon={<Sparkles className="w-3.5 h-3.5" />}>Card 1 of 5</Eyebrow>
                 <Title>Welcome to the Lingua Universe 🌍</Title>
                 <Sub>We're here to support your language learning goals.</Sub>
@@ -335,7 +378,7 @@ const Onboarding = () => {
               </Card>
             )}
 
-            {step === 3 && (
+            {step === 4 && (
               <Card>
                 <Eyebrow icon={<Subtitles className="w-3.5 h-3.5" />}>Card 2 of 5</Eyebrow>
                 <Title>Now learn by doing.</Title>
@@ -343,20 +386,17 @@ const Onboarding = () => {
                   Watch the 30-second intro, then enter the guided demo. A cursor will walk you through the entire Linguascript loop on a real video.
                 </Sub>
 
-                {/* Inline intro video — clicking anywhere acts as "Enter the demo". */}
                 {(() => {
                   const trainingYtId = TOUR_TRAINING_BY_LANG[target] ?? TOUR_TRAINING_YT_ID;
                   const enterDemo = async () => {
                     if (enteringDemo) return;
                     setEnteringDemo(true);
-                    // 1) Try the language-specific training YouTube ID.
                     let { data: film } = await supabase
                       .from("films")
                       .select("id")
                       .or(`url.ilike.%${trainingYtId}%`)
                       .limit(1)
                       .maybeSingle();
-                    // 2) Fallback: any public film in the chosen language.
                     if (!film?.id) {
                       const { data: anyFilm } = await supabase
                         .from("films")
@@ -395,7 +435,6 @@ const Onboarding = () => {
                           className="w-full h-full pointer-events-none"
                           frameBorder={0}
                         />
-                        {/* Click-blocker overlay — keeps users in-app instead of bouncing to YouTube. */}
                         <div className="absolute inset-0 bg-transparent group-hover:bg-black/10 transition-colors" aria-hidden />
                       </div>
 
@@ -417,7 +456,7 @@ const Onboarding = () => {
               </Card>
             )}
 
-            {step === 4 && (
+            {step === 5 && (
               <Card>
                 <Eyebrow icon={<Trophy className="w-3.5 h-3.5" />}>Card 3 of 5</Eyebrow>
                 <Title>Catalogue & XP</Title>
@@ -438,7 +477,7 @@ const Onboarding = () => {
               </Card>
             )}
 
-            {step === 5 && (
+            {step === 6 && (
               <Card>
                 <Eyebrow icon={<Brain className="w-3.5 h-3.5" />}>Card 4 of 5</Eyebrow>
                 <Title>Flashcards & spaced repetition</Title>
@@ -462,7 +501,7 @@ const Onboarding = () => {
               </Card>
             )}
 
-            {step === 6 && (
+            {step === 7 && (
               <Card>
                 <Eyebrow icon={<Mic className="w-3.5 h-3.5" />}>Card 5 of 5</Eyebrow>
                 <Title>Learn faster</Title>
@@ -480,48 +519,6 @@ const Onboarding = () => {
                     body="Click any word for a live translation, native pronunciation and a one-tap add to your flashcard deck."
                   />
                 </div>
-              </Card>
-            )}
-            {step === 7 && (
-              <Card>
-                <Eyebrow icon={<Sparkles className="w-3.5 h-3.5" />}>One last thing</Eyebrow>
-                <Title>What do you enjoy watching?</Title>
-                <Sub>
-                  Pick up to {MAX_INTERESTS}. We'll use these — together with your learning language — to
-                  surface YouTube videos you'll actually want to watch.
-                </Sub>
-
-                <div className="mt-8 flex flex-wrap gap-2">
-                  {INTERESTS.map((interest) => {
-                    const active = interests.includes(interest.id);
-                    const disabled = !active && interests.length >= MAX_INTERESTS;
-                    return (
-                      <button
-                        key={interest.id}
-                        type="button"
-                        onClick={() => toggleInterest(interest.id)}
-                        disabled={disabled}
-                        className={`px-4 h-11 rounded-full border text-sm font-medium transition flex items-center gap-2 ${
-                          active
-                            ? "bg-orange-500 border-orange-500 text-white shadow-[0_6px_18px_-6px_rgba(249,115,22,0.6)]"
-                            : disabled
-                              ? "bg-neutral-50 border-neutral-200 text-neutral-400 cursor-not-allowed"
-                              : "bg-white border-orange-100 text-neutral-700 hover:border-orange-300"
-                        }`}
-                      >
-                        <span className="text-base leading-none">{interest.emoji}</span>
-                        {interest.label}
-                        {active && <Check className="w-4 h-4" />}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <p className="mt-6 text-xs text-neutral-500">
-                  {interests.length === 0
-                    ? "Pick at least one to continue."
-                    : `${interests.length} of ${MAX_INTERESTS} selected.`}
-                </p>
               </Card>
             )}
           </motion.div>
