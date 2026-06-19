@@ -112,6 +112,18 @@ const Onboarding = () => {
         daily_word_goal: wordGoalForVideos(videoGoal),
       } as any).eq("user_id", user.id);
       setLearningLanguage(target);
+      // Pre-mark the learner's high-frequency "known" vocabulary based on level
+      // so a B1/B2 learner doesn't see a sea of unassessed words on day one.
+      if (level && level !== "below") {
+        try {
+          await supabase.rpc("seed_known_vocabulary" as any, {
+            _language: target,
+            _level: level,
+          });
+        } catch (e) {
+          console.warn("seed_known_vocabulary failed", e);
+        }
+      }
     }
     if (step === 2 && user) {
       await supabase.from("profiles").update({ interests } as any).eq("user_id", user.id);
