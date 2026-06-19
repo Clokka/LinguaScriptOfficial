@@ -54,7 +54,7 @@ const StarterDeck = () => {
       return null;
     }
     if (!deck) return null;
-    // Upsert any missing cards into saved_words as 'orange' (learning)
+    // Upsert any missing cards into saved_words as 'red' (just saved)
     const missing = cards.filter((c) => !savedByWord.has(normalizeToken(c.word)));
     if (missing.length > 0) {
       const rows = missing.map((c) => ({
@@ -65,7 +65,7 @@ const StarterDeck = () => {
         ipa: c.ipa || "",
         context: "",
         language: deck.language,
-        state: "orange" as DeckState,
+        state: "red" as DeckState,
       }));
       await supabase.from("saved_words").upsert(rows as any, { onConflict: "user_id,word,language", ignoreDuplicates: true });
     }
