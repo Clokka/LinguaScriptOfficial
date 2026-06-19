@@ -122,7 +122,7 @@ const Flashcards = () => {
     context: c.context,
     contextTranslation: c.contextTranslation,
     language: c.language,
-    state: (c.state ?? "red") as DeckState,
+    state: ((c.state ?? "orange") === "green" ? "green" : "orange") as DeckState,
     times_correct: c.times_correct ?? 0,
   }));
 
