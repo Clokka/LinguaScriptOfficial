@@ -319,8 +319,10 @@ export type Database = {
       }
       films: {
         Row: {
+          category: string | null
           created_at: string
           created_by: string | null
+          difficulty: number | null
           id: string
           is_public: boolean
           language: string | null
@@ -329,8 +331,10 @@ export type Database = {
           url: string
         }
         Insert: {
+          category?: string | null
           created_at?: string
           created_by?: string | null
+          difficulty?: number | null
           id?: string
           is_public?: boolean
           language?: string | null
@@ -339,8 +343,10 @@ export type Database = {
           url: string
         }
         Update: {
+          category?: string | null
           created_at?: string
           created_by?: string | null
+          difficulty?: number | null
           id?: string
           is_public?: boolean
           language?: string | null
@@ -474,6 +480,7 @@ export type Database = {
           username: string | null
           video_credit_date: string | null
           video_credit_remaining: number
+          watch_progress: Json
           xp_level: number
           xp_total: number
         }
@@ -519,6 +526,7 @@ export type Database = {
           username?: string | null
           video_credit_date?: string | null
           video_credit_remaining?: number
+          watch_progress?: Json
           xp_level?: number
           xp_total?: number
         }
@@ -564,6 +572,7 @@ export type Database = {
           username?: string | null
           video_credit_date?: string | null
           video_credit_remaining?: number
+          watch_progress?: Json
           xp_level?: number
           xp_total?: number
         }
@@ -930,6 +939,62 @@ export type Database = {
             columns: ["word_id"]
             isOneToOne: false
             referencedRelation: "core_vocabulary"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      watch_history: {
+        Row: {
+          completion_pct: number
+          created_at: string
+          duration_seconds: number
+          film_id: string | null
+          id: string
+          language: string | null
+          position_seconds: number
+          thumbnail_url: string | null
+          title: string | null
+          updated_at: string
+          user_id: string
+          video_id: string
+          watched_at: string
+        }
+        Insert: {
+          completion_pct?: number
+          created_at?: string
+          duration_seconds?: number
+          film_id?: string | null
+          id?: string
+          language?: string | null
+          position_seconds?: number
+          thumbnail_url?: string | null
+          title?: string | null
+          updated_at?: string
+          user_id: string
+          video_id: string
+          watched_at?: string
+        }
+        Update: {
+          completion_pct?: number
+          created_at?: string
+          duration_seconds?: number
+          film_id?: string | null
+          id?: string
+          language?: string | null
+          position_seconds?: number
+          thumbnail_url?: string | null
+          title?: string | null
+          updated_at?: string
+          user_id?: string
+          video_id?: string
+          watched_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "watch_history_film_id_fkey"
+            columns: ["film_id"]
+            isOneToOne: false
+            referencedRelation: "films"
             referencedColumns: ["id"]
           },
         ]

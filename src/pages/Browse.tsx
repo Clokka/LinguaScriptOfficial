@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   Play,
   Search,
@@ -43,6 +43,7 @@ import { ProgressDashboard } from "@/components/ProgressDashboard";
 import { ActivityCalendarDark } from "@/components/ActivityCalendarDark";
 import { ActiveLanguageBadge } from "@/components/ActiveLanguageBadge";
 import { INTERESTS, type Interest } from "@/lib/interests";
+import { PersonalizedRails } from "@/components/PersonalizedRails";
 
 const INTERESTS_BY_ID: Record<string, Interest> = Object.fromEntries(
   INTERESTS.map((i) => [i.id, i]),
@@ -92,12 +93,17 @@ function formatDuration(seconds: number): string {
 
 const Browse = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, loading: authLoading } = useAuth();
   const { learningLanguage, setLearningLanguage } = useLanguage();
   const { toast } = useToast();
   const tour = useTour();
 
-  const [activeTab, setActiveTab] = useState<TabKey>("home");
+  const initialTab: TabKey = location.pathname.startsWith("/discover") ? "discover" : "home";
+  const [activeTab, setActiveTab] = useState<TabKey>(initialTab);
+  useEffect(() => {
+    if (location.pathname.startsWith("/discover")) setActiveTab("discover");
+  }, [location.pathname]);
   const [lessons, setLessons] = useState<UserLesson[]>([]);
   const [loadingLessons, setLoadingLessons] = useState(true);
   const [pasteUrl, setPasteUrl] = useState("");
@@ -511,6 +517,8 @@ const Browse = () => {
               navigate={navigate}
               discoverFilms={discoverFilms}
               catalogRows={catalogRows}
+              interests={interests}
+              onWatchYoutube={importYoutubeId}
             />
           )}
           {activeTab === "discover" && (
@@ -627,7 +635,7 @@ const CatalogStrip = ({ title, films, navigate }: { title: string; films: any[];
 
 /* ── HOME TAB ── */
 const HomeTab = ({
-  lessons, loading, pasteUrl, setPasteUrl, creating, createLesson, deleteLesson, navigate, discoverFilms, catalogRows,
+  lessons, loading, pasteUrl, setPasteUrl, creating, createLesson, deleteLesson, navigate, discoverFilms, catalogRows, interests, onWatchYoutube,
 }: {
   lessons: UserLesson[];
   loading: boolean;
@@ -639,8 +647,13 @@ const HomeTab = ({
   navigate: (path: string) => void;
   discoverFilms: any[];
   catalogRows: { id: string; title: string; films: any[] }[];
+  interests: string[];
+  onWatchYoutube: (ytId: string, titleHint?: string, thumbHint?: string) => Promise<void>;
 }) => (
   <div className="space-y-8">
+    {/* Personalized rails: Continue Watching + YouTube discovery */}
+    <PersonalizedRails interests={interests} onWatch={onWatchYoutube} importing={creating} />
+
     {/* Paste YouTube Link */}
     <div className="glass-panel-strong p-6 rounded-2xl">
       <h2 className="text-lg font-bold text-foreground mb-1">Paste a YouTube Link</h2>

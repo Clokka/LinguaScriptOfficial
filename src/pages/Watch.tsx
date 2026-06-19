@@ -252,6 +252,7 @@ const Watch = () => {
   const { registerPlayer, active: tourActive, step: tourStep } = useTour();
   const playerRef = useRef<any>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval>>();
+  const historyIntervalRef = useRef<ReturnType<typeof setInterval>>();
 
   const [film, setFilm] = useState<FilmData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -510,6 +511,43 @@ const Watch = () => {
 
     return () => { clearInterval(intervalRef.current); };
   }, [apiReady, film, adDone]);
+
+  // Watch-history: persist position every ~10s while playing.
+  useEffect(() => {
+    if (!user || !film) return;
+    const ytId = getYouTubeId(film.url);
+    if (!ytId) return;
+    const writeProgress = async (final = false) => {
+      try {
+        const p = playerRef.current;
+        if (!p?.getCurrentTime) return;
+        const pos = Math.floor(p.getCurrentTime() || 0);
+        const dur = Math.floor(p.getDuration?.() || 0);
+        if (pos <= 0 || dur <= 0) return;
+        const pct = Math.min(100, Math.round((pos / dur) * 10000) / 100);
+        await supabase.from("watch_history").upsert({
+          user_id: user.id,
+          video_id: ytId,
+          film_id: film.id,
+          title: film.title,
+          thumbnail_url: film.thumbnail_url,
+          language: film.language,
+          position_seconds: pos,
+          duration_seconds: dur,
+          completion_pct: pct,
+          watched_at: new Date().toISOString(),
+        }, { onConflict: "user_id,video_id" });
+      } catch (e) { /* non-fatal */ }
+    };
+    historyIntervalRef.current = setInterval(() => writeProgress(false), 10000);
+    const onUnload = () => writeProgress(true);
+    window.addEventListener("beforeunload", onUnload);
+    return () => {
+      clearInterval(historyIntervalRef.current);
+      window.removeEventListener("beforeunload", onUnload);
+      void writeProgress(true);
+    };
+  }, [user, film, apiReady, adDone]);
 
   const logWatchTime = async (minutes: number) => {
     if (!user) return;
