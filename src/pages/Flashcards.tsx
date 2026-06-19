@@ -163,7 +163,7 @@ const Flashcards = () => {
             {/* 3 deck cards */}
             <section>
               <h2 className="text-2xl font-bold mb-4">Your Decks</h2>
-              <div className="grid gap-5 sm:grid-cols-2">
+              <div className="grid gap-5 sm:grid-cols-3">
                 {(Object.keys(DECK_CONFIG) as DeckKey[]).map((key) => {
                   const cfg = DECK_CONFIG[key];
                   const n = counts[key];
