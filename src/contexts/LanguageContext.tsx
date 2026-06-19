@@ -121,6 +121,23 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
         .update({ learning_language: norm })
         .eq("user_id", user.id)
         .then(() => {});
+      // Seed known vocabulary for the newly-selected language based on the
+      // user's CEFR level so switching to a new language doesn't drop them
+      // back to 0% green. Idempotent server-side (ON CONFLICT DO NOTHING).
+      supabase
+        .from("profiles")
+        .select("cef_level")
+        .eq("user_id", user.id)
+        .maybeSingle()
+        .then(({ data }) => {
+          const level = (data as any)?.cef_level;
+          if (level && level !== "below") {
+            supabase.rpc("seed_known_vocabulary" as any, {
+              _language: norm,
+              _level: level,
+            }).then(() => {});
+          }
+        });
     }
   };
 
