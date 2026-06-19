@@ -206,12 +206,24 @@ export const PersonalizedRails = ({
       )}
 
       {recommended.length > 0 && (
-        <Rail title={`Recommended for you · ${focusInterest.emoji} ${focusInterest.label}`}>
+        <Rail title={`🎯 Recommended for you in ${langLabel}`}>
           {recommended.map((it) => (
             <YTCard key={it.videoId} it={it} onPick={pick} loading={pendingId === it.videoId} />
           ))}
         </Rail>
       )}
+
+      {interestRailDefs.map((i) => {
+        const items = interestRails[i.id] || [];
+        if (items.length === 0) return null;
+        return (
+          <Rail key={i.id} title={`${i.emoji} Because you like ${i.label}`}>
+            {items.map((it) => (
+              <YTCard key={it.videoId} it={it} onPick={pick} loading={pendingId === it.videoId} />
+            ))}
+          </Rail>
+        );
+      })}
 
       {trending.length > 0 && (
         <Rail title={`Trending in ${langLabel}`}>
