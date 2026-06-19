@@ -57,16 +57,8 @@ export const LanguageSelector = () => {
 
   const handleSelect = (lang: string) => {
     if (lang === learningLanguage) return;
-    if (isPro || !user) {
-      setLearningLanguage(lang);
-      return;
-    }
-    if (switchesUsed >= FREE_SWITCH_ALLOWANCE) {
-      setUpgradeOpen(true);
-      return;
-    }
-    setPendingLang(lang);
-    setConfirmOpen(true);
+    // Free users can now switch languages freely — no gating, no confirm.
+    setLearningLanguage(lang);
   };
 
   const confirmSwitch = async () => {

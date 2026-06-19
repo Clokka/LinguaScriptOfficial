@@ -115,11 +115,10 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
       });
   }, [user]);
 
-  const isContentLocked = (filmLanguage?: string | null) => {
-    if (isPro) return false;
-    if (!filmLanguage) return false;
-    if (!ready) return false; // avoid false-positive lock during profile load
-    return filmLanguage.toLowerCase() !== languageContext.toLowerCase();
+  const isContentLocked = (_filmLanguage?: string | null) => {
+    // Content is never locked by language — users can watch any film regardless
+    // of their active learning language or Pro status.
+    return false;
   };
 
   const setLearningLanguage = (lang: string) => {
