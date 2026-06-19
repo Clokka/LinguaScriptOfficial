@@ -38,12 +38,11 @@ interface StarterDeck {
   card_count: number;
 }
 
-type DeckKey = "red" | "orange" | "green";
+type DeckKey = "orange" | "green";
 
 const DECK_CONFIG: Record<DeckKey, { label: string; subtitle: string; color: string; emoji: string; cta: string }> = {
-  red:    { label: "NEW",      subtitle: "Newly saved words",     color: "#FF3B30", emoji: "🔴", cta: "Review" },
-  orange: { label: "LEARNING", subtitle: "Strengthening words",   color: "#FF8A00", emoji: "🟠", cta: "Review" },
-  green:  { label: "LEARNED",  subtitle: "Mastered words",        color: "#34C759", emoji: "🟢", cta: "Browse" },
+  orange: { label: "LEARNING", subtitle: "Strengthening words", color: "#FF8A00", emoji: "🟠", cta: "Review" },
+  green:  { label: "KNOWN",    subtitle: "Acquired words",      color: "#34C759", emoji: "🟢", cta: "Browse" },
 };
 
 const Flashcards = () => {
@@ -98,8 +97,7 @@ const Flashcards = () => {
   }, [award]);
 
   const counts: Record<DeckKey, number> = {
-    red: allCards.filter((c) => (c.state ?? "red") === "red").length,
-    orange: allCards.filter((c) => c.state === "orange").length,
+    orange: allCards.filter((c) => (c.state ?? "orange") !== "green").length,
     green: allCards.filter((c) => c.state === "green").length,
   };
 
@@ -108,7 +106,9 @@ const Flashcards = () => {
   // state_changed_at desc order) so the user can always reach the
   // "review-close" step regardless of how big their real deck is.
   const openDeck = (deck: DeckKey) => {
-    const cards = allCards.filter((c) => (c.state ?? "red") === deck);
+    const cards = allCards.filter((c) =>
+      deck === "green" ? c.state === "green" : (c.state ?? "orange") !== "green",
+    );
     setReviewCards(tourActive ? cards.slice(0, 1) : cards);
     setActiveDeck(deck);
   };
@@ -122,7 +122,7 @@ const Flashcards = () => {
     context: c.context,
     contextTranslation: c.contextTranslation,
     language: c.language,
-    state: (c.state ?? "red") as DeckState,
+    state: ((c.state ?? "orange") === "green" ? "green" : "orange") as DeckState,
     times_correct: c.times_correct ?? 0,
   }));
 
@@ -163,7 +163,7 @@ const Flashcards = () => {
             {/* 3 deck cards */}
             <section>
               <h2 className="text-2xl font-bold mb-4">Your Decks</h2>
-              <div className="grid gap-5 sm:grid-cols-3">
+              <div className="grid gap-5 sm:grid-cols-2">
                 {(Object.keys(DECK_CONFIG) as DeckKey[]).map((key) => {
                   const cfg = DECK_CONFIG[key];
                   const n = counts[key];

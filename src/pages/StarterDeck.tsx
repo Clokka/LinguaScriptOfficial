@@ -54,7 +54,7 @@ const StarterDeck = () => {
       return null;
     }
     if (!deck) return null;
-    // Upsert any missing cards into saved_words as 'red'
+    // Upsert any missing cards into saved_words as 'orange' (learning)
     const missing = cards.filter((c) => !savedByWord.has(normalizeToken(c.word)));
     if (missing.length > 0) {
       const rows = missing.map((c) => ({
@@ -65,7 +65,7 @@ const StarterDeck = () => {
         ipa: c.ipa || "",
         context: "",
         language: deck.language,
-        state: "red" as DeckState,
+        state: "orange" as DeckState,
       }));
       await supabase.from("saved_words").upsert(rows as any, { onConflict: "user_id,word,language", ignoreDuplicates: true });
     }
@@ -86,7 +86,7 @@ const StarterDeck = () => {
         pronunciation: s?.pronunciation || c.reading,
         ipa: s?.ipa || c.ipa,
         context: "",
-        state: (s?.state ?? "red") as DeckState,
+        state: ((s?.state === "green" ? "green" : "orange") as DeckState),
         times_correct: s?.times_correct ?? 0,
       };
     });

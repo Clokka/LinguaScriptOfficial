@@ -1,12 +1,13 @@
-// Red → Orange → Green deck system, driven entirely by the user's saved_words.
+// Vocabulary state model:
+//   ⚪ Unassessed = NOT in the user's saved_words (default for any token).
+//   🟠 Learning   = saved_words.state === 'orange' (actively reviewing).
+//   🟢 Known      = saved_words.state === 'green'  (acquired).
 //
-// Decks are not a separate catalogue — every saved word IS in one of three decks
-// (red = new, orange = learning, green = learned). Subtitles colour words by
-// matching the rendered token against the user's saved_words map.
+// Legacy rows with state='red' are treated as 'orange' on read.
 import { supabase } from "@/integrations/supabase/client";
 import { getGuestWords } from "@/lib/guestWords";
 
-export type DeckState = "red" | "orange" | "green";
+export type DeckState = "orange" | "green";
 
 export interface SavedWordLite {
   id: string;
@@ -25,16 +26,8 @@ export const STATE_META: Record<DeckState, {
   text: string;
   border: string;
 }> = {
-  red: {
-    label: "Red",
-    dot: "bg-red-500",
-    bg: "bg-red-500/10",
-    ring: "ring-red-500/40",
-    text: "text-red-500",
-    border: "border-red-500/40",
-  },
   orange: {
-    label: "Orange",
+    label: "Learning",
     dot: "bg-amber-500",
     bg: "bg-amber-500/10",
     ring: "ring-amber-500/40",
@@ -42,7 +35,7 @@ export const STATE_META: Record<DeckState, {
     border: "border-amber-500/40",
   },
   green: {
-    label: "Green",
+    label: "Known",
     dot: "bg-emerald-500",
     bg: "bg-emerald-500/10",
     ring: "ring-emerald-500/40",
@@ -50,6 +43,10 @@ export const STATE_META: Record<DeckState, {
     border: "border-emerald-500/40",
   },
 };
+
+/** Normalise any state string from storage (legacy 'red' → 'orange'). */
+export const coerceDeckState = (raw: string | null | undefined): DeckState =>
+  raw === "green" ? "green" : "orange";
 
 /** Normalise a token to its match key (lowercase, strip punctuation). */
 export function normalizeToken(raw: string): string {
@@ -72,7 +69,7 @@ export async function loadDeckIndex(
         id: g.id,
         word: g.word,
         language: g.language,
-        state: "red",
+        state: "orange",
         times_correct: 0,
         review_count: g.review_count,
       });
@@ -88,30 +85,25 @@ export async function loadDeckIndex(
     console.error("loadDeckIndex", error);
     return m;
   }
-  for (const row of (data as SavedWordLite[]) || []) {
-    m.set(normalizeToken(row.word), row);
+  for (const row of (data as any[]) || []) {
+    m.set(normalizeToken(row.word), { ...row, state: coerceDeckState(row.state) } as SavedWordLite);
   }
   return m;
 }
 
 /**
  * Compute the next deck state from a flashcard outcome.
- *  - Correct:   red→orange, orange→green after 3 cumulative correct, green stays.
- *  - Incorrect: green→orange, orange→red, red stays.
+ *  - Correct:   orange → green, green stays.
+ *  - Incorrect: green  → orange, orange stays (learners aren't punished back to nothing).
  */
 export function nextState(
   current: DeckState,
   _timesCorrectAfter: number,
   correct: boolean,
 ): DeckState {
-  if (correct) {
-    if (current === "green") return "green";
-    if (current === "red") return "orange";
-    return "green"; // orange → green on a correct recall
-  }
+  if (correct) return "green";
   if (current === "green") return "orange";
-  if (current === "orange") return "red";
-  return "red";
+  return "orange";
 }
 
 /** Log a flashcard review without controlling SRS deck transitions. */
