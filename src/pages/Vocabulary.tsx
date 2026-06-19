@@ -79,7 +79,7 @@ export default function Vocabulary() {
   }, [user, learningLanguage]);
 
   const counts = useMemo(() => {
-    const c: Record<DeckState, number> = { orange: 0, green: 0 };
+    const c: Record<DeckState, number> = { red: 0, orange: 0, green: 0 };
     for (const w of words) c[w.state] = (c[w.state] ?? 0) + 1;
     return c;
   }, [words]);
