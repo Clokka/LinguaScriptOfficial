@@ -77,14 +77,18 @@ export const PersonalizedRails = ({
 
   const langLabel = useMemo(() => getLanguageLabel(learningLanguage), [learningLanguage]);
 
-  // Pick a deterministic "interest of the day" so the rail is stable per session.
-  const focusInterest = useMemo(() => {
-    const pool = (interests && interests.length > 0)
+  // Resolve selected interests into ordered Interest objects (deterministic).
+  const selectedInterests = useMemo(() => {
+    const ids = (interests && interests.length > 0)
       ? interests
-      : INTERESTS.slice(0, 6).map((i) => i.id);
-    const idx = new Date().getDate() % pool.length;
-    return interestById(pool[idx]) || INTERESTS[0];
+      : INTERESTS.slice(0, 3).map((i) => i.id);
+    return ids.map((id) => interestById(id)).filter(Boolean) as typeof INTERESTS;
   }, [interests]);
+
+  // Per-interest rails: cap to 3 so we don't burn YouTube quota.
+  const interestRailDefs = useMemo(() => selectedInterests.slice(0, 3), [selectedInterests]);
+
+  const [interestRails, setInterestRails] = useState<Record<string, YTItem[]>>({});
 
   useEffect(() => {
     let cancelled = false;
