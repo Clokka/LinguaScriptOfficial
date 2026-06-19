@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   Play,
   Search,
@@ -92,12 +92,17 @@ function formatDuration(seconds: number): string {
 
 const Browse = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, loading: authLoading } = useAuth();
   const { learningLanguage, setLearningLanguage } = useLanguage();
   const { toast } = useToast();
   const tour = useTour();
 
-  const [activeTab, setActiveTab] = useState<TabKey>("home");
+  const initialTab: TabKey = location.pathname.startsWith("/discover") ? "discover" : "home";
+  const [activeTab, setActiveTab] = useState<TabKey>(initialTab);
+  useEffect(() => {
+    if (location.pathname.startsWith("/discover")) setActiveTab("discover");
+  }, [location.pathname]);
   const [lessons, setLessons] = useState<UserLesson[]>([]);
   const [loadingLessons, setLoadingLessons] = useState(true);
   const [pasteUrl, setPasteUrl] = useState("");
