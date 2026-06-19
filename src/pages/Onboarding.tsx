@@ -21,6 +21,7 @@ import { playDing } from "@/lib/sound";
 import { toast } from "sonner";
 import { DailyGoalPicker } from "@/components/DailyGoalPicker";
 import { wordGoalForVideos } from "@/lib/progressStats";
+import { INTERESTS, MAX_INTERESTS } from "@/lib/interests";
 
 const LEVELS = ["below", "A1", "A2", "B1", "B2", "C1", "C2"] as const;
 type Level = typeof LEVELS[number];
@@ -53,15 +54,16 @@ const Onboarding = () => {
   const [goalSaved, setGoalSaved] = useState<boolean>(initialPersisted?.goalSaved ?? false);
   const [showOnLeaderboard, setShowOnLeaderboard] = useState<boolean>(initialPersisted?.showOnLeaderboard ?? true);
   const [dualClicked, setDualClicked] = useState<boolean>(initialPersisted?.dualClicked ?? false);
+  const [interests, setInterests] = useState<string[]>(initialPersisted?.interests ?? []);
 
   // Save snapshot whenever anything changes so a refresh resumes exactly here.
   useEffect(() => {
     try {
       localStorage.setItem(ONBOARDING_KEY, JSON.stringify({
-        step, native, target, level, school, videoGoal, goal, goalSaved, showOnLeaderboard, dualClicked,
+        step, native, target, level, school, videoGoal, goal, goalSaved, showOnLeaderboard, dualClicked, interests,
       }));
     } catch { /* ignore */ }
-  }, [step, native, target, level, school, videoGoal, goal, goalSaved, showOnLeaderboard, dualClicked]);
+  }, [step, native, target, level, school, videoGoal, goal, goalSaved, showOnLeaderboard, dualClicked, interests]);
 
   // Load any existing profile values (auth optional — anonymous users see onboarding too)
   useEffect(() => {
@@ -73,20 +75,32 @@ const Onboarding = () => {
         if ((data as any).learning_goal) setGoal((data as any).learning_goal);
         if ((data as any).school) setSchool((data as any).school);
         if ((data as any).daily_video_goal) setVideoGoal((data as any).daily_video_goal);
+        if (Array.isArray((data as any).interests) && (data as any).interests.length) {
+          setInterests((data as any).interests);
+        }
       }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  const totalSteps = 7;
+  const totalSteps = 8;
 
   const canContinue = useMemo(() => {
     if (step === 0) return true; // 3-pillars intro
     if (step === 1) return !!native && !!target && native !== target && !!level && level !== "below";
     if (step === 2) return goalSaved;
     if (step === 3) return dualClicked;
+    if (step === 7) return interests.length >= 1;
     return true;
-  }, [step, native, target, level, goalSaved, dualClicked]);
+  }, [step, native, target, level, goalSaved, dualClicked, interests]);
+
+  const toggleInterest = (id: string) => {
+    setInterests((curr) => {
+      if (curr.includes(id)) return curr.filter((x) => x !== id);
+      if (curr.length >= MAX_INTERESTS) return curr;
+      return [...curr, id];
+    });
+  };
 
   const next = async () => {
     if (step === 1 && user) {
@@ -108,7 +122,8 @@ const Onboarding = () => {
         await supabase.from("profiles").update({
           onboarded: true,
           learning_goal: goal || null,
-        }).eq("user_id", user.id);
+          interests,
+        } as any).eq("user_id", user.id);
       }
       try { localStorage.removeItem(ONBOARDING_KEY); } catch { /* ignore */ }
       playDing("success");
