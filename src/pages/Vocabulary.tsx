@@ -20,6 +20,7 @@ interface DeckWord {
 }
 
 const DECKS: { key: DeckState; title: string; subtitle: string }[] = [
+  { key: "red",    title: "Unknown",  subtitle: "Just saved" },
   { key: "orange", title: "Learning", subtitle: "Actively reviewing" },
   { key: "green",  title: "Known",    subtitle: "Acquired words" },
 ];
