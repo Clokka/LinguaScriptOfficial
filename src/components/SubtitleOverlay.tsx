@@ -32,8 +32,8 @@ interface SubtitleOverlayProps {
   contentLanguage?: string;
 }
 
-// ⚪ Unassessed words (not in the deck) render in the default subtitle colour.
 const STATE_TEXT: Record<DeckState, string> = {
+  red: "text-red-400",
   orange: "text-amber-400",
   green: "text-emerald-400",
 };
