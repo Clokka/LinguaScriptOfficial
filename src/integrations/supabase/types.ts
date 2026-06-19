@@ -113,51 +113,6 @@ export type Database = {
         }
         Relationships: []
       }
-      comprehension_snapshots: {
-        Row: {
-          created_at: string
-          green_count: number
-          id: string
-          language: string
-          orange_count: number
-          red_count: number
-          score: number
-          title: string | null
-          total_words: number
-          unique_words: number
-          user_id: string
-          video_id: string
-        }
-        Insert: {
-          created_at?: string
-          green_count?: number
-          id?: string
-          language: string
-          orange_count?: number
-          red_count?: number
-          score: number
-          title?: string | null
-          total_words?: number
-          unique_words?: number
-          user_id: string
-          video_id: string
-        }
-        Update: {
-          created_at?: string
-          green_count?: number
-          id?: string
-          language?: string
-          orange_count?: number
-          red_count?: number
-          score?: number
-          title?: string | null
-          total_words?: number
-          unique_words?: number
-          user_id?: string
-          video_id?: string
-        }
-        Relationships: []
-      }
       core_vocabulary: {
         Row: {
           audio_url: string | null

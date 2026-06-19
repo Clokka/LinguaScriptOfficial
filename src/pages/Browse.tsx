@@ -401,14 +401,6 @@ const Browse = () => {
             </div>
             <div className="flex-1" />
             <div className="flex items-center gap-3">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => navigate("/comprehension")}
-                className="text-muted-foreground"
-              >
-                Analyze Video
-              </Button>
               <ActiveLanguageBadge />
               {user ? (
                 <Button variant="ghost" size="sm" onClick={() => navigate("/profile")} className="text-muted-foreground">
