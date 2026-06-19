@@ -939,35 +939,42 @@ const DiscoverTab = ({
         </section>
       )}
 
-      {/* Curated catalog */}
-      <section>
-        <h3 className="text-sm font-medium text-muted-foreground mb-3">From the catalog</h3>
-        {films.length === 0 ? (
-          <div className="glass-panel p-12 text-center rounded-2xl">
-            <Compass className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-            <p className="text-muted-foreground">No catalog content yet.</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-            {films.map((film) => (
-              <button key={film.id} onClick={() => navigate(`/watch/${film.id}`)} className="group text-left">
-                <div className="relative rounded-xl overflow-hidden aspect-video bg-secondary mb-2 border border-border group-hover:border-primary/50 transition-all">
-                  {film.thumbnail_url ? (
-                    <img src={film.thumbnail_url} alt={film.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center"><Play className="w-8 h-8 text-muted-foreground" /></div>
-                  )}
-                  <div className="absolute bottom-2 left-2 bg-black/70 backdrop-blur text-xs px-2 py-0.5 rounded-md text-foreground">
-                    {getLanguageFlag(film.language ?? "fr")}
-                  </div>
-                </div>
-                <p className="text-sm text-foreground truncate font-medium">{film.title}</p>
-                <p className="text-xs text-muted-foreground">{getLanguageLabel(film.language ?? "fr")}</p>
-              </button>
-            ))}
-          </div>
-        )}
-      </section>
+      {/* Curated catalog (learning-language only) */}
+      {(() => {
+        const langFilms = films.filter(
+          (f) => (f.language || "").toLowerCase() === learningLanguage.toLowerCase(),
+        );
+        return (
+          <section>
+            <h3 className="text-sm font-medium text-muted-foreground mb-3">From the catalog</h3>
+            {langFilms.length === 0 ? (
+              <div className="glass-panel p-12 text-center rounded-2xl">
+                <Compass className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+                <p className="text-muted-foreground">No catalog content in {getLanguageLabel(learningLanguage)} yet.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                {langFilms.map((film) => (
+                  <button key={film.id} onClick={() => navigate(`/watch/${film.id}`)} className="group text-left">
+                    <div className="relative rounded-xl overflow-hidden aspect-video bg-secondary mb-2 border border-border group-hover:border-primary/50 transition-all">
+                      {film.thumbnail_url ? (
+                        <img src={film.thumbnail_url} alt={film.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center"><Play className="w-8 h-8 text-muted-foreground" /></div>
+                      )}
+                      <div className="absolute bottom-2 left-2 bg-black/70 backdrop-blur text-xs px-2 py-0.5 rounded-md text-foreground">
+                        {getLanguageFlag(film.language ?? "fr")}
+                      </div>
+                    </div>
+                    <p className="text-sm text-foreground truncate font-medium">{film.title}</p>
+                    <p className="text-xs text-muted-foreground">{getLanguageLabel(film.language ?? "fr")}</p>
+                  </button>
+                ))}
+              </div>
+            )}
+          </section>
+        );
+      })()}
     </div>
   );
 };
