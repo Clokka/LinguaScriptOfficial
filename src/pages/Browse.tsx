@@ -656,6 +656,9 @@ const HomeTab = ({
   );
   return (
     <div className="space-y-8">
+      {/* LinguaScript's primary metric: turn the language green. */}
+      <UnderstandingHero language={learningLanguage} />
+
       {/* Paste YouTube Link */}
       <div className="glass-panel-strong p-6 rounded-2xl">
         <h2 className="text-lg font-bold text-foreground mb-1">Paste a YouTube Link</h2>
@@ -706,6 +709,88 @@ const HomeTab = ({
     </div>
   );
 };
+
+/* ── UNDERSTANDING HERO ──
+ * LinguaScript's headline metric. Replaces "words learned" as the primary
+ * progress signal — what matters is how green the language has become.
+ */
+const UnderstandingHero = ({ language }: { language: string }) => {
+  const { user } = useAuth();
+  const [greenCount, setGreenCount] = useState<number | null>(null);
+  const [monthDelta, setMonthDelta] = useState<number>(0);
+
+  useEffect(() => {
+    if (!user) { setGreenCount(0); return; }
+    let alive = true;
+    (async () => {
+      const { count: total } = await supabase
+        .from("saved_words")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("language", language)
+        .eq("state", "green");
+      if (!alive) return;
+      const greens = total ?? 0;
+      setGreenCount(greens);
+
+      // Green converted in the last 30 days (approx month-over-month delta).
+      const since = new Date();
+      since.setDate(since.getDate() - 30);
+      const { count: recent } = await supabase
+        .from("saved_words")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("language", language)
+        .eq("state", "green")
+        .gte("state_changed_at", since.toISOString());
+      if (!alive) return;
+      const ceiling = 5000;
+      setMonthDelta(Math.round(((recent ?? 0) / ceiling) * 100));
+    })();
+    return () => { alive = false; };
+  }, [user, language]);
+
+  const pct = greenCount === null ? null : Math.max(0, Math.min(99, Math.round((greenCount / 5000) * 100)));
+  const langLabel = getLanguageLabel(language);
+
+  return (
+    <div className="glass-panel-strong rounded-3xl p-8 relative overflow-hidden border border-emerald-500/20">
+      <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-transparent to-transparent pointer-events-none" />
+      <div className="relative flex items-end justify-between gap-6 flex-wrap">
+        <div>
+          <p className="text-sm font-medium text-emerald-300/80 uppercase tracking-wider">
+            {langLabel} Understanding
+          </p>
+          <div className="flex items-baseline gap-3 mt-2">
+            <span className="text-6xl font-bold text-emerald-400 tabular-nums">
+              {pct === null ? "—" : `${pct}%`}
+            </span>
+            {monthDelta > 0 && (
+              <span className="text-sm font-medium text-emerald-300">
+                ↑ {monthDelta}% this month
+              </span>
+            )}
+          </div>
+          <p className="text-sm text-muted-foreground mt-2 max-w-md">
+            Every green word is a word you understand. Watch more, save more, turn more of the language green.
+          </p>
+        </div>
+        <div className="flex flex-col items-end">
+          <div className="w-48 h-2 rounded-full bg-emerald-500/10 overflow-hidden">
+            <div
+              className="h-full bg-gradient-to-r from-emerald-500 to-emerald-300 transition-all duration-700"
+              style={{ width: `${pct ?? 0}%` }}
+            />
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">
+            {greenCount ?? 0} green words
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 
 /* ── LESSON CARD ── */
 const LessonCard = ({
