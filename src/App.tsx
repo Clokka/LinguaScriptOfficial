@@ -45,6 +45,7 @@ const App = () => (
                 <Route path="/landing" element={<Landing />} />
                 <Route path="/landingpage2" element={<LandingPage2 />} />
                 <Route path="/browse" element={<Browse />} />
+                <Route path="/discover" element={<Browse />} />
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/profile" element={<Profile />} />
                 <Route path="/watch/:id" element={<Watch />} />
