@@ -649,72 +649,63 @@ const HomeTab = ({
   catalogRows: { id: string; title: string; films: any[] }[];
   interests: string[];
   onWatchYoutube: (ytId: string, titleHint?: string, thumbHint?: string) => Promise<void>;
-}) => (
-  <div className="space-y-8">
-    {/* Personalized rails: Continue Watching + YouTube discovery */}
-    <PersonalizedRails interests={interests} onWatch={onWatchYoutube} importing={creating} />
-
-    {/* Paste YouTube Link */}
-    <div className="glass-panel-strong p-6 rounded-2xl">
-      <h2 className="text-lg font-bold text-foreground mb-1">Paste a YouTube Link</h2>
-       <p className="text-sm text-muted-foreground mb-4">
-         We'll fetch the source and learning-language subtitle tracks, save them, and create an interactive lesson.
-      </p>
-      <div className="flex gap-3">
-        <div className="relative flex-1">
-          <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            data-tour="paste-input"
-            placeholder="https://youtube.com/watch?v=..."
-            value={pasteUrl}
-            onChange={(e) => setPasteUrl(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && createLesson()}
-            className="pl-10 h-12 bg-secondary/50 border-border rounded-xl"
-          />
+}) => {
+  const { learningLanguage } = useLanguage();
+  const filteredLessons = lessons.filter(
+    (l) => !l.original_language || l.original_language.toLowerCase() === learningLanguage.toLowerCase(),
+  );
+  return (
+    <div className="space-y-8">
+      {/* Paste YouTube Link */}
+      <div className="glass-panel-strong p-6 rounded-2xl">
+        <h2 className="text-lg font-bold text-foreground mb-1">Paste a YouTube Link</h2>
+        <p className="text-sm text-muted-foreground mb-4">
+          We'll fetch the source and learning-language subtitle tracks, save them, and create an interactive lesson.
+        </p>
+        <div className="flex gap-3">
+          <div className="relative flex-1">
+            <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              data-tour="paste-input"
+              placeholder="https://youtube.com/watch?v=..."
+              value={pasteUrl}
+              onChange={(e) => setPasteUrl(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && createLesson()}
+              className="pl-10 h-12 bg-secondary/50 border-border rounded-xl"
+            />
+          </div>
+          <Button
+            onClick={createLesson}
+            disabled={creating || !pasteUrl.trim()}
+            className="h-12 px-6 rounded-xl bg-gradient-to-r from-primary to-[hsl(280,100%,60%)] text-primary-foreground font-semibold gap-2"
+          >
+            {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+            Create Lesson
+          </Button>
         </div>
-        <Button
-          onClick={createLesson}
-          disabled={creating || !pasteUrl.trim()}
-          className="h-12 px-6 rounded-xl bg-gradient-to-r from-primary to-[hsl(280,100%,60%)] text-primary-foreground font-semibold gap-2"
-        >
-          {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
-          Create Lesson
-        </Button>
       </div>
+
+      {/* Saved Lessons (learning-language only) */}
+      <section>
+        <h2 className="text-lg font-semibold text-foreground mb-4">Your Lessons</h2>
+        {loading ? (
+          <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
+        ) : filteredLessons.length === 0 ? (
+          <div className="glass-panel p-12 text-center rounded-2xl">
+            <Play className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+            <p className="text-muted-foreground">No lessons yet. Paste a YouTube link above to start!</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+            {filteredLessons.map((lesson) => (
+              <LessonCard key={lesson.id} lesson={lesson} onDelete={deleteLesson} navigate={navigate} />
+            ))}
+          </div>
+        )}
+      </section>
     </div>
-
-    {/* Saved Lessons */}
-    <section>
-      <h2 className="text-lg font-semibold text-foreground mb-4">Your Lessons</h2>
-      {loading ? (
-        <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
-      ) : lessons.length === 0 ? (
-        <div className="glass-panel p-12 text-center rounded-2xl">
-          <Play className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-          <p className="text-muted-foreground">No lessons yet. Paste a YouTube link above to start!</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-          {lessons.map((lesson) => (
-            <LessonCard key={lesson.id} lesson={lesson} onDelete={deleteLesson} navigate={navigate} />
-          ))}
-        </div>
-      )}
-    </section>
-
-
-
-    {/* Curated catalog rows */}
-    {catalogRows.map((row) => (
-      <CatalogStrip key={row.id} title={row.title} films={row.films} navigate={navigate} />
-    ))}
-
-    {/* Generic catalog row (fallback if no curated rows) */}
-    {catalogRows.length === 0 && discoverFilms.length > 0 && (
-      <CatalogStrip title="From the Catalog" films={discoverFilms} navigate={navigate} />
-    )}
-  </div>
-);
+  );
+};
 
 /* ── LESSON CARD ── */
 const LessonCard = ({
