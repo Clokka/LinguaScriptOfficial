@@ -43,7 +43,7 @@ export const STATE_META: Record<DeckState, {
     border: "border-amber-500/40",
   },
   green: {
-    label: "Known",
+    label: "Recognized",
     dot: "bg-emerald-500",
     bg: "bg-emerald-500/10",
     ring: "ring-emerald-500/40",
