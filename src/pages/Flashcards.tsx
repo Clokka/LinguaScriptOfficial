@@ -166,6 +166,24 @@ const Flashcards = () => {
           </div>
         ) : (
           <>
+            {allCards.length === 0 && (
+              <section className="glass-panel-strong rounded-3xl p-8 text-center space-y-4">
+                <div className="text-5xl">🧩</div>
+                <h2 className="text-xl font-bold">No saved words yet</h2>
+                <p className="text-muted-foreground max-w-md mx-auto">
+                  Save words on Netflix using the LinguaScript Chrome extension to add flashcards here.
+                </p>
+                <Button asChild variant="default" size="lg">
+                  <a
+                    href="https://chromewebstore.google.com/search/linguascript"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Get the Chrome Extension
+                  </a>
+                </Button>
+              </section>
+            )}
             {/* 3 deck cards */}
             <section>
               <h2 className="text-2xl font-bold mb-4">Your Decks</h2>
