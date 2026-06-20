@@ -50,7 +50,8 @@ export const Flashcard = ({
     <div className="flashcard-container w-full max-w-md mx-auto">
       <div
         data-tour="flashcard"
-        className={cn("flashcard w-full h-72 cursor-pointer", isFlipped && "flipped")}
+        className={cn("flashcard w-full h-72 cursor-pointer select-none", isFlipped && "flipped")}
+        style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
         onClick={handleFlip}
       >
         {/* Front */}
