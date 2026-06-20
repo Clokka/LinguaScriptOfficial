@@ -12,6 +12,7 @@ import { useTour } from "@/contexts/TourContext";
 import { useXp } from "@/contexts/XpContext";
 import { consumeReinforcementPending } from "@/lib/dailyVideo";
 import { ActiveLanguageBadge } from "@/components/ActiveLanguageBadge";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface SavedWord {
   id: string;
@@ -51,6 +52,7 @@ const Flashcards = () => {
   const { user } = useAuth();
   const { active: tourActive } = useTour();
   const { award } = useXp();
+  const { learningLanguage } = useLanguage();
   const [allCards, setAllCards] = useState<SavedWord[]>([]);
   const [starterDecks, setStarterDecks] = useState<StarterDeck[]>([]);
   const [loading, setLoading] = useState(true);
@@ -63,11 +65,15 @@ const Flashcards = () => {
       const guest = getGuestWords();
       setAllCards(guest as unknown as SavedWord[]);
     } else {
-      const { data } = await supabase
+      // Always fetch fresh from Supabase — the Chrome extension can write to
+      // saved_words too, so cached state would go stale.
+      let q = supabase
         .from("saved_words")
         .select("id, word, translation, pronunciation, ipa, context, language, next_review, review_count, state, times_correct")
         .eq("user_id", user.id)
-        .order("state_changed_at", { ascending: false, nullsFirst: false });
+        .order("next_review", { ascending: true, nullsFirst: true });
+      if (learningLanguage) q = q.eq("language", learningLanguage);
+      const { data } = await q;
       setAllCards((data as SavedWord[]) || []);
     }
 
@@ -86,7 +92,7 @@ const Flashcards = () => {
       setStarterDecks(withCounts);
     }
     setLoading(false);
-  }, [user]);
+  }, [user, learningLanguage]);
 
   useEffect(() => { fetchCards(); }, [fetchCards]);
 
@@ -160,6 +166,24 @@ const Flashcards = () => {
           </div>
         ) : (
           <>
+            {allCards.length === 0 && (
+              <section className="glass-panel-strong rounded-3xl p-8 text-center space-y-4">
+                <div className="text-5xl">🧩</div>
+                <h2 className="text-xl font-bold">No saved words yet</h2>
+                <p className="text-muted-foreground max-w-md mx-auto">
+                  Save words on Netflix using the LinguaScript Chrome extension to add flashcards here.
+                </p>
+                <Button asChild variant="default" size="lg">
+                  <a
+                    href="https://chromewebstore.google.com/search/linguascript"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Get the Chrome Extension
+                  </a>
+                </Button>
+              </section>
+            )}
             {/* 3 deck cards */}
             <section>
               <h2 className="text-2xl font-bold mb-4">Your Decks</h2>
