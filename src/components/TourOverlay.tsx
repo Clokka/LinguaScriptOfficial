@@ -418,7 +418,13 @@ export const TourOverlay = () => {
         onPointerDown={(e) => { e.stopPropagation(); }}
         onClick={(e) => { e.stopPropagation(); end(); }}
         onTouchEnd={(e) => { e.stopPropagation(); end(); }}
-        style={{ position: "fixed", top: 12, right: 12, zIndex: Z_TOOLTIP + 1, pointerEvents: "auto" }}
+        style={{
+          position: "fixed",
+          bottom: "max(16px, env(safe-area-inset-bottom))",
+          right: "max(16px, env(safe-area-inset-right))",
+          zIndex: Z_TOOLTIP + 1,
+          pointerEvents: "auto",
+        }}
         className="rounded-full bg-white/95 hover:bg-white text-neutral-700 text-xs font-semibold px-3 py-1.5 shadow-lg border border-orange-100"
       >
         Skip tour
