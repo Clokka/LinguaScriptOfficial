@@ -12,6 +12,7 @@ import { useTour } from "@/contexts/TourContext";
 import { useXp } from "@/contexts/XpContext";
 import { consumeReinforcementPending } from "@/lib/dailyVideo";
 import { ActiveLanguageBadge } from "@/components/ActiveLanguageBadge";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface SavedWord {
   id: string;
