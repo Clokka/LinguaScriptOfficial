@@ -283,13 +283,15 @@ const Watch = () => {
   const [adDone, setAdDone] = useState(tourActive);
 
   const [cssFullscreen, setCssFullscreen] = useState(false);
-  const toggleFullscreen = useCallback(() => {
+  const toggleFullscreen = useCallback(async () => {
     const container = videoContainerRef.current;
     if (!container) return;
     const fsEl = document.fullscreenElement || (document as any).webkitFullscreenElement;
     if (fsEl) {
-      if (document.exitFullscreen) document.exitFullscreen();
-      else if ((document as any).webkitExitFullscreen) (document as any).webkitExitFullscreen();
+      try {
+        if (document.exitFullscreen) await document.exitFullscreen();
+        else if ((document as any).webkitExitFullscreen) (document as any).webkitExitFullscreen();
+      } catch { /* noop */ }
       setCssFullscreen(false);
       return;
     }
@@ -298,19 +300,21 @@ const Watch = () => {
       return;
     }
     // Try native fullscreen on container, then iframe, with iOS variants.
+    // Await any returned promise so silent rejections (iOS Safari, sandboxed
+    // iframes, permissions-policy blocks) reliably fall back to CSS fullscreen.
     const iframe = container.querySelector("iframe") as any;
-    const tryReq = (el: any): boolean => {
+    const tryReq = async (el: any): Promise<boolean> => {
+      if (!el) return false;
       try {
-        if (!el) return false;
-        if (el.requestFullscreen) { el.requestFullscreen(); return true; }
-        if (el.webkitRequestFullscreen) { el.webkitRequestFullscreen(); return true; }
+        if (el.requestFullscreen) { await el.requestFullscreen(); return true; }
+        if (el.webkitRequestFullscreen) { const r = el.webkitRequestFullscreen(); if (r?.then) await r; return true; }
         if (el.webkitEnterFullscreen) { el.webkitEnterFullscreen(); return true; }
-      } catch { /* fall through */ }
+      } catch { /* fall through to next candidate */ }
       return false;
     };
-    if (tryReq(container)) return;
-    if (tryReq(iframe)) return;
-    // iOS Safari: no element fullscreen — use CSS-based fullscreen fallback.
+    if (await tryReq(container)) return;
+    if (await tryReq(iframe)) return;
+    // No native fullscreen available — use CSS-based fullscreen fallback.
     setCssFullscreen(true);
   }, [cssFullscreen]);
 
