@@ -52,6 +52,7 @@ const Flashcards = () => {
   const { user } = useAuth();
   const { active: tourActive } = useTour();
   const { award } = useXp();
+  const { learningLanguage } = useLanguage();
   const [allCards, setAllCards] = useState<SavedWord[]>([]);
   const [starterDecks, setStarterDecks] = useState<StarterDeck[]>([]);
   const [loading, setLoading] = useState(true);
@@ -64,11 +65,15 @@ const Flashcards = () => {
       const guest = getGuestWords();
       setAllCards(guest as unknown as SavedWord[]);
     } else {
-      const { data } = await supabase
+      // Always fetch fresh from Supabase — the Chrome extension can write to
+      // saved_words too, so cached state would go stale.
+      let q = supabase
         .from("saved_words")
         .select("id, word, translation, pronunciation, ipa, context, language, next_review, review_count, state, times_correct")
         .eq("user_id", user.id)
-        .order("state_changed_at", { ascending: false, nullsFirst: false });
+        .order("next_review", { ascending: true, nullsFirst: true });
+      if (learningLanguage) q = q.eq("language", learningLanguage);
+      const { data } = await q;
       setAllCards((data as SavedWord[]) || []);
     }
 
@@ -87,7 +92,7 @@ const Flashcards = () => {
       setStarterDecks(withCounts);
     }
     setLoading(false);
-  }, [user]);
+  }, [user, learningLanguage]);
 
   useEffect(() => { fetchCards(); }, [fetchCards]);
 
