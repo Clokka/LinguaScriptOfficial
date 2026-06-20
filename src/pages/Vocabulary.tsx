@@ -19,10 +19,15 @@ interface DeckWord {
   state_changed_at?: string | null;
 }
 
+// Three universal vocabulary states, shared across every language and every
+// surface (subtitles, flashcards, dashboard, comprehension engine).
+// "Recognized" = words the system assumes you know based on your CEFR level
+// (cascaded: picking B1 inherits A1+A2+B1). These are seeded as green
+// saved_words by `seed_known_vocabulary` so subtitles render them green too.
 const DECKS: { key: DeckState; title: string; subtitle: string }[] = [
-  { key: "red",    title: "Unknown",  subtitle: "Just saved" },
-  { key: "orange", title: "Learning", subtitle: "Actively reviewing" },
-  { key: "green",  title: "Known",    subtitle: "Acquired words" },
+  { key: "green",  title: "Recognized Vocabulary", subtitle: "From your level — assumed known" },
+  { key: "orange", title: "Learning",              subtitle: "Actively reviewing" },
+  { key: "red",    title: "Unknown",               subtitle: "Encountered, not yet learned" },
 ];
 
 export default function Vocabulary() {
@@ -120,8 +125,24 @@ export default function Vocabulary() {
       </header>
 
       <div className="max-w-5xl mx-auto px-6 py-8 space-y-8">
-        {/* Three-state overview: Known · Learning · Unassessed */}
-        <section className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        {/* Confidence-first hero: surface Recognized Vocabulary front and centre. */}
+        <section className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-6">
+          <p className="text-xs uppercase tracking-wider text-emerald-400/80 font-semibold">Recognized vocabulary</p>
+          <p className="text-5xl font-bold tabular-nums text-emerald-300 mt-1">
+            {counts.green.toLocaleString()}
+            {coreTotal != null && (
+              <span className="text-base text-muted-foreground font-normal ml-2">
+                / ~{coreTotal.toLocaleString()} high-frequency words
+              </span>
+            )}
+          </p>
+          <p className="text-sm text-muted-foreground mt-2">
+            You already know more than you think. These words are inherited from your CEFR level and treated as known across subtitles, flashcards, and comprehension scoring.
+          </p>
+        </section>
+
+        {/* Three-state overview: Recognized · Learning · Unknown */}
+        <section className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {DECKS.map((d, i) => {
             const meta = STATE_META[d.key];
             return (
@@ -149,22 +170,6 @@ export default function Vocabulary() {
             );
           })}
 
-          {/* Unassessed — neutral, never punishes the learner. */}
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="text-left rounded-2xl border border-border/60 bg-muted/30 p-5"
-          >
-            <div className="flex items-center gap-2 mb-1">
-              <span className="w-2.5 h-2.5 rounded-full bg-white border border-border" />
-              <p className="font-semibold text-foreground">Unassessed</p>
-            </div>
-            <p className="text-4xl font-bold tabular-nums text-muted-foreground">
-              {unassessed == null ? "—" : unassessed.toLocaleString()}
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">Not yet tested</p>
-          </motion.div>
         </section>
 
         {/* Totals */}
