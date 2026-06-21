@@ -625,6 +625,33 @@ const Watch = () => {
     award("add_word");
   };
 
+  const markWordKnown = async (word: { text: string; translation?: string }) => {
+    const langCode = learningLanguage || film?.language || "fr";
+    if (!user) {
+      saveGuestWord({
+        word: word.text,
+        translation: word.translation || "",
+        pronunciation: "",
+        ipa: "",
+        context: currentSubtitle?.primary || "",
+        language: langCode,
+      });
+      toast({ title: "Marked as known", description: word.text });
+      return;
+    }
+    await supabase.from("saved_words").upsert({
+      user_id: user.id,
+      word: word.text,
+      translation: word.translation || "",
+      context: currentSubtitle?.primary || "",
+      film_id: film?.id,
+      language: langCode,
+      state: "green",
+      state_changed_at: new Date().toISOString(),
+    }, { onConflict: "user_id,word,language" });
+    toast({ title: "Marked as known", description: word.text });
+  };
+
   const downloadSrt = (type: "primary" | "secondary") => {
     const content = subtitlesToSrt(subtitles, type);
     if (!content) return;
