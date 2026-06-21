@@ -1,4 +1,4 @@
-import { X, Volume2, BookmarkPlus, RotateCcw } from "lucide-react";
+import { X, Volume2, BookmarkPlus, CheckCircle2 } from "lucide-react";
 import { Button } from "./ui/button";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -17,25 +17,20 @@ interface WordPopupProps {
   language?: string;
   onClose: () => void;
   onSave: () => void;
+  onMarkKnown?: () => void;
 }
 
-export const WordPopup = ({ word, position, language, onClose, onSave }: WordPopupProps) => {
+export const WordPopup = ({ word, position, language, onClose, onSave, onMarkKnown }: WordPopupProps) => {
   const { speak } = useLanguage();
   const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
   return (
     <>
-      {/* Backdrop */}
-      <div 
-        className="fixed inset-0 z-40"
-        onClick={onClose}
-      />
-      
-      {/* Popup */}
+      <div className="fixed inset-0 z-40" onClick={onClose} />
+
       <div
         className={cn(
           "fixed z-50 glass-panel-strong animate-scale-in shadow-float",
           "p-4 md:p-5",
-          // Mobile: pin to bottom of viewport so it sits below video + subtitles, not over them
           "left-3 right-3 bottom-3 md:left-auto md:right-auto md:bottom-auto",
           "md:w-80",
           "text-[clamp(12px,3.6vw,16px)] md:text-base",
@@ -61,7 +56,6 @@ export const WordPopup = ({ word, position, language, onClose, onSave }: WordPop
         </button>
 
         <div className="space-y-4">
-          {/* Word header */}
           <div className="flex items-start gap-3">
             <div className="flex-1">
               <h3 className="text-2xl font-bold gradient-text">{word.text}</h3>
@@ -77,7 +71,6 @@ export const WordPopup = ({ word, position, language, onClose, onSave }: WordPop
             </Button>
           </div>
 
-          {/* Translation */}
           <div className="bg-muted/50 rounded-lg p-3">
             <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
               Translation
@@ -85,7 +78,6 @@ export const WordPopup = ({ word, position, language, onClose, onSave }: WordPop
             <p className="text-foreground font-medium">{word.translation}</p>
           </div>
 
-          {/* Pronunciation guide */}
           <div className="bg-muted/50 rounded-lg p-3">
             <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
               Pronunciation
@@ -93,19 +85,25 @@ export const WordPopup = ({ word, position, language, onClose, onSave }: WordPop
             <p className="text-foreground">{word.pronunciation}</p>
           </div>
 
-          {/* Actions */}
-          <div className="flex gap-2 pt-2">
+          <div className="flex flex-col gap-2 pt-2">
+            {onMarkKnown && (
+              <Button
+                variant="glass"
+                className="w-full border border-emerald-500/40 text-emerald-300 hover:text-emerald-200"
+                onClick={onMarkKnown}
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                I already know this — mark as known
+              </Button>
+            )}
             <Button
               data-tour="word-save"
               variant="success"
-              className="flex-1"
+              className="w-full"
               onClick={onSave}
             >
               <BookmarkPlus className="w-4 h-4" />
               Save to Flashcards
-            </Button>
-            <Button variant="glass" size="icon">
-              <RotateCcw className="w-4 h-4" />
             </Button>
           </div>
         </div>

@@ -1,0 +1,84 @@
+import { Link } from "react-router-dom";
+
+const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
+  <section className="mb-8">
+    <h2 className="text-xl font-semibold mb-2">{title}</h2>
+    <div className="text-muted-foreground space-y-2 leading-relaxed">{children}</div>
+  </section>
+);
+
+const Privacy = () => (
+  <div className="min-h-screen bg-background text-foreground">
+    <header className="border-b border-border">
+      <div className="max-w-3xl mx-auto px-6 py-6 flex items-center justify-between">
+        <Link to="/" className="text-lg font-bold">LinguaScript</Link>
+        <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">← Home</Link>
+      </div>
+    </header>
+    <main className="max-w-3xl mx-auto px-6 py-10">
+      <h1 className="text-3xl font-bold mb-2">Privacy Policy</h1>
+      <p className="text-sm text-muted-foreground mb-8">Last updated: 21 June 2026</p>
+
+      <Section title="Who we are">
+        LinguaScript ("we", "us") is a web app that helps people learn languages by watching films
+        with dual-language subtitles. This page is maintained by the LinguaScript team and
+        describes how we handle your data.
+      </Section>
+
+      <Section title="Account data">
+        When you create an account we store your email address, an optional display name and
+        avatar, your chosen learning and native languages, and your CEFR level. Authentication is
+        handled by our backend provider; passwords are never stored in plain text.
+      </Section>
+
+      <Section title="Vocabulary and flashcards">
+        Words you save, mark as known, or review on flashcards are stored against your account so
+        we can colour subtitles, schedule reviews, and show your progress. You can delete a word
+        at any time from the Vocabulary page.
+      </Section>
+
+      <Section title="Watch history and activity">
+        We record which videos you watch, how long you watch them, completed reviews, and XP
+        events so we can show streaks, the calendar, and personalised recommendations.
+      </Section>
+
+      <Section title="Data retention">
+        We keep your data for as long as your account is active. If you delete your account we
+        remove your personal data within 30 days, except where we are legally required to keep
+        records (e.g. payment receipts).
+      </Section>
+
+      <Section title="GDPR rights">
+        If you are in the UK or EU you have the right to access, correct, export, or delete your
+        personal data, and to object to processing. Email us at rowan@linguascript.xyz and we
+        will respond within 30 days.
+      </Section>
+
+      <Section title="Security">
+        Data is stored in managed Postgres with row-level security. Transport is encrypted with
+        TLS. We use industry-standard authentication and never share your personal data with
+        third parties for advertising.
+      </Section>
+
+      <Section title="Cookies and analytics">
+        We use strictly necessary cookies to keep you signed in and remember your active
+        language. We may use privacy-respecting analytics to understand aggregate usage.
+      </Section>
+
+      <Section title="Changes">
+        We will post any changes on this page with an updated date. For significant changes we
+        will notify you by email.
+      </Section>
+
+      <Section title="Contact">
+        Rowan — <a className="underline" href="mailto:rowan@linguascript.xyz">rowan@linguascript.xyz</a>
+      </Section>
+
+      <p className="text-xs text-muted-foreground mt-10">
+        See also our <Link to="/privacy-extension" className="underline">Chrome Extension privacy policy</Link>.
+      </p>
+    </main>
+  </div>
+);
+
+export default Privacy;

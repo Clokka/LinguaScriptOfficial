@@ -28,6 +28,7 @@ interface SubtitleOverlayProps {
   className?: string;
   mode: "single" | "dual";
   onSaveWord?: (word: Word) => void;
+  onMarkKnown?: (word: Word) => void;
   nativeLanguage?: string;
   contentLanguage?: string;
 }
@@ -47,6 +48,7 @@ export const SubtitleOverlay = ({
   className,
   mode,
   onSaveWord,
+  onMarkKnown,
   nativeLanguage,
   contentLanguage,
 }: SubtitleOverlayProps) => {
@@ -187,6 +189,31 @@ export const SubtitleOverlay = ({
             if (onSaveWord && selectedWord) onSaveWord(selectedWord);
             setSelectedWord(null);
           }}
+          onMarkKnown={
+            onMarkKnown
+              ? () => {
+                  if (selectedWord) {
+                    onMarkKnown(selectedWord);
+                    // Optimistic local update so the word turns green immediately.
+                    setDeck((prev) => {
+                      const next = new Map(prev);
+                      const key = normalizeToken(selectedWord.text);
+                      const existing = next.get(key);
+                      next.set(key, {
+                        id: existing?.id || selectedWord.id,
+                        word: selectedWord.text,
+                        language: effectiveLang,
+                        state: "green",
+                        times_correct: existing?.times_correct ?? 0,
+                        review_count: existing?.review_count ?? 0,
+                      });
+                      return next;
+                    });
+                  }
+                  setSelectedWord(null);
+                }
+              : undefined
+          }
         />
       )}
     </>

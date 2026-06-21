@@ -17,6 +17,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { saveGuestWord } from "@/lib/guestWords";
 import { useXp } from "@/contexts/XpContext";
 import { recordDailyVideoWatch, setReinforcementPending } from "@/lib/dailyVideo";
+import { toast } from "sonner";
 
 interface FilmData {
   id: string;
@@ -625,6 +626,33 @@ const Watch = () => {
     award("add_word");
   };
 
+  const markWordKnown = async (word: { text: string; translation?: string }) => {
+    const langCode = learningLanguage || film?.language || "fr";
+    if (!user) {
+      saveGuestWord({
+        word: word.text,
+        translation: word.translation || "",
+        pronunciation: "",
+        ipa: "",
+        context: currentSubtitle?.primary || "",
+        language: langCode,
+      });
+      toast.success("Marked as known: " + word.text);
+      return;
+    }
+    await supabase.from("saved_words").upsert({
+      user_id: user.id,
+      word: word.text,
+      translation: word.translation || "",
+      context: currentSubtitle?.primary || "",
+      film_id: film?.id,
+      language: langCode,
+      state: "green",
+      state_changed_at: new Date().toISOString(),
+    }, { onConflict: "user_id,word,language" });
+    toast.success("Marked as known: " + word.text);
+  };
+
   const downloadSrt = (type: "primary" | "secondary") => {
     const content = subtitlesToSrt(subtitles, type);
     if (!content) return;
@@ -758,6 +786,7 @@ const Watch = () => {
           words={currentSubtitle.words}
           mode={subtitleMode}
           onSaveWord={saveWordToFlashcards}
+          onMarkKnown={markWordKnown}
           nativeLanguage={nativeLanguage}
           contentLanguage={film.language ?? "fr"}
           className={isLandscape ? "!px-3 !py-2 [&_.subtitle-text]:!text-base" : "!px-4 !py-3 [&_.subtitle-text]:!text-lg"}
@@ -884,6 +913,7 @@ const Watch = () => {
                 words={currentSubtitle.words}
                 mode={subtitleMode}
                 onSaveWord={saveWordToFlashcards}
+          onMarkKnown={markWordKnown}
                 nativeLanguage={nativeLanguage}
                 contentLanguage={film.language ?? "fr"}
               />
