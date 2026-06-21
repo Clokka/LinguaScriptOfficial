@@ -637,7 +637,7 @@ const Watch = () => {
         context: currentSubtitle?.primary || "",
         language: langCode,
       });
-      toast({ title: "Marked as known", description: word.text });
+      toast.success("Marked as known: " + word.text);
       return;
     }
     await supabase.from("saved_words").upsert({
@@ -650,7 +650,7 @@ const Watch = () => {
       state: "green",
       state_changed_at: new Date().toISOString(),
     }, { onConflict: "user_id,word,language" });
-    toast({ title: "Marked as known", description: word.text });
+    toast.success("Marked as known: " + word.text);
   };
 
   const downloadSrt = (type: "primary" | "secondary") => {
