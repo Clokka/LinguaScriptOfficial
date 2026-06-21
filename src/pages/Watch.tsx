@@ -17,6 +17,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { saveGuestWord } from "@/lib/guestWords";
 import { useXp } from "@/contexts/XpContext";
 import { recordDailyVideoWatch, setReinforcementPending } from "@/lib/dailyVideo";
+import { toast } from "sonner";
 
 interface FilmData {
   id: string;
