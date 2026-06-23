@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { migrateGuestWords } from "@/lib/guestWords";
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
@@ -9,10 +10,14 @@ export function useAuth() {
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
+      (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
+        // Flush any guest-mode flashcards into the freshly signed-in account.
+        if (event === "SIGNED_IN" && session?.user) {
+          void migrateGuestWords(session.user.id);
+        }
       }
     );
 

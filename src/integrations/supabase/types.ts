@@ -18,29 +18,35 @@ export type Database = {
         Row: {
           created_at: string
           date: string
+          goal_met: boolean
           id: string
           minutes_watched: number | null
           user_id: string
           videos_watched: number | null
           words_learned: number | null
+          words_reviewed: number
         }
         Insert: {
           created_at?: string
           date?: string
+          goal_met?: boolean
           id?: string
           minutes_watched?: number | null
           user_id: string
           videos_watched?: number | null
           words_learned?: number | null
+          words_reviewed?: number
         }
         Update: {
           created_at?: string
           date?: string
+          goal_met?: boolean
           id?: string
           minutes_watched?: number | null
           user_id?: string
           videos_watched?: number | null
           words_learned?: number | null
+          words_reviewed?: number
         }
         Relationships: []
       }
@@ -87,20 +93,185 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          language: string | null
           sort_order: number
           title: string
         }
         Insert: {
           created_at?: string
           id?: string
+          language?: string | null
           sort_order?: number
           title: string
         }
         Update: {
           created_at?: string
           id?: string
+          language?: string | null
           sort_order?: number
           title?: string
+        }
+        Relationships: []
+      }
+      comprehension_snapshots: {
+        Row: {
+          created_at: string
+          green_count: number
+          id: string
+          language: string
+          orange_count: number
+          red_count: number
+          score: number
+          title: string | null
+          total_words: number
+          unique_words: number
+          user_id: string
+          video_id: string
+        }
+        Insert: {
+          created_at?: string
+          green_count?: number
+          id?: string
+          language: string
+          orange_count?: number
+          red_count?: number
+          score: number
+          title?: string | null
+          total_words?: number
+          unique_words?: number
+          user_id: string
+          video_id: string
+        }
+        Update: {
+          created_at?: string
+          green_count?: number
+          id?: string
+          language?: string
+          orange_count?: number
+          red_count?: number
+          score?: number
+          title?: string | null
+          total_words?: number
+          unique_words?: number
+          user_id?: string
+          video_id?: string
+        }
+        Relationships: []
+      }
+      core_vocabulary: {
+        Row: {
+          audio_url: string | null
+          created_at: string
+          example_en: string | null
+          example_fr: string | null
+          frequency_weight: number
+          id: string
+          image_url: string | null
+          language: string
+          lemma: string
+          pos: string | null
+          rank: number
+          topic: string | null
+          translation: string
+          updated_at: string
+          word: string
+        }
+        Insert: {
+          audio_url?: string | null
+          created_at?: string
+          example_en?: string | null
+          example_fr?: string | null
+          frequency_weight?: number
+          id?: string
+          image_url?: string | null
+          language?: string
+          lemma: string
+          pos?: string | null
+          rank: number
+          topic?: string | null
+          translation: string
+          updated_at?: string
+          word: string
+        }
+        Update: {
+          audio_url?: string | null
+          created_at?: string
+          example_en?: string | null
+          example_fr?: string | null
+          frequency_weight?: number
+          id?: string
+          image_url?: string | null
+          language?: string
+          lemma?: string
+          pos?: string | null
+          rank?: number
+          topic?: string | null
+          translation?: string
+          updated_at?: string
+          word?: string
+        }
+        Relationships: []
+      }
+      email_send_log: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          id: string
+          message_id: string | null
+          metadata: Json | null
+          recipient_email: string
+          status: string
+          template_name: string
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          message_id?: string | null
+          metadata?: Json | null
+          recipient_email: string
+          status: string
+          template_name: string
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          message_id?: string | null
+          metadata?: Json | null
+          recipient_email?: string
+          status?: string
+          template_name?: string
+        }
+        Relationships: []
+      }
+      email_send_state: {
+        Row: {
+          auth_email_ttl_minutes: number
+          batch_size: number
+          id: number
+          retry_after_until: string | null
+          send_delay_ms: number
+          transactional_email_ttl_minutes: number
+          updated_at: string
+        }
+        Insert: {
+          auth_email_ttl_minutes?: number
+          batch_size?: number
+          id?: number
+          retry_after_until?: string | null
+          send_delay_ms?: number
+          transactional_email_ttl_minutes?: number
+          updated_at?: string
+        }
+        Update: {
+          auth_email_ttl_minutes?: number
+          batch_size?: number
+          id?: number
+          retry_after_until?: string | null
+          send_delay_ms?: number
+          transactional_email_ttl_minutes?: number
+          updated_at?: string
         }
         Relationships: []
       }
@@ -122,10 +293,36 @@ export type Database = {
         }
         Relationships: []
       }
-      films: {
+      email_unsubscribe_tokens: {
         Row: {
           created_at: string
+          email: string
+          id: string
+          token: string
+          used_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          token: string
+          used_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          token?: string
+          used_at?: string | null
+        }
+        Relationships: []
+      }
+      films: {
+        Row: {
+          category: string | null
+          created_at: string
           created_by: string | null
+          difficulty: number | null
           id: string
           is_public: boolean
           language: string | null
@@ -134,8 +331,10 @@ export type Database = {
           url: string
         }
         Insert: {
+          category?: string | null
           created_at?: string
           created_by?: string | null
+          difficulty?: number | null
           id?: string
           is_public?: boolean
           language?: string | null
@@ -144,8 +343,10 @@ export type Database = {
           url: string
         }
         Update: {
+          category?: string | null
           created_at?: string
           created_by?: string | null
+          difficulty?: number | null
           id?: string
           is_public?: boolean
           language?: string | null
@@ -155,48 +356,225 @@ export type Database = {
         }
         Relationships: []
       }
+      friend_messages: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          read_at: string | null
+          recipient_id: string
+          sender_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          read_at?: string | null
+          recipient_id: string
+          sender_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          read_at?: string | null
+          recipient_id?: string
+          sender_id?: string
+        }
+        Relationships: []
+      }
+      friendship_events: {
+        Row: {
+          actor_id: string
+          created_at: string
+          email_sent_at: string | null
+          id: string
+          kind: string
+          recipient_id: string
+        }
+        Insert: {
+          actor_id: string
+          created_at?: string
+          email_sent_at?: string | null
+          id?: string
+          kind: string
+          recipient_id: string
+        }
+        Update: {
+          actor_id?: string
+          created_at?: string
+          email_sent_at?: string | null
+          id?: string
+          kind?: string
+          recipient_id?: string
+        }
+        Relationships: []
+      }
+      friendships: {
+        Row: {
+          created_at: string
+          friend_id: string
+          id: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          friend_id: string
+          id?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          friend_id?: string
+          id?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
           cef_level: string | null
           created_at: string
+          daily_video_goal: number
+          daily_word_goal: number
+          discoverable_by_search: boolean
           display_name: string | null
+          email_prefs: Json
+          friend_code: string | null
           id: string
+          interests: string[]
+          is_pro: boolean
           is_public: boolean
+          language_switches_used: number
+          last_friend_email_at: string | null
+          last_monthly_email_at: string | null
+          last_review_email_at: string | null
+          last_streak_date: string | null
+          last_streak_rescue_email_at: string | null
+          last_video_id: string | null
+          last_weekly_email_at: string | null
           learning_goal: string | null
           learning_language: string | null
           native_language: string | null
           onboarded: boolean
+          pro_expires_at: string | null
+          pro_granted_at: string | null
+          pro_granted_by: string | null
+          pro_source: string
+          review_emails_week_count: number
+          review_emails_week_start: string | null
+          school: string | null
+          show_daily_briefing: boolean
+          show_on_global_leaderboard: boolean
+          streak_count: number
+          streak_rescue_for_streak: number | null
           updated_at: string
           user_id: string
+          username: string | null
+          video_credit_date: string | null
+          video_credit_remaining: number
+          watch_progress: Json
+          xp_level: number
+          xp_total: number
         }
         Insert: {
           avatar_url?: string | null
           cef_level?: string | null
           created_at?: string
+          daily_video_goal?: number
+          daily_word_goal?: number
+          discoverable_by_search?: boolean
           display_name?: string | null
+          email_prefs?: Json
+          friend_code?: string | null
           id?: string
+          interests?: string[]
+          is_pro?: boolean
           is_public?: boolean
+          language_switches_used?: number
+          last_friend_email_at?: string | null
+          last_monthly_email_at?: string | null
+          last_review_email_at?: string | null
+          last_streak_date?: string | null
+          last_streak_rescue_email_at?: string | null
+          last_video_id?: string | null
+          last_weekly_email_at?: string | null
           learning_goal?: string | null
           learning_language?: string | null
           native_language?: string | null
           onboarded?: boolean
+          pro_expires_at?: string | null
+          pro_granted_at?: string | null
+          pro_granted_by?: string | null
+          pro_source?: string
+          review_emails_week_count?: number
+          review_emails_week_start?: string | null
+          school?: string | null
+          show_daily_briefing?: boolean
+          show_on_global_leaderboard?: boolean
+          streak_count?: number
+          streak_rescue_for_streak?: number | null
           updated_at?: string
           user_id: string
+          username?: string | null
+          video_credit_date?: string | null
+          video_credit_remaining?: number
+          watch_progress?: Json
+          xp_level?: number
+          xp_total?: number
         }
         Update: {
           avatar_url?: string | null
           cef_level?: string | null
           created_at?: string
+          daily_video_goal?: number
+          daily_word_goal?: number
+          discoverable_by_search?: boolean
           display_name?: string | null
+          email_prefs?: Json
+          friend_code?: string | null
           id?: string
+          interests?: string[]
+          is_pro?: boolean
           is_public?: boolean
+          language_switches_used?: number
+          last_friend_email_at?: string | null
+          last_monthly_email_at?: string | null
+          last_review_email_at?: string | null
+          last_streak_date?: string | null
+          last_streak_rescue_email_at?: string | null
+          last_video_id?: string | null
+          last_weekly_email_at?: string | null
           learning_goal?: string | null
           learning_language?: string | null
           native_language?: string | null
           onboarded?: boolean
+          pro_expires_at?: string | null
+          pro_granted_at?: string | null
+          pro_granted_by?: string | null
+          pro_source?: string
+          review_emails_week_count?: number
+          review_emails_week_start?: string | null
+          school?: string | null
+          show_daily_briefing?: boolean
+          show_on_global_leaderboard?: boolean
+          streak_count?: number
+          streak_rescue_for_streak?: number | null
           updated_at?: string
           user_id?: string
+          username?: string | null
+          video_credit_date?: string | null
+          video_credit_remaining?: number
+          watch_progress?: Json
+          xp_level?: number
+          xp_total?: number
         }
         Relationships: []
       }
@@ -213,6 +591,9 @@ export type Database = {
           next_review: string
           pronunciation: string
           review_count: number
+          state: string
+          state_changed_at: string | null
+          times_correct: number
           translation: string
           user_id: string
           word: string
@@ -229,6 +610,9 @@ export type Database = {
           next_review?: string
           pronunciation?: string
           review_count?: number
+          state?: string
+          state_changed_at?: string | null
+          times_correct?: number
           translation?: string
           user_id: string
           word: string
@@ -245,6 +629,9 @@ export type Database = {
           next_review?: string
           pronunciation?: string
           review_count?: number
+          state?: string
+          state_changed_at?: string | null
+          times_correct?: number
           translation?: string
           user_id?: string
           word?: string
@@ -258,6 +645,128 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      starter_deck_cards: {
+        Row: {
+          created_at: string
+          deck_id: string
+          id: string
+          ipa: string
+          position: number
+          reading: string
+          translation: string
+          word: string
+        }
+        Insert: {
+          created_at?: string
+          deck_id: string
+          id?: string
+          ipa?: string
+          position?: number
+          reading?: string
+          translation: string
+          word: string
+        }
+        Update: {
+          created_at?: string
+          deck_id?: string
+          id?: string
+          ipa?: string
+          position?: number
+          reading?: string
+          translation?: string
+          word?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "starter_deck_cards_deck_id_fkey"
+            columns: ["deck_id"]
+            isOneToOne: false
+            referencedRelation: "starter_decks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      starter_decks: {
+        Row: {
+          created_at: string
+          description: string
+          emoji: string
+          id: string
+          language: string
+          name: string
+          slug: string
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string
+          description?: string
+          emoji?: string
+          id?: string
+          language: string
+          name: string
+          slug: string
+          sort_order?: number
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          emoji?: string
+          id?: string
+          language?: string
+          name?: string
+          slug?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
+      subscriptions: {
+        Row: {
+          cancel_at_period_end: boolean | null
+          created_at: string
+          current_period_end: string | null
+          current_period_start: string | null
+          environment: string
+          id: string
+          price_id: string | null
+          product_id: string | null
+          status: string
+          stripe_customer_id: string
+          stripe_subscription_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cancel_at_period_end?: boolean | null
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
+          environment?: string
+          id?: string
+          price_id?: string | null
+          product_id?: string | null
+          status?: string
+          stripe_customer_id: string
+          stripe_subscription_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cancel_at_period_end?: boolean | null
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
+          environment?: string
+          id?: string
+          price_id?: string | null
+          product_id?: string | null
+          status?: string
+          stripe_customer_id?: string
+          stripe_subscription_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       subtitles: {
         Row: {
@@ -303,6 +812,30 @@ export type Database = {
           },
         ]
       }
+      suppressed_emails: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          metadata: Json | null
+          reason: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          metadata?: Json | null
+          reason: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          metadata?: Json | null
+          reason?: string
+        }
+        Relationships: []
+      }
       user_lessons: {
         Row: {
           created_at: string
@@ -342,15 +875,272 @@ export type Database = {
         }
         Relationships: []
       }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_vocabulary_state: {
+        Row: {
+          created_at: string
+          first_seen_at: string
+          id: string
+          promoted_at: string | null
+          state: Database["public"]["Enums"]["vocab_state"]
+          times_correct: number
+          times_seen: number
+          updated_at: string
+          user_id: string
+          word_id: string
+        }
+        Insert: {
+          created_at?: string
+          first_seen_at?: string
+          id?: string
+          promoted_at?: string | null
+          state?: Database["public"]["Enums"]["vocab_state"]
+          times_correct?: number
+          times_seen?: number
+          updated_at?: string
+          user_id: string
+          word_id: string
+        }
+        Update: {
+          created_at?: string
+          first_seen_at?: string
+          id?: string
+          promoted_at?: string | null
+          state?: Database["public"]["Enums"]["vocab_state"]
+          times_correct?: number
+          times_seen?: number
+          updated_at?: string
+          user_id?: string
+          word_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_vocabulary_state_word_id_fkey"
+            columns: ["word_id"]
+            isOneToOne: false
+            referencedRelation: "core_vocabulary"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      watch_history: {
+        Row: {
+          completion_pct: number
+          created_at: string
+          duration_seconds: number
+          film_id: string | null
+          id: string
+          language: string | null
+          position_seconds: number
+          thumbnail_url: string | null
+          title: string | null
+          updated_at: string
+          user_id: string
+          video_id: string
+          watched_at: string
+        }
+        Insert: {
+          completion_pct?: number
+          created_at?: string
+          duration_seconds?: number
+          film_id?: string | null
+          id?: string
+          language?: string | null
+          position_seconds?: number
+          thumbnail_url?: string | null
+          title?: string | null
+          updated_at?: string
+          user_id: string
+          video_id: string
+          watched_at?: string
+        }
+        Update: {
+          completion_pct?: number
+          created_at?: string
+          duration_seconds?: number
+          film_id?: string | null
+          id?: string
+          language?: string | null
+          position_seconds?: number
+          thumbnail_url?: string | null
+          title?: string | null
+          updated_at?: string
+          user_id?: string
+          video_id?: string
+          watched_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "watch_history_film_id_fkey"
+            columns: ["film_id"]
+            isOneToOne: false
+            referencedRelation: "films"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      xp_events: {
+        Row: {
+          action: string
+          amount: number
+          created_at: string
+          id: string
+          meta: Json | null
+          user_id: string
+        }
+        Insert: {
+          action: string
+          amount: number
+          created_at?: string
+          id?: string
+          meta?: Json | null
+          user_id: string
+        }
+        Update: {
+          action?: string
+          amount?: number
+          created_at?: string
+          id?: string
+          meta?: Json | null
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      accept_friend_request: { Args: { _other: string }; Returns: boolean }
+      add_friend_by_code: { Args: { _code: string }; Returns: string }
+      add_friend_by_user_id: { Args: { _target: string }; Returns: string }
+      admin_grant_pro: {
+        Args: { _days?: number; _user_id: string }
+        Returns: boolean
+      }
+      admin_list_pro_users: {
+        Args: never
+        Returns: {
+          display_name: string
+          email: string
+          pro_expires_at: string
+          pro_granted_at: string
+          pro_source: string
+          user_id: string
+          username: string
+        }[]
+      }
+      admin_revoke_pro: { Args: { _user_id: string }; Returns: boolean }
+      admin_search_users: {
+        Args: { _q: string }
+        Returns: {
+          display_name: string
+          email: string
+          is_pro: boolean
+          pro_expires_at: string
+          pro_source: string
+          user_id: string
+          username: string
+        }[]
+      }
+      are_friends: { Args: { _a: string; _b: string }; Returns: boolean }
+      delete_email: {
+        Args: { message_id: number; queue_name: string }
+        Returns: boolean
+      }
+      enqueue_email: {
+        Args: { payload: Json; queue_name: string }
+        Returns: number
+      }
+      gen_friend_code: { Args: never; Returns: string }
+      get_friends_leaderboard: {
+        Args: never
+        Returns: {
+          avatar_url: string
+          display_name: string
+          is_self: boolean
+          streak_count: number
+          user_id: string
+          username: string
+          xp_level: number
+          xp_total: number
+        }[]
+      }
+      get_global_leaderboard: {
+        Args: never
+        Returns: {
+          avatar_url: string
+          display_name: string
+          is_self: boolean
+          user_id: string
+          username: string
+          xp_level: number
+          xp_total: number
+        }[]
+      }
+      get_unread_message_count: { Args: never; Returns: number }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      move_to_dlq: {
+        Args: {
+          dlq_name: string
+          message_id: number
+          payload: Json
+          source_queue: string
+        }
+        Returns: number
+      }
+      read_email_batch: {
+        Args: { batch_size: number; queue_name: string; vt: number }
+        Returns: {
+          message: Json
+          msg_id: number
+          read_ct: number
+        }[]
+      }
+      safe_display_name: {
+        Args: { _display: string; _user_id: string; _username: string }
+        Returns: string
+      }
+      seed_known_vocabulary: {
+        Args: { _language: string; _level: string }
+        Returns: number
+      }
+      set_username: { Args: { _username: string }; Returns: string }
+      update_email_prefs: { Args: { _prefs: Json }; Returns: Json }
+      update_privacy_settings: {
+        Args: { _discoverable: boolean; _show_on_leaderboard: boolean }
+        Returns: undefined
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "user"
+      vocab_state: "red" | "orange" | "green"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -477,6 +1267,9 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "user"],
+      vocab_state: ["red", "orange", "green"],
+    },
   },
 } as const

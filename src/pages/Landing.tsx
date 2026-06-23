@@ -363,8 +363,13 @@ const Landing = () => {
 
       {/* Footer */}
       <footer className="border-t border-border py-8">
-        <div className="max-w-7xl mx-auto px-6 text-center text-sm text-muted-foreground">
-          © {new Date().getFullYear()} LinguaScript. Learn languages by watching films.
+        <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-3 text-sm text-muted-foreground">
+          <div>© {new Date().getFullYear()} LinguaScript. Learn languages by watching films.</div>
+          <nav className="flex items-center gap-4">
+            <a href="/privacy" className="hover:text-foreground">Privacy</a>
+            <a href="/privacy-extension" className="hover:text-foreground">Extension Privacy</a>
+            <a href="mailto:rowan@linguascript.xyz" className="hover:text-foreground">Contact</a>
+          </nav>
         </div>
       </footer>
     </div>

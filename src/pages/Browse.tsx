@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   Play,
   Search,
@@ -16,12 +16,17 @@ import {
   Languages,
   Download,
   BookOpen,
+  Target,
+  Lock,
+  Users,
 } from "lucide-react";
+import { UpgradeLockDialog } from "@/components/UpgradeLockDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useTour } from "@/contexts/TourContext";
 import { useToast } from "@/hooks/use-toast";
 import { getLanguageLabel, getLanguageFlag, LANGUAGES } from "@/lib/languages";
 import { ensureSubtitleTracks } from "@/lib/subtitleSync";
@@ -34,6 +39,15 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
+import { ProgressDashboard } from "@/components/ProgressDashboard";
+import { ActivityCalendarDark } from "@/components/ActivityCalendarDark";
+import { ActiveLanguageBadge } from "@/components/ActiveLanguageBadge";
+import { INTERESTS, type Interest } from "@/lib/interests";
+import { PersonalizedRails } from "@/components/PersonalizedRails";
+
+const INTERESTS_BY_ID: Record<string, Interest> = Object.fromEntries(
+  INTERESTS.map((i) => [i.id, i]),
+);
 
 interface UserLesson {
   id: string;
@@ -55,10 +69,12 @@ interface ActivityDay {
 
 type TabKey = "home" | "discover" | "calendar" | "settings";
 
-const SIDEBAR_ITEMS: { icon: typeof Home; label: string; key: TabKey | "flashcards" }[] = [
+const SIDEBAR_ITEMS: { icon: typeof Home; label: string; key: TabKey | "flashcards" | "vocabulary" | "friends" }[] = [
   { icon: Home, label: "Home", key: "home" },
   { icon: Compass, label: "Discover", key: "discover" },
+  { icon: Target, label: "Comprehension", key: "vocabulary" },
   { icon: BookOpen, label: "Flashcards", key: "flashcards" },
+  { icon: Users, label: "Friends", key: "friends" },
   { icon: CalendarIcon, label: "Calendar", key: "calendar" },
   { icon: Settings, label: "Settings", key: "settings" },
 ];
@@ -77,11 +93,17 @@ function formatDuration(seconds: number): string {
 
 const Browse = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const location = useLocation();
+  const { user, loading: authLoading } = useAuth();
   const { learningLanguage, setLearningLanguage } = useLanguage();
   const { toast } = useToast();
+  const tour = useTour();
 
-  const [activeTab, setActiveTab] = useState<TabKey>("home");
+  const initialTab: TabKey = location.pathname.startsWith("/discover") ? "discover" : "home";
+  const [activeTab, setActiveTab] = useState<TabKey>(initialTab);
+  useEffect(() => {
+    if (location.pathname.startsWith("/discover")) setActiveTab("discover");
+  }, [location.pathname]);
   const [lessons, setLessons] = useState<UserLesson[]>([]);
   const [loadingLessons, setLoadingLessons] = useState(true);
   const [pasteUrl, setPasteUrl] = useState("");
@@ -93,6 +115,7 @@ const Browse = () => {
   const [displayName, setDisplayName] = useState("");
   const [isPublic, setIsPublic] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
+  const [interests, setInterests] = useState<string[]>([]);
 
   // Calendar state
   const [activityData, setActivityData] = useState<ActivityDay[]>([]);
@@ -150,11 +173,9 @@ const Browse = () => {
       setSettingsLearning(data.learning_language || "fr");
       setDisplayName(data.display_name || "");
       setIsPublic(!!(data as any).is_public);
-      if ((data as any).onboarded === false) {
-        navigate("/onboarding");
-      }
+      setInterests(Array.isArray((data as any).interests) ? (data as any).interests : []);
     }
-  }, [user, navigate]);
+  }, [user]);
 
   useEffect(() => {
     fetchLessons();
@@ -164,9 +185,13 @@ const Browse = () => {
     supabase.from("films").select("*").eq("is_public", true).order("created_at", { ascending: false }).then(({ data }) => {
       setDiscoverFilms(data || []);
     });
-    // Curated catalog rows with their pinned films
+    // Curated catalog rows with their pinned films — filter to user's learning language (or global rows where language IS NULL)
     (async () => {
-      const { data: rows } = await supabase.from("catalog_rows").select("*").order("sort_order");
+      const { data: rows } = await supabase
+        .from("catalog_rows")
+        .select("*")
+        .or(`language.is.null,language.eq.${learningLanguage}`)
+        .order("sort_order");
       if (!rows) return;
       const withFilms = await Promise.all(
         rows.map(async (row: any) => {
@@ -183,7 +208,7 @@ const Browse = () => {
       );
       setCatalogRows(withFilms.filter((r) => r.films.length > 0));
     })();
-  }, [fetchLessons, fetchActivity, fetchProfile]);
+  }, [fetchLessons, fetchActivity, fetchProfile, learningLanguage]);
 
   const createLesson = async () => {
     if (!user) {
@@ -258,12 +283,15 @@ const Browse = () => {
       });
 
       if (filmId) {
-        await ensureSubtitleTracks({
+        // Fire-and-forget: caption ingestion runs in the background while the
+        // user is already on the Watch page seeing the thumbnail/title and
+        // can start the video immediately.
+        ensureSubtitleTracks({
           filmId,
           videoId: ytId,
           primaryLanguage: learningLanguage,
           secondaryLanguage: nativeLanguage,
-        });
+        }).catch((err) => console.warn("Background caption ingest failed:", err));
       }
 
       // Log activity
@@ -288,17 +316,95 @@ const Browse = () => {
         });
       }
 
-      toast({ title: "Lesson created! 🎬", description: `"${title}" is ready to watch.` });
+      toast({ title: "Lesson created! 🎬", description: `"${title}" — captions loading in the background.` });
       setPasteUrl("");
       fetchLessons();
       fetchActivity();
 
-      // Navigate to watch
+      // Navigate to watch immediately — captions stream in while video is ready.
       if (filmId) {
         navigate(`/watch/${filmId}`);
       }
     } catch (err: any) {
       toast({ title: "Error creating lesson", description: err.message, variant: "destructive" });
+    }
+    setCreating(false);
+  };
+
+  /**
+   * Import a YouTube video by ID (used by Discover search results so a
+   * single click goes straight from search → watching, no paste required).
+   */
+  const importYoutubeId = async (ytId: string, titleHint?: string, thumbHint?: string) => {
+    if (!user) {
+      toast({ title: "Sign in required", description: "Please sign in to save lessons.", variant: "destructive" });
+      navigate("/auth");
+      return;
+    }
+    setCreating(true);
+    try {
+      let title = titleHint || "YouTube Video";
+      if (!titleHint) {
+        try {
+          const oembedRes = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${ytId}&format=json`);
+          if (oembedRes.ok) {
+            const oembedData = await oembedRes.json();
+            title = oembedData.title || title;
+          }
+        } catch { /* non-fatal */ }
+      }
+      const thumbnail = thumbHint || `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`;
+      const filmUrl = `https://www.youtube.com/watch?v=${ytId}`;
+
+      // Reuse an existing private film for this user if we already have one.
+      const { data: existingFilm } = await supabase
+        .from("films")
+        .select("id")
+        .eq("url", filmUrl)
+        .eq("created_by", user.id)
+        .maybeSingle();
+      let filmId = existingFilm?.id || "";
+      if (!filmId) {
+        const { data: newFilm } = await supabase.from("films").insert({
+          title,
+          url: filmUrl,
+          thumbnail_url: thumbnail,
+          language: learningLanguage,
+          is_public: false,
+          created_by: user.id,
+        }).select("id").single();
+        filmId = newFilm?.id || "";
+      }
+
+      // user_lessons is idempotent on (user_id, youtube_id) — upsert-style insert.
+      const { data: existingLesson } = await supabase
+        .from("user_lessons")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("youtube_id", ytId)
+        .maybeSingle();
+      if (!existingLesson) {
+        await supabase.from("user_lessons").insert({
+          user_id: user.id,
+          youtube_id: ytId,
+          title,
+          thumbnail_url: thumbnail,
+          original_language: learningLanguage,
+        });
+      }
+
+      if (filmId) {
+        ensureSubtitleTracks({
+          filmId,
+          videoId: ytId,
+          primaryLanguage: learningLanguage,
+          secondaryLanguage: nativeLanguage,
+        }).catch((err) => console.warn("Background caption ingest failed:", err));
+        navigate(`/watch/${filmId}`);
+      }
+      fetchLessons();
+    } catch (err: any) {
+      toast({ title: "Error opening video", description: err.message, variant: "destructive" });
     }
     setCreating(false);
   };
@@ -338,7 +444,8 @@ const Browse = () => {
           {SIDEBAR_ITEMS.map(({ icon: Icon, label, key }) => (
             <button
               key={key}
-              onClick={() => key === "flashcards" ? navigate("/flashcards") : setActiveTab(key as TabKey)}
+              data-tour={`nav-${key}`}
+              onClick={() => key === "flashcards" ? navigate("/flashcards") : key === "vocabulary" ? navigate("/vocabulary") : key === "friends" ? navigate("/friends") : setActiveTab(key as TabKey)}
               className={cn(
                 "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors",
                 activeTab === key
@@ -372,7 +479,8 @@ const Browse = () => {
               {SIDEBAR_ITEMS.map(({ icon: Icon, key }) => (
                 <button
                   key={key}
-                  onClick={() => key === "flashcards" ? navigate("/flashcards") : setActiveTab(key as TabKey)}
+                  data-tour={`nav-${key}`}
+                  onClick={() => key === "flashcards" ? navigate("/flashcards") : key === "vocabulary" ? navigate("/vocabulary") : key === "friends" ? navigate("/friends") : setActiveTab(key as TabKey)}
                   className={cn(
                     "p-2 rounded-lg transition-colors",
                     activeTab === key ? "bg-primary/15 text-primary" : "text-muted-foreground"
@@ -384,6 +492,7 @@ const Browse = () => {
             </div>
             <div className="flex-1" />
             <div className="flex items-center gap-3">
+              <ActiveLanguageBadge />
               {user ? (
                 <Button variant="ghost" size="sm" onClick={() => navigate("/profile")} className="text-muted-foreground">
                   Profile
@@ -408,6 +517,8 @@ const Browse = () => {
               navigate={navigate}
               discoverFilms={discoverFilms}
               catalogRows={catalogRows}
+              interests={interests}
+              onWatchYoutube={importYoutubeId}
             />
           )}
           {activeTab === "discover" && (
@@ -415,23 +526,32 @@ const Browse = () => {
               films={discoverFilms}
               navigate={navigate}
               learningLanguage={learningLanguage}
-              onPickVideo={(url) => { setPasteUrl(url); setActiveTab("home"); }}
+              interests={interests}
+              importing={creating}
+              onWatch={importYoutubeId}
             />
           )}
           {activeTab === "calendar" && (
-            <CalendarTab
-              activityData={activityData}
-              streak={currentStreak}
-              totalMinutes={activityData.reduce((a, d) => a + d.minutes_watched, 0)}
-              totalVideos={activityData.reduce((a, d) => a + d.videos_watched, 0)}
-            />
+            <div className="max-w-5xl">
+              <ActivityCalendarDark />
+            </div>
           )}
           {activeTab === "settings" && (
             <SettingsTab
               nativeLanguage={nativeLanguage}
-              setNativeLanguage={setNativeLanguage}
+              setNativeLanguage={(v) => {
+                setNativeLanguage(v);
+                if (tour.active && tour.step?.id === "settings-native") {
+                  setTimeout(() => tour.advance(), 350);
+                }
+              }}
               learningLanguage={settingsLearning}
-              setLearningLanguage={setSettingsLearning}
+              setLearningLanguage={(v) => {
+                setSettingsLearning(v);
+                if (tour.active && tour.step?.id === "settings-learning") {
+                  setTimeout(() => tour.advance(), 350);
+                }
+              }}
               displayName={displayName}
               setDisplayName={setDisplayName}
               isPublic={isPublic}
@@ -439,6 +559,7 @@ const Browse = () => {
               saving={savingSettings}
               onSave={saveSettings}
               user={user}
+              authLoading={authLoading}
               navigate={navigate}
             />
           )}
@@ -449,39 +570,72 @@ const Browse = () => {
 };
 
 /* ── CATALOG ROW STRIP ── */
-const CatalogStrip = ({ title, films, navigate }: { title: string; films: any[]; navigate: (p: string) => void }) => (
-  <section>
-    <h2 className="text-lg font-semibold text-foreground mb-4">{title}</h2>
-    <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin">
-      {films.map((film) => (
-        <button
-          key={film.id}
-          onClick={() => navigate(`/watch/${film.id}`)}
-          className="group shrink-0 w-[180px]"
-        >
-          <div className="relative rounded-xl overflow-hidden aspect-video bg-secondary mb-2 border border-border group-hover:border-primary/50 transition-all">
-            {film.thumbnail_url ? (
-              <img src={film.thumbnail_url} alt={film.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center"><Play className="w-8 h-8 text-muted-foreground" /></div>
-            )}
-            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-              <div className="w-10 h-10 rounded-full bg-primary/90 flex items-center justify-center">
-                <Play className="w-4 h-4 text-primary-foreground ml-0.5" />
+const CatalogStrip = ({ title, films, navigate }: { title: string; films: any[]; navigate: (p: string) => void }) => {
+  const { languageContext, isContentLocked } = useLanguage();
+  const [lockedLang, setLockedLang] = useState<string | null>(null);
+
+  return (
+    <section>
+      <h2 className="text-lg font-semibold text-foreground mb-4">{title}</h2>
+      <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin">
+        {films.map((film) => {
+          const locked = isContentLocked(film.language);
+          return (
+            <button
+              key={film.id}
+              onClick={() => {
+                if (locked) setLockedLang(film.language);
+                else navigate(`/watch/${film.id}`);
+              }}
+              className="group shrink-0 w-[180px]"
+            >
+              <div className="relative rounded-xl overflow-hidden aspect-video bg-secondary mb-2 border border-border group-hover:border-primary/50 transition-all">
+                {film.thumbnail_url ? (
+                  <img
+                    src={film.thumbnail_url}
+                    alt={film.title}
+                    className={cn(
+                      "w-full h-full object-cover transition-transform duration-300",
+                      locked ? "blur-md scale-110 opacity-60" : "group-hover:scale-105",
+                    )}
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center"><Play className="w-8 h-8 text-muted-foreground" /></div>
+                )}
+                {locked ? (
+                  <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center gap-1">
+                    <div className="w-9 h-9 rounded-full bg-amber-500/20 border border-amber-400/40 flex items-center justify-center">
+                      <Lock className="w-4 h-4 text-amber-300" />
+                    </div>
+                    <span className="text-[10px] uppercase tracking-wider text-amber-200/90 font-semibold">Pro</span>
+                  </div>
+                ) : (
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <div className="w-10 h-10 rounded-full bg-primary/90 flex items-center justify-center">
+                      <Play className="w-4 h-4 text-primary-foreground ml-0.5" />
+                    </div>
+                  </div>
+                )}
               </div>
-            </div>
-          </div>
-          <p className="text-sm text-foreground truncate text-left">{film.title}</p>
-          <p className="text-xs text-muted-foreground text-left">{getLanguageFlag(film.language ?? "fr")} {getLanguageLabel(film.language ?? "fr")}</p>
-        </button>
-      ))}
-    </div>
-  </section>
-);
+              <p className={cn("text-sm truncate text-left", locked ? "text-muted-foreground" : "text-foreground")}>{film.title}</p>
+              <p className="text-xs text-muted-foreground text-left">{getLanguageFlag(film.language ?? "fr")} {getLanguageLabel(film.language ?? "fr")}</p>
+            </button>
+          );
+        })}
+      </div>
+      <UpgradeLockDialog
+        open={!!lockedLang}
+        onOpenChange={(v) => !v && setLockedLang(null)}
+        contentLanguage={lockedLang}
+        activeLanguage={languageContext}
+      />
+    </section>
+  );
+};
 
 /* ── HOME TAB ── */
 const HomeTab = ({
-  lessons, loading, pasteUrl, setPasteUrl, creating, createLesson, deleteLesson, navigate, discoverFilms, catalogRows,
+  lessons, loading, pasteUrl, setPasteUrl, creating, createLesson, deleteLesson, navigate, discoverFilms, catalogRows, interests, onWatchYoutube,
 }: {
   lessons: UserLesson[];
   loading: boolean;
@@ -493,68 +647,150 @@ const HomeTab = ({
   navigate: (path: string) => void;
   discoverFilms: any[];
   catalogRows: { id: string; title: string; films: any[] }[];
-}) => (
-  <div className="space-y-8">
-    {/* Paste YouTube Link */}
-    <div className="glass-panel-strong p-6 rounded-2xl">
-      <h2 className="text-lg font-bold text-foreground mb-1">Paste a YouTube Link</h2>
-       <p className="text-sm text-muted-foreground mb-4">
-         We'll fetch the source and learning-language subtitle tracks, save them, and create an interactive lesson.
-      </p>
-      <div className="flex gap-3">
-        <div className="relative flex-1">
-          <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="https://youtube.com/watch?v=..."
-            value={pasteUrl}
-            onChange={(e) => setPasteUrl(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && createLesson()}
-            className="pl-10 h-12 bg-secondary/50 border-border rounded-xl"
-          />
+  interests: string[];
+  onWatchYoutube: (ytId: string, titleHint?: string, thumbHint?: string) => Promise<void>;
+}) => {
+  const { learningLanguage } = useLanguage();
+  const filteredLessons = lessons.filter(
+    (l) => !l.original_language || l.original_language.toLowerCase() === learningLanguage.toLowerCase(),
+  );
+  return (
+    <div className="space-y-8">
+      {/* LinguaScript's primary metric: turn the language green. */}
+      <UnderstandingHero language={learningLanguage} />
+
+      {/* Paste YouTube Link */}
+      <div className="glass-panel-strong p-6 rounded-2xl">
+        <h2 className="text-lg font-bold text-foreground mb-1">Paste a YouTube Link</h2>
+        <p className="text-sm text-muted-foreground mb-4">
+          We'll fetch the source and learning-language subtitle tracks, save them, and create an interactive lesson.
+        </p>
+        <div className="flex gap-3">
+          <div className="relative flex-1">
+            <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              data-tour="paste-input"
+              placeholder="https://youtube.com/watch?v=..."
+              value={pasteUrl}
+              onChange={(e) => setPasteUrl(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && createLesson()}
+              className="pl-10 h-12 bg-secondary/50 border-border rounded-xl"
+            />
+          </div>
+          <Button
+            onClick={createLesson}
+            disabled={creating || !pasteUrl.trim()}
+            className="h-12 px-6 rounded-xl bg-gradient-to-r from-primary to-[hsl(280,100%,60%)] text-primary-foreground font-semibold gap-2"
+          >
+            {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+            Create Lesson
+          </Button>
         </div>
-        <Button
-          onClick={createLesson}
-          disabled={creating || !pasteUrl.trim()}
-          className="h-12 px-6 rounded-xl bg-gradient-to-r from-primary to-[hsl(280,100%,60%)] text-primary-foreground font-semibold gap-2"
-        >
-          {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
-          Create Lesson
-        </Button>
+      </div>
+
+      {/* Saved Lessons (learning-language only) */}
+      <section>
+        <h2 className="text-lg font-semibold text-foreground mb-4">Your Lessons</h2>
+        {loading ? (
+          <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
+        ) : filteredLessons.length === 0 ? (
+          <div className="glass-panel p-12 text-center rounded-2xl">
+            <Play className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+            <p className="text-muted-foreground">No lessons yet. Paste a YouTube link above to start!</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+            {filteredLessons.map((lesson) => (
+              <LessonCard key={lesson.id} lesson={lesson} onDelete={deleteLesson} navigate={navigate} />
+            ))}
+          </div>
+        )}
+      </section>
+    </div>
+  );
+};
+
+/* ── UNDERSTANDING HERO ──
+ * LinguaScript's headline metric. Replaces "words learned" as the primary
+ * progress signal — what matters is how green the language has become.
+ */
+const UnderstandingHero = ({ language }: { language: string }) => {
+  const { user } = useAuth();
+  const [greenCount, setGreenCount] = useState<number | null>(null);
+  const [monthDelta, setMonthDelta] = useState<number>(0);
+
+  useEffect(() => {
+    if (!user) { setGreenCount(0); return; }
+    let alive = true;
+    (async () => {
+      const { count: total } = await supabase
+        .from("saved_words")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("language", language)
+        .eq("state", "green");
+      if (!alive) return;
+      const greens = total ?? 0;
+      setGreenCount(greens);
+
+      // Green converted in the last 30 days (approx month-over-month delta).
+      const since = new Date();
+      since.setDate(since.getDate() - 30);
+      const { count: recent } = await supabase
+        .from("saved_words")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("language", language)
+        .eq("state", "green")
+        .gte("state_changed_at", since.toISOString());
+      if (!alive) return;
+      const ceiling = 5000;
+      setMonthDelta(Math.round(((recent ?? 0) / ceiling) * 100));
+    })();
+    return () => { alive = false; };
+  }, [user, language]);
+
+  const pct = greenCount === null ? null : Math.max(0, Math.min(99, Math.round((greenCount / 5000) * 100)));
+  const langLabel = getLanguageLabel(language);
+
+  return (
+    <div className="glass-panel-strong rounded-3xl p-8 relative overflow-hidden border border-emerald-500/20">
+      <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-transparent to-transparent pointer-events-none" />
+      <div className="relative flex items-end justify-between gap-6 flex-wrap">
+        <div>
+          <p className="text-sm font-medium text-emerald-300/80 uppercase tracking-wider">
+            {langLabel} Understanding
+          </p>
+          <div className="flex items-baseline gap-3 mt-2">
+            <span className="text-6xl font-bold text-emerald-400 tabular-nums">
+              {pct === null ? "—" : `${pct}%`}
+            </span>
+            {monthDelta > 0 && (
+              <span className="text-sm font-medium text-emerald-300">
+                ↑ {monthDelta}% this month
+              </span>
+            )}
+          </div>
+          <p className="text-sm text-muted-foreground mt-2 max-w-md">
+            Every green word is a word you understand. Watch more, save more, turn more of the language green.
+          </p>
+        </div>
+        <div className="flex flex-col items-end">
+          <div className="w-48 h-2 rounded-full bg-emerald-500/10 overflow-hidden">
+            <div
+              className="h-full bg-gradient-to-r from-emerald-500 to-emerald-300 transition-all duration-700"
+              style={{ width: `${pct ?? 0}%` }}
+            />
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">
+            {greenCount ?? 0} green words
+          </p>
+        </div>
       </div>
     </div>
+  );
+};
 
-    {/* Saved Lessons */}
-    <section>
-      <h2 className="text-lg font-semibold text-foreground mb-4">Your Lessons</h2>
-      {loading ? (
-        <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
-      ) : lessons.length === 0 ? (
-        <div className="glass-panel p-12 text-center rounded-2xl">
-          <Play className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-          <p className="text-muted-foreground">No lessons yet. Paste a YouTube link above to start!</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-          {lessons.map((lesson) => (
-            <LessonCard key={lesson.id} lesson={lesson} onDelete={deleteLesson} navigate={navigate} />
-          ))}
-        </div>
-      )}
-    </section>
-
-
-
-    {/* Curated catalog rows */}
-    {catalogRows.map((row) => (
-      <CatalogStrip key={row.id} title={row.title} films={row.films} navigate={navigate} />
-    ))}
-
-    {/* Generic catalog row (fallback if no curated rows) */}
-    {catalogRows.length === 0 && discoverFilms.length > 0 && (
-      <CatalogStrip title="From the Catalog" films={discoverFilms} navigate={navigate} />
-    )}
-  </div>
-);
 
 /* ── LESSON CARD ── */
 const LessonCard = ({
@@ -611,26 +847,71 @@ const LessonCard = ({
 };
 
 /* ── DISCOVER TAB ── */
+const DIFFICULTY_BADGES: Record<string, { label: string; cls: string }> = {
+  beginner:     { label: "🟢 Beginner",     cls: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30" },
+  intermediate: { label: "🟠 Intermediate", cls: "bg-amber-500/15 text-amber-300 border-amber-500/30" },
+  advanced:     { label: "🔴 Advanced",     cls: "bg-rose-500/15 text-rose-300 border-rose-500/30" },
+};
+
+function formatSearchDuration(s: number): string {
+  if (!s || s <= 0) return "";
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  if (h > 0) return `${h}:${m.toString().padStart(2, "0")}:${sec.toString().padStart(2, "0")}`;
+  return `${m}:${sec.toString().padStart(2, "0")}`;
+}
+
+function formatRelativeDate(iso?: string): string {
+  if (!iso) return "";
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return "";
+  const days = Math.max(0, Math.floor((Date.now() - then) / 86400000));
+  if (days < 1) return "today";
+  if (days < 7) return `${days}d ago`;
+  if (days < 30) return `${Math.floor(days / 7)}w ago`;
+  if (days < 365) return `${Math.floor(days / 30)}mo ago`;
+  return `${Math.floor(days / 365)}y ago`;
+}
+
 const DiscoverTab = ({
-  films, navigate, learningLanguage, onPickVideo,
+  films, navigate, learningLanguage, interests, importing, onWatch,
 }: {
   films: any[];
   navigate: (p: string) => void;
   learningLanguage: string;
-  onPickVideo: (url: string) => void;
+  interests: string[];
+  importing: boolean;
+  onWatch: (ytId: string, titleHint?: string, thumbHint?: string) => Promise<void>;
 }) => {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<any[]>([]);
   const [searching, setSearching] = useState(false);
+  const [pendingId, setPendingId] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const runSearch = async () => {
-    if (!query.trim()) return;
+  // Build interest chip queries scoped to the learning language so a French
+  // learner clicking "History" actually gets French history content.
+  const interestChips = useMemo(() => {
+    const langLabel = getLanguageLabel(learningLanguage);
+    return (interests || [])
+      .map((id) => {
+        const meta = INTERESTS_BY_ID[id];
+        if (!meta) return null;
+        return { id, label: meta.label, emoji: meta.emoji, q: `${langLabel} ${meta.query}` };
+      })
+      .filter(Boolean) as { id: string; label: string; emoji: string; q: string }[];
+  }, [interests, learningLanguage]);
+
+  const runSearch = async (overrideQuery?: string) => {
+    const q = (overrideQuery ?? query).trim();
+    if (!q) return;
+    if (overrideQuery !== undefined) setQuery(overrideQuery);
     setSearching(true);
     setResults([]);
     try {
       const { data, error } = await supabase.functions.invoke("youtube-search", {
-        body: { q: query, lang: learningLanguage },
+        body: { q, lang: learningLanguage },
       });
       if (error) throw error;
       if ((data as any)?.error) throw new Error((data as any).error);
@@ -641,11 +922,23 @@ const DiscoverTab = ({
     setSearching(false);
   };
 
+  const handlePick = async (r: any) => {
+    if (importing || pendingId) return;
+    setPendingId(r.videoId);
+    try {
+      await onWatch(r.videoId, r.title, r.thumbnail);
+    } finally {
+      setPendingId(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-foreground mb-2">Discover</h2>
-        <p className="text-muted-foreground">Search YouTube or browse the curated catalog.</p>
+        <p className="text-muted-foreground">
+          Search YouTube in {getLanguageLabel(learningLanguage)}. Click a result to start watching — captions load automatically.
+        </p>
       </div>
 
       {/* YouTube search */}
@@ -661,67 +954,112 @@ const DiscoverTab = ({
               className="pl-10 h-11 bg-secondary/50 border-border rounded-xl"
             />
           </div>
-          <Button onClick={runSearch} disabled={searching || !query.trim()} className="h-11 px-5 rounded-xl">
+          <Button onClick={() => runSearch()} disabled={searching || !query.trim()} className="h-11 px-5 rounded-xl">
             {searching ? <Loader2 className="w-4 h-4 animate-spin" /> : "Search"}
           </Button>
         </div>
+
+        {interestChips.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            <span className="text-xs text-muted-foreground self-center mr-1">For you:</span>
+            {interestChips.map((chip) => (
+              <button
+                key={chip.id}
+                onClick={() => runSearch(chip.q)}
+                disabled={searching}
+                className="text-xs px-3 h-8 rounded-full border border-border bg-secondary/40 hover:bg-secondary text-foreground transition disabled:opacity-50"
+              >
+                <span className="mr-1">{chip.emoji}</span>{chip.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {results.length > 0 && (
         <section>
           <h3 className="text-sm font-medium text-muted-foreground mb-3">YouTube results</h3>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-            {results.map((r) => (
-              <button
-                key={r.videoId}
-                onClick={() => onPickVideo(`https://www.youtube.com/watch?v=${r.videoId}`)}
-                className="group text-left"
-              >
-                <div className="relative rounded-xl overflow-hidden aspect-video bg-secondary mb-2 border border-border group-hover:border-primary/50 transition-all">
-                  {r.thumbnail && <img src={r.thumbnail} alt={r.title} className="w-full h-full object-cover" />}
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <div className="w-10 h-10 rounded-full bg-primary/90 flex items-center justify-center">
-                      <Play className="w-4 h-4 text-primary-foreground ml-0.5" />
+            {results.map((r) => {
+              const badge = DIFFICULTY_BADGES[r.difficulty] || DIFFICULTY_BADGES.intermediate;
+              const dur = formatSearchDuration(r.durationSeconds || 0);
+              const loading = pendingId === r.videoId;
+              return (
+                <button
+                  key={r.videoId}
+                  onClick={() => handlePick(r)}
+                  disabled={importing || !!pendingId}
+                  className="group text-left disabled:opacity-60 disabled:cursor-wait"
+                >
+                  <div className="relative rounded-xl overflow-hidden aspect-video bg-secondary mb-2 border border-border group-hover:border-primary/50 transition-all">
+                    {r.thumbnail && <img src={r.thumbnail} alt={r.title} className="w-full h-full object-cover" />}
+                    {dur && (
+                      <div className="absolute bottom-2 right-2 bg-black/80 text-white text-[11px] font-medium px-1.5 py-0.5 rounded">
+                        {dur}
+                      </div>
+                    )}
+                    <div className={cn(
+                      "absolute top-2 left-2 text-[10px] font-semibold px-2 py-0.5 rounded-full border backdrop-blur-sm",
+                      badge.cls,
+                    )}>
+                      {badge.label}
+                    </div>
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <div className="w-10 h-10 rounded-full bg-primary/90 flex items-center justify-center">
+                        {loading
+                          ? <Loader2 className="w-4 h-4 text-primary-foreground animate-spin" />
+                          : <Play className="w-4 h-4 text-primary-foreground ml-0.5" />}
+                      </div>
                     </div>
                   </div>
-                </div>
-                <p className="text-sm text-foreground truncate font-medium" dangerouslySetInnerHTML={{ __html: r.title }} />
-                <p className="text-xs text-muted-foreground truncate">{r.channel}</p>
-              </button>
-            ))}
+                  <p className="text-sm text-foreground line-clamp-2 font-medium leading-snug" dangerouslySetInnerHTML={{ __html: r.title }} />
+                  <p className="text-xs text-muted-foreground truncate mt-1">{r.channel}</p>
+                  {r.publishedAt && (
+                    <p className="text-[11px] text-muted-foreground/80 mt-0.5">{formatRelativeDate(r.publishedAt)}</p>
+                  )}
+                </button>
+              );
+            })}
           </div>
         </section>
       )}
 
-      {/* Curated catalog */}
-      <section>
-        <h3 className="text-sm font-medium text-muted-foreground mb-3">From the catalog</h3>
-        {films.length === 0 ? (
-          <div className="glass-panel p-12 text-center rounded-2xl">
-            <Compass className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-            <p className="text-muted-foreground">No catalog content yet.</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-            {films.map((film) => (
-              <button key={film.id} onClick={() => navigate(`/watch/${film.id}`)} className="group text-left">
-                <div className="relative rounded-xl overflow-hidden aspect-video bg-secondary mb-2 border border-border group-hover:border-primary/50 transition-all">
-                  {film.thumbnail_url ? (
-                    <img src={film.thumbnail_url} alt={film.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center"><Play className="w-8 h-8 text-muted-foreground" /></div>
-                  )}
-                  <div className="absolute bottom-2 left-2 bg-black/70 backdrop-blur text-xs px-2 py-0.5 rounded-md text-foreground">
-                    {getLanguageFlag(film.language ?? "fr")}
-                  </div>
-                </div>
-                <p className="text-sm text-foreground truncate font-medium">{film.title}</p>
-                <p className="text-xs text-muted-foreground">{getLanguageLabel(film.language ?? "fr")}</p>
-              </button>
-            ))}
-          </div>
-        )}
-      </section>
+      {/* Curated catalog (learning-language only) */}
+      {(() => {
+        const langFilms = films.filter(
+          (f) => (f.language || "").toLowerCase() === learningLanguage.toLowerCase(),
+        );
+        return (
+          <section>
+            <h3 className="text-sm font-medium text-muted-foreground mb-3">From the catalog</h3>
+            {langFilms.length === 0 ? (
+              <div className="glass-panel p-12 text-center rounded-2xl">
+                <Compass className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+                <p className="text-muted-foreground">No catalog content in {getLanguageLabel(learningLanguage)} yet.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                {langFilms.map((film) => (
+                  <button key={film.id} onClick={() => navigate(`/watch/${film.id}`)} className="group text-left">
+                    <div className="relative rounded-xl overflow-hidden aspect-video bg-secondary mb-2 border border-border group-hover:border-primary/50 transition-all">
+                      {film.thumbnail_url ? (
+                        <img src={film.thumbnail_url} alt={film.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center"><Play className="w-8 h-8 text-muted-foreground" /></div>
+                      )}
+                      <div className="absolute bottom-2 left-2 bg-black/70 backdrop-blur text-xs px-2 py-0.5 rounded-md text-foreground">
+                        {getLanguageFlag(film.language ?? "fr")}
+                      </div>
+                    </div>
+                    <p className="text-sm text-foreground truncate font-medium">{film.title}</p>
+                    <p className="text-xs text-muted-foreground">{getLanguageLabel(film.language ?? "fr")}</p>
+                  </button>
+                ))}
+              </div>
+            )}
+          </section>
+        );
+      })()}
     </div>
   );
 };
@@ -826,7 +1164,7 @@ const SettingsTab = ({
   learningLanguage, setLearningLanguage,
   displayName, setDisplayName,
   isPublic, setIsPublic,
-  saving, onSave, user, navigate,
+  saving, onSave, user, authLoading, navigate,
 }: {
   nativeLanguage: string;
   setNativeLanguage: (v: string) => void;
@@ -839,9 +1177,31 @@ const SettingsTab = ({
   saving: boolean;
   onSave: () => void;
   user: any;
+  authLoading?: boolean;
   navigate: (p: string) => void;
 }) => {
-  if (!user) {
+  const tour = useTour();
+  const onNativeOpenChange = (open: boolean) => {
+    if (!open && tour.active && tour.step?.id === "settings-native") {
+      setTimeout(() => tour.advance(), 250);
+    }
+  };
+  const onLearningOpenChange = (open: boolean) => {
+    if (!open && tour.active && tour.step?.id === "settings-learning") {
+      setTimeout(() => tour.advance(), 250);
+    }
+  };
+  // While the auth session is still restoring, show a spinner instead of a
+  // sign-in barrier — otherwise a logged-in user briefly sees "Sign in" on
+  // refresh, which feels like a glitch/lockout.
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <Loader2 className="w-6 h-6 animate-spin text-orange-500" />
+      </div>
+    );
+  }
+  if (!user && !tour.active) {
     return (
       <div className="space-y-6">
         <h2 className="text-2xl font-bold text-foreground">Settings</h2>
@@ -874,18 +1234,18 @@ const SettingsTab = ({
 
       {/* Languages */}
       <SettingsSection title="Languages" subtitle="Powers translations and pronunciation voices.">
-        <div>
+        <div data-tour="settings-native">
           <label className="text-sm font-medium text-foreground mb-2 block">Native language</label>
-          <Select value={nativeLanguage} onValueChange={setNativeLanguage}>
+          <Select value={nativeLanguage} onValueChange={setNativeLanguage} onOpenChange={onNativeOpenChange}>
             <SelectTrigger className="rounded-xl border-orange-100"><SelectValue /></SelectTrigger>
             <SelectContent>
               {LANGUAGES.map((l) => (<SelectItem key={l.code} value={l.code}>{l.flag} {l.label}</SelectItem>))}
             </SelectContent>
           </Select>
         </div>
-        <div>
+        <div data-tour="settings-learning">
           <label className="text-sm font-medium text-foreground mb-2 block">Learning</label>
-          <Select value={learningLanguage} onValueChange={setLearningLanguage}>
+          <Select value={learningLanguage} onValueChange={setLearningLanguage} onOpenChange={onLearningOpenChange}>
             <SelectTrigger className="rounded-xl border-orange-100"><SelectValue /></SelectTrigger>
             <SelectContent>
               {LANGUAGES.filter((l) => l.code !== nativeLanguage).map((l) => (

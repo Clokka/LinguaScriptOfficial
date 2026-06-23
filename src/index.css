@@ -173,24 +173,33 @@
   /* Flashcard flip */
   .flashcard-container {
     perspective: 1000px;
+    -webkit-perspective: 1000px;
   }
 
   .flashcard {
     @apply relative transition-transform duration-500;
     transform-style: preserve-3d;
+    -webkit-transform-style: preserve-3d;
+    transform: rotateY(0deg);
+    -webkit-transform: rotateY(0deg);
   }
 
   .flashcard.flipped {
     transform: rotateY(180deg);
+    -webkit-transform: rotateY(180deg);
   }
 
   .flashcard-face {
     @apply absolute inset-0;
     backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    transform: rotateY(0deg);
+    -webkit-transform: rotateY(0deg);
   }
 
   .flashcard-back {
     transform: rotateY(180deg);
+    -webkit-transform: rotateY(180deg);
   }
 
   /* Floating animation */

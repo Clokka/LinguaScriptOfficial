@@ -31,18 +31,9 @@ const Story = () => {
     document.body.appendChild(s);
   }, []);
 
-  const enterDemo = async () => {
-    const { data } = await supabase.auth.getSession();
-    if (!data.session) {
-      navigate("/auth?next=/onboarding");
-      return;
-    }
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("onboarded")
-      .eq("user_id", data.session.user.id)
-      .single();
-    navigate((profile as any)?.onboarded ? "/browse" : "/onboarding");
+  const enterDemo = () => {
+    // Onboarding is always accessible — no auth required.
+    navigate("/");
   };
 
   return (

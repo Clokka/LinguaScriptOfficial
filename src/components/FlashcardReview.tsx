@@ -1,8 +1,15 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Flashcard } from "./Flashcard";
 import { Button } from "./ui/button";
-import { X, ChevronLeft, ChevronRight, Trophy } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, Trophy, ArrowLeftRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { DeckState, nextState } from "@/lib/vocab";
+import { useXp } from "@/contexts/XpContext";
+
+type Direction = "learn-to-native" | "native-to-learn";
+const DIR_KEY = "flashcardDirection";
 
 interface FlashcardData {
   id: string;
@@ -12,36 +19,135 @@ interface FlashcardData {
   ipa: string;
   context?: string;
   contextTranslation?: string;
+  language?: string;
+  state?: DeckState;
+  times_correct?: number;
 }
 
 interface FlashcardReviewProps {
   cards: FlashcardData[];
   onClose: () => void;
+  onCardReviewed?: (id: string, patch: Pick<FlashcardData, "state" | "times_correct">) => void;
   className?: string;
 }
 
-export const FlashcardReview = ({ cards, onClose, className }: FlashcardReviewProps) => {
+export const FlashcardReview = ({ cards: initialCards, onClose, onCardReviewed, className }: FlashcardReviewProps) => {
+  const { user } = useAuth();
+  const { award } = useXp();
+  const sessionBonusFired = useRef(false);
+  const [cards, setCards] = useState<FlashcardData[]>(initialCards);
+  useEffect(() => { setCards(initialCards); }, [initialCards]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [correct, setCorrect] = useState(0);
   const [incorrect, setIncorrect] = useState(0);
   const [isComplete, setIsComplete] = useState(false);
+  const [direction, setDirection] = useState<Direction>(() => {
+    return (localStorage.getItem(DIR_KEY) as Direction) || "native-to-learn";
+  });
+  // DB writes fire in the background — we never block the UI on them.
+  const pendingWrites = useRef<Promise<unknown>[]>([]);
+  const handleClose = () => {
+    // Don't await: writes are already in flight, parent state is already correct.
+    onClose();
+  };
 
-  const handleCorrect = () => {
-    setCorrect((prev) => prev + 1);
+  useEffect(() => { localStorage.setItem(DIR_KEY, direction); }, [direction]);
+
+  const toggleDirection = () => {
+    setDirection((d) => (d === "learn-to-native" ? "native-to-learn" : "learn-to-native"));
+  };
+
+  const logReview = async () => {
+    if (!user) return;
+    const today = new Date().toISOString().split("T")[0];
+    const { data: existing } = await supabase
+      .from("activity_log")
+      .select("id, words_reviewed")
+      .eq("user_id", user.id)
+      .eq("date", today)
+      .maybeSingle();
+    if (existing) {
+      await supabase
+        .from("activity_log")
+        .update({ words_reviewed: ((existing as any).words_reviewed || 0) + 1 } as any)
+        .eq("id", existing.id);
+    } else {
+      await supabase.from("activity_log").insert({
+        user_id: user.id,
+        date: today,
+        words_reviewed: 1,
+        minutes_watched: 0,
+        videos_watched: 0,
+      } as any);
+    }
+  };
+
+  const promoteDeckState = (wasCorrect: boolean) => {
+    const card = cards[currentIndex];
+    if (!card) return;
+    const prevState = (card.state ?? "red") as DeckState;
+    const prevTimes = card.times_correct ?? 0;
+    const newTimes = prevTimes + (wasCorrect ? 1 : 0);
+    const newState = nextState(prevState, newTimes, wasCorrect);
+    // Optimistic local update — React is only a temporary UI cache.
+    setCards((prev) => prev.map((c, i) => (i === currentIndex ? { ...c, state: newState, times_correct: newTimes } : c)));
+    onCardReviewed?.(card.id, { state: newState, times_correct: newTimes });
+
+    // Persist the SRS transition immediately. Supabase saved_words.state is the source of truth.
+    if (user && !card.id.startsWith("guest-")) {
+      const patch: Record<string, unknown> = {
+        state: newState,
+        times_correct: newTimes,
+      };
+      if (newState !== prevState) patch.state_changed_at = new Date().toISOString();
+
+      const p = Promise.resolve(
+        supabase
+          .from("saved_words")
+          .update(patch as any)
+          .eq("id", card.id)
+          .eq("user_id", user.id)
+          .select("id")
+          .maybeSingle(),
+      ).then(({ data, error }) => {
+        if (error) throw error;
+        if (!data) throw new Error(`No saved_words row updated for ${card.id}`);
+      }).catch((error) => {
+          console.error("[SRS] failed to persist deck transition", error);
+      });
+      pendingWrites.current.push(p);
+      p.finally(() => {
+        pendingWrites.current = pendingWrites.current.filter((write) => write !== p);
+      });
+    }
+  };
+
+  const advance = (totalReviewed: number) => {
     if (currentIndex < cards.length - 1) {
       setCurrentIndex((prev) => prev + 1);
     } else {
       setIsComplete(true);
+      if (!sessionBonusFired.current) {
+        sessionBonusFired.current = true;
+        award("session_end", { cards: totalReviewed });
+      }
     }
+  };
+
+  const handleCorrect = () => {
+    setCorrect((prev) => prev + 1);
+    void logReview();
+    award("review_card", { correct: true });
+    promoteDeckState(true);
+    advance(correct + incorrect + 1);
   };
 
   const handleIncorrect = () => {
     setIncorrect((prev) => prev + 1);
-    if (currentIndex < cards.length - 1) {
-      setCurrentIndex((prev) => prev + 1);
-    } else {
-      setIsComplete(true);
-    }
+    void logReview();
+    award("review_card", { correct: false });
+    promoteDeckState(false);
+    advance(correct + incorrect + 1);
   };
 
   const progress = ((currentIndex + (isComplete ? 1 : 0)) / cards.length) * 100;
@@ -72,7 +178,7 @@ export const FlashcardReview = ({ cards, onClose, className }: FlashcardReviewPr
         </div>
 
         <div className="flex gap-3">
-          <Button variant="outline" className="flex-1" onClick={onClose}>
+          <Button data-tour="review-close" variant="outline" className="flex-1" onClick={handleClose}>
             Close
           </Button>
           <Button
@@ -98,7 +204,7 @@ export const FlashcardReview = ({ cards, onClose, className }: FlashcardReviewPr
     <div className={cn("max-w-lg mx-auto", className)}>
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <Button variant="ghost" size="icon" onClick={onClose}>
+        <Button data-tour="page-back" variant="ghost" size="icon" onClick={handleClose}>
           <X className="w-5 h-5" />
         </Button>
         <div className="flex items-center gap-4">
@@ -113,6 +219,19 @@ export const FlashcardReview = ({ cards, onClose, className }: FlashcardReviewPr
         <div className="w-10" />
       </div>
 
+      {/* Direction toggle */}
+      <div className="flex justify-center mb-6">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={toggleDirection}
+          className="gap-2 rounded-full text-xs"
+        >
+          <ArrowLeftRight className="w-3.5 h-3.5" />
+          {direction === "native-to-learn" ? "English → French" : "French → English"}
+        </Button>
+      </div>
+
       {/* Progress bar */}
       <div className="h-1 bg-muted rounded-full mb-8 overflow-hidden">
         <div
@@ -123,15 +242,19 @@ export const FlashcardReview = ({ cards, onClose, className }: FlashcardReviewPr
 
       {/* Flashcard */}
       <Flashcard
+        key={currentCard.id + direction}
         word={currentCard.word}
         translation={currentCard.translation}
         pronunciation={currentCard.pronunciation}
         ipa={currentCard.ipa}
         context={currentCard.context}
         contextTranslation={currentCard.contextTranslation}
+        language={currentCard.language}
+        direction={direction}
         onCorrect={handleCorrect}
         onIncorrect={handleIncorrect}
       />
+
 
       {/* Navigation */}
       <div className="flex justify-center gap-4 mt-8">
