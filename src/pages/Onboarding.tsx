@@ -15,6 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { playDing } from "@/lib/sound";
 import { toast } from "sonner";
+import PetSelection from "@/components/PetSelection";
 
 const LEVELS = ["below", "A1", "A2", "B1", "B2", "C1", "C2"] as const;
 type Level = typeof LEVELS[number];
@@ -31,6 +32,9 @@ const Onboarding = () => {
   const [goal, setGoal] = useState("");
   const [goalSaved, setGoalSaved] = useState(false);
   const [dualClicked, setDualClicked] = useState(false);
+  const [petId, setPetId] = useState<string | null>(null);
+  const [petName, setPetName] = useState<string | null>(null);
+  const [petDone, setPetDone] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) navigate("/auth?next=/onboarding");
@@ -51,14 +55,15 @@ const Onboarding = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  const totalSteps = 7;
+  const totalSteps = 8;
 
   const canContinue = useMemo(() => {
     if (step === 0) return !!native && !!target && native !== target && !!level && level !== "below";
-    if (step === 1) return goalSaved;
-    if (step === 2) return dualClicked;
+    if (step === 1) return petDone;
+    if (step === 2) return goalSaved;
+    if (step === 3) return dualClicked;
     return true;
-  }, [step, native, target, level, goalSaved, dualClicked]);
+  }, [step, native, target, level, petDone, goalSaved, dualClicked]);
 
   const next = async () => {
     if (step === 0 && user) {
@@ -68,6 +73,14 @@ const Onboarding = () => {
         cef_level: level,
       }).eq("user_id", user.id);
       setLearningLanguage(target);
+    }
+    if (step === 1 && user && petId) {
+      await supabase.from("profiles").update({
+        pet_id: petId,
+        pet_name: petName || petId,
+      } as any).eq("user_id", user.id);
+      localStorage.setItem('ls_pet', petId);
+      if (petName) localStorage.setItem('ls_pet_name', petName);
     }
     if (step < totalSteps - 1) {
       setStep((s) => s + 1);
@@ -169,6 +182,21 @@ const Onboarding = () => {
 
             {step === 1 && (
               <Card>
+                <Eyebrow icon={<Sparkles className="w-3.5 h-3.5" />}>Choose your companion</Eyebrow>
+                <PetSelection
+                  onSelect={(id, name) => {
+                    setPetId(id);
+                    setPetName(name);
+                    setPetDone(true);
+                    playDing("success");
+                  }}
+                  onSkip={() => setPetDone(true)}
+                />
+              </Card>
+            )}
+
+            {step === 2 && (
+              <Card>
                 <Eyebrow icon={<Sparkles className="w-3.5 h-3.5" />}>Card 1 of 5</Eyebrow>
                 <Title>Welcome to the Lingua Universe 🌍</Title>
                 <Sub>We're here to support your language learning goals.</Sub>
@@ -207,7 +235,7 @@ const Onboarding = () => {
               </Card>
             )}
 
-            {step === 2 && (
+            {step === 3 && (
               <Card>
                 <Eyebrow icon={<Subtitles className="w-3.5 h-3.5" />}>Card 2 of 5</Eyebrow>
                 <Title>How Linguascript works</Title>
@@ -252,7 +280,7 @@ const Onboarding = () => {
               </Card>
             )}
 
-            {step === 3 && (
+            {step === 4 && (
               <Card>
                 <Eyebrow icon={<Puzzle className="w-3.5 h-3.5" />}>Card 3 of 5</Eyebrow>
                 <Title>Your brain learns in colour.</Title>
@@ -323,7 +351,7 @@ const Onboarding = () => {
               </Card>
             )}
 
-            {step === 4 && (
+            {step === 5 && (
               <Card>
                 <Eyebrow icon={<Trophy className="w-3.5 h-3.5" />}>Card 4 of 6</Eyebrow>
                 <Title>Catalogue & XP</Title>
@@ -344,7 +372,7 @@ const Onboarding = () => {
               </Card>
             )}
 
-            {step === 5 && (
+            {step === 6 && (
               <Card>
                 <Eyebrow icon={<Brain className="w-3.5 h-3.5" />}>Card 5 of 5</Eyebrow>
                 <Title>Flashcards & spaced repetition</Title>
@@ -368,7 +396,7 @@ const Onboarding = () => {
               </Card>
             )}
 
-            {step === 6 && (
+            {step === 7 && (
               <Card>
                 <Eyebrow icon={<Mic className="w-3.5 h-3.5" />}>Card 6 of 6</Eyebrow>
                 <Title>Learn faster</Title>

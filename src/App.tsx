@@ -24,6 +24,7 @@ import Admin from "./pages/Admin";
 import Story from "./pages/Story";
 import Friends from "./pages/Friends";
 import Onboarding from "./pages/Onboarding";
+import World from "./pages/World";
 import Unsubscribe from "./pages/Unsubscribe";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
@@ -59,6 +60,7 @@ const App = () => (
                 <Route path="/story" element={<Story />} />
                 <Route path="/friends" element={<Friends />} />
                 <Route path="/onboarding" element={<Onboarding />} />
+                <Route path="/world" element={<World />} />
                 <Route path="/unsubscribe" element={<Unsubscribe />} />
                 <Route path="/pricing" element={<Pricing />} />
                 <Route path="/checkout/return" element={<CheckoutReturn />} />
