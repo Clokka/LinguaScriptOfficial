@@ -7,79 +7,211 @@ const corsHeaders = {
 
 interface Sub { start: number; end: number; text: string }
 
-const SUPADATA_API_KEY = Deno.env.get('SUPADATA_API_KEY') || '';
-
-async function supadataFetch(url: string): Promise<Response> {
-  // Retry on 429 with exponential backoff
-  let lastBody = '';
-  let lastStatus = 0;
-  for (let attempt = 0; attempt < 5; attempt++) {
-    if (attempt > 0) {
-      const delay = 1500 * Math.pow(2, attempt - 1); // 1.5s, 3s, 6s, 12s
-      console.log(`Retrying after ${delay}ms (attempt ${attempt + 1})`);
-      await new Promise((r) => setTimeout(r, delay));
-    }
-    const res = await fetch(url, {
-      headers: { 'x-api-key': SUPADATA_API_KEY },
-      signal: AbortSignal.timeout(30000),
-    });
-    if (res.ok) return res;
-    lastStatus = res.status;
-    lastBody = await res.text();
-    console.log(`Supadata ${res.status}: ${lastBody.slice(0, 200)}`);
-    if (res.status !== 429) break; // only retry rate limits
-  }
-  throw new Error(`Supadata ${lastStatus}: ${lastBody.slice(0, 200)}`);
+interface CaptionTrack {
+  baseUrl: string;
+  languageCode: string;
+  kind?: string;
 }
 
-async function fetchSupadataTranscript(videoId: string, lang: string): Promise<Sub[]> {
-  const url = new URL('https://api.supadata.ai/v1/transcript');
-  url.searchParams.set('url', `https://www.youtube.com/watch?v=${videoId}`);
-  url.searchParams.set('lang', lang);
-  url.searchParams.set('text', 'false');
-  url.searchParams.set('mode', 'auto');
+// yt-dlp uses ANDROID_EMBEDDED_PLAYER to bypass datacenter IP restrictions
+// that block the WEB client. This is the key to server-side extraction.
+const INNERTUBE_CLIENTS = [
+  {
+    clientName: "ANDROID_EMBEDDED_PLAYER",
+    clientVersion: "19.02.39",
+    androidSdkVersion: 30,
+    userAgent: "com.google.android.youtube/19.02.39 (Linux; U; Android 11) gzip",
+  },
+  {
+    clientName: "WEB_EMBEDDED_PLAYER",
+    clientVersion: "2.20230101.00.00",
+    userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+  },
+  {
+    clientName: "WEB",
+    clientVersion: "2.20240101.00.00",
+    userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+  },
+];
 
-  console.log(`Supadata: fetching ${videoId} lang=${lang}`);
-  const res = await supadataFetch(url.toString());
+function decodeHtml(text: string): string {
+  return text
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
-  const data = await res.json();
+function parseTimedTextXml(xml: string): Sub[] {
+  const subs: Sub[] = [];
+  const textRegex = /<text start="([\d.]+)" dur="([\d.]+)"[^>]*>([\s\S]*?)<\/text>/g;
+  let m: RegExpExecArray | null;
+  while ((m = textRegex.exec(xml)) !== null) {
+    const start = parseFloat(m[1]);
+    const dur = parseFloat(m[2]);
+    const text = decodeHtml(m[3].replace(/<[^>]+>/g, ""));
+    if (text) subs.push({ start, end: start + dur, text });
+  }
+  if (subs.length > 0) return subs;
 
-  // Supadata may return a jobId for large videos
-  if (data.jobId && !data.content) {
-    console.log(`Supadata job queued: ${data.jobId} — polling`);
-    for (let i = 0; i < 30; i++) {
-      await new Promise((r) => setTimeout(r, 2000));
-      const jobRes = await fetch(`https://api.supadata.ai/v1/transcript/${data.jobId}`, {
-        headers: { 'x-api-key': SUPADATA_API_KEY },
+  const pRegex = /<p\s+t="(\d+)"\s+d="(\d+)"[^>]*>([\s\S]*?)<\/p>/g;
+  while ((m = pRegex.exec(xml)) !== null) {
+    const start = parseInt(m[1]) / 1000;
+    const dur = parseInt(m[2]) / 1000;
+    const text = decodeHtml(m[3].replace(/<[^>]+>/g, ""));
+    if (text) subs.push({ start, end: start + dur, text });
+  }
+  return subs;
+}
+
+function parseJson3(json: any): Sub[] {
+  const subs: Sub[] = [];
+  for (const event of (json?.events || [])) {
+    if (!event.segs || event.tStartMs === undefined) continue;
+    const text = decodeHtml(event.segs.map((s: any) => s.utf8 || "").join("").trim());
+    if (!text || text === "\n") continue;
+    const start = event.tStartMs / 1000;
+    const end = (event.tStartMs + (event.dDurationMs || 3000)) / 1000;
+    subs.push({ start, end, text });
+  }
+  return subs;
+}
+
+async function getInnerTubeTracks(videoId: string): Promise<CaptionTrack[]> {
+  for (const client of INNERTUBE_CLIENTS) {
+    try {
+      const payload: any = {
+        context: {
+          client: {
+            clientName: client.clientName,
+            clientVersion: client.clientVersion,
+            hl: "en",
+            gl: "US",
+          },
+        },
+        videoId,
+      };
+      if ("androidSdkVersion" in client) {
+        payload.context.client.androidSdkVersion = client.androidSdkVersion;
+      }
+
+      console.log(`[fetch-captions] Trying InnerTube client: ${client.clientName}`);
+      const res = await fetch(
+        "https://www.youtube.com/youtubei/v1/player?prettyPrint=false",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "User-Agent": client.userAgent,
+            "X-YouTube-Client-Name": "55",
+            "Origin": "https://www.youtube.com",
+          },
+          body: JSON.stringify(payload),
+          signal: AbortSignal.timeout(15000),
+        }
+      );
+
+      if (!res.ok) {
+        console.warn(`[fetch-captions] ${client.clientName} returned ${res.status}`);
+        continue;
+      }
+
+      const data = await res.json();
+      const tracks: CaptionTrack[] =
+        data?.captions?.playerCaptionsTracklistRenderer?.captionTracks || [];
+
+      if (tracks.length > 0) {
+        console.log(`[fetch-captions] ${client.clientName}: found ${tracks.length} tracks`);
+        return tracks;
+      }
+      console.warn(`[fetch-captions] ${client.clientName}: no caption tracks`);
+    } catch (e) {
+      console.warn(`[fetch-captions] ${client.clientName} error:`, e);
+    }
+  }
+  return [];
+}
+
+async function downloadTrack(baseUrl: string, targetLang: string, isBase: boolean): Promise<Sub[]> {
+  for (const fmt of ["json3", "srv3"] as const) {
+    try {
+      let url = baseUrl;
+      if (!isBase) url += `&tlang=${targetLang}`;
+      url += `&fmt=${fmt}`;
+
+      const res = await fetch(url, {
+        headers: { "User-Agent": INNERTUBE_CLIENTS[0].userAgent },
+        signal: AbortSignal.timeout(12000),
       });
-      if (!jobRes.ok) continue;
-      const jobData = await jobRes.json();
-      if (jobData.status === 'completed' && jobData.content) {
-        return mapSupadataContent(jobData.content);
-      }
-      if (jobData.status === 'failed') {
-        throw new Error(`Supadata job failed: ${jobData.error || 'unknown'}`);
-      }
-    }
-    throw new Error('Supadata job timeout');
-  }
+      if (!res.ok) continue;
 
-  return mapSupadataContent(data.content || []);
+      if (fmt === "json3") {
+        try {
+          const json = await res.json();
+          const subs = parseJson3(json);
+          if (subs.length > 0) return subs;
+        } catch { /* not valid JSON */ }
+      } else {
+        const text = await res.text();
+        if (text.length > 50) {
+          const subs = parseTimedTextXml(text);
+          if (subs.length > 0) return subs;
+        }
+      }
+    } catch (e) {
+      console.warn(`[fetch-captions] ${fmt} download error:`, e);
+    }
+  }
+  return [];
 }
 
-function mapSupadataContent(content: any[]): Sub[] {
-  if (!Array.isArray(content)) return [];
-  return content
-    .map((c) => {
-      // offset & duration are in milliseconds per Supadata docs
-      const startMs = c.offset ?? c.startMs ?? c.start ?? 0;
-      const durMs = c.duration ?? c.durationMs ?? 0;
-      const start = startMs / 1000;
-      const end = (startMs + durMs) / 1000;
-      const text = (c.text || '').trim();
-      return { start, end, text };
-    })
-    .filter((s) => s.text.length > 0);
+async function fetchYouTubeSubtitles(
+  videoId: string,
+  learningLang: string,
+  nativeLang: string
+): Promise<{ learning: Sub[]; native: Sub[] }> {
+  const tracks = await getInnerTubeTracks(videoId);
+
+  if (tracks.length === 0) {
+    console.warn("[fetch-captions] No caption tracks found for", videoId);
+    return { learning: [], native: [] };
+  }
+
+  for (const t of tracks) {
+    console.log(`[fetch-captions] Track: ${t.languageCode} kind=${t.kind || "standard"}`);
+  }
+
+  const exactLearning = tracks.find((t) => t.languageCode === learningLang);
+  const exactNative = tracks.find((t) => t.languageCode === nativeLang);
+  const baseTrack = exactLearning || exactNative || tracks[0];
+
+  console.log(`[fetch-captions] Base track: ${baseTrack.languageCode}`);
+
+  let learning: Sub[] = [];
+  let native: Sub[] = [];
+
+  learning = await downloadTrack(
+    baseTrack.baseUrl,
+    learningLang,
+    baseTrack.languageCode === learningLang
+  );
+
+  if (learningLang !== nativeLang) {
+    if (exactNative) {
+      native = await downloadTrack(exactNative.baseUrl, nativeLang, true);
+    } else {
+      native = await downloadTrack(baseTrack.baseUrl, nativeLang, false);
+    }
+  } else {
+    native = learning;
+  }
+
+  console.log(`[fetch-captions] Done: learning=${learning.length}, native=${native.length}`);
+  return { learning, native };
 }
 
 serve(async (req) => {
@@ -88,10 +220,6 @@ serve(async (req) => {
   }
 
   try {
-    if (!SUPADATA_API_KEY) {
-      throw new Error('SUPADATA_API_KEY not configured');
-    }
-
     const { videoId, language, nativeLanguage } = await req.json();
     if (!videoId) {
       return new Response(JSON.stringify({ error: 'videoId required' }), {
@@ -109,35 +237,31 @@ serve(async (req) => {
     let nativeError: string | null = null;
 
     try {
-      learning = await fetchSupadataTranscript(videoId, lang);
+      const result = await fetchYouTubeSubtitles(videoId, lang, native);
+      learning = result.learning;
+      nativeSubs = result.native;
+
+      if (learning.length === 0) {
+        learningError = `No ${lang} captions available on YouTube`;
+      }
+      if (lang !== native && nativeSubs.length === 0) {
+        nativeError = `No ${native} captions available on YouTube`;
+      }
     } catch (e: any) {
       learningError = e.message;
-      console.log(`Learning lang fetch failed: ${e.message}`);
+      console.error('[fetch-captions] Extraction failed:', e);
     }
 
-    if (native !== lang) {
-      // Space requests out to respect free-plan rate limit (~1 req/sec)
-      await new Promise((r) => setTimeout(r, 1500));
-      try {
-        nativeSubs = await fetchSupadataTranscript(videoId, native);
-      } catch (e: any) {
-        nativeError = e.message;
-        console.log(`Native lang fetch failed: ${e.message}`);
-      }
-    } else {
-      nativeSubs = learning;
-    }
-
-    // Detect duplicate: Supadata sometimes returns original-language track when
-    // requested native language isn't available. Compare first few segments.
-    if (native !== lang && learning.length && nativeSubs.length) {
+    // Detect duplicate: sometimes YouTube returns original-language track
+    // when tlang translation isn't available
+    if (lang !== native && learning.length && nativeSubs.length) {
       const sampleSize = Math.min(5, learning.length, nativeSubs.length);
       let identical = 0;
       for (let i = 0; i < sampleSize; i++) {
         if ((learning[i].text || '').trim() === (nativeSubs[i].text || '').trim()) identical++;
       }
       if (identical === sampleSize) {
-        console.log(`Native track is duplicate of learning track — discarding so client can AI-translate`);
+        console.log('Native track is duplicate of learning track — discarding');
         nativeSubs = [];
         nativeError = `No ${native} captions available on YouTube`;
       }
@@ -152,7 +276,7 @@ serve(async (req) => {
       nativeLanguage: native,
       count: learning.length,
       nativeCount: nativeSubs.length,
-      source: 'supadata',
+      source: 'innertube',
       ...(learningError ? { learningError } : {}),
       ...(nativeError ? { nativeError } : {}),
     }), {
