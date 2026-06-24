@@ -31,6 +31,7 @@ import Pricing from "./pages/Pricing";
 import CheckoutReturn from "./pages/CheckoutReturn";
 import Privacy from "./pages/Privacy";
 import PrivacyExtension from "./pages/PrivacyExtension";
+import Teacher from "./pages/Teacher";
 
 const queryClient = new QueryClient();
 
