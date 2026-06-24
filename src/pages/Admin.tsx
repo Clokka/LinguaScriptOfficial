@@ -11,10 +11,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Plus, Trash2, Film, Loader2, Upload, FileText, Check, Mail, Layers, X, ArrowUp, ArrowDown, Eye, EyeOff, Key, Copy } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Film, Loader2, Upload, FileText, Check, Mail, Layers, X, ArrowUp, ArrowDown, Eye, EyeOff, Plug, BarChart3, Facebook, LineChart, Music2, Linkedin, MessageCircle, ExternalLink } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { Pencil } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { getIntegrations, saveIntegrations, type IntegrationKey, type IntegrationConfig } from "@/lib/integrations";
+import { AdminProGrants } from "@/components/AdminProGrants";
 
 function RowHeader({ row, onRename, onDelete }: { row: { id: string; title: string }; onRename: (id: string, title: string) => void; onDelete: (id: string) => void; }) {
   const [editing, setEditing] = useState(false);
@@ -70,6 +73,7 @@ interface CatalogRow {
   id: string;
   title: string;
   sort_order: number;
+  language: string | null;
   pins: { id: string; film_id: string; sort_order: number; film: FilmRow | null }[];
 }
 
@@ -78,22 +82,6 @@ interface EmailSignup {
   email: string;
   created_at: string;
 }
-
-interface ApiKey {
-  id: string;
-  service: string;
-  label: string;
-  key_value: string;
-  created_at: string;
-}
-
-const API_SERVICES = [
-  { value: "klaviyo", label: "Klaviyo" },
-  { value: "stripe", label: "Stripe" },
-  { value: "openai", label: "OpenAI" },
-  { value: "sendgrid", label: "SendGrid" },
-  { value: "custom", label: "Custom / Other" },
-];
 
 const Admin = () => {
   const [films, setFilms] = useState<FilmRow[]>([]);
@@ -104,31 +92,24 @@ const Admin = () => {
   const [thumbnailUrl, setThumbnailUrl] = useState("");
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
-  const [srtFileFr, setSrtFileFr] = useState<File | null>(null);
-  const [srtFileEn, setSrtFileEn] = useState<File | null>(null);
+  const [srtFileOriginal, setSrtFileOriginal] = useState<File | null>(null);
+  const [srtFileSecondary, setSrtFileSecondary] = useState<File | null>(null);
+  const [secondaryLanguage, setSecondaryLanguage] = useState("en");
   const [uploadingSubsFor, setUploadingSubsFor] = useState<string | null>(null);
-  const fileInputRefFr = useRef<HTMLInputElement>(null);
-  const fileInputRefEn = useRef<HTMLInputElement>(null);
+  const fileInputRefOriginal = useRef<HTMLInputElement>(null);
+  const fileInputRefSecondary = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
 
   // Catalog rows state
   const [catalogRows, setCatalogRows] = useState<CatalogRow[]>([]);
   const [newRowTitle, setNewRowTitle] = useState("");
-
-  // API keys state
-  const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
-  const [newKeyService, setNewKeyService] = useState("klaviyo");
-  const [newKeyLabel, setNewKeyLabel] = useState("");
-  const [newKeyValue, setNewKeyValue] = useState("");
-  const [addingKey, setAddingKey] = useState(false);
-  const [revealedKeys, setRevealedKeys] = useState<Set<string>>(new Set());
+  const [newRowLang, setNewRowLang] = useState<string>("__all__");
 
   useEffect(() => {
     fetchFilms();
     fetchEmails();
     fetchCatalogRows();
-    fetchApiKeys();
   }, []);
 
   const fetchCatalogRows = async () => {
@@ -144,6 +125,7 @@ const Admin = () => {
         id: r.id,
         title: r.title,
         sort_order: r.sort_order,
+        language: r.language ?? null,
         pins: (pins || []).map((p: any) => ({ id: p.id, film_id: p.film_id, sort_order: p.sort_order, film: p.films })),
       } as CatalogRow;
     }));
@@ -152,9 +134,18 @@ const Admin = () => {
 
   const createCatalogRow = async () => {
     if (!newRowTitle.trim()) return;
-    const { error } = await supabase.from("catalog_rows").insert({ title: newRowTitle.trim(), sort_order: catalogRows.length });
+    const { error } = await supabase.from("catalog_rows").insert({
+      title: newRowTitle.trim(),
+      sort_order: catalogRows.length,
+      language: newRowLang === "__all__" ? null : newRowLang,
+    } as any);
     if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
     setNewRowTitle("");
+    fetchCatalogRows();
+  };
+
+  const setRowLanguage = async (id: string, language: string | null) => {
+    await supabase.from("catalog_rows").update({ language } as any).eq("id", id);
     fetchCatalogRows();
   };
 
@@ -271,34 +262,42 @@ const Admin = () => {
       }
     }
 
-    // Get current user (RLS now requires auth + records owner)
+    // Get current user (RLS requires authenticated)
     const { data: authData } = await supabase.auth.getUser();
+    if (!authData.user?.id) {
+      toast({
+        title: "Sign in required",
+        description: "You must be signed in to add films. Open /auth and log in first.",
+        variant: "destructive",
+      });
+      return;
+    }
     const { data, error } = await supabase.from("films").insert({
       title,
       url,
       language,
       thumbnail_url: thumb,
       is_public: true,
-      created_by: authData.user?.id ?? null,
+      created_by: authData.user.id,
     }).select().single();
 
     if (error) {
       toast({ title: "Error adding film", description: error.message, variant: "destructive" });
     } else {
-      if (srtFileFr && data) {
-        await parseSrtAndUpload(data.id, srtFileFr, "fr");
+      if (srtFileOriginal && data) {
+        await parseSrtAndUpload(data.id, srtFileOriginal, language);
       }
-      if (srtFileEn && data) {
-        await parseSrtAndUpload(data.id, srtFileEn, "en");
+      if (srtFileSecondary && data) {
+        await parseSrtAndUpload(data.id, srtFileSecondary, secondaryLanguage);
       }
       toast({ title: "Film added!" });
       setTitle("");
       setUrl("");
       setThumbnailUrl("");
-      setSrtFileFr(null);
-      setSrtFileEn(null);
-      if (fileInputRefFr.current) fileInputRefFr.current.value = "";
-      if (fileInputRefEn.current) fileInputRefEn.current.value = "";
+      setSrtFileOriginal(null);
+      setSrtFileSecondary(null);
+      if (fileInputRefOriginal.current) fileInputRefOriginal.current.value = "";
+      if (fileInputRefSecondary.current) fileInputRefSecondary.current.value = "";
       fetchFilms();
     }
     setAdding(false);
@@ -316,56 +315,6 @@ const Admin = () => {
     fetchFilms();
   };
 
-  // API key helpers
-  const fetchApiKeys = async () => {
-    const { data } = await supabase.from("api_keys").select("*").order("created_at", { ascending: false });
-    if (data) setApiKeys(data as ApiKey[]);
-  };
-
-  const addApiKey = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newKeyLabel.trim() || !newKeyValue.trim()) return;
-    setAddingKey(true);
-    const { error } = await supabase.from("api_keys").insert({
-      service: newKeyService,
-      label: newKeyLabel.trim(),
-      key_value: newKeyValue.trim(),
-    });
-    if (error) {
-      toast({ title: "Error saving key", description: error.message, variant: "destructive" });
-    } else {
-      toast({ title: "API key saved" });
-      setNewKeyLabel("");
-      setNewKeyValue("");
-      fetchApiKeys();
-    }
-    setAddingKey(false);
-  };
-
-  const deleteApiKey = async (id: string) => {
-    await supabase.from("api_keys").delete().eq("id", id);
-    setRevealedKeys((prev) => { const s = new Set(prev); s.delete(id); return s; });
-    fetchApiKeys();
-  };
-
-  const toggleReveal = (id: string) => {
-    setRevealedKeys((prev) => {
-      const s = new Set(prev);
-      s.has(id) ? s.delete(id) : s.add(id);
-      return s;
-    });
-  };
-
-  const maskKey = (key: string) => {
-    if (key.length <= 8) return "••••••••";
-    return key.slice(0, 4) + "••••••••" + key.slice(-4);
-  };
-
-  const copyKey = (key: string) => {
-    navigator.clipboard.writeText(key);
-    toast({ title: "Copied to clipboard" });
-  };
-
   return (
     <div className="min-h-screen bg-background relative">
       <div className="absolute inset-0 bg-gradient-hero pointer-events-none" />
@@ -376,6 +325,10 @@ const Admin = () => {
 
         <h1 className="text-3xl font-bold text-foreground mb-2">Admin Dashboard</h1>
         <p className="text-muted-foreground mb-8">Add films and upload subtitle tracks, or let fetched YouTube captions auto-save here per film.</p>
+
+        <AdminProGrants />
+
+
 
         {/* Add Film Form */}
         <form onSubmit={addFilm} className="glass-panel-strong p-6 space-y-4 mb-8">
@@ -415,48 +368,60 @@ const Admin = () => {
             </SelectContent>
           </Select>
 
-          {/* French SRT Upload */}
+          {/* Original SRT Upload (matches film language) */}
           <div className="space-y-2">
             <label className="text-sm text-muted-foreground flex items-center gap-2">
-              <FileText className="w-4 h-4" /> 🇫🇷 French Subtitles (.srt) — optional
+              <FileText className="w-4 h-4" /> Original subtitles (.srt) — {LANGUAGES.find(l => l.code === language)?.label || language} — optional
             </label>
             <div className="flex items-center gap-3">
               <Input
-                ref={fileInputRefFr}
+                ref={fileInputRefOriginal}
                 type="file"
                 accept=".srt"
-                onChange={(e) => setSrtFileFr(e.target.files?.[0] ?? null)}
+                onChange={(e) => setSrtFileOriginal(e.target.files?.[0] ?? null)}
                 className="bg-secondary/50 border-border"
               />
-              {srtFileFr && (
+              {srtFileOriginal && (
                 <span className="text-xs text-primary flex items-center gap-1 whitespace-nowrap">
-                  <Check className="w-3 h-3" /> {srtFileFr.name}
+                  <Check className="w-3 h-3" /> {srtFileOriginal.name}
                 </span>
               )}
             </div>
           </div>
 
-          {/* English SRT Upload */}
+          {/* Second-language SRT Upload */}
           <div className="space-y-2">
             <label className="text-sm text-muted-foreground flex items-center gap-2">
-              <FileText className="w-4 h-4" /> 🇬🇧 English Subtitles (.srt) — optional
+              <FileText className="w-4 h-4" /> Second-language subtitles (.srt) — optional
             </label>
             <div className="flex items-center gap-3">
+              <Select value={secondaryLanguage} onValueChange={setSecondaryLanguage}>
+                <SelectTrigger className="bg-secondary/50 border-border w-[160px] shrink-0">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {LANGUAGES.filter(l => l.code !== language).map((lang) => (
+                    <SelectItem key={lang.code} value={lang.code}>
+                      {lang.flag} {lang.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <Input
-                ref={fileInputRefEn}
+                ref={fileInputRefSecondary}
                 type="file"
                 accept=".srt"
-                onChange={(e) => setSrtFileEn(e.target.files?.[0] ?? null)}
+                onChange={(e) => setSrtFileSecondary(e.target.files?.[0] ?? null)}
                 className="bg-secondary/50 border-border"
               />
-              {srtFileEn && (
+              {srtFileSecondary && (
                 <span className="text-xs text-primary flex items-center gap-1 whitespace-nowrap">
-                  <Check className="w-3 h-3" /> {srtFileEn.name}
+                  <Check className="w-3 h-3" /> {srtFileSecondary.name}
                 </span>
               )}
             </div>
             <p className="text-xs text-muted-foreground">
-              Upload .srt files per language. If not provided, LinguaScript will fetch and store tracks when the lesson is created or opened.
+              Upload SRT pairs per film. Library films use only these uploaded subtitles — they are never auto-translated or auto-fetched.
             </p>
           </div>
 
@@ -521,42 +486,50 @@ const Admin = () => {
                       "No subtitles uploaded"
                     )}
                   </div>
-                  <div className="flex items-center gap-2">
-                    {["fr", "en"].map((lang) => {
-                      const hasLang = (film.subtitle_languages ?? []).includes(lang);
-                      const langLabel = lang === "fr" ? "🇫🇷 FR" : "🇬🇧 EN";
-                      return (
-                        <div key={lang}>
-                          <input
-                            type="file"
-                            accept=".srt"
-                            className="hidden"
-                            id={`srt-${film.id}-${lang}`}
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) handleUploadSubsForExisting(film.id, file, lang);
-                              requestAnimationFrame(() => { e.target.value = ""; });
-                            }}
-                          />
-                          <Button
-                            variant="glass"
-                            size="sm"
-                            className="gap-1 text-xs"
-                            disabled={uploadingSubsFor === film.id}
-                            onClick={() => {
-                              document.getElementById(`srt-${film.id}-${lang}`)?.click();
-                            }}
-                          >
-                            {uploadingSubsFor === film.id ? (
-                              <Loader2 className="w-3 h-3 animate-spin" />
-                            ) : (
-                              <Upload className="w-3 h-3" />
-                            )}
-                            {hasLang ? `Replace ${langLabel}` : `Upload ${langLabel}`}
-                          </Button>
-                        </div>
-                      );
-                    })}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {(() => {
+                      const orig = film.language || "fr";
+                      const existing = film.subtitle_languages ?? [];
+                      const secondaryExisting = existing.find((l) => l !== orig);
+                      const slots: Array<{ lang: string; role: "Original" | "Second" }> = [
+                        { lang: orig, role: "Original" },
+                        { lang: secondaryExisting || (orig === "en" ? "fr" : "en"), role: "Second" },
+                      ];
+                      return slots.map((slot) => {
+                        const hasLang = existing.includes(slot.lang);
+                        const langInfo = LANGUAGES.find((l) => l.code === slot.lang);
+                        const label = `${langInfo?.flag ?? ""} ${langInfo?.label ?? slot.lang.toUpperCase()}`;
+                        return (
+                          <div key={slot.role}>
+                            <input
+                              type="file"
+                              accept=".srt"
+                              className="hidden"
+                              id={`srt-${film.id}-${slot.role}`}
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) handleUploadSubsForExisting(film.id, file, slot.lang);
+                                requestAnimationFrame(() => { e.target.value = ""; });
+                              }}
+                            />
+                            <Button
+                              variant="glass"
+                              size="sm"
+                              className="gap-1 text-xs"
+                              disabled={uploadingSubsFor === film.id}
+                              onClick={() => document.getElementById(`srt-${film.id}-${slot.role}`)?.click()}
+                            >
+                              {uploadingSubsFor === film.id ? (
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                              ) : (
+                                <Upload className="w-3 h-3" />
+                              )}
+                              {hasLang ? `Replace ${slot.role} (${label})` : `Upload ${slot.role} (${label})`}
+                            </Button>
+                          </div>
+                        );
+                      });
+                    })()}
                   </div>
                 </div>
               </div>
@@ -569,14 +542,25 @@ const Admin = () => {
         </h2>
         <p className="text-muted-foreground text-sm mb-4">Group public films into themed rows shown on the home page.</p>
 
-        <div className="glass-panel-strong p-4 mb-4 flex gap-2">
+        <div className="glass-panel-strong p-4 mb-4 flex flex-wrap gap-2">
           <Input
             placeholder="New row title (e.g. French Classics)"
             value={newRowTitle}
             onChange={(e) => setNewRowTitle(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), createCatalogRow())}
-            className="bg-secondary/50 border-border"
+            className="bg-secondary/50 border-border min-w-[220px] flex-1"
           />
+          <Select value={newRowLang} onValueChange={setNewRowLang}>
+            <SelectTrigger className="bg-secondary/50 border-border w-[180px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">🌐 All languages</SelectItem>
+              {LANGUAGES.map((l) => (
+                <SelectItem key={l.code} value={l.code}>{l.flag} {l.label} only</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Button onClick={createCatalogRow} variant="hero" className="gap-2 shrink-0">
             <Plus className="w-4 h-4" /> Add Row
           </Button>
@@ -592,6 +576,23 @@ const Admin = () => {
             return (
               <div key={row.id} className="glass-panel p-4 space-y-3">
                 <RowHeader row={row} onRename={renameCatalogRow} onDelete={deleteCatalogRow} />
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">Shown to:</span>
+                  <Select
+                    value={row.language ?? "__all__"}
+                    onValueChange={(v) => setRowLanguage(row.id, v === "__all__" ? null : v)}
+                  >
+                    <SelectTrigger className="bg-secondary/50 border-border h-8 w-[200px] text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__all__">🌐 All learners</SelectItem>
+                      {LANGUAGES.map((l) => (
+                        <SelectItem key={l.code} value={l.code}>{l.flag} {l.label} learners</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div className="space-y-2">
                   {row.pins.length === 0 && <p className="text-xs text-muted-foreground italic">No films pinned yet.</p>}
                   {row.pins.map((pin) => (
@@ -629,89 +630,8 @@ const Admin = () => {
           })}
         </div>
 
-        {/* API Keys */}
-        <h2 className="text-lg font-semibold text-foreground mb-4 mt-12 flex items-center gap-2">
-          <Key className="w-5 h-5 text-primary" /> API Keys &amp; Integrations
-        </h2>
-        <p className="text-sm text-muted-foreground mb-4">Store API keys for third-party services. Keys are encrypted at rest by Supabase.</p>
-
-        {/* Add key form */}
-        <form onSubmit={addApiKey} className="glass-panel-strong p-5 space-y-3 mb-6">
-          <h3 className="text-sm font-medium text-foreground">Add new key</h3>
-          <div className="grid grid-cols-2 gap-3">
-            <Select value={newKeyService} onValueChange={setNewKeyService}>
-              <SelectTrigger className="bg-secondary/50 border-border">
-                <SelectValue placeholder="Service" />
-              </SelectTrigger>
-              <SelectContent>
-                {API_SERVICES.map((s) => (
-                  <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Input
-              placeholder="Label (e.g. Production)"
-              value={newKeyLabel}
-              onChange={(e) => setNewKeyLabel(e.target.value)}
-              className="bg-secondary/50 border-border"
-              required
-            />
-          </div>
-          <div className="flex gap-3">
-            <Input
-              placeholder="API key value"
-              value={newKeyValue}
-              onChange={(e) => setNewKeyValue(e.target.value)}
-              className="bg-secondary/50 border-border font-mono text-sm"
-              required
-            />
-            <Button type="submit" variant="hero" className="shrink-0 gap-2" disabled={addingKey}>
-              {addingKey ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-              Save
-            </Button>
-          </div>
-        </form>
-
-        {/* Key list */}
-        {apiKeys.length === 0 ? (
-          <div className="glass-panel p-8 text-center mb-12">
-            <Key className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-            <p className="text-muted-foreground text-sm">No API keys stored yet.</p>
-          </div>
-        ) : (
-          <div className="space-y-3 mb-12">
-            {apiKeys.map((k) => {
-              const revealed = revealedKeys.has(k.id);
-              const serviceMeta = API_SERVICES.find((s) => s.value === k.service);
-              return (
-                <div key={k.id} className="glass-panel p-4 flex items-center gap-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs font-semibold text-primary uppercase tracking-wide">
-                        {serviceMeta?.label ?? k.service}
-                      </span>
-                      <span className="text-xs text-muted-foreground">{k.label}</span>
-                    </div>
-                    <span className="font-mono text-sm text-foreground break-all">
-                      {revealed ? k.key_value : maskKey(k.key_value)}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1 shrink-0">
-                    <Button variant="glass" size="icon" onClick={() => toggleReveal(k.id)} title={revealed ? "Hide" : "Reveal"}>
-                      {revealed ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </Button>
-                    <Button variant="glass" size="icon" onClick={() => copyKey(k.key_value)} title="Copy">
-                      <Copy className="w-4 h-4" />
-                    </Button>
-                    <Button variant="glass" size="icon" onClick={() => deleteApiKey(k.id)} title="Delete">
-                      <Trash2 className="w-4 h-4 text-destructive" />
-                    </Button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+        {/* Integrations */}
+        <IntegrationsPanel />
 
         {/* Email Signups */}
         <h2 className="text-lg font-semibold text-foreground mb-4 mt-12 flex items-center gap-2">
@@ -748,5 +668,90 @@ const Admin = () => {
     </div>
   );
 };
+
+function IntegrationsPanel() {
+  const { toast } = useToast();
+  const [cfg, setCfg] = useState(() => getIntegrations());
+
+  const update = (key: IntegrationKey, patch: Partial<IntegrationConfig>) => {
+    setCfg((prev) => ({ ...prev, [key]: { ...prev[key], ...patch } }));
+  };
+
+  const save = () => {
+    saveIntegrations(cfg);
+    toast({ title: "Integrations saved", description: "Reload any open tabs to apply changes." });
+  };
+
+  const cards: { key: IntegrationKey; name: string; desc: string; icon: any; placeholder: string; available: boolean; dashboardUrl: string; dashboardLabel: string; }[] = [
+    { key: "supadata", name: "Supadata", desc: "YouTube transcript API for subtitle fetching.", icon: FileText, placeholder: "API key stored in edge function secrets", available: true, dashboardUrl: "https://supadata.ai", dashboardLabel: "Open Supadata" },
+    { key: "clarity", name: "Microsoft Clarity", desc: "Session replays & heatmaps.", icon: BarChart3, placeholder: "Project ID (e.g. wrmsg5geae)", available: true, dashboardUrl: "https://clarity.microsoft.com/projects", dashboardLabel: "Open Clarity" },
+    { key: "manychat", name: "ManyChat", desc: "Chat automation & broadcasts.", icon: MessageCircle, placeholder: "Stored securely in backend", available: true, dashboardUrl: "https://app.manychat.com/", dashboardLabel: "Open ManyChat" },
+    { key: "metaPixel", name: "Meta Pixel", desc: "Facebook & Instagram ad tracking.", icon: Facebook, placeholder: "Pixel ID", available: false, dashboardUrl: "https://business.facebook.com/events_manager2", dashboardLabel: "Events Manager" },
+    { key: "googleAnalytics", name: "Google Analytics 4", desc: "Traffic & conversions.", icon: LineChart, placeholder: "Measurement ID (G-XXXXXXX)", available: false, dashboardUrl: "https://analytics.google.com/", dashboardLabel: "Open GA4" },
+    { key: "tiktokPixel", name: "TikTok Pixel", desc: "TikTok ad attribution.", icon: Music2, placeholder: "Pixel ID", available: false, dashboardUrl: "https://ads.tiktok.com/i18n/events_manager", dashboardLabel: "TikTok Events" },
+    { key: "linkedinInsight", name: "LinkedIn Insight", desc: "B2B audience tracking.", icon: Linkedin, placeholder: "Partner ID", available: false, dashboardUrl: "https://www.linkedin.com/campaignmanager/", dashboardLabel: "Campaign Manager" },
+  ];
+
+  return (
+    <div className="mt-12">
+      <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+        <Plug className="w-5 h-5 text-primary" /> Integrations
+      </h2>
+      <p className="text-sm text-muted-foreground mb-4">Connect analytics & tracking tools. Each card has a quick link to its dashboard.</p>
+      <div className="grid sm:grid-cols-2 gap-3">
+        {cards.map(({ key, name, desc, icon: Icon, placeholder, available, dashboardUrl, dashboardLabel }) => {
+          const c = cfg[key];
+          const isManychat = key === "manychat";
+          const isSupadata = key === "supadata";
+          const isBackend = isManychat || isSupadata;
+          return (
+            <div key={key} className="glass-panel p-4 space-y-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                    <Icon className="w-4 h-4 text-primary" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-foreground font-medium truncate">{name}</p>
+                    <p className="text-xs text-muted-foreground truncate">{desc}</p>
+                  </div>
+                </div>
+                {available ? (
+                  isBackend ? (
+                    <span className="text-[10px] uppercase tracking-wide text-success bg-success/10 rounded px-2 py-1">Backend</span>
+                  ) : (
+                    <Switch checked={c.enabled} onCheckedChange={(v) => update(key, { enabled: v })} />
+                  )
+                ) : (
+                  <span className="text-[10px] uppercase tracking-wide text-muted-foreground bg-secondary/50 rounded px-2 py-1">Soon</span>
+                )}
+              </div>
+              <Input
+                value={c.id}
+                onChange={(e) => update(key, { id: e.target.value })}
+                placeholder={placeholder}
+                disabled={!available || isBackend}
+                className="bg-secondary/50 border-border"
+              />
+              <a
+                href={dashboardUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 transition-colors"
+              >
+                <ExternalLink className="w-3 h-3" /> {dashboardLabel}
+              </a>
+            </div>
+          );
+        })}
+      </div>
+      <div className="mt-4">
+        <Button variant="hero" onClick={save} className="gap-2">
+          <Check className="w-4 h-4" /> Save integrations
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 export default Admin;

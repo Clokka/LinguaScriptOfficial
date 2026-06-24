@@ -3,53 +3,83 @@ import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowRight, ArrowLeft, Check, Sparkles, Languages, Subtitles,
-  BookOpen, Brain, Mic, MousePointer2, Trophy, Flame, Puzzle, ExternalLink,
+  BookOpen, Brain, Mic, MousePointer2, Trophy, Flame,
+  Headphones, MessageCircle, RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectSeparator } from "@/components/ui/select";
 import { LANGUAGES } from "@/lib/languages";
+// (InteractiveDemo replaced by the live tour overlay launched from this screen)
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useTour } from "@/contexts/TourContext";
+import { TOUR_TRAINING_BY_LANG, TOUR_TRAINING_YT_ID } from "@/lib/tourSteps";
 import { playDing } from "@/lib/sound";
 import { toast } from "sonner";
-import PetSelection from "@/components/PetSelection";
+import { DailyGoalPicker } from "@/components/DailyGoalPicker";
+import { wordGoalForVideos } from "@/lib/progressStats";
+import { INTERESTS, MAX_INTERESTS } from "@/lib/interests";
 
-const LEVELS = ["below", "A1", "A2", "B1", "B2", "C1", "C2"] as const;
+// LinguaScript targets learners beyond beginner. A1 learners are gated to
+// "below" with a suggestion to start elsewhere; we don't offer A1 or C2.
+const LEVELS = ["below", "A2", "B1", "B2", "C1"] as const;
 type Level = typeof LEVELS[number];
 
 const Onboarding = () => {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const { setLearningLanguage } = useLanguage();
+  const { start: startTour } = useTour();
+  const [enteringDemo, setEnteringDemo] = useState(false);
 
-  const [step, setStep] = useState(0);
-  const [native, setNative] = useState("en");
-  const [target, setTarget] = useState("fr");
-  const [level, setLevel] = useState<Level | null>(null);
-  const [goal, setGoal] = useState("");
-  const [goalSaved, setGoalSaved] = useState(false);
-  const [dualClicked, setDualClicked] = useState(false);
-  const [petId, setPetId] = useState<string | null>(null);
-  const [petName, setPetName] = useState<string | null>(null);
-  const [petDone, setPetDone] = useState(false);
+  // Persist onboarding progress so users can never lose their place if they
+  // refresh, leave, or skip around — they always end up on the final paste-
+  // a-YouTube-link step.
+  const ONBOARDING_KEY = "ls.onboardingState.v1";
+  const initialPersisted = (() => {
+    try {
+      const raw = typeof window !== "undefined" ? localStorage.getItem(ONBOARDING_KEY) : null;
+      return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+  })();
 
+  const [step, setStep] = useState<number>(initialPersisted?.step ?? 0);
+  const [native, setNative] = useState(initialPersisted?.native ?? "en");
+  const [target, setTarget] = useState(initialPersisted?.target ?? "fr");
+  const [level, setLevel] = useState<Level | null>(initialPersisted?.level ?? null);
+  const [school, setSchool] = useState(initialPersisted?.school ?? "");
+  const [videoGoal, setVideoGoal] = useState<number>(initialPersisted?.videoGoal ?? 1);
+  const [goal, setGoal] = useState(initialPersisted?.goal ?? "");
+  const [goalSaved, setGoalSaved] = useState<boolean>(initialPersisted?.goalSaved ?? false);
+  const [showOnLeaderboard, setShowOnLeaderboard] = useState<boolean>(initialPersisted?.showOnLeaderboard ?? true);
+  const [dualClicked, setDualClicked] = useState<boolean>(initialPersisted?.dualClicked ?? false);
+  const [interests, setInterests] = useState<string[]>(initialPersisted?.interests ?? []);
+
+  // Save snapshot whenever anything changes so a refresh resumes exactly here.
   useEffect(() => {
-    if (!authLoading && !user) navigate("/auth?next=/onboarding");
-  }, [user, authLoading, navigate]);
+    try {
+      localStorage.setItem(ONBOARDING_KEY, JSON.stringify({
+        step, native, target, level, school, videoGoal, goal, goalSaved, showOnLeaderboard, dualClicked, interests,
+      }));
+    } catch { /* ignore */ }
+  }, [step, native, target, level, school, videoGoal, goal, goalSaved, showOnLeaderboard, dualClicked, interests]);
 
-  // Load any existing profile values
+  // Load any existing profile values (auth optional — anonymous users see onboarding too)
   useEffect(() => {
     if (!user) return;
     supabase.from("profiles").select("*").eq("user_id", user.id).single().then(({ data }) => {
       if (data) {
         if (data.native_language) setNative(data.native_language);
-        if (data.learning_language) setTarget(data.learning_language);
         if ((data as any).cef_level) setLevel((data as any).cef_level as Level);
         if ((data as any).learning_goal) setGoal((data as any).learning_goal);
-        if ((data as any).onboarded) navigate("/browse");
+        if ((data as any).school) setSchool((data as any).school);
+        if ((data as any).daily_video_goal) setVideoGoal((data as any).daily_video_goal);
+        if (Array.isArray((data as any).interests) && (data as any).interests.length) {
+          setInterests((data as any).interests);
+        }
       }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -58,29 +88,47 @@ const Onboarding = () => {
   const totalSteps = 8;
 
   const canContinue = useMemo(() => {
-    if (step === 0) return !!native && !!target && native !== target && !!level && level !== "below";
-    if (step === 1) return petDone;
-    if (step === 2) return goalSaved;
-    if (step === 3) return dualClicked;
+    if (step === 0) return true; // 3-pillars intro
+    if (step === 1) return !!native && !!target && native !== target && !!level && level !== "below";
+    if (step === 2) return interests.length >= 1;
+    if (step === 3) return goalSaved;
+    if (step === 4) return dualClicked;
     return true;
-  }, [step, native, target, level, petDone, goalSaved, dualClicked]);
+  }, [step, native, target, level, goalSaved, dualClicked, interests]);
+
+  const toggleInterest = (id: string) => {
+    setInterests((curr) => {
+      if (curr.includes(id)) return curr.filter((x) => x !== id);
+      return [...curr, id];
+    });
+  };
 
   const next = async () => {
-    if (step === 0 && user) {
+    if (step === 1 && user) {
       await supabase.from("profiles").update({
         native_language: native,
         learning_language: target,
         cef_level: level,
-      }).eq("user_id", user.id);
-      setLearningLanguage(target);
-    }
-    if (step === 1 && user && petId) {
-      await supabase.from("profiles").update({
-        pet_id: petId,
-        pet_name: petName || petId,
+        school: school.trim() || null,
+        daily_video_goal: videoGoal,
+        daily_word_goal: wordGoalForVideos(videoGoal),
       } as any).eq("user_id", user.id);
-      localStorage.setItem('ls_pet', petId);
-      if (petName) localStorage.setItem('ls_pet_name', petName);
+      setLearningLanguage(target);
+      // Pre-mark the learner's high-frequency "known" vocabulary based on level
+      // so a B1/B2 learner doesn't see a sea of unassessed words on day one.
+      if (level && level !== "below") {
+        try {
+          await supabase.rpc("seed_known_vocabulary" as any, {
+            _language: target,
+            _level: level,
+          });
+        } catch (e) {
+          console.warn("seed_known_vocabulary failed", e);
+        }
+      }
+    }
+    if (step === 2 && user) {
+      await supabase.from("profiles").update({ interests } as any).eq("user_id", user.id);
     }
     if (step < totalSteps - 1) {
       setStep((s) => s + 1);
@@ -90,8 +138,10 @@ const Onboarding = () => {
         await supabase.from("profiles").update({
           onboarded: true,
           learning_goal: goal || null,
-        }).eq("user_id", user.id);
+          interests,
+        } as any).eq("user_id", user.id);
       }
+      try { localStorage.removeItem(ONBOARDING_KEY); } catch { /* ignore */ }
       playDing("success");
       navigate("/browse");
     }
@@ -100,8 +150,14 @@ const Onboarding = () => {
   const back = () => setStep((s) => Math.max(0, s - 1));
 
   const saveGoal = async () => {
-    if (!goal.trim() || !user) return;
-    await supabase.from("profiles").update({ learning_goal: goal.trim() }).eq("user_id", user.id);
+    if (!goal.trim()) return;
+    if (user) {
+      await supabase.from("profiles").update({
+        learning_goal: goal.trim(),
+        show_on_global_leaderboard: showOnLeaderboard,
+        discoverable_by_search: showOnLeaderboard,
+      } as any).eq("user_id", user.id);
+    }
     setGoalSaved(true);
     playDing("success");
     toast.success("Goal saved");
@@ -141,6 +197,38 @@ const Onboarding = () => {
           >
             {step === 0 && (
               <Card>
+                <Eyebrow icon={<Sparkles className="w-3.5 h-3.5" />}>How fluency works</Eyebrow>
+                <Title>The 3 pillars of language learning.</Title>
+                <Sub>Every fluent speaker balances these three. LinguaScript is built around them.</Sub>
+
+                <div className="mt-8 space-y-4">
+                  <PillarCard
+                    icon={<Headphones className="w-5 h-5" />}
+                    pillar="Input"
+                    aliases="Comprehension · Immersion"
+                    title="Soak it in"
+                    body="Videos, podcasts, books, real conversations. Linguascript turns YouTube into your daily input feed."
+                  />
+                  <PillarCard
+                    icon={<MessageCircle className="w-5 h-5" />}
+                    pillar="Output"
+                    aliases="Fluency · Interaction · Practice"
+                    title="Use the language"
+                    body="Speaking, journaling, shadowing, exchanges. Click any subtitle word, hear it, repeat it out loud."
+                  />
+                  <PillarCard
+                    icon={<RefreshCw className="w-5 h-5" />}
+                    pillar="Study & Review"
+                    aliases="Retention · Feedback · Consistency"
+                    title="Make it stick"
+                    body="Spaced-repetition flashcards, grammar nudges and corrections. The boring bit done painlessly."
+                  />
+                </div>
+              </Card>
+            )}
+
+            {step === 1 && (
+              <Card>
                 <Eyebrow icon={<Sparkles className="w-3.5 h-3.5" />}>Quick setup</Eyebrow>
                 <Title>Let's tune Linguascript to you.</Title>
                 <Sub>Tell us your languages and current level — this powers translations and recommendations.</Sub>
@@ -150,7 +238,7 @@ const Onboarding = () => {
                     <LangSelect value={native} onChange={setNative} exclude={target} />
                   </Field>
                   <Field label="I want to learn">
-                    <LangSelect value={target} onChange={setTarget} exclude={native} />
+                    <LearningLanguageSelect value={target} onChange={setTarget} exclude={native} />
                   </Field>
 
                   <Field label="My current level">
@@ -176,26 +264,71 @@ const Onboarding = () => {
                       </div>
                     )}
                   </Field>
+
+                  <Field label="School (optional)">
+                    <Input
+                      value={school}
+                      onChange={(e) => setSchool(e.target.value)}
+                      placeholder="e.g. Truro College"
+                      className="rounded-xl border-orange-100 bg-white h-11 focus-visible:ring-orange-300 text-neutral-900"
+                    />
+                    <p className="mt-2 text-xs text-neutral-500">
+                      Add your school or college so we can connect you with classmates later. Skip if you're learning solo.
+                    </p>
+                  </Field>
+
+                  <Field label="Daily input goal">
+                    <DailyGoalPicker value={videoGoal} onChange={setVideoGoal} compact />
+                  </Field>
                 </div>
               </Card>
             )}
 
-            {step === 1 && (
+
+            {step === 2 && (
               <Card>
-                <Eyebrow icon={<Sparkles className="w-3.5 h-3.5" />}>Choose your companion</Eyebrow>
-                <PetSelection
-                  onSelect={(id, name) => {
-                    setPetId(id);
-                    setPetName(name);
-                    setPetDone(true);
-                    playDing("success");
-                  }}
-                  onSkip={() => setPetDone(true)}
-                />
+                <Eyebrow icon={<Sparkles className="w-3.5 h-3.5" />}>Personalise your feed</Eyebrow>
+                <Title>What do you enjoy watching?</Title>
+                <Sub>
+                  Select all that apply. We'll mix these with your learning language to surface
+                  YouTube videos you'll actually want to watch.
+                </Sub>
+
+                <div className="mt-8 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                  {INTERESTS.map((interest) => {
+                    const active = interests.includes(interest.id);
+                    return (
+                      <button
+                        key={interest.id}
+                        type="button"
+                        onClick={() => toggleInterest(interest.id)}
+                        className={`relative rounded-2xl border p-4 flex flex-col items-center justify-center gap-2 transition text-center min-h-[104px] ${
+                          active
+                            ? "bg-orange-500 border-orange-500 text-white shadow-[0_10px_24px_-10px_rgba(249,115,22,0.7)] scale-[1.02]"
+                            : "bg-white border-orange-100 text-neutral-800 hover:border-orange-300 hover:-translate-y-0.5"
+                        }`}
+                      >
+                        {active && (
+                          <span className="absolute top-2 right-2 w-5 h-5 rounded-full bg-white text-orange-500 flex items-center justify-center">
+                            <Check className="w-3.5 h-3.5" strokeWidth={3} />
+                          </span>
+                        )}
+                        <span className="text-3xl leading-none">{interest.emoji}</span>
+                        <span className="text-sm font-medium">{interest.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <p className="mt-6 text-xs text-neutral-500">
+                  {interests.length === 0
+                    ? "Pick at least one to continue."
+                    : `${interests.length} selected.`}
+                </p>
               </Card>
             )}
 
-            {step === 2 && (
+            {step === 3 && (
               <Card>
                 <Eyebrow icon={<Sparkles className="w-3.5 h-3.5" />}>Card 1 of 5</Eyebrow>
                 <Title>Welcome to the Lingua Universe 🌍</Title>
@@ -212,7 +345,7 @@ const Onboarding = () => {
                     value={goal}
                     onChange={(e) => { setGoal(e.target.value); setGoalSaved(false); }}
                     placeholder="e.g. Hold a 10-minute conversation in French by summer."
-                    className="min-h-[110px] rounded-2xl border-orange-100 focus-visible:ring-orange-300"
+                    className="min-h-[110px] rounded-2xl border-orange-100 focus-visible:ring-orange-300 bg-white text-neutral-900"
                   />
                   <div className="mt-3 flex items-center gap-3">
                     <Button
@@ -232,128 +365,114 @@ const Onboarding = () => {
                     )}
                   </div>
                 </div>
-              </Card>
-            )}
 
-            {step === 3 && (
-              <Card>
-                <Eyebrow icon={<Subtitles className="w-3.5 h-3.5" />}>Card 2 of 5</Eyebrow>
-                <Title>How Linguascript works</Title>
-                <Sub>
-                  <span className="font-medium text-neutral-900">Lingua</span> = language (Latin).{" "}
-                  <span className="font-medium text-neutral-900">Script</span> = our unique dual-subtitle system.
-                </Sub>
-
-                {/* Mock player */}
-                <div className="mt-8 relative rounded-3xl overflow-hidden border border-orange-100 bg-neutral-900 aspect-video">
-                  <div className="absolute inset-0 bg-gradient-to-br from-neutral-800 to-neutral-900" />
-                  <div className="absolute bottom-16 left-0 right-0 text-center px-4">
-                    <p className="text-white text-base sm:text-lg font-medium drop-shadow">Bonjour, comment ça va ?</p>
-                    <p className="text-orange-300 text-xs sm:text-sm mt-1">Hello, how are you?</p>
+                <div className="mt-8 rounded-2xl border border-orange-100 bg-white p-5">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Trophy className="w-4 h-4 text-orange-500" />
+                    <span className="text-sm font-semibold text-neutral-900">Join the LinguaScript Leaderboard 🏆</span>
                   </div>
-                  {/* Animated cursor */}
-                  {!dualClicked && (
-                    <motion.div
-                      className="absolute"
-                      initial={{ left: "20%", bottom: "20%", opacity: 0 }}
-                      animate={{ left: "70%", bottom: "12%", opacity: 1 }}
-                      transition={{ duration: 1.4, repeat: Infinity, repeatType: "reverse" }}
-                    >
-                      <MousePointer2 className="w-6 h-6 text-white drop-shadow" />
-                    </motion.div>
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={showOnLeaderboard}
+                      onChange={(e) => setShowOnLeaderboard(e.target.checked)}
+                      className="mt-1 w-4 h-4 accent-orange-500"
+                    />
+                    <span className="text-sm text-neutral-700 leading-relaxed">
+                      Appear on the public LinguaScript leaderboard.<br />
+                      <span className="text-xs text-neutral-500">Compete with other learners, earn XP, build streaks, climb the rankings.</span>
+                    </span>
+                  </label>
+                  {!showOnLeaderboard && (
+                    <div className="mt-3 rounded-xl bg-orange-50/60 border border-orange-100 p-3 text-xs text-neutral-600 leading-relaxed">
+                      Hidden from: public leaderboards, XP rankings, friend discovery. Existing friends can still see your profile.
+                    </div>
                   )}
-                  <button
-                    onClick={() => { setDualClicked(true); playDing("success"); }}
-                    className={`absolute right-4 bottom-4 px-3 py-2 rounded-lg text-xs font-medium transition ${
-                      dualClicked
-                        ? "bg-orange-500 text-white"
-                        : "bg-white/95 text-neutral-900 hover:bg-white animate-pulse"
-                    }`}
-                  >
-                    {dualClicked ? <><Check className="w-3.5 h-3.5 inline -mt-0.5 mr-1" />Dual subtitles on</> : "Dual subtitles"}
-                  </button>
                 </div>
-
-                <p className="mt-5 text-sm text-neutral-600 text-center">
-                  {dualClicked ? "Nice! That's the magic." : "Click the Dual subtitles button to continue."}
-                </p>
               </Card>
             )}
 
             {step === 4 && (
               <Card>
-                <Eyebrow icon={<Puzzle className="w-3.5 h-3.5" />}>Card 3 of 5</Eyebrow>
-                <Title>Your brain learns in colour.</Title>
+                <Eyebrow icon={<Subtitles className="w-3.5 h-3.5" />}>Card 2 of 5</Eyebrow>
+                <Title>Now learn by doing.</Title>
                 <Sub>
-                  Most apps teach words in isolation. LinguaScript shows every word in context — and colours
-                  them so you instantly know where you stand.
+                  Watch the 30-second intro, then enter the guided demo. A cursor will walk you through the entire Linguascript loop on a real video.
                 </Sub>
 
-                {/* Colour legend */}
-                <div className="mt-8 space-y-3">
-                  {[
-                    { dot: "bg-neutral-200 border border-neutral-300", label: "White", meaning: "You haven't seen this word yet. No pressure." },
-                    { dot: "bg-red-400",    label: "Red",    meaning: "Newly saved. Your brain is starting to form the memory." },
-                    { dot: "bg-orange-400", label: "Orange", meaning: "You're actively learning it. Keep going." },
-                    { dot: "bg-green-400",  label: "Green",  meaning: "Known. It's yours — you've earned this one." },
-                  ].map(({ dot, label, meaning }) => (
-                    <motion.div
-                      key={label}
-                      initial={{ opacity: 0, x: -16 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: ["White","Red","Orange","Green"].indexOf(label) * 0.12 }}
-                      className="flex items-start gap-4 rounded-2xl border border-orange-100 bg-orange-50/30 p-4"
-                    >
-                      <span className={`mt-0.5 w-4 h-4 rounded-full flex-shrink-0 ${dot}`} />
-                      <div>
-                        <p className="text-sm font-semibold text-neutral-900">{label}</p>
-                        <p className="text-sm text-neutral-500 mt-0.5 leading-relaxed">{meaning}</p>
+                {(() => {
+                  const trainingYtId = TOUR_TRAINING_BY_LANG[target] ?? TOUR_TRAINING_YT_ID;
+                  const enterDemo = async () => {
+                    if (enteringDemo) return;
+                    setEnteringDemo(true);
+                    let { data: film } = await supabase
+                      .from("films")
+                      .select("id")
+                      .or(`url.ilike.%${trainingYtId}%`)
+                      .limit(1)
+                      .maybeSingle();
+                    if (!film?.id) {
+                      const { data: anyFilm } = await supabase
+                        .from("films")
+                        .select("id")
+                        .eq("language", target)
+                        .eq("is_public", true)
+                        .limit(1)
+                        .maybeSingle();
+                      film = anyFilm ?? null;
+                    }
+                    if (!film?.id) {
+                      toast.error("Training video missing from catalogue. Ask an admin to add it.");
+                      setEnteringDemo(false);
+                      return;
+                    }
+                    if (user) {
+                      await supabase.from("profiles").update({ onboarded: true }).eq("user_id", user.id);
+                    }
+                    setDualClicked(true);
+                    startTour({ trainingFilmId: film.id });
+                    navigate(`/watch/${film.id}`);
+                  };
+                  return (
+                    <>
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        onClick={enterDemo}
+                        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") enterDemo(); }}
+                        className="mt-8 relative rounded-3xl overflow-hidden border border-orange-100 aspect-video bg-neutral-900 shadow-[0_24px_60px_-30px_rgba(249,115,22,0.4)] cursor-pointer group"
+                      >
+                        <iframe
+                          title="Linguascript intro"
+                          src={`https://www.youtube-nocookie.com/embed/${trainingYtId}?autoplay=1&mute=1&playsinline=1&modestbranding=1&rel=0&controls=0&disablekb=1&loop=1&playlist=${trainingYtId}`}
+                          allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+                          className="w-full h-full pointer-events-none"
+                          frameBorder={0}
+                        />
+                        <div className="absolute inset-0 bg-transparent group-hover:bg-black/10 transition-colors" aria-hidden />
                       </div>
-                    </motion.div>
-                  ))}
-                </div>
 
-                {/* Mock subtitle preview */}
-                <div className="mt-6 rounded-2xl bg-neutral-900 px-5 py-4 text-center">
-                  <p className="text-base font-medium leading-loose">
-                    {[
-                      { word: "Au", color: "text-neutral-200" },
-                      { word: "fur", color: "text-orange-400" },
-                      { word: "et", color: "text-neutral-200" },
-                      { word: "à", color: "text-neutral-200" },
-                      { word: "mesure", color: "text-red-400" },
-                      { word: "tu", color: "text-green-400" },
-                      { word: "progresseras.", color: "text-neutral-200" },
-                    ].map(({ word, color }) => (
-                      <span key={word} className={`${color} mr-1.5 cursor-pointer hover:underline`}>{word}</span>
-                    ))}
-                  </p>
-                  <p className="text-orange-300 text-xs mt-2">Little by little, you will progress.</p>
-                </div>
+                      <div className="mt-6 flex flex-col items-center gap-3">
+                        <Button
+                          onClick={enterDemo}
+                          disabled={enteringDemo}
+                          className="h-12 px-8 rounded-full bg-orange-500 hover:bg-orange-600 text-white font-medium shadow-[0_8px_24px_-8px_rgba(249,115,22,0.6)] gap-2"
+                        >
+                          {enteringDemo ? "Loading…" : "Enter the demo"}
+                          <ArrowRight className="w-4 h-4" />
+                        </Button>
+                        <p className="text-xs text-neutral-500">A guided cursor will walk you through every feature.</p>
+                      </div>
+                    </>
+                  );
+                })()}
 
-                {/* Extension CTA */}
-                <div className="mt-6 rounded-2xl border border-orange-200 bg-orange-50 p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                  <div className="flex-1">
-                    <p className="text-sm font-semibold text-neutral-900">Install the Chrome Extension</p>
-                    <p className="text-sm text-neutral-500 mt-0.5">
-                      Get colour-coded words on Netflix & YouTube — dual subtitles, click any word, save instantly.
-                    </p>
-                  </div>
-                  <a
-                    href="https://chrome.google.com/webstore/detail/linguascript"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex-shrink-0 inline-flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium px-4 py-2.5 rounded-full transition shadow-[0_4px_14px_-4px_rgba(249,115,22,0.5)]"
-                  >
-                    Add to Chrome <ExternalLink className="w-3.5 h-3.5" />
-                  </a>
-                </div>
               </Card>
             )}
 
             {step === 5 && (
               <Card>
-                <Eyebrow icon={<Trophy className="w-3.5 h-3.5" />}>Card 4 of 6</Eyebrow>
+                <Eyebrow icon={<Trophy className="w-3.5 h-3.5" />}>Card 3 of 5</Eyebrow>
                 <Title>Catalogue & XP</Title>
                 <Sub>Every video has a CEFR difficulty rating (A1 → C2). Watch content at your level for the fastest progress.</Sub>
 
@@ -374,7 +493,7 @@ const Onboarding = () => {
 
             {step === 6 && (
               <Card>
-                <Eyebrow icon={<Brain className="w-3.5 h-3.5" />}>Card 5 of 5</Eyebrow>
+                <Eyebrow icon={<Brain className="w-3.5 h-3.5" />}>Card 4 of 5</Eyebrow>
                 <Title>Flashcards & spaced repetition</Title>
                 <Sub>Words are sorted into three memory decks. Press "Got it" to promote a card.</Sub>
 
@@ -398,7 +517,7 @@ const Onboarding = () => {
 
             {step === 7 && (
               <Card>
-                <Eyebrow icon={<Mic className="w-3.5 h-3.5" />}>Card 6 of 6</Eyebrow>
+                <Eyebrow icon={<Mic className="w-3.5 h-3.5" />}>Card 5 of 5</Eyebrow>
                 <Title>Learn faster</Title>
                 <Sub>Two habits unlock most of your gains.</Sub>
 
@@ -473,20 +592,38 @@ const Field = ({ label, children }: { label: string; children: React.ReactNode }
   </div>
 );
 
-const LangSelect = ({ value, onChange, exclude }: { value: string; onChange: (v: string) => void; exclude?: string }) => (
-  <Select value={value} onValueChange={onChange}>
-    <SelectTrigger className="rounded-xl border-orange-100 bg-white h-11">
-      <SelectValue />
-    </SelectTrigger>
-    <SelectContent>
-      {LANGUAGES.filter((l) => l.code !== exclude).map((l) => (
-        <SelectItem key={l.code} value={l.code}>
-          <span className="flex items-center gap-2"><span>{l.flag}</span> {l.label}</span>
-        </SelectItem>
-      ))}
-    </SelectContent>
-  </Select>
-);
+const POPULAR_LANGS = ["en", "es", "fr", "de", "it"];
+
+const LangSelect = ({ value, onChange, exclude }: { value: string; onChange: (v: string) => void; exclude?: string }) => {
+  const filtered = LANGUAGES.filter((l) => l.code !== exclude);
+  const popular = filtered.filter((l) => POPULAR_LANGS.includes(l.code));
+  const rest = filtered.filter((l) => !POPULAR_LANGS.includes(l.code));
+
+  return (
+    <Select value={value} onValueChange={onChange}>
+      <SelectTrigger className="rounded-xl border-orange-100 bg-white h-11 text-neutral-900">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent className="bg-white text-neutral-900">
+        {popular.map((l) => (
+          <SelectItem key={l.code} value={l.code}>
+            <span className="flex items-center gap-2"><span>{l.flag}</span> {l.label}</span>
+          </SelectItem>
+        ))}
+        {rest.length > 0 && (
+          <>
+            <SelectSeparator />
+            {rest.map((l) => (
+              <SelectItem key={l.code} value={l.code}>
+                <span className="flex items-center gap-2"><span>{l.flag}</span> {l.label}</span>
+              </SelectItem>
+            ))}
+          </>
+        )}
+      </SelectContent>
+    </Select>
+  );
+};
 
 const InfoTile = ({ icon, title, body }: { icon: React.ReactNode; title: string; body: string }) => (
   <div className="rounded-2xl border border-orange-100 bg-orange-50/40 p-5">
@@ -497,5 +634,62 @@ const InfoTile = ({ icon, title, body }: { icon: React.ReactNode; title: string;
     <p className="mt-1 text-sm text-neutral-600 leading-relaxed">{body}</p>
   </div>
 );
+
+const PillarCard = ({
+  icon, pillar, aliases, title, body,
+}: { icon: React.ReactNode; pillar: string; aliases: string; title: string; body: string }) => (
+  <div className="rounded-2xl border border-orange-100 bg-gradient-to-br from-orange-50/60 to-white p-5 flex gap-4">
+    <div className="shrink-0 w-12 h-12 rounded-2xl bg-gradient-to-br from-orange-400 to-orange-500 text-white flex items-center justify-center shadow-[0_8px_20px_-8px_rgba(249,115,22,0.6)]">
+      {icon}
+    </div>
+    <div className="min-w-0">
+      <div className="flex items-baseline gap-2 flex-wrap">
+        <p className="font-semibold text-neutral-900">{pillar}</p>
+        <p className="text-[11px] text-orange-500 font-medium uppercase tracking-wide">{aliases}</p>
+      </div>
+      <p className="text-[13px] text-neutral-500 mt-0.5">{title}</p>
+      <p className="mt-1.5 text-sm text-neutral-700 leading-relaxed">{body}</p>
+    </div>
+  </div>
+);
+
+
+const AVAILABLE_LEARNING_LANGS = [
+  { code: "fr", label: "French", flag: "🇫🇷" },
+  { code: "es", label: "Spanish", flag: "🇪🇸" },
+  { code: "de", label: "German", flag: "🇩🇪" },
+  { code: "it", label: "Italian", flag: "🇮🇹" },
+  { code: "pt", label: "Portuguese", flag: "🇵🇹" },
+  { code: "ja", label: "Japanese", flag: "🇯🇵" },
+];
+
+const LearningLanguageSelect = ({
+  value, onChange, exclude,
+}: { value: string; onChange: (v: string) => void; exclude?: string }) => {
+  const options = AVAILABLE_LEARNING_LANGS.filter((l) => l.code !== exclude);
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+      {options.map((l) => {
+        const active = value === l.code;
+        return (
+          <button
+            key={l.code}
+            type="button"
+            onClick={() => onChange(l.code)}
+            className={`flex items-center gap-2 rounded-xl border px-3 h-11 text-sm font-medium transition ${
+              active
+                ? "bg-orange-500 border-orange-500 text-white shadow-[0_6px_18px_-6px_rgba(249,115,22,0.6)]"
+                : "bg-white border-orange-100 text-neutral-700 hover:border-orange-300"
+            }`}
+          >
+            <span className="text-lg leading-none">{l.flag}</span>
+            <span>{l.label}</span>
+            {active && <Check className="w-4 h-4 ml-auto" />}
+          </button>
+        );
+      })}
+    </div>
+  );
+};
 
 export default Onboarding;

@@ -11,9 +11,6 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@react-three/drei": "^9.122.0",
-    "@react-three/fiber": "^8.18.0",
-    "three": "^0.169.0",
     "@hookform/resolvers": "^3.10.0",
     "@lottiefiles/dotlottie-react": "^0.19.4",
     "@lovable.dev/cloud-auth-js": "^1.1.2",
@@ -71,7 +68,6 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
-    "@types/three": "^0.169.0",
     "@eslint/js": "^9.32.0",
     "@tailwindcss/typography": "^0.5.16",
     "@types/node": "^22.16.5",
