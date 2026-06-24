@@ -65,6 +65,7 @@ const App = () => (
                 <Route path="/checkout/return" element={<CheckoutReturn />} />
                 <Route path="/privacy" element={<Privacy />} />
                 <Route path="/privacy-extension" element={<PrivacyExtension />} />
+                <Route path="/teacher" element={<Teacher />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
               <TourOverlay />
