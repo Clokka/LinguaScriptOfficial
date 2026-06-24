@@ -15,8 +15,19 @@ const Auth = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const next = searchParams.get("next") || "/browse";
+  const inviteToken = searchParams.get("invite");
+  const next = searchParams.get("next") || (inviteToken ? "/browse" : "/browse");
   const { toast } = useToast();
+
+  const acceptInviteIfAny = async () => {
+    if (!inviteToken) return;
+    const { error } = await supabase.rpc("accept_school_invite", { _token: inviteToken });
+    if (error) {
+      toast({ title: "Invite issue", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Joined your school", description: "Welcome to the class!" });
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,6 +38,7 @@ const Auth = () => {
       if (error) {
         toast({ title: "Login failed", description: error.message, variant: "destructive" });
       } else {
+        await acceptInviteIfAny();
         navigate(next);
       }
     } else {
@@ -35,7 +47,7 @@ const Auth = () => {
         password,
         options: {
           data: { display_name: displayName },
-          emailRedirectTo: window.location.origin + next,
+          emailRedirectTo: window.location.origin + (inviteToken ? `/auth?invite=${inviteToken}` : next),
         },
       });
       if (error) {
