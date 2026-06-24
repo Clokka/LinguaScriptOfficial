@@ -646,6 +646,112 @@ export type Database = {
           },
         ]
       }
+      school_invites: {
+        Row: {
+          accepted_at: string | null
+          accepted_by: string | null
+          created_at: string
+          email: string
+          id: string
+          invited_by: string
+          member_role: string
+          school_id: string
+          status: string
+          token: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          created_at?: string
+          email: string
+          id?: string
+          invited_by: string
+          member_role?: string
+          school_id: string
+          status?: string
+          token: string
+        }
+        Update: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          invited_by?: string
+          member_role?: string
+          school_id?: string
+          status?: string
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "school_invites_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      school_members: {
+        Row: {
+          id: string
+          joined_at: string
+          member_role: string
+          school_id: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          joined_at?: string
+          member_role: string
+          school_id: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          joined_at?: string
+          member_role?: string
+          school_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "school_members_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      schools: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          name: string
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          name: string
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          name?: string
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       starter_deck_cards: {
         Row: {
           created_at: string
@@ -1032,6 +1138,7 @@ export type Database = {
     }
     Functions: {
       accept_friend_request: { Args: { _other: string }; Returns: boolean }
+      accept_school_invite: { Args: { _token: string }; Returns: string }
       add_friend_by_code: { Args: { _code: string }; Returns: string }
       add_friend_by_user_id: { Args: { _target: string }; Returns: string }
       admin_grant_pro: {
@@ -1064,6 +1171,11 @@ export type Database = {
         }[]
       }
       are_friends: { Args: { _a: string; _b: string }; Returns: boolean }
+      bulk_invite_students: {
+        Args: { _emails: string[]; _school_id: string }
+        Returns: number
+      }
+      create_school: { Args: { _name: string; _slug: string }; Returns: string }
       delete_email: {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
@@ -1106,6 +1218,24 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_school_staff: {
+        Args: { _school_id: string; _user_id: string }
+        Returns: boolean
+      }
+      list_school_students: {
+        Args: { _school_id: string }
+        Returns: {
+          display_name: string
+          email: string
+          joined_at: string
+          minutes_watched: number
+          streak_count: number
+          user_id: string
+          words_known: number
+          xp_level: number
+          xp_total: number
+        }[]
+      }
       move_to_dlq: {
         Args: {
           dlq_name: string
@@ -1114,6 +1244,15 @@ export type Database = {
           source_queue: string
         }
         Returns: number
+      }
+      my_schools: {
+        Args: never
+        Returns: {
+          member_role: string
+          name: string
+          school_id: string
+          slug: string
+        }[]
       }
       read_email_batch: {
         Args: { batch_size: number; queue_name: string; vt: number }
@@ -1139,7 +1278,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "user"
+      app_role: "admin" | "user" | "teacher" | "student"
       vocab_state: "red" | "orange" | "green"
     }
     CompositeTypes: {
@@ -1268,7 +1407,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "user"],
+      app_role: ["admin", "user", "teacher", "student"],
       vocab_state: ["red", "orange", "green"],
     },
   },
