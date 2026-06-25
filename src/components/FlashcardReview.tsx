@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { DeckState, nextState } from "@/lib/vocab";
 import { useXp } from "@/contexts/XpContext";
+import { toast } from "sonner";
 
 type Direction = "learn-to-native" | "native-to-learn";
 const DIR_KEY = "flashcardDirection";

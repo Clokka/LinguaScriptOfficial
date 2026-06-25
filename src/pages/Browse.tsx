@@ -44,6 +44,7 @@ import { ActivityCalendarDark } from "@/components/ActivityCalendarDark";
 import { ActiveLanguageBadge } from "@/components/ActiveLanguageBadge";
 import { INTERESTS, type Interest } from "@/lib/interests";
 import { PersonalizedRails } from "@/components/PersonalizedRails";
+import { YourProgressSection } from "@/components/YourProgressSection";
 
 const INTERESTS_BY_ID: Record<string, Interest> = Object.fromEntries(
   INTERESTS.map((i) => [i.id, i]),
@@ -658,6 +659,9 @@ const HomeTab = ({
     <div className="space-y-8">
       {/* LinguaScript's primary metric: turn the language green. */}
       <UnderstandingHero language={learningLanguage} />
+
+      {/* Per-video improvement — "I understand more of this video than I did before." */}
+      <YourProgressSection />
 
       {/* Paste YouTube Link */}
       <div className="glass-panel-strong p-6 rounded-2xl">
