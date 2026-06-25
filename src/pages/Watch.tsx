@@ -476,6 +476,33 @@ const Watch = () => {
     return () => { cancelled = true; };
   }, [film, learningLanguage, nativeLanguage]);
 
+  // Compute per-video comprehension once subtitles are loaded.
+  // We re-run when learning language changes (different deck applies).
+  useEffect(() => {
+    if (!film || subtitles.length === 0) return;
+    const lang = (film.is_public ? (film.language || learningLanguage) : learningLanguage) || "fr";
+    let cancelled = false;
+    (async () => {
+      const comp = await computeVideoComprehension(user?.id ?? null, film.id, lang);
+      if (cancelled) return;
+      setComprehension(comp);
+      if (user) {
+        const prior = await loadComprehensionRecord(user.id, film.id, "film");
+        if (cancelled) return;
+        setPriorScore(prior ? Number(prior.first_score) : null);
+      }
+      // One-shot pre-watch hint.
+      if (!preWatchToastFiredRef.current) {
+        preWatchToastFiredRef.current = true;
+        toast.message(`Estimated understanding: ${comp.pct}%`, {
+          description: zoneMessage(comp.pct),
+          duration: 7000,
+        });
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [film, subtitles, learningLanguage, user]);
+
   // Load YouTube IFrame API
   useEffect(() => {
     if (window.YT?.Player) { setApiReady(true); return; }
