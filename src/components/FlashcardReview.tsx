@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { DeckState, nextState } from "@/lib/vocab";
 import { useXp } from "@/contexts/XpContext";
+import { toast } from "sonner";
 
 type Direction = "learn-to-native" | "native-to-learn";
 const DIR_KEY = "flashcardDirection";
@@ -36,6 +37,9 @@ export const FlashcardReview = ({ cards: initialCards, onClose, onCardReviewed, 
   const { award } = useXp();
   const sessionBonusFired = useRef(false);
   const [cards, setCards] = useState<FlashcardData[]>(initialCards);
+  // Count cards that moved into the green deck during THIS session — drives
+  // the "Vocabulary Impact" message at session end.
+  const promotedToGreenRef = useRef(0);
   useEffect(() => { setCards(initialCards); }, [initialCards]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [correct, setCorrect] = useState(0);
@@ -89,6 +93,7 @@ export const FlashcardReview = ({ cards: initialCards, onClose, onCardReviewed, 
     const prevTimes = card.times_correct ?? 0;
     const newTimes = prevTimes + (wasCorrect ? 1 : 0);
     const newState = nextState(prevState, newTimes, wasCorrect);
+    if (newState === "green" && prevState !== "green") promotedToGreenRef.current += 1;
     // Optimistic local update — React is only a temporary UI cache.
     setCards((prev) => prev.map((c, i) => (i === currentIndex ? { ...c, state: newState, times_correct: newTimes } : c)));
     onCardReviewed?.(card.id, { state: newState, times_correct: newTimes });
@@ -130,6 +135,16 @@ export const FlashcardReview = ({ cards: initialCards, onClose, onCardReviewed, 
       if (!sessionBonusFired.current) {
         sessionBonusFired.current = true;
         award("session_end", { cards: totalReviewed });
+        const promoted = promotedToGreenRef.current;
+        if (promoted > 0) {
+          // Direct cause→effect link: flashcards → green words → comprehension.
+          // 5,000-word ceiling matches estimateLanguageUnderstanding().
+          const langDelta = Math.round((promoted / 5000) * 1000) / 10;
+          toast.success(`+${promoted} word${promoted === 1 ? "" : "s"} learned`, {
+            description: `+${langDelta}% language understanding · your saved videos just got easier.`,
+            duration: 6000,
+          });
+        }
       }
     }
   };

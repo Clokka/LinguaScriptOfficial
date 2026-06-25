@@ -1049,6 +1049,60 @@ export type Database = {
           },
         ]
       }
+      video_comprehension: {
+        Row: {
+          content_id: string
+          content_type: string
+          created_at: string
+          first_score: number
+          first_watched_at: string
+          green_count: number
+          id: string
+          language: string
+          last_watched_at: string
+          latest_score: number
+          orange_count: number
+          red_count: number
+          total_tokens: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content_id: string
+          content_type: string
+          created_at?: string
+          first_score: number
+          first_watched_at?: string
+          green_count?: number
+          id?: string
+          language: string
+          last_watched_at?: string
+          latest_score: number
+          orange_count?: number
+          red_count?: number
+          total_tokens?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content_id?: string
+          content_type?: string
+          created_at?: string
+          first_score?: number
+          first_watched_at?: string
+          green_count?: number
+          id?: string
+          language?: string
+          last_watched_at?: string
+          latest_score?: number
+          orange_count?: number
+          red_count?: number
+          total_tokens?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       watch_history: {
         Row: {
           completion_pct: number

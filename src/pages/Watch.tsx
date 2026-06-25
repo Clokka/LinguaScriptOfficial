@@ -18,6 +18,13 @@ import { saveGuestWord } from "@/lib/guestWords";
 import { useXp } from "@/contexts/XpContext";
 import { recordDailyVideoWatch, setReinforcementPending } from "@/lib/dailyVideo";
 import { toast } from "sonner";
+import {
+  computeVideoComprehension,
+  loadComprehensionRecord,
+  recordComprehension,
+  zoneMessage,
+  type VideoComprehension,
+} from "@/lib/videoComprehension";
 
 interface FilmData {
   id: string;
@@ -260,6 +267,14 @@ const Watch = () => {
   const [currentTime, setCurrentTime] = useState(0);
   const [subtitleMode, setSubtitleMode] = useState<"single" | "dual">("dual");
   const [showReinforce, setShowReinforce] = useState(false);
+  // Per-video comprehension — drives both the pre-watch hint and the
+  // post-watch completion screen with "Previous → Current" delta.
+  const [comprehension, setComprehension] = useState<VideoComprehension | null>(null);
+  const [priorScore, setPriorScore] = useState<number | null>(null);
+  const [completionSnapshot, setCompletionSnapshot] = useState<
+    { first: number; latest: number; comp: VideoComprehension } | null
+  >(null);
+  const preWatchToastFiredRef = useRef(false);
   const [apiReady, setApiReady] = useState(!!window.YT?.Player);
   const [subtitles, setSubtitles] = useState<DisplaySubtitle[]>([]);
   const [captionsLoading, setCaptionsLoading] = useState(false);
@@ -461,6 +476,33 @@ const Watch = () => {
     return () => { cancelled = true; };
   }, [film, learningLanguage, nativeLanguage]);
 
+  // Compute per-video comprehension once subtitles are loaded.
+  // We re-run when learning language changes (different deck applies).
+  useEffect(() => {
+    if (!film || subtitles.length === 0) return;
+    const lang = (film.is_public ? (film.language || learningLanguage) : learningLanguage) || "fr";
+    let cancelled = false;
+    (async () => {
+      const comp = await computeVideoComprehension(user?.id ?? null, film.id, lang);
+      if (cancelled) return;
+      setComprehension(comp);
+      if (user) {
+        const prior = await loadComprehensionRecord(user.id, film.id, "film");
+        if (cancelled) return;
+        setPriorScore(prior ? Number(prior.first_score) : null);
+      }
+      // One-shot pre-watch hint.
+      if (!preWatchToastFiredRef.current) {
+        preWatchToastFiredRef.current = true;
+        toast.message(`Estimated understanding: ${comp.pct}%`, {
+          description: zoneMessage(comp.pct),
+          duration: 7000,
+        });
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [film, subtitles, learningLanguage, user]);
+
   // Load YouTube IFrame API
   useEffect(() => {
     if (window.YT?.Player) { setApiReady(true); return; }
@@ -507,7 +549,25 @@ const Watch = () => {
               videoWatchAwardedRef.current = true;
               award("video_watch", { videoId: film?.id });
               if (user && film) void recordDailyVideoWatch(user.id, film.id);
-              setShowReinforce(true);
+              // Recompute + persist comprehension so the completion screen
+              // reflects any words promoted during this very watch.
+              (async () => {
+                if (!film) { setShowReinforce(true); return; }
+                const lang = (film.is_public ? (film.language || learningLanguage) : learningLanguage) || "fr";
+                const comp = await computeVideoComprehension(user?.id ?? null, film.id, lang);
+                setComprehension(comp);
+                if (user) {
+                  const r = await recordComprehension(user.id, film.id, "film", lang, comp);
+                  setCompletionSnapshot({ first: r.first, latest: r.latest, comp });
+                  const delta = Math.round(r.latest - r.first);
+                  if (!r.isFirst && delta >= 5) {
+                    toast.success(`You now understand ${delta}% more of this video! 🎉`);
+                  }
+                } else {
+                  setCompletionSnapshot({ first: comp.pct, latest: comp.pct, comp });
+                }
+                setShowReinforce(true);
+              })();
             }
           }
         },
@@ -926,11 +986,55 @@ const Watch = () => {
       {showReinforce && (
         <div className="fixed inset-x-0 bottom-0 z-[80] p-4 pointer-events-none">
           <div className="glass-panel-strong max-w-md mx-auto p-5 pointer-events-auto animate-bounce-in shadow-float">
-            <div className="text-sm uppercase tracking-widest text-primary mb-1">+10 XP</div>
-            <h3 className="text-lg font-bold mb-1">Great learning session</h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              Want to reinforce what you just learned? Earn a bonus by reviewing flashcards now.
-            </p>
+            <div className="text-sm uppercase tracking-widest text-emerald-300 mb-1">Video complete · +10 XP</div>
+            <h3 className="text-lg font-bold mb-3">How much you understood</h3>
+
+            {completionSnapshot && (
+              <div className="space-y-3 mb-4">
+                <div className="flex items-baseline gap-2 tabular-nums">
+                  {completionSnapshot.first !== completionSnapshot.latest && (
+                    <>
+                      <span className="text-sm text-muted-foreground">
+                        {Math.round(completionSnapshot.first)}%
+                      </span>
+                      <span className="text-muted-foreground/60">→</span>
+                    </>
+                  )}
+                  <span className="text-3xl font-bold text-emerald-400">
+                    {Math.round(completionSnapshot.latest)}%
+                  </span>
+                  {completionSnapshot.latest > completionSnapshot.first && (
+                    <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300">
+                      +{Math.round(completionSnapshot.latest - completionSnapshot.first)}%
+                    </span>
+                  )}
+                </div>
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div className="glass-panel p-2 rounded-lg">
+                    <p className="text-base font-bold text-emerald-400">{completionSnapshot.comp.greenCount}</p>
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Known</p>
+                  </div>
+                  <div className="glass-panel p-2 rounded-lg">
+                    <p className="text-base font-bold text-amber-300">{completionSnapshot.comp.orangeCount}</p>
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Saved</p>
+                  </div>
+                  <div className="glass-panel p-2 rounded-lg">
+                    <p className="text-base font-bold text-rose-300">{completionSnapshot.comp.redCount}</p>
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Unknown</p>
+                  </div>
+                </div>
+                {completionSnapshot.comp.potentialPct > completionSnapshot.latest && (
+                  <p className="text-xs text-muted-foreground bg-emerald-500/5 border border-emerald-500/20 rounded-lg p-2">
+                    Turn your saved words green and this video jumps to{" "}
+                    <span className="text-emerald-300 font-semibold">
+                      {completionSnapshot.comp.potentialPct}%
+                    </span>{" "}
+                    understanding.
+                  </p>
+                )}
+              </div>
+            )}
+
             <div className="flex gap-2">
               <Button variant="ghost" className="flex-1" onClick={() => setShowReinforce(false)}>
                 Later
