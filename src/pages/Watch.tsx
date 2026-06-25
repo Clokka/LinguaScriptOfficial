@@ -18,6 +18,13 @@ import { saveGuestWord } from "@/lib/guestWords";
 import { useXp } from "@/contexts/XpContext";
 import { recordDailyVideoWatch, setReinforcementPending } from "@/lib/dailyVideo";
 import { toast } from "sonner";
+import {
+  computeVideoComprehension,
+  loadComprehensionRecord,
+  recordComprehension,
+  zoneMessage,
+  type VideoComprehension,
+} from "@/lib/videoComprehension";
 
 interface FilmData {
   id: string;
@@ -260,6 +267,14 @@ const Watch = () => {
   const [currentTime, setCurrentTime] = useState(0);
   const [subtitleMode, setSubtitleMode] = useState<"single" | "dual">("dual");
   const [showReinforce, setShowReinforce] = useState(false);
+  // Per-video comprehension — drives both the pre-watch hint and the
+  // post-watch completion screen with "Previous → Current" delta.
+  const [comprehension, setComprehension] = useState<VideoComprehension | null>(null);
+  const [priorScore, setPriorScore] = useState<number | null>(null);
+  const [completionSnapshot, setCompletionSnapshot] = useState<
+    { first: number; latest: number; comp: VideoComprehension } | null
+  >(null);
+  const preWatchToastFiredRef = useRef(false);
   const [apiReady, setApiReady] = useState(!!window.YT?.Player);
   const [subtitles, setSubtitles] = useState<DisplaySubtitle[]>([]);
   const [captionsLoading, setCaptionsLoading] = useState(false);
