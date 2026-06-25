@@ -549,7 +549,25 @@ const Watch = () => {
               videoWatchAwardedRef.current = true;
               award("video_watch", { videoId: film?.id });
               if (user && film) void recordDailyVideoWatch(user.id, film.id);
-              setShowReinforce(true);
+              // Recompute + persist comprehension so the completion screen
+              // reflects any words promoted during this very watch.
+              (async () => {
+                if (!film) { setShowReinforce(true); return; }
+                const lang = (film.is_public ? (film.language || learningLanguage) : learningLanguage) || "fr";
+                const comp = await computeVideoComprehension(user?.id ?? null, film.id, lang);
+                setComprehension(comp);
+                if (user) {
+                  const r = await recordComprehension(user.id, film.id, "film", lang, comp);
+                  setCompletionSnapshot({ first: r.first, latest: r.latest, comp });
+                  const delta = Math.round(r.latest - r.first);
+                  if (!r.isFirst && delta >= 5) {
+                    toast.success(`You now understand ${delta}% more of this video! 🎉`);
+                  }
+                } else {
+                  setCompletionSnapshot({ first: comp.pct, latest: comp.pct, comp });
+                }
+                setShowReinforce(true);
+              })();
             }
           }
         },
