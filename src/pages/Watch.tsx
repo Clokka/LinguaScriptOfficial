@@ -556,15 +556,23 @@ const Watch = () => {
                 const lang = (film.is_public ? (film.language || learningLanguage) : learningLanguage) || "fr";
                 const comp = await computeVideoComprehension(user?.id ?? null, film.id, lang);
                 setComprehension(comp);
+                let durSec = 0;
+                let pctDone = 100;
+                try {
+                  const p = playerRef.current;
+                  durSec = Math.floor(p?.getDuration?.() || 0);
+                  const pos = Math.floor(p?.getCurrentTime?.() || durSec);
+                  if (durSec > 0) pctDone = Math.min(100, Math.round((pos / durSec) * 100));
+                } catch { /* noop */ }
+                setSessionDurationMin(durSec > 0 ? durSec / 60 : 0);
                 if (user) {
-                  const r = await recordComprehension(user.id, film.id, "film", lang, comp);
-                  setCompletionSnapshot({ first: r.first, latest: r.latest, comp });
-                  const delta = Math.round(r.latest - r.first);
-                  if (!r.isFirst && delta >= 5) {
-                    toast.success(`You now understand ${delta}% more of this video! 🎉`);
+                  const r = await recordWatchSession(film.id, lang, comp, durSec, pctDone);
+                  setSessionResult(r);
+                  if (r && r.prev_pct !== null && r.delta >= 5) {
+                    toast.success(`You now understand ${Math.round(r.delta)}% more of this video! 🎉`);
                   }
                 } else {
-                  setCompletionSnapshot({ first: comp.pct, latest: comp.pct, comp });
+                  setSessionResult({ watch_number: 1, prev_pct: null, new_pct: comp.pct, delta: 0, first_pct: comp.pct, best_pct: comp.pct });
                 }
                 setShowReinforce(true);
               })();
