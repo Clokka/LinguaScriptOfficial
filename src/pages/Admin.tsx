@@ -277,6 +277,12 @@ const Admin = () => {
       });
       return;
     }
+    const tags = tagsInput
+      .split(",")
+      .map((t) => t.trim().toLowerCase())
+      .filter(Boolean);
+    const durationSeconds = durationMinutes ? Math.max(0, Math.round(parseFloat(durationMinutes) * 60)) : null;
+
     const { data, error } = await supabase.from("films").insert({
       title,
       url,
@@ -284,7 +290,12 @@ const Admin = () => {
       thumbnail_url: thumb,
       is_public: true,
       created_by: authData.user.id,
-    }).select().single();
+      cefr_level: cefrLevel === "__none__" ? null : cefrLevel,
+      category: category || null,
+      tags,
+      duration_seconds: durationSeconds,
+      description: description || null,
+    } as any).select().single();
 
     if (error) {
       toast({ title: "Error adding film", description: error.message, variant: "destructive" });
@@ -299,6 +310,11 @@ const Admin = () => {
       setTitle("");
       setUrl("");
       setThumbnailUrl("");
+      setCefrLevel("__none__");
+      setCategory("");
+      setTagsInput("");
+      setDurationMinutes("");
+      setDescription("");
       setSrtFileOriginal(null);
       setSrtFileSecondary(null);
       if (fileInputRefOriginal.current) fileInputRefOriginal.current.value = "";
