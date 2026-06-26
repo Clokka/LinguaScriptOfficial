@@ -656,8 +656,11 @@ const HomeTab = ({
       {/* LinguaScript's primary metric: turn the language green. */}
       <UnderstandingHero language={learningLanguage} />
 
-      {/* Per-video improvement — "I understand more of this video than I did before." */}
-      <YourProgressSection />
+      {/* Continue Watching — last-session cards with comprehension deltas. */}
+      <ContinueWatchingRail />
+
+      {/* Aggregate dashboard: avg comprehension, mastery counts, hours, etc. */}
+      <YourProgressDashboard />
 
       {/* Paste YouTube Link */}
       <div className="glass-panel-strong p-6 rounded-2xl">
