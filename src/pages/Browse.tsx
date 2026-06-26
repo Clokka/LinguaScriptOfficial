@@ -45,6 +45,9 @@ import { ActiveLanguageBadge } from "@/components/ActiveLanguageBadge";
 import { INTERESTS, type Interest } from "@/lib/interests";
 import { PersonalizedRails } from "@/components/PersonalizedRails";
 import { YourProgressSection } from "@/components/YourProgressSection";
+import { YourProgressDashboard } from "@/components/YourProgressDashboard";
+import { ContinueWatchingRail } from "@/components/ContinueWatchingRail";
+import { DiscoverCatalog } from "@/components/DiscoverCatalog";
 
 const INTERESTS_BY_ID: Record<string, Interest> = Object.fromEntries(
   INTERESTS.map((i) => [i.id, i]),
