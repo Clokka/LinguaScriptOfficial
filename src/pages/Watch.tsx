@@ -272,9 +272,8 @@ const Watch = () => {
   // post-watch completion screen with "Previous → Current" delta.
   const [comprehension, setComprehension] = useState<VideoComprehension | null>(null);
   const [priorScore, setPriorScore] = useState<number | null>(null);
-  const [completionSnapshot, setCompletionSnapshot] = useState<
-    { first: number; latest: number; comp: VideoComprehension } | null
-  >(null);
+  const [sessionResult, setSessionResult] = useState<RecordResult | null>(null);
+  const [sessionDurationMin, setSessionDurationMin] = useState(0);
   const preWatchToastFiredRef = useRef(false);
   const [apiReady, setApiReady] = useState(!!window.YT?.Player);
   const [subtitles, setSubtitles] = useState<DisplaySubtitle[]>([]);
