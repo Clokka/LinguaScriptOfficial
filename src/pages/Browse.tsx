@@ -709,9 +709,14 @@ const HomeTab = ({
           </div>
         )}
       </section>
+
+      {/* Per-video comprehension history, sorted by largest improvement. */}
+      <YourProgressSection />
     </div>
   );
 };
+
+const _BrowseEnd = null;
 
 /* ── UNDERSTANDING HERO ──
  * LinguaScript's headline metric. Replaces "words learned" as the primary
