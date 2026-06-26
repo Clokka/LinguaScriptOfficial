@@ -389,6 +389,49 @@ const Admin = () => {
             </SelectContent>
           </Select>
 
+          {/* Discovery metadata — drives /discover filters & cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <Select value={cefrLevel} onValueChange={setCefrLevel}>
+              <SelectTrigger className="bg-secondary/50 border-border">
+                <SelectValue placeholder="CEFR level" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">No CEFR level</SelectItem>
+                {["A1","A2","B1","B2","C1","C2"].map((c) => (
+                  <SelectItem key={c} value={c}>{c}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Input
+              placeholder="Category (e.g. Travel)"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className="bg-secondary/50 border-border"
+            />
+            <Input
+              placeholder="Duration (minutes)"
+              type="number"
+              min="0"
+              step="0.1"
+              value={durationMinutes}
+              onChange={(e) => setDurationMinutes(e.target.value)}
+              className="bg-secondary/50 border-border"
+            />
+          </div>
+          <Input
+            placeholder="Tags — comma separated (e.g. vlog, travel, beginner)"
+            value={tagsInput}
+            onChange={(e) => setTagsInput(e.target.value)}
+            className="bg-secondary/50 border-border"
+          />
+          <Input
+            placeholder="Short description (optional)"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            className="bg-secondary/50 border-border"
+          />
+
+
           {/* Original SRT Upload (matches film language) */}
           <div className="space-y-2">
             <label className="text-sm text-muted-foreground flex items-center gap-2">
