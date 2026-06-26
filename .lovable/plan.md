@@ -1,110 +1,96 @@
-# LinguaScript Email Retention + Privacy Plan
+## LinguaScript – Comprehension Tracking & Discover Overhaul
 
-Goal: bring users back to the **Watch → Save → Review → Return** loop. Never spam. Hard cap **1–3 emails/week** for active users. All emails respect the existing suppression list + per-user preferences + leaderboard privacy panel.
+A focused rebuild of three pieces: (1) Discover becomes a live storefront for admin-curated content, (2) per-watch comprehension history is tracked and visualised, (3) Home becomes a personalised dashboard driven by that history.
 
 ---
 
-## Part 1 — Onboarding Card 1 updates (existing card)
+### 1. Database
 
-- Add goal input field (free text, saved to `profiles.learning_goal`).
-- Add "Saved ✓" and "Added to your calendar ✨" confirmation chips.
-- Add "Appear on the public LinguaScript leaderboard" checkbox → `profiles.show_on_global_leaderboard` (already exists, default `true`).
-- When unchecked, render a sub-panel:
-  - Hide profile from: Public leaderboards / XP rankings / Friend discovery.
-  - "Existing friends can still see your profile unless blocked."
-- Behaviour: when `show_on_global_leaderboard = false`, user is excluded from `get_global_leaderboard` (already enforced) AND from friend search/discovery results.
+**New: `watch_sessions`** — one row per completed viewing (scales to millions, indexed by user+film).
+- `user_id, film_id, language, watch_number, comprehension_pct, prev_comprehension_pct, delta, green_count, orange_count, red_count, total_tokens, duration_watched_seconds, completion_pct, watched_at`
+- Indexes: `(user_id, watched_at desc)`, `(user_id, film_id, watch_number)`
 
-## Part 2 — Privacy schema additions
+**Extend `films`**: add `cefr_level text`, `tags text[]`, `duration_seconds int`, `description text`.
 
-New columns on `profiles`:
-- `learning_goal text`
-- `discoverable_by_search bool default true` (controls friend-search visibility, falls back to `show_on_global_leaderboard` when false)
-- `email_prefs jsonb default '{"review_reminders":true,"streak_rescue":true,"friend_requests":true,"weekly_report":true,"monthly_report":true,"rank_overtaken":false}'`
-- `last_review_email_at timestamptz`
-- `last_streak_rescue_email_at timestamptz`
-- `last_weekly_email_at timestamptz`
-- `last_monthly_email_at timestamptz`
-- `review_emails_this_week int default 0` + `review_emails_week_start date`
+**Extend `video_comprehension`**: add `watch_count int default 0`, `total_minutes int default 0`, `best_score numeric(5,2)`.
 
-RPC `update_email_prefs(_prefs jsonb)` for the settings UI.
+**RPCs**
+- `record_watch_session(film_id, language, comprehension, counts...)` → inserts watch_sessions row, increments watch_count, updates latest/best on `video_comprehension`, returns `{watch_number, prev_pct, new_pct, delta}`.
+- `user_progress_stats()` → avg comprehension, highest, avg gain/watch, videos mastered (≥90%), in progress, hours watched, vocab learned.
+- `user_learning_rate(language)` → 7-day comprehension delta per language.
 
-## Part 3 — Email templates (React Email, in `_shared/transactional-email-templates/`)
+All tables: GRANTs to authenticated + service_role, RLS scoped to `auth.uid()`.
 
-1. `review-reminder` — "You have N cards ready for review" / "Your {language} words are waiting". CTA → `/flashcards`.
-2. `streak-rescue` — "Don't lose your {N}-day streak". CTA → `/browse`.
-3. `friend-request-received` — sender name + Accept CTA → `/friends`.
-4. `friend-request-accepted` — "{name} accepted your friend request". CTA → `/friends`.
-5. `weekly-progress` — XP gained, cards reviewed, words learned, streak, leaderboard rank, learning minutes.
-6. `monthly-recap` — total minutes, words saved/mastered, XP growth, longest streak, top achievements.
-7. (optional, off by default) `rank-overtaken` — "{name} just passed you on the leaderboard". Only sent if user opts in.
+---
 
-All templates branded (deep indigo / orange / glass) and sent from `hello@linguascript.xyz` (already verified via `rowan.linguascript.xyz` sender domain).
+### 2. Discover page (`src/pages/Browse.tsx` — Discover tab)
 
-## Part 4 — Sending logic & frequency caps
+Stop calling `youtube-search`. Fetch directly from `films` where `is_public = true`, ordered by `created_at desc`. Filter chips by language / CEFR / category / tag. Each card shows: thumbnail, title, language flag, difficulty stars, CEFR badge, category, duration, tags, estimated comprehension (computed from user's deck), and a "New" badge if `created_at` within 7 days.
 
-Single new edge function: **`dispatch-retention-emails`** (runs every 15 min via pg_cron). It scans candidates and enqueues at most one of each type per user per run via existing `send-transactional-email`.
+Clicking a card opens `/watch/:id` directly (no import step — it's already a film).
 
-Per-user gating rules (enforced in SQL):
+---
 
-| Email | Trigger | Cap |
-|---|---|---|
-| Review reminder | ≥5 cards due in `saved_words` AND last activity >24h ago | 1 per 48h, max 3/week |
-| Streak rescue | streak ≥3 AND 6–12h before expiry AND not already sent this streak | 1 per streak |
-| Friend request received | new `friendships` row, status=pending | Immediate, dedup via idempotency key |
-| Friend request accepted | `friendships` status → accepted | Immediate, idempotency key |
-| Weekly progress | Sunday 17:00 user-local (UTC fallback) | 1/week, only if user had any activity that week |
-| Monthly recap | 1st of month | 1/month, only if any activity |
+### 3. Watch page (`src/pages/Watch.tsx`)
 
-Hard global cap: **max 3 non-transactional emails/week** per user. Friend request emails bypass cap (truly transactional). Suppression list and `email_prefs` always checked first.
+On video completion (already detected):
+1. Compute comprehension via existing `videoComprehension.ts`.
+2. Call `record_watch_session` RPC.
+3. Show a polished **Results Modal**:
+   - Big animated `prev% → new%` counter with delta chip ("+16%").
+   - Watch number ("Watch #3").
+   - Mini timeline of all previous watches (animated bar chart).
+   - Vocabulary impact: words mastered this session, new words encountered.
+   - XP earned, streak, mastery progress bar (toward 90%).
+   - Buttons: "Watch again to improve", "Find next video".
 
-Friend events fire from the existing friendship RPCs (small change to `add_friend_by_user_id` / `accept_friend_request` to `pg_notify` or directly invoke the function via `net.http_post`). Cleanest path: a SQL trigger on `friendships` calling `net.http_post` to `dispatch-retention-emails` with `{type:'friend_request', row_id}`.
+---
 
-## Part 5 — Settings UI
+### 4. Home (`src/pages/Browse.tsx` — Home tab)
 
-New "Email preferences" section in `/profile`:
-- Toggles for each category (mapped to `email_prefs`).
-- Link: "Unsubscribe from all" → calls existing `handle-email-unsubscribe`.
-- Privacy section: leaderboard visibility + friend-discovery toggle.
+Replace existing rails with personalised, history-driven rails — all sourced from `films` table (no external content):
 
-## Part 6 — What this does NOT do
-- No realtime ranking emails (anti-spam rule).
-- No daily digests.
-- No marketing/announcement emails.
-- No localized send times beyond UTC fallback in v1.
+- **Continue Watching** — `watch_history` where `completion_pct < 95`, joined to films.
+- **Recently Improved** — `video_comprehension` ordered by `delta desc` (last 14 days).
+- **Almost Mastered** — `latest_score` between 75 and 89.
+- **Recommended Next** — same language + CEFR ±1 of user, excluding mastered.
+- **New This Week** — films created in last 7 days, matching learning language.
+- **Because you studied {language}** / **Because you like {category}** — admin films grouped by category from user history.
 
-## Technical summary
+Each Continue Watching card shows: thumbnail, title, language, last watched, watch #, current %, prev %, improvement.
 
-```text
-DB migration:
-  ALTER TABLE profiles ADD COLUMN ... (prefs + throttle columns + learning_goal + discoverable_by_search)
-  RPC update_email_prefs(jsonb)
-  RPC get_review_reminder_candidates() — users needing review email now
-  RPC get_streak_rescue_candidates()
-  RPC get_weekly_report_candidates()
-  RPC get_monthly_report_candidates()
-  Trigger on friendships → net.http_post to dispatch-retention-emails
+---
 
-Edge functions:
-  dispatch-retention-emails  (new, scheduled every 15 min)
-  send-transactional-email   (existing — just register new templates)
+### 5. Your Progress dashboard
 
-Templates (new, all in _shared/transactional-email-templates/):
-  review-reminder.tsx
-  streak-rescue.tsx
-  friend-request-received.tsx
-  friend-request-accepted.tsx
-  weekly-progress.tsx
-  monthly-recap.tsx
+New `src/components/YourProgressDashboard.tsx` on Home tab:
+- Average comprehension, highest video %, avg improvement/watch, videos mastered, videos in progress, hours of input, vocab learned from videos.
+- **Learning Rate** card per active language ("+14% this week"), sourced from `user_learning_rate` RPC.
 
-Cron:
-  SELECT cron.schedule('retention-dispatch', '*/15 * * * *', $$ net.http_post(...) $$);
+---
 
-Frontend:
-  src/pages/Onboarding.tsx — goal input + privacy sub-panel
-  src/pages/Profile.tsx — Email preferences section
-  src/pages/Friends.tsx — respect discoverable_by_search in global tab
-```
+### 6. Files
 
-Sender domain `rowan.linguascript.xyz` is already verified, From address `hello@linguascript.xyz` works today — nothing to set up DNS-wise.
+**New**
+- `supabase/migrations/{ts}_watch_sessions_and_progress.sql`
+- `src/components/WatchResultsModal.tsx`
+- `src/components/ComprehensionTimeline.tsx`
+- `src/components/YourProgressDashboard.tsx`
+- `src/components/DiscoverCatalog.tsx`
+- `src/lib/learningHistory.ts` (RPC wrappers + types)
 
-Approve and I'll build it in one pass.
+**Edited**
+- `src/pages/Watch.tsx` — call `record_watch_session`, show results modal.
+- `src/pages/Browse.tsx` — replace Discover content source, rebuild Home rails.
+- `src/components/PersonalizedRails.tsx` — repointed at `films` table OR retired in favour of new components.
+- `src/components/YourProgressSection.tsx` — extended with new metrics.
+- `src/pages/Admin.tsx` — surface new film fields (cefr_level, tags, duration, description) in the film editor.
+
+---
+
+### Out of scope (call out)
+
+- Gems / Explorer Mode — not built yet; XP + streak only.
+- Listening vs reading confidence as separate scores — folded into the single comprehension % unless you want a second pass.
+
+Confirm and I'll build it.
