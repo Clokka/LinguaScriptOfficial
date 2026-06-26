@@ -45,6 +45,9 @@ import { ActiveLanguageBadge } from "@/components/ActiveLanguageBadge";
 import { INTERESTS, type Interest } from "@/lib/interests";
 import { PersonalizedRails } from "@/components/PersonalizedRails";
 import { YourProgressSection } from "@/components/YourProgressSection";
+import { YourProgressDashboard } from "@/components/YourProgressDashboard";
+import { ContinueWatchingRail } from "@/components/ContinueWatchingRail";
+import { DiscoverCatalog } from "@/components/DiscoverCatalog";
 
 const INTERESTS_BY_ID: Record<string, Interest> = Object.fromEntries(
   INTERESTS.map((i) => [i.id, i]),
@@ -523,14 +526,7 @@ const Browse = () => {
             />
           )}
           {activeTab === "discover" && (
-            <DiscoverTab
-              films={discoverFilms}
-              navigate={navigate}
-              learningLanguage={learningLanguage}
-              interests={interests}
-              importing={creating}
-              onWatch={importYoutubeId}
-            />
+            <DiscoverCatalog defaultLanguage={learningLanguage} />
           )}
           {activeTab === "calendar" && (
             <div className="max-w-5xl">
@@ -660,8 +656,11 @@ const HomeTab = ({
       {/* LinguaScript's primary metric: turn the language green. */}
       <UnderstandingHero language={learningLanguage} />
 
-      {/* Per-video improvement — "I understand more of this video than I did before." */}
-      <YourProgressSection />
+      {/* Continue Watching — last-session cards with comprehension deltas. */}
+      <ContinueWatchingRail />
+
+      {/* Aggregate dashboard: avg comprehension, mastery counts, hours, etc. */}
+      <YourProgressDashboard />
 
       {/* Paste YouTube Link */}
       <div className="glass-panel-strong p-6 rounded-2xl">
@@ -710,9 +709,14 @@ const HomeTab = ({
           </div>
         )}
       </section>
+
+      {/* Per-video comprehension history, sorted by largest improvement. */}
+      <YourProgressSection />
     </div>
   );
 };
+
+const _BrowseEnd = null;
 
 /* ── UNDERSTANDING HERO ──
  * LinguaScript's headline metric. Replaces "words learned" as the primary

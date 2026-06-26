@@ -320,36 +320,48 @@ export type Database = {
       films: {
         Row: {
           category: string | null
+          cefr_level: string | null
           created_at: string
           created_by: string | null
+          description: string | null
           difficulty: number | null
+          duration_seconds: number | null
           id: string
           is_public: boolean
           language: string | null
+          tags: string[] | null
           thumbnail_url: string | null
           title: string
           url: string
         }
         Insert: {
           category?: string | null
+          cefr_level?: string | null
           created_at?: string
           created_by?: string | null
+          description?: string | null
           difficulty?: number | null
+          duration_seconds?: number | null
           id?: string
           is_public?: boolean
           language?: string | null
+          tags?: string[] | null
           thumbnail_url?: string | null
           title: string
           url: string
         }
         Update: {
           category?: string | null
+          cefr_level?: string | null
           created_at?: string
           created_by?: string | null
+          description?: string | null
           difficulty?: number | null
+          duration_seconds?: number | null
           id?: string
           is_public?: boolean
           language?: string | null
+          tags?: string[] | null
           thumbnail_url?: string | null
           title?: string
           url?: string
@@ -1051,6 +1063,7 @@ export type Database = {
       }
       video_comprehension: {
         Row: {
+          best_score: number | null
           content_id: string
           content_type: string
           created_at: string
@@ -1063,11 +1076,14 @@ export type Database = {
           latest_score: number
           orange_count: number
           red_count: number
+          total_minutes: number
           total_tokens: number
           updated_at: string
           user_id: string
+          watch_count: number
         }
         Insert: {
+          best_score?: number | null
           content_id: string
           content_type: string
           created_at?: string
@@ -1080,11 +1096,14 @@ export type Database = {
           latest_score: number
           orange_count?: number
           red_count?: number
+          total_minutes?: number
           total_tokens?: number
           updated_at?: string
           user_id: string
+          watch_count?: number
         }
         Update: {
+          best_score?: number | null
           content_id?: string
           content_type?: string
           created_at?: string
@@ -1097,9 +1116,11 @@ export type Database = {
           latest_score?: number
           orange_count?: number
           red_count?: number
+          total_minutes?: number
           total_tokens?: number
           updated_at?: string
           user_id?: string
+          watch_count?: number
         }
         Relationships: []
       }
@@ -1152,6 +1173,71 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "watch_history_film_id_fkey"
+            columns: ["film_id"]
+            isOneToOne: false
+            referencedRelation: "films"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      watch_sessions: {
+        Row: {
+          completion_pct: number
+          comprehension_pct: number
+          created_at: string
+          delta: number
+          duration_watched_seconds: number
+          film_id: string
+          green_count: number
+          id: string
+          language: string
+          orange_count: number
+          prev_comprehension_pct: number | null
+          red_count: number
+          total_tokens: number
+          user_id: string
+          watch_number: number
+          watched_at: string
+        }
+        Insert: {
+          completion_pct?: number
+          comprehension_pct: number
+          created_at?: string
+          delta?: number
+          duration_watched_seconds?: number
+          film_id: string
+          green_count?: number
+          id?: string
+          language: string
+          orange_count?: number
+          prev_comprehension_pct?: number | null
+          red_count?: number
+          total_tokens?: number
+          user_id: string
+          watch_number: number
+          watched_at?: string
+        }
+        Update: {
+          completion_pct?: number
+          comprehension_pct?: number
+          created_at?: string
+          delta?: number
+          duration_watched_seconds?: number
+          film_id?: string
+          green_count?: number
+          id?: string
+          language?: string
+          orange_count?: number
+          prev_comprehension_pct?: number | null
+          red_count?: number
+          total_tokens?: number
+          user_id?: string
+          watch_number?: number
+          watched_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "watch_sessions_film_id_fkey"
             columns: ["film_id"]
             isOneToOne: false
             referencedRelation: "films"
@@ -1316,6 +1402,27 @@ export type Database = {
           read_ct: number
         }[]
       }
+      record_watch_session: {
+        Args: {
+          _completion_pct?: number
+          _comprehension: number
+          _duration_seconds?: number
+          _film_id: string
+          _green: number
+          _language: string
+          _orange: number
+          _red: number
+          _total_tokens: number
+        }
+        Returns: {
+          best_pct: number
+          delta: number
+          first_pct: number
+          new_pct: number
+          prev_pct: number
+          watch_number: number
+        }[]
+      }
       safe_display_name: {
         Args: { _display: string; _user_id: string; _username: string }
         Returns: string
@@ -1329,6 +1436,19 @@ export type Database = {
       update_privacy_settings: {
         Args: { _discoverable: boolean; _show_on_leaderboard: boolean }
         Returns: undefined
+      }
+      user_learning_rate: { Args: { _language: string }; Returns: number }
+      user_progress_stats: {
+        Args: never
+        Returns: {
+          avg_comprehension: number
+          avg_gain_per_watch: number
+          highest_comprehension: number
+          total_minutes: number
+          videos_in_progress: number
+          videos_mastered: number
+          vocab_learned: number
+        }[]
       }
     }
     Enums: {

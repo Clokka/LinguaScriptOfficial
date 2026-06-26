@@ -90,6 +90,11 @@ const Admin = () => {
   const [url, setUrl] = useState("");
   const [language, setLanguage] = useState("es");
   const [thumbnailUrl, setThumbnailUrl] = useState("");
+  const [cefrLevel, setCefrLevel] = useState<string>("__none__");
+  const [category, setCategory] = useState("");
+  const [tagsInput, setTagsInput] = useState("");
+  const [durationMinutes, setDurationMinutes] = useState("");
+  const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
   const [srtFileOriginal, setSrtFileOriginal] = useState<File | null>(null);
@@ -272,6 +277,12 @@ const Admin = () => {
       });
       return;
     }
+    const tags = tagsInput
+      .split(",")
+      .map((t) => t.trim().toLowerCase())
+      .filter(Boolean);
+    const durationSeconds = durationMinutes ? Math.max(0, Math.round(parseFloat(durationMinutes) * 60)) : null;
+
     const { data, error } = await supabase.from("films").insert({
       title,
       url,
@@ -279,7 +290,12 @@ const Admin = () => {
       thumbnail_url: thumb,
       is_public: true,
       created_by: authData.user.id,
-    }).select().single();
+      cefr_level: cefrLevel === "__none__" ? null : cefrLevel,
+      category: category || null,
+      tags,
+      duration_seconds: durationSeconds,
+      description: description || null,
+    } as any).select().single();
 
     if (error) {
       toast({ title: "Error adding film", description: error.message, variant: "destructive" });
@@ -294,6 +310,11 @@ const Admin = () => {
       setTitle("");
       setUrl("");
       setThumbnailUrl("");
+      setCefrLevel("__none__");
+      setCategory("");
+      setTagsInput("");
+      setDurationMinutes("");
+      setDescription("");
       setSrtFileOriginal(null);
       setSrtFileSecondary(null);
       if (fileInputRefOriginal.current) fileInputRefOriginal.current.value = "";
@@ -367,6 +388,49 @@ const Admin = () => {
               ))}
             </SelectContent>
           </Select>
+
+          {/* Discovery metadata — drives /discover filters & cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <Select value={cefrLevel} onValueChange={setCefrLevel}>
+              <SelectTrigger className="bg-secondary/50 border-border">
+                <SelectValue placeholder="CEFR level" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">No CEFR level</SelectItem>
+                {["A1","A2","B1","B2","C1","C2"].map((c) => (
+                  <SelectItem key={c} value={c}>{c}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Input
+              placeholder="Category (e.g. Travel)"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className="bg-secondary/50 border-border"
+            />
+            <Input
+              placeholder="Duration (minutes)"
+              type="number"
+              min="0"
+              step="0.1"
+              value={durationMinutes}
+              onChange={(e) => setDurationMinutes(e.target.value)}
+              className="bg-secondary/50 border-border"
+            />
+          </div>
+          <Input
+            placeholder="Tags — comma separated (e.g. vlog, travel, beginner)"
+            value={tagsInput}
+            onChange={(e) => setTagsInput(e.target.value)}
+            className="bg-secondary/50 border-border"
+          />
+          <Input
+            placeholder="Short description (optional)"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            className="bg-secondary/50 border-border"
+          />
+
 
           {/* Original SRT Upload (matches film language) */}
           <div className="space-y-2">

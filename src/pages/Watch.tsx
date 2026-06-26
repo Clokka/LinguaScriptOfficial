@@ -21,10 +21,11 @@ import { toast } from "sonner";
 import {
   computeVideoComprehension,
   loadComprehensionRecord,
-  recordComprehension,
   zoneMessage,
   type VideoComprehension,
 } from "@/lib/videoComprehension";
+import { recordWatchSession, type RecordResult } from "@/lib/watchSessions";
+import { WatchResultsModal } from "@/components/WatchResultsModal";
 
 interface FilmData {
   id: string;
@@ -271,9 +272,8 @@ const Watch = () => {
   // post-watch completion screen with "Previous → Current" delta.
   const [comprehension, setComprehension] = useState<VideoComprehension | null>(null);
   const [priorScore, setPriorScore] = useState<number | null>(null);
-  const [completionSnapshot, setCompletionSnapshot] = useState<
-    { first: number; latest: number; comp: VideoComprehension } | null
-  >(null);
+  const [sessionResult, setSessionResult] = useState<RecordResult | null>(null);
+  const [sessionDurationMin, setSessionDurationMin] = useState(0);
   const preWatchToastFiredRef = useRef(false);
   const [apiReady, setApiReady] = useState(!!window.YT?.Player);
   const [subtitles, setSubtitles] = useState<DisplaySubtitle[]>([]);
@@ -556,15 +556,23 @@ const Watch = () => {
                 const lang = (film.is_public ? (film.language || learningLanguage) : learningLanguage) || "fr";
                 const comp = await computeVideoComprehension(user?.id ?? null, film.id, lang);
                 setComprehension(comp);
+                let durSec = 0;
+                let pctDone = 100;
+                try {
+                  const p = playerRef.current;
+                  durSec = Math.floor(p?.getDuration?.() || 0);
+                  const pos = Math.floor(p?.getCurrentTime?.() || durSec);
+                  if (durSec > 0) pctDone = Math.min(100, Math.round((pos / durSec) * 100));
+                } catch { /* noop */ }
+                setSessionDurationMin(durSec > 0 ? durSec / 60 : 0);
                 if (user) {
-                  const r = await recordComprehension(user.id, film.id, "film", lang, comp);
-                  setCompletionSnapshot({ first: r.first, latest: r.latest, comp });
-                  const delta = Math.round(r.latest - r.first);
-                  if (!r.isFirst && delta >= 5) {
-                    toast.success(`You now understand ${delta}% more of this video! 🎉`);
+                  const r = await recordWatchSession(film.id, lang, comp, durSec, pctDone);
+                  setSessionResult(r);
+                  if (r && r.prev_pct !== null && r.delta >= 5) {
+                    toast.success(`You now understand ${Math.round(r.delta)}% more of this video! 🎉`);
                   }
                 } else {
-                  setCompletionSnapshot({ first: comp.pct, latest: comp.pct, comp });
+                  setSessionResult({ watch_number: 1, prev_pct: null, new_pct: comp.pct, delta: 0, first_pct: comp.pct, best_pct: comp.pct });
                 }
                 setShowReinforce(true);
               })();
@@ -983,76 +991,20 @@ const Watch = () => {
         </div>
       </div>
 
-      {showReinforce && (
-        <div className="fixed inset-x-0 bottom-0 z-[80] p-4 pointer-events-none">
-          <div className="glass-panel-strong max-w-md mx-auto p-5 pointer-events-auto animate-bounce-in shadow-float">
-            <div className="text-sm uppercase tracking-widest text-emerald-300 mb-1">Video complete · +10 XP</div>
-            <h3 className="text-lg font-bold mb-3">How much you understood</h3>
-
-            {completionSnapshot && (
-              <div className="space-y-3 mb-4">
-                <div className="flex items-baseline gap-2 tabular-nums">
-                  {completionSnapshot.first !== completionSnapshot.latest && (
-                    <>
-                      <span className="text-sm text-muted-foreground">
-                        {Math.round(completionSnapshot.first)}%
-                      </span>
-                      <span className="text-muted-foreground/60">→</span>
-                    </>
-                  )}
-                  <span className="text-3xl font-bold text-emerald-400">
-                    {Math.round(completionSnapshot.latest)}%
-                  </span>
-                  {completionSnapshot.latest > completionSnapshot.first && (
-                    <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300">
-                      +{Math.round(completionSnapshot.latest - completionSnapshot.first)}%
-                    </span>
-                  )}
-                </div>
-                <div className="grid grid-cols-3 gap-2 text-center">
-                  <div className="glass-panel p-2 rounded-lg">
-                    <p className="text-base font-bold text-emerald-400">{completionSnapshot.comp.greenCount}</p>
-                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Known</p>
-                  </div>
-                  <div className="glass-panel p-2 rounded-lg">
-                    <p className="text-base font-bold text-amber-300">{completionSnapshot.comp.orangeCount}</p>
-                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Saved</p>
-                  </div>
-                  <div className="glass-panel p-2 rounded-lg">
-                    <p className="text-base font-bold text-rose-300">{completionSnapshot.comp.redCount}</p>
-                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Unknown</p>
-                  </div>
-                </div>
-                {completionSnapshot.comp.potentialPct > completionSnapshot.latest && (
-                  <p className="text-xs text-muted-foreground bg-emerald-500/5 border border-emerald-500/20 rounded-lg p-2">
-                    Turn your saved words green and this video jumps to{" "}
-                    <span className="text-emerald-300 font-semibold">
-                      {completionSnapshot.comp.potentialPct}%
-                    </span>{" "}
-                    understanding.
-                  </p>
-                )}
-              </div>
-            )}
-
-            <div className="flex gap-2">
-              <Button variant="ghost" className="flex-1" onClick={() => setShowReinforce(false)}>
-                Later
-              </Button>
-              <Button
-                variant="hero"
-                className="flex-1"
-                onClick={() => {
-                  setReinforcementPending();
-                  setShowReinforce(false);
-                  navigate("/flashcards");
-                }}
-              >
-                Review now
-              </Button>
-            </div>
-          </div>
-        </div>
+      {showReinforce && comprehension && film && (
+        <WatchResultsModal
+          open={showReinforce}
+          filmId={film.id}
+          result={sessionResult}
+          comprehension={comprehension}
+          durationMinutes={sessionDurationMin}
+          onClose={() => setShowReinforce(false)}
+          onReview={() => {
+            setReinforcementPending();
+            setShowReinforce(false);
+            navigate("/flashcards");
+          }}
+        />
       )}
     </div>
   );
