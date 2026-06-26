@@ -21,10 +21,11 @@ import { toast } from "sonner";
 import {
   computeVideoComprehension,
   loadComprehensionRecord,
-  recordComprehension,
   zoneMessage,
   type VideoComprehension,
 } from "@/lib/videoComprehension";
+import { recordWatchSession, type RecordResult } from "@/lib/watchSessions";
+import { WatchResultsModal } from "@/components/WatchResultsModal";
 
 interface FilmData {
   id: string;
