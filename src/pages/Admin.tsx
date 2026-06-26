@@ -90,6 +90,11 @@ const Admin = () => {
   const [url, setUrl] = useState("");
   const [language, setLanguage] = useState("es");
   const [thumbnailUrl, setThumbnailUrl] = useState("");
+  const [cefrLevel, setCefrLevel] = useState<string>("__none__");
+  const [category, setCategory] = useState("");
+  const [tagsInput, setTagsInput] = useState("");
+  const [durationMinutes, setDurationMinutes] = useState("");
+  const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
   const [srtFileOriginal, setSrtFileOriginal] = useState<File | null>(null);
