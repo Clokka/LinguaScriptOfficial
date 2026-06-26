@@ -991,76 +991,20 @@ const Watch = () => {
         </div>
       </div>
 
-      {showReinforce && (
-        <div className="fixed inset-x-0 bottom-0 z-[80] p-4 pointer-events-none">
-          <div className="glass-panel-strong max-w-md mx-auto p-5 pointer-events-auto animate-bounce-in shadow-float">
-            <div className="text-sm uppercase tracking-widest text-emerald-300 mb-1">Video complete · +10 XP</div>
-            <h3 className="text-lg font-bold mb-3">How much you understood</h3>
-
-            {completionSnapshot && (
-              <div className="space-y-3 mb-4">
-                <div className="flex items-baseline gap-2 tabular-nums">
-                  {completionSnapshot.first !== completionSnapshot.latest && (
-                    <>
-                      <span className="text-sm text-muted-foreground">
-                        {Math.round(completionSnapshot.first)}%
-                      </span>
-                      <span className="text-muted-foreground/60">→</span>
-                    </>
-                  )}
-                  <span className="text-3xl font-bold text-emerald-400">
-                    {Math.round(completionSnapshot.latest)}%
-                  </span>
-                  {completionSnapshot.latest > completionSnapshot.first && (
-                    <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300">
-                      +{Math.round(completionSnapshot.latest - completionSnapshot.first)}%
-                    </span>
-                  )}
-                </div>
-                <div className="grid grid-cols-3 gap-2 text-center">
-                  <div className="glass-panel p-2 rounded-lg">
-                    <p className="text-base font-bold text-emerald-400">{completionSnapshot.comp.greenCount}</p>
-                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Known</p>
-                  </div>
-                  <div className="glass-panel p-2 rounded-lg">
-                    <p className="text-base font-bold text-amber-300">{completionSnapshot.comp.orangeCount}</p>
-                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Saved</p>
-                  </div>
-                  <div className="glass-panel p-2 rounded-lg">
-                    <p className="text-base font-bold text-rose-300">{completionSnapshot.comp.redCount}</p>
-                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Unknown</p>
-                  </div>
-                </div>
-                {completionSnapshot.comp.potentialPct > completionSnapshot.latest && (
-                  <p className="text-xs text-muted-foreground bg-emerald-500/5 border border-emerald-500/20 rounded-lg p-2">
-                    Turn your saved words green and this video jumps to{" "}
-                    <span className="text-emerald-300 font-semibold">
-                      {completionSnapshot.comp.potentialPct}%
-                    </span>{" "}
-                    understanding.
-                  </p>
-                )}
-              </div>
-            )}
-
-            <div className="flex gap-2">
-              <Button variant="ghost" className="flex-1" onClick={() => setShowReinforce(false)}>
-                Later
-              </Button>
-              <Button
-                variant="hero"
-                className="flex-1"
-                onClick={() => {
-                  setReinforcementPending();
-                  setShowReinforce(false);
-                  navigate("/flashcards");
-                }}
-              >
-                Review now
-              </Button>
-            </div>
-          </div>
-        </div>
+      {showReinforce && comprehension && film && (
+        <WatchResultsModal
+          open={showReinforce}
+          filmId={film.id}
+          result={sessionResult}
+          comprehension={comprehension}
+          durationMinutes={sessionDurationMin}
+          onClose={() => setShowReinforce(false)}
+          onReview={() => {
+            setReinforcementPending();
+            setShowReinforce(false);
+            navigate("/flashcards");
+          }}
+        />
       )}
     </div>
   );
