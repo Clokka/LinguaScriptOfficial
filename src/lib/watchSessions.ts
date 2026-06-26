@@ -37,7 +37,7 @@ export async function recordWatchSession(
   durationSeconds: number,
   completionPct: number,
 ): Promise<RecordResult | null> {
-  const { data, error } = await supabase.rpc("record_watch_session" as any, {
+  const { data, error } = await supabase.rpc("record_watch_session", {
     _film_id: filmId,
     _language: language,
     _comprehension: c.pct,
@@ -66,7 +66,7 @@ export async function recordWatchSession(
 
 export async function fetchFilmSessions(filmId: string, limit = 20): Promise<WatchSession[]> {
   const { data, error } = await supabase
-    .from("watch_sessions" as any)
+    .from("watch_sessions")
     .select("*")
     .eq("film_id", filmId)
     .order("watch_number", { ascending: true })
@@ -91,7 +91,7 @@ export interface DashboardStats {
 }
 
 export async function fetchProgressStats(): Promise<DashboardStats | null> {
-  const { data, error } = await supabase.rpc("user_progress_stats" as any);
+  const { data, error } = await supabase.rpc("user_progress_stats");
   if (error) {
     console.error("user_progress_stats failed:", error);
     return null;
@@ -110,7 +110,7 @@ export async function fetchProgressStats(): Promise<DashboardStats | null> {
 }
 
 export async function fetchLearningRate(language: string): Promise<number> {
-  const { data, error } = await supabase.rpc("user_learning_rate" as any, { _language: language });
+  const { data, error } = await supabase.rpc("user_learning_rate", { _language: language });
   if (error) return 0;
   return Number(data ?? 0);
 }

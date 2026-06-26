@@ -92,7 +92,7 @@ const Friends = () => {
         .select("user_id, status")
         .eq("friend_id", user.id)
         .eq("status", "pending") as any,
-      supabase.from("friend_messages" as any)
+      supabase.from("friend_messages")
         .select("id, sender_id, recipient_id, body, created_at, read_at")
         .or(`sender_id.eq.${user.id},recipient_id.eq.${user.id}`)
         .order("created_at", { ascending: true })
@@ -237,7 +237,7 @@ const Friends = () => {
 
   const markRead = async (msg: ChatMsg) => {
     if (msg.read_at || msg.recipient_id !== user?.id) return;
-    await supabase.from("friend_messages" as any).update({ read_at: new Date().toISOString() } as any).eq("id", msg.id);
+    await supabase.from("friend_messages").update({ read_at: new Date().toISOString() }).eq("id", msg.id);
     setInbox((arr) => arr.map((m) => m.id === msg.id ? { ...m, read_at: new Date().toISOString() } : m));
     setUnread((n) => Math.max(0, n - 1));
   };

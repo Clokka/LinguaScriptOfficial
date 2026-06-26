@@ -108,7 +108,7 @@ export async function loadComprehensionRecord(
   contentType: "film" | "lesson" = "film",
 ): Promise<ComprehensionRecord | null> {
   const { data } = await supabase
-    .from("video_comprehension" as any)
+    .from("video_comprehension")
     .select("*")
     .eq("user_id", userId)
     .eq("content_id", contentId)
@@ -131,7 +131,7 @@ export async function recordComprehension(
   const existing = await loadComprehensionRecord(userId, contentId, contentType);
   const nowIso = new Date().toISOString();
   if (!existing) {
-    await supabase.from("video_comprehension" as any).insert({
+    await supabase.from("video_comprehension").insert({
       user_id: userId,
       content_type: contentType,
       content_id: contentId,
@@ -144,11 +144,11 @@ export async function recordComprehension(
       total_tokens: c.totalTokens,
       first_watched_at: nowIso,
       last_watched_at: nowIso,
-    } as any);
+    });
     return { first: c.pct, latest: c.pct, isFirst: true };
   }
   await supabase
-    .from("video_comprehension" as any)
+    .from("video_comprehension")
     .update({
       latest_score: c.pct,
       green_count: c.greenCount,
@@ -156,7 +156,7 @@ export async function recordComprehension(
       red_count: c.redCount,
       total_tokens: c.totalTokens,
       last_watched_at: nowIso,
-    } as any)
+    })
     .eq("id", existing.id);
   return { first: existing.first_score, latest: c.pct, isFirst: false };
 }
@@ -169,7 +169,7 @@ export interface ProgressRow extends ComprehensionRecord {
 }
 export async function listYourProgress(userId: string): Promise<ProgressRow[]> {
   const { data } = await supabase
-    .from("video_comprehension" as any)
+    .from("video_comprehension")
     .select("*")
     .eq("user_id", userId)
     .order("last_watched_at", { ascending: false })
