@@ -526,14 +526,7 @@ const Browse = () => {
             />
           )}
           {activeTab === "discover" && (
-            <DiscoverTab
-              films={discoverFilms}
-              navigate={navigate}
-              learningLanguage={learningLanguage}
-              interests={interests}
-              importing={creating}
-              onWatch={importYoutubeId}
-            />
+            <DiscoverCatalog defaultLanguage={learningLanguage} />
           )}
           {activeTab === "calendar" && (
             <div className="max-w-5xl">
