@@ -11,6 +11,8 @@ import { DailyBriefing } from "@/components/DailyBriefing";
 import { StreakCelebrationModal } from "@/components/StreakCelebrationModal";
 import { XpToast } from "@/components/XpToast";
 import { InterestsPromptModal } from "@/components/InterestsPromptModal";
+import { PetProvider } from "@/contexts/PetContext";
+import { PetCompanion } from "@/components/pets/PetCompanion";
 import Landing from "./pages/Landing";
 import LandingPage2 from "./pages/LandingPage2";
 import Browse from "./pages/Browse";
@@ -44,6 +46,7 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <XpProvider>
+            <PetProvider>
             <TourProvider>
               <Routes>
                 <Route path="/" element={<Index />} />
@@ -75,7 +78,9 @@ const App = () => (
               <StreakCelebrationModal />
               <XpToast />
               <InterestsPromptModal />
+              <PetCompanion />
             </TourProvider>
+            </PetProvider>
           </XpProvider>
         </BrowserRouter>
       </LanguageProvider>

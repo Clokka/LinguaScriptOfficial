@@ -4,6 +4,7 @@ import { Sparkles, Trophy } from "lucide-react";
 import { useXp } from "@/contexts/XpContext";
 import { XpAction } from "@/lib/xp";
 import { cn } from "@/lib/utils";
+import { usePet } from "@/contexts/PetContext";
 
 const LABELS: Record<XpAction, string> = {
   add_word: "Word saved",
@@ -15,6 +16,7 @@ const LABELS: Record<XpAction, string> = {
 
 export const XpToast = () => {
   const { recentGain, leveledUpTo, consumeLevelUp } = useXp();
+  const { triggerReaction } = usePet();
   const [visible, setVisible] = useState<{
     amount: number;
     action: XpAction;
@@ -30,9 +32,10 @@ export const XpToast = () => {
 
   useEffect(() => {
     if (leveledUpTo == null) return;
+    triggerReaction("excited", 3200);
     const t = setTimeout(consumeLevelUp, 3200);
     return () => clearTimeout(t);
-  }, [leveledUpTo, consumeLevelUp]);
+  }, [leveledUpTo, consumeLevelUp, triggerReaction]);
 
   return (
     <>

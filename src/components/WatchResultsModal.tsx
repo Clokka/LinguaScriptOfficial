@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { fetchFilmSessions, type WatchSession, type RecordResult } from "@/lib/watchSessions";
 import type { VideoComprehension } from "@/lib/videoComprehension";
+import { usePet } from "@/contexts/PetContext";
 
 interface Props {
   open: boolean;
@@ -23,11 +24,13 @@ export function WatchResultsModal({
   open, filmId, result, comprehension, durationMinutes, onClose, onReview,
 }: Props) {
   const [sessions, setSessions] = useState<WatchSession[]>([]);
+  const { triggerReaction } = usePet();
 
   useEffect(() => {
     if (!open) return;
     fetchFilmSessions(filmId).then(setSessions);
-  }, [open, filmId, result?.watch_number]);
+    triggerReaction("celebrate", 4000);
+  }, [open, filmId, result?.watch_number, triggerReaction]);
 
   const latest = result?.new_pct ?? comprehension.pct;
   const prev = result?.prev_pct ?? null;

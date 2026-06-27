@@ -13,8 +13,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Camera, ArrowLeft, Save, Loader2, LinkIcon, LogOut } from "lucide-react";
+import { Camera, ArrowLeft, Save, Loader2, LogOut } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { PetGallery } from "@/components/pets/PetGallery";
+import { usePet } from "@/contexts/PetContext";
+import { getPetById } from "@/lib/pets";
+import { PetViewer } from "@/components/pets/PetViewer";
 
 const Profile = () => {
   const { user, loading: authLoading, signOut } = useAuth();
@@ -30,6 +34,9 @@ const Profile = () => {
   const [uploading, setUploading] = useState(false);
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [linkingGoogle, setLinkingGoogle] = useState(false);
+  const [showPetGallery, setShowPetGallery] = useState(false);
+  const { activePet, petCollection } = usePet();
+  const activePetMeta = activePet ? getPetById(activePet) : null;
 
   const hasGoogleLinked = !!user?.identities?.some((i) => i.provider === "google");
 
@@ -266,6 +273,38 @@ const Profile = () => {
             Save Changes
           </Button>
 
+          {/* My Pet */}
+          <div className="pt-4 border-t border-border/50">
+            <p className="text-sm font-medium text-foreground mb-3">🐾 My Pet</p>
+            <button
+              onClick={() => setShowPetGallery(true)}
+              className="w-full rounded-xl border border-border/50 bg-secondary/30 hover:bg-secondary/60 transition-all p-4 flex items-center gap-4 text-left group"
+            >
+              {activePetMeta ? (
+                <div className="w-16 h-16 rounded-full overflow-hidden border border-primary/20 bg-background/30 flex-shrink-0">
+                  <PetViewer glbFile={activePetMeta.glbFile} animation="Idle" size={64} />
+                </div>
+              ) : (
+                <div className="w-16 h-16 rounded-full bg-secondary/50 flex items-center justify-center text-2xl flex-shrink-0">
+                  🐾
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-foreground text-sm">
+                  {activePetMeta ? activePetMeta.name : "Choose a companion"}
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {activePetMeta
+                    ? `${petCollection.length} pet${petCollection.length !== 1 ? "s" : ""} in collection`
+                    : "Select a pet to travel with you"}
+                </p>
+              </div>
+              <span className="text-muted-foreground text-xs group-hover:text-foreground transition-colors">
+                View all →
+              </span>
+            </button>
+          </div>
+
           {/* Account / Linked sign-in */}
           <div className="pt-4 border-t border-border/50">
             <p className="text-sm font-medium text-foreground mb-1">Account</p>
@@ -327,6 +366,8 @@ const Profile = () => {
 
       </div>
     </div>
+
+    <PetGallery open={showPetGallery} onClose={() => setShowPetGallery(false)} />
   );
 };
 

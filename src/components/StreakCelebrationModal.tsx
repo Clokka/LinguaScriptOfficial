@@ -5,6 +5,7 @@ import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import lottieSrc from "@/assets/check-in-stream.lottie?url";
 import { Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { usePet } from "@/contexts/PetContext";
 
 export interface StreakIgnitionDetail {
   streakCount: number;
@@ -45,16 +46,18 @@ const Counter = ({ from, to }: { from: number; to: number }) => {
 export const StreakCelebrationModal = () => {
   const [open, setOpen] = useState(false);
   const [detail, setDetail] = useState<StreakIgnitionDetail | null>(null);
+  const { triggerReaction } = usePet();
 
   useEffect(() => {
     const handler = (e: Event) => {
       const d = (e as CustomEvent<StreakIgnitionDetail>).detail;
       setDetail(d);
       setOpen(true);
+      triggerReaction("dance", 5000);
     };
     window.addEventListener(EVENT, handler);
     return () => window.removeEventListener(EVENT, handler);
-  }, []);
+  }, [triggerReaction]);
 
   // Auto-dismiss after a generous beat so it never blocks too long.
   useEffect(() => {
