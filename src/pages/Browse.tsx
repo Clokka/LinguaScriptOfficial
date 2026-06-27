@@ -647,9 +647,6 @@ const HomeTab = ({
   onWatchYoutube: (ytId: string, titleHint?: string, thumbHint?: string) => Promise<void>;
 }) => {
   const { learningLanguage } = useLanguage();
-  const filteredLessons = lessons.filter(
-    (l) => !l.original_language || l.original_language.toLowerCase() === learningLanguage.toLowerCase(),
-  );
   return (
     <div className="space-y-8">
       {/* Headline metric: how green is the language? */}
