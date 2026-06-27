@@ -44,8 +44,7 @@ import { ActivityCalendarDark } from "@/components/ActivityCalendarDark";
 import { ActiveLanguageBadge } from "@/components/ActiveLanguageBadge";
 import { INTERESTS, type Interest } from "@/lib/interests";
 import { PersonalizedRails } from "@/components/PersonalizedRails";
-import { YourProgressSection } from "@/components/YourProgressSection";
-import { YourProgressDashboard } from "@/components/YourProgressDashboard";
+import { HomeCatalogRows } from "@/components/HomeCatalogRows";
 import { ContinueWatchingRail } from "@/components/ContinueWatchingRail";
 import { DiscoverCatalog } from "@/components/DiscoverCatalog";
 
@@ -648,25 +647,19 @@ const HomeTab = ({
   onWatchYoutube: (ytId: string, titleHint?: string, thumbHint?: string) => Promise<void>;
 }) => {
   const { learningLanguage } = useLanguage();
-  const filteredLessons = lessons.filter(
-    (l) => !l.original_language || l.original_language.toLowerCase() === learningLanguage.toLowerCase(),
-  );
   return (
     <div className="space-y-8">
-      {/* LinguaScript's primary metric: turn the language green. */}
+      {/* Headline metric: how green is the language? */}
       <UnderstandingHero language={learningLanguage} />
 
-      {/* Continue Watching — last-session cards with comprehension deltas. */}
+      {/* Primary action — pick up the quest. */}
       <ContinueWatchingRail />
-
-      {/* Aggregate dashboard: avg comprehension, mastery counts, hours, etc. */}
-      <YourProgressDashboard />
 
       {/* Paste YouTube Link */}
       <div className="glass-panel-strong p-6 rounded-2xl">
         <h2 className="text-lg font-bold text-foreground mb-1">Paste a YouTube Link</h2>
         <p className="text-sm text-muted-foreground mb-4">
-          We'll fetch the source and learning-language subtitle tracks, save them, and create an interactive lesson.
+          We'll fetch the subtitle tracks, save them, and turn the video into an interactive lesson.
         </p>
         <div className="flex gap-3">
           <div className="relative flex-1">
@@ -691,27 +684,18 @@ const HomeTab = ({
         </div>
       </div>
 
-      {/* Saved Lessons (learning-language only) */}
-      <section>
-        <h2 className="text-lg font-semibold text-foreground mb-4">Your Lessons</h2>
-        {loading ? (
-          <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
-        ) : filteredLessons.length === 0 ? (
-          <div className="glass-panel p-12 text-center rounded-2xl">
-            <Play className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-            <p className="text-muted-foreground">No lessons yet. Paste a YouTube link above to start!</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-            {filteredLessons.map((lesson) => (
-              <LessonCard key={lesson.id} lesson={lesson} onDelete={deleteLesson} navigate={navigate} />
-            ))}
-          </div>
-        )}
-      </section>
+      {/* Admin-curated rails — the new browsing surface. */}
+      <HomeCatalogRows />
 
-      {/* Per-video comprehension history, sorted by largest improvement. */}
-      <YourProgressSection />
+      {/* Subtle entry to the full analytics page. */}
+      <div className="pt-4">
+        <button
+          onClick={() => navigate("/progress")}
+          className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-4"
+        >
+          View detailed progress analytics →
+        </button>
+      </div>
     </div>
   );
 };

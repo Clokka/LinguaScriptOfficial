@@ -1,96 +1,70 @@
-## LinguaScript – Comprehension Tracking & Discover Overhaul
 
-A focused rebuild of three pieces: (1) Discover becomes a live storefront for admin-curated content, (2) per-watch comprehension history is tracked and visualised, (3) Home becomes a personalised dashboard driven by that history.
+# LinguaScript 2.0 — Adventure Mode
 
----
-
-### 1. Database
-
-**New: `watch_sessions`** — one row per completed viewing (scales to millions, indexed by user+film).
-- `user_id, film_id, language, watch_number, comprehension_pct, prev_comprehension_pct, delta, green_count, orange_count, red_count, total_tokens, duration_watched_seconds, completion_pct, watched_at`
-- Indexes: `(user_id, watched_at desc)`, `(user_id, film_id, watch_number)`
-
-**Extend `films`**: add `cefr_level text`, `tags text[]`, `duration_seconds int`, `description text`.
-
-**Extend `video_comprehension`**: add `watch_count int default 0`, `total_minutes int default 0`, `best_score numeric(5,2)`.
-
-**RPCs**
-- `record_watch_session(film_id, language, comprehension, counts...)` → inserts watch_sessions row, increments watch_count, updates latest/best on `video_comprehension`, returns `{watch_number, prev_pct, new_pct, delta}`.
-- `user_progress_stats()` → avg comprehension, highest, avg gain/watch, videos mastered (≥90%), in progress, hours watched, vocab learned.
-- `user_learning_rate(language)` → 7-day comprehension delta per language.
-
-All tables: GRANTs to authenticated + service_role, RLS scoped to `auth.uid()`.
+This is a large vision. To keep credits safe and avoid breaking what already works, I'll ship it in **4 phases**. Each phase is fully usable on its own — you decide after each one whether to continue.
 
 ---
 
-### 2. Discover page (`src/pages/Browse.tsx` — Discover tab)
+## Phase 1 — Home Page Rewrite (the most visible change)
 
-Stop calling `youtube-search`. Fetch directly from `films` where `is_public = true`, ordered by `created_at desc`. Filter chips by language / CEFR / category / tag. Each card shows: thumbnail, title, language flag, difficulty stars, CEFR badge, category, duration, tags, estimated comprehension (computed from user's deck), and a "New" badge if `created_at` within 7 days.
+Strip `/browse` Home down to the new journey layout:
 
-Clicking a card opens `/watch/:id` directly (no import step — it's already a film).
+1. **Understanding Hero** (kept) — overall % + CEFR + "X words to next milestone"
+2. **Continue Watching** (kept, restyled) — promoted to the primary "Continue your quest" card with current understanding + transcript progress + big Continue button
+3. **Catalog Rows from Admin** — replace `Your Lessons` with rows pulled from existing `catalog_rows` / `catalog_row_films` tables (🔥 Trending, 🇫🇷 Beginner French, 🎬 Classics, 😂 Comedy, etc.). Netflix-style horizontal scrollers.
+4. **Remove** the 7-card Your Progress dashboard from Home (it stays accessible from a dedicated `/progress` sub-page so the data isn't lost).
 
----
-
-### 3. Watch page (`src/pages/Watch.tsx`)
-
-On video completion (already detected):
-1. Compute comprehension via existing `videoComprehension.ts`.
-2. Call `record_watch_session` RPC.
-3. Show a polished **Results Modal**:
-   - Big animated `prev% → new%` counter with delta chip ("+16%").
-   - Watch number ("Watch #3").
-   - Mini timeline of all previous watches (animated bar chart).
-   - Vocabulary impact: words mastered this session, new words encountered.
-   - XP earned, streak, mastery progress bar (toward 90%).
-   - Buttons: "Watch again to improve", "Find next video".
+**Difficulty rating change:** every content card shows `Estimated Understanding XX%` with a label band — `Perfect Match` (70–85%), `Comfortable` (>85%), `Stretch` (40–70%), `Recommended Later` (<40%). Estimate is computed from the user's deck vs the film's subtitle tokens (we already have this code in `videoComprehension.ts`).
 
 ---
 
-### 4. Home (`src/pages/Browse.tsx` — Home tab)
+## Phase 2 — Transcript Mastery (the core new mechanic)
 
-Replace existing rails with personalised, history-driven rails — all sourced from `films` table (no external content):
+The transcript becomes the collectible.
 
-- **Continue Watching** — `watch_history` where `completion_pct < 95`, joined to films.
-- **Recently Improved** — `video_comprehension` ordered by `delta desc` (last 14 days).
-- **Almost Mastered** — `latest_score` between 75 and 89.
-- **Recommended Next** — same language + CEFR ±1 of user, excluding mastered.
-- **New This Week** — films created in last 7 days, matching learning language.
-- **Because you studied {language}** / **Because you like {category}** — admin films grouped by category from user history.
-
-Each Continue Watching card shows: thumbnail, title, language, last watched, watch #, current %, prev %, improvement.
+- New column `films.transcript_mastery_pct` is **not** needed — we already track `green/orange/red/total_tokens` per video in `video_comprehension`. We'll surface a **Transcript Progress** bar (green% over total content tokens) everywhere the video appears.
+- Watch page gets a persistent "Turn the transcript green" meter.
+- When a transcript hits 100% green: full-screen **🏆 LinguaScript Complete** celebration (confetti + sound + XP + Gems + "New content unlocked"). New table `transcript_completions` to record the moment once.
+- Continue Watching cards show transcript% alongside comprehension%.
 
 ---
 
-### 5. Your Progress dashboard
+## Phase 3 — Game Layer (XP / Gems / Daily Quests / Levels / Worlds)
 
-New `src/components/YourProgressDashboard.tsx` on Home tab:
-- Average comprehension, highest video %, avg improvement/watch, videos mastered, videos in progress, hours of input, vocab learned from videos.
-- **Learning Rate** card per active language ("+14% this week"), sourced from `user_learning_rate` RPC.
-
----
-
-### 6. Files
-
-**New**
-- `supabase/migrations/{ts}_watch_sessions_and_progress.sql`
-- `src/components/WatchResultsModal.tsx`
-- `src/components/ComprehensionTimeline.tsx`
-- `src/components/YourProgressDashboard.tsx`
-- `src/components/DiscoverCatalog.tsx`
-- `src/lib/learningHistory.ts` (RPC wrappers + types)
-
-**Edited**
-- `src/pages/Watch.tsx` — call `record_watch_session`, show results modal.
-- `src/pages/Browse.tsx` — replace Discover content source, rebuild Home rails.
-- `src/components/PersonalizedRails.tsx` — repointed at `films` table OR retired in favour of new components.
-- `src/components/YourProgressSection.tsx` — extended with new metrics.
-- `src/pages/Admin.tsx` — surface new film fields (cefr_level, tags, duration, description) in the film editor.
+- **Gems**: new `profiles.gems` column. Awarded on transcript completion, daily quest completion, streak milestones, level ups.
+- **Daily Quests**: new `daily_quests` table (user_id, date, quest_key, target, progress, completed_at, reward_xp, reward_gems). 3 quests rolled per day from a fixed pool (watch 15min, learn 20 words, review 30 cards, +10% on one transcript, complete 1 LinguaScript). Surface as a card on Home.
+- **Level titles** (Explorer → Master) — pure cosmetic mapping on top of existing XP system; no schema change.
+- **Worlds**: new `worlds` table + `films.world_id`. Admin can assign each film to a world. Home gets a "Your Journey" strip showing which worlds are unlocked. Unlock rule: complete N transcripts in current world to unlock next. Harder worlds still browsable but flagged "Challenging".
 
 ---
 
-### Out of scope (call out)
+## Phase 4 — Pets & Celebrations (polish)
 
-- Gems / Explorer Mode — not built yet; XP + streak only.
-- Listening vs reading confidence as separate scores — folded into the single comprehension % unless you want a second pass.
+- Pets react to milestones (Lottie/Framer animations on transcript completion, level up, daily quest sweep).
+- Gem shop for cosmetic pet items (no real-money).
+- Achievement badges on Profile.
 
-Confirm and I'll build it.
+---
+
+## Technical changes summary (Phase 1 only — what I'll build next if you approve)
+
+```text
+src/pages/Browse.tsx                 → remove YourProgressDashboard from Home tab
+src/components/HomeCatalogRows.tsx   → NEW: fetch catalog_rows + films, horizontal rails
+src/components/ContentCard.tsx       → NEW: shared card with estimated-understanding badge
+src/lib/videoComprehension.ts        → add estimateForFilm(userId, filmId) memoised helper
+src/pages/Progress.tsx               → NEW: move the 7-stat dashboard here
+src/components/NavBar.tsx            → add "Progress" link
+```
+
+No DB migration in Phase 1.
+
+---
+
+## Questions before I start Phase 1
+
+1. **Confirm the kill list** — you're okay removing Avg Comprehension, Best Video, Videos Mastered, Gain/Watch, Hours of Input, Vocabulary Learned, Learning Rate from Home (moved to `/progress`)?
+2. **Catalog rows** — should I render every row in `catalog_rows` ordered by `position`, or only ones explicitly flagged `show_on_home`? (I can add a flag if needed.)
+3. **Scope confirmation** — start with **Phase 1 only**, then check in?
+
+Once you answer (or just say "go phase 1"), I'll ship it.

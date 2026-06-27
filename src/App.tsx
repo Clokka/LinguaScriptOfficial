@@ -32,6 +32,7 @@ import CheckoutReturn from "./pages/CheckoutReturn";
 import Privacy from "./pages/Privacy";
 import PrivacyExtension from "./pages/PrivacyExtension";
 import Teacher from "./pages/Teacher";
+import Progress from "./pages/Progress";
 
 const queryClient = new QueryClient();
 
@@ -66,6 +67,7 @@ const App = () => (
                 <Route path="/privacy" element={<Privacy />} />
                 <Route path="/privacy-extension" element={<PrivacyExtension />} />
                 <Route path="/teacher" element={<Teacher />} />
+                <Route path="/progress" element={<Progress />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
               <TourOverlay />
