@@ -1,9 +1,10 @@
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { PETS } from "@/lib/pets";
 
-export type ReactionType = "celebrate" | "dance" | "wave" | "happy" | "excited" | "idle";
+// "perfect" is the chained 100% celebration — handled specially in PetCompanion
+export type ReactionType = "celebrate" | "dance" | "wave" | "happy" | "excited" | "perfect" | "idle";
 
 interface PetContextValue {
   activePet: string | null;
@@ -19,18 +20,19 @@ const PetContext = createContext<PetContextValue | null>(null);
 
 const FREE_PET_IDS = PETS.filter((p) => p.unlock.type === "free").map((p) => p.id);
 
+// How long "perfect" lasts in total (3 chained animations × 3s each)
+const PERFECT_DURATION = 9000;
+
 export function PetProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [activePet, setActivePetState] = useState<string | null>(null);
   const [petCollection, setPetCollection] = useState<string[]>([]);
   const [reaction, setReaction] = useState<ReactionType>("idle");
   const [isCompanionVisible, setIsCompanionVisible] = useState(false);
-  const [reactionTimer, setReactionTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Load pet data when user changes
   useEffect(() => {
     if (!user) {
-      // Guest: try localStorage
       const stored = localStorage.getItem("ls.pet.v1");
       if (stored) {
         try {
@@ -49,7 +51,6 @@ export function PetProvider({ children }: { children: ReactNode }) {
     }
 
     const loadPets = async () => {
-      // Load active pet from profile
       const { data: profile } = await supabase
         .from("profiles")
         .select("active_pet")
@@ -58,7 +59,6 @@ export function PetProvider({ children }: { children: ReactNode }) {
 
       const currentActivePet = (profile as any)?.active_pet ?? null;
 
-      // Load collection
       const { data: collection } = await supabase
         .from("pet_collection")
         .select("pet_id")
@@ -66,13 +66,11 @@ export function PetProvider({ children }: { children: ReactNode }) {
 
       let ownedIds = (collection ?? []).map((r: any) => r.pet_id);
 
-      // Seed free pets if collection is empty
       if (ownedIds.length === 0) {
         for (const petId of FREE_PET_IDS) {
           await supabase
             .from("pet_collection")
             .insert({ user_id: user.id, pet_id: petId })
-            .throwOnError()
             .then(() => {})
             .catch(() => {});
         }
@@ -119,14 +117,14 @@ export function PetProvider({ children }: { children: ReactNode }) {
     }
   }, [petCollection, user]);
 
-  const triggerReaction = useCallback((type: ReactionType, durationMs = 3000) => {
-    if (reactionTimer) clearTimeout(reactionTimer);
+  const triggerReaction = useCallback((type: ReactionType, durationMs?: number) => {
+    if (timerRef.current) clearTimeout(timerRef.current);
     setReaction(type);
     setIsCompanionVisible(true);
 
-    const timer = setTimeout(() => setReaction("idle"), durationMs);
-    setReactionTimer(timer);
-  }, [reactionTimer]);
+    const duration = durationMs ?? (type === "perfect" ? PERFECT_DURATION : 3000);
+    timerRef.current = setTimeout(() => setReaction("idle"), duration);
+  }, []);
 
   return (
     <PetContext.Provider value={{

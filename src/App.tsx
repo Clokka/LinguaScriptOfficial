@@ -35,6 +35,7 @@ import Privacy from "./pages/Privacy";
 import PrivacyExtension from "./pages/PrivacyExtension";
 import Teacher from "./pages/Teacher";
 import Progress from "./pages/Progress";
+import GiftClaim from "./pages/GiftClaim";
 
 const queryClient = new QueryClient();
 
@@ -71,6 +72,7 @@ const App = () => (
                 <Route path="/privacy-extension" element={<PrivacyExtension />} />
                 <Route path="/teacher" element={<Teacher />} />
                 <Route path="/progress" element={<Progress />} />
+                <Route path="/gift" element={<GiftClaim />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
               <TourOverlay />

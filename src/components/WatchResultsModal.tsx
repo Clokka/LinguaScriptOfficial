@@ -29,7 +29,12 @@ export function WatchResultsModal({
   useEffect(() => {
     if (!open) return;
     fetchFilmSessions(filmId).then(setSessions);
-    triggerReaction("celebrate", 4000);
+    const score = result?.new_pct ?? comprehension.pct;
+    if (score >= 100) {
+      triggerReaction("perfect"); // 9s chained celebration
+    } else {
+      triggerReaction("celebrate", 4000);
+    }
   }, [open, filmId, result?.watch_number, triggerReaction]);
 
   const latest = result?.new_pct ?? comprehension.pct;

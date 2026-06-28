@@ -16,6 +16,7 @@ import { ActiveLanguageBadge } from "@/components/ActiveLanguageBadge";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { saveGuestWord } from "@/lib/guestWords";
 import { useXp } from "@/contexts/XpContext";
+import { usePet } from "@/contexts/PetContext";
 import { recordDailyVideoWatch, setReinforcementPending } from "@/lib/dailyVideo";
 import { toast } from "sonner";
 import {
@@ -257,6 +258,7 @@ const Watch = () => {
   const { user } = useAuth();
   const { learningLanguage, languageContext, isContentLocked } = useLanguage();
   const { award } = useXp();
+  const { triggerReaction } = usePet();
   const videoWatchAwardedRef = useRef(false);
   const { registerPlayer, active: tourActive, step: tourStep } = useTour();
   const playerRef = useRef<any>(null);
@@ -677,6 +679,7 @@ const Watch = () => {
         language: langCode,
       });
       award("add_word");
+      triggerReaction("happy", 2000);
       return;
     }
 
@@ -692,6 +695,7 @@ const Watch = () => {
       language: langCode,
     }, { onConflict: "user_id,word,language" });
     award("add_word");
+    triggerReaction("happy", 2000);
   };
 
   const markWordKnown = async (word: { text: string; translation?: string }) => {
