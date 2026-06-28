@@ -52,7 +52,7 @@ export function GiftPetModal({ open, onClose, petId }: GiftPetModalProps) {
 
   const generateLink = async () => {
     setLoading(true);
-    const { data, error } = await supabase.rpc("create_gift_link", { p_pet_id: petId });
+    const { data, error } = await (supabase.rpc as any)("create_gift_link", { p_pet_id: petId });
     setLoading(false);
 
     if (error || (data as any)?.error) {
@@ -76,7 +76,7 @@ export function GiftPetModal({ open, onClose, petId }: GiftPetModalProps) {
     if (!username.trim()) return;
     setLoading(true);
 
-    const { data, error } = await supabase.rpc("gift_pet", {
+    const { data, error } = await (supabase.rpc as any)("gift_pet", {
       p_recipient_username: username.trim(),
       p_pet_id: petId,
     });

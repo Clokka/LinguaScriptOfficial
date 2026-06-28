@@ -59,7 +59,7 @@ export function PetProvider({ children }: { children: ReactNode }) {
 
       const currentActivePet = (profile as any)?.active_pet ?? null;
 
-      const { data: collection } = await supabase
+      const { data: collection } = await (supabase as any)
         .from("pet_collection")
         .select("pet_id")
         .eq("user_id", user.id);
@@ -68,11 +68,11 @@ export function PetProvider({ children }: { children: ReactNode }) {
 
       if (ownedIds.length === 0) {
         for (const petId of FREE_PET_IDS) {
-          await supabase
-            .from("pet_collection")
-            .insert({ user_id: user.id, pet_id: petId })
-            .then(() => {})
-            .catch(() => {});
+          try {
+            await (supabase as any)
+              .from("pet_collection")
+              .insert({ user_id: user.id, pet_id: petId });
+          } catch {}
         }
         ownedIds = FREE_PET_IDS;
       }
@@ -109,11 +109,11 @@ export function PetProvider({ children }: { children: ReactNode }) {
     setPetCollection((prev) => [...prev, petId]);
 
     if (user) {
-      await supabase
-        .from("pet_collection")
-        .insert({ user_id: user.id, pet_id: petId })
-        .then(() => {})
-        .catch(() => {});
+      try {
+        await (supabase as any)
+          .from("pet_collection")
+          .insert({ user_id: user.id, pet_id: petId });
+      } catch {}
     }
   }, [petCollection, user]);
 

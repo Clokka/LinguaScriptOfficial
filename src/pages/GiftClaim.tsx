@@ -27,17 +27,18 @@ export default function GiftClaim() {
     if (authLoading) return;
 
     const preview = async () => {
-      const { data } = await supabase
+      const { data } = await (supabase as any)
         .from("pet_gift_links")
         .select("pet_id, claimed_by, expires_at")
         .eq("token", token)
         .single();
 
-      if (!data) { setStatus("error"); setErrorMsg("Gift link not found."); return; }
-      if (data.claimed_by) { setStatus("error"); setErrorMsg("This gift has already been claimed."); return; }
-      if (new Date(data.expires_at) < new Date()) { setStatus("error"); setErrorMsg("This gift link has expired."); return; }
+      const row = data as any;
+      if (!row) { setStatus("error"); setErrorMsg("Gift link not found."); return; }
+      if (row.claimed_by) { setStatus("error"); setErrorMsg("This gift has already been claimed."); return; }
+      if (new Date(row.expires_at) < new Date()) { setStatus("error"); setErrorMsg("This gift link has expired."); return; }
 
-      setPetId(data.pet_id);
+      setPetId(row.pet_id);
 
       if (!user) {
         setStatus("need_auth");
@@ -53,7 +54,7 @@ export default function GiftClaim() {
     if (!user) { navigate(`/auth?redirect=/gift?token=${token}`); return; }
     setStatus("claiming");
 
-    const { data, error } = await supabase.rpc("claim_gift_link", { p_token: token });
+    const { data, error } = await (supabase.rpc as any)("claim_gift_link", { p_token: token });
 
     if (error || (data as any)?.error) {
       const msg = (data as any)?.error ?? error?.message ?? "Something went wrong";
