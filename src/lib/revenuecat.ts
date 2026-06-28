@@ -10,24 +10,17 @@ let configuredUserId: string | null = null;
  * re-configures when the user id actually changes.
  */
 export function configureRevenueCat(userId: string | null) {
-  // RC Web requires a non-anonymous user id. Use a stable anonymous id for
-  // signed-out visitors so the Pricing page can still load Offerings.
   const appUserId = userId ?? Purchases.generateRevenueCatAnonymousAppUserId();
   if (configuredUserId === appUserId) return;
 
-  try {
+  if (!Purchases.isConfigured()) {
     Purchases.configure(API_KEY, appUserId);
-    configuredUserId = appUserId;
-  } catch (e) {
-    // configure throws if already configured with a different user — fall back to changeUser.
-    try {
-      // @ts-ignore — changeUser exists on the singleton instance
-      Purchases.getSharedInstance().changeUser(appUserId);
-      configuredUserId = appUserId;
-    } catch (err) {
-      console.error("[RevenueCat] configure failed", err);
-    }
+  } else {
+    void Purchases.getSharedInstance().changeUser(appUserId).catch((e) => {
+      console.error("[RevenueCat] changeUser failed", e);
+    });
   }
+  configuredUserId = appUserId;
 }
 
 export async function getCustomerInfo(): Promise<CustomerInfo | null> {
