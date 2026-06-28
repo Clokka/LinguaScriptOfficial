@@ -161,6 +161,7 @@ const Profile = () => {
   }
 
   return (
+    <>
     <div className="min-h-screen bg-background relative">
       <div className="absolute inset-0 bg-gradient-hero pointer-events-none" />
       <div className="relative z-10 max-w-xl mx-auto px-6 py-12">
@@ -368,6 +369,7 @@ const Profile = () => {
     </div>
 
     <PetGallery open={showPetGallery} onClose={() => setShowPetGallery(false)} />
+    </>
   );
 };
 
