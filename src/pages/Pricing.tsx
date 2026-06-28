@@ -1,13 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Check, Sparkles, ArrowLeft, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
-import { StripeEmbeddedCheckout } from "@/components/StripeEmbeddedCheckout";
-import { PaymentTestModeBanner } from "@/components/PaymentTestModeBanner";
-import { supabase } from "@/integrations/supabase/client";
-import { getStripeEnvironment } from "@/lib/stripe";
+import { getCurrentOffering, purchasePackage, configureRevenueCat, type Package } from "@/lib/revenuecat";
 import { toast } from "@/hooks/use-toast";
 
 const FEATURES = [
@@ -18,36 +15,74 @@ const FEATURES = [
   "Support an indie team building for language learners",
 ];
 
-const PLANS = [
-  { id: "pro_monthly", label: "Monthly", price: "$9.99", suffix: "/ month", note: "Cancel anytime" },
-  { id: "pro_yearly", label: "Yearly", price: "$79", suffix: "/ year", note: "Save 34% — 2 months free", badge: "Best value" },
-];
+const PACKAGE_LABELS: Record<string, { label: string; note?: string; badge?: string }> = {
+  $rc_monthly: { label: "Monthly", note: "Cancel anytime" },
+  $rc_annual: { label: "Yearly", note: "Save with annual billing", badge: "Best value" },
+  $rc_lifetime: { label: "Lifetime", note: "One-time payment, yours forever", badge: "Lifetime access" },
+  monthly: { label: "Monthly", note: "Cancel anytime" },
+  yearly: { label: "Yearly", note: "Save with annual billing", badge: "Best value" },
+  lifetime: { label: "Lifetime", note: "One-time payment, yours forever", badge: "Lifetime access" },
+};
+
+function formatPrice(pkg: Package): string {
+  const price = pkg.rcBillingProduct?.currentPrice;
+  if (price?.formattedPrice) return price.formattedPrice;
+  return "—";
+}
+
+function suffix(pkg: Package): string {
+  const period = pkg.rcBillingProduct?.normalPeriodDuration;
+  if (!period) return "";
+  if (period === "P1M") return "/ month";
+  if (period === "P1Y") return "/ year";
+  if (period === "P1W") return "/ week";
+  return "";
+}
 
 export default function Pricing() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { isPro, source, loading, expiresAt } = useSubscription();
-  const [selected, setSelected] = useState<string | null>(null);
-  const [portalLoading, setPortalLoading] = useState(false);
+  const { isPro, source, loading: subLoading, expiresAt, refresh } = useSubscription();
+  const [packages, setPackages] = useState<Package[]>([]);
+  const [loadingOfferings, setLoadingOfferings] = useState(true);
+  const [purchasing, setPurchasing] = useState<string | null>(null);
 
-  const openPortal = async () => {
-    setPortalLoading(true);
+  useEffect(() => {
+    configureRevenueCat(user?.id ?? null);
+    let cancelled = false;
+    (async () => {
+      setLoadingOfferings(true);
+      const offering = await getCurrentOffering();
+      if (cancelled) return;
+      setPackages(offering?.availablePackages ?? []);
+      setLoadingOfferings(false);
+    })();
+    return () => { cancelled = true; };
+  }, [user?.id]);
+
+  const handlePurchase = async (pkg: Package) => {
+    if (!user) {
+      navigate("/auth?next=/pricing");
+      return;
+    }
+    setPurchasing(pkg.identifier);
     try {
-      const { data, error } = await supabase.functions.invoke("create-portal-session", {
-        body: { environment: getStripeEnvironment(), returnUrl: `${window.location.origin}/pricing` },
-      });
-      if (error || !data?.url) throw new Error(error?.message || "Could not open billing portal");
-      window.open(data.url, "_blank");
+      await purchasePackage(pkg);
+      await refresh();
+      toast({ title: "Welcome to Pro 🎉", description: "All languages unlocked." });
+      navigate("/browse");
     } catch (e: any) {
-      toast({ title: "Portal unavailable", description: e.message, variant: "destructive" });
+      if (e?.errorCode !== 1) {
+        // 1 = user cancelled
+        toast({ title: "Purchase failed", description: e?.message ?? "Please try again.", variant: "destructive" });
+      }
     } finally {
-      setPortalLoading(false);
+      setPurchasing(null);
     }
   };
 
   return (
     <div className="min-h-screen bg-background">
-      <PaymentTestModeBanner />
       <div className="max-w-5xl mx-auto px-4 py-8">
         <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="mb-6">
           <ArrowLeft className="w-4 h-4 mr-2" /> Back
@@ -61,12 +96,11 @@ export default function Pricing() {
             Learn every language you want.
           </h1>
           <p className="text-muted-foreground max-w-xl mx-auto">
-            Free keeps you focused on one language. Pro unlocks the whole library so you can switch
-            between French today and Spanish tomorrow without losing your streak.
+            Unlock the whole library and switch between languages freely without losing your streak.
           </p>
         </div>
 
-        {!loading && isPro && (
+        {!subLoading && isPro && (
           <div className="glass-panel-strong p-6 rounded-2xl mb-8 flex flex-col sm:flex-row items-start sm:items-center gap-4 justify-between">
             <div>
               <div className="flex items-center gap-2 mb-1">
@@ -81,37 +115,48 @@ export default function Pricing() {
                     : "Active subscription"}
               </p>
             </div>
-            {source === "subscription" && (
-              <Button variant="glass" onClick={openPortal} disabled={portalLoading}>
-                {portalLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                Manage billing
-              </Button>
-            )}
           </div>
         )}
 
-        <div className="grid sm:grid-cols-2 gap-4 mb-10">
-          {PLANS.map((plan) => (
-            <button
-              key={plan.id}
-              onClick={() => setSelected(plan.id)}
-              className={`relative text-left glass-panel-strong p-6 rounded-2xl border transition ${
-                selected === plan.id ? "border-primary ring-2 ring-primary/30" : "border-border hover:border-primary/40"
-              }`}
-            >
-              {plan.badge && (
-                <span className="absolute top-3 right-3 text-[10px] uppercase tracking-wider bg-accent text-accent-foreground px-2 py-0.5 rounded-full">
-                  {plan.badge}
-                </span>
-              )}
-              <div className="text-sm text-muted-foreground mb-2">{plan.label}</div>
-              <div className="flex items-baseline gap-1 mb-1">
-                <span className="text-3xl font-bold text-foreground">{plan.price}</span>
-                <span className="text-sm text-muted-foreground">{plan.suffix}</span>
-              </div>
-              <div className="text-xs text-muted-foreground">{plan.note}</div>
-            </button>
-          ))}
+        <div className="grid sm:grid-cols-3 gap-4 mb-10">
+          {loadingOfferings ? (
+            <div className="col-span-full flex justify-center py-12">
+              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : packages.length === 0 ? (
+            <div className="col-span-full text-center text-muted-foreground py-12 text-sm">
+              No plans are available right now. Please check back soon.
+            </div>
+          ) : (
+            packages.map((pkg) => {
+              const meta = PACKAGE_LABELS[pkg.identifier] ?? { label: pkg.identifier };
+              const isLoading = purchasing === pkg.identifier;
+              return (
+                <button
+                  key={pkg.identifier}
+                  onClick={() => handlePurchase(pkg)}
+                  disabled={!!purchasing || (isPro && source === "subscription")}
+                  className="relative text-left glass-panel-strong p-6 rounded-2xl border border-border hover:border-primary/40 transition disabled:opacity-60"
+                >
+                  {meta.badge && (
+                    <span className="absolute top-3 right-3 text-[10px] uppercase tracking-wider bg-accent text-accent-foreground px-2 py-0.5 rounded-full">
+                      {meta.badge}
+                    </span>
+                  )}
+                  <div className="text-sm text-muted-foreground mb-2">{meta.label}</div>
+                  <div className="flex items-baseline gap-1 mb-1">
+                    <span className="text-3xl font-bold text-foreground">{formatPrice(pkg)}</span>
+                    <span className="text-sm text-muted-foreground">{suffix(pkg)}</span>
+                  </div>
+                  <div className="text-xs text-muted-foreground mb-4">{meta.note}</div>
+                  <div className="text-sm font-medium text-primary inline-flex items-center gap-2">
+                    {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                    {isLoading ? "Opening checkout…" : isPro ? "Already Pro" : "Get Pro"}
+                  </div>
+                </button>
+              );
+            })
+          )}
         </div>
 
         <div className="glass-panel p-6 rounded-2xl mb-8">
@@ -126,21 +171,9 @@ export default function Pricing() {
           </ul>
         </div>
 
-        {!user ? (
+        {!user && (
           <Button variant="hero" size="lg" className="w-full" onClick={() => navigate("/auth?next=/pricing")}>
             Sign in to upgrade
-          </Button>
-        ) : selected ? (
-          <div className="glass-panel-strong p-4 rounded-2xl">
-            <StripeEmbeddedCheckout
-              priceId={selected}
-              userId={user.id}
-              customerEmail={user.email ?? undefined}
-            />
-          </div>
-        ) : (
-          <Button variant="hero" size="lg" className="w-full" disabled>
-            Choose a plan above to continue
           </Button>
         )}
       </div>
