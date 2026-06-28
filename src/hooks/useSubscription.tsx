@@ -1,92 +1,80 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { getStripeEnvironment, isPaymentsConfigured } from "@/lib/stripe";
-
-export interface SubscriptionRow {
-  id: string;
-  status: string;
-  price_id: string | null;
-  current_period_end: string | null;
-  cancel_at_period_end: boolean | null;
-  stripe_customer_id: string;
-}
+import {
+  configureRevenueCat,
+  getCustomerInfo,
+  hasProEntitlement,
+  type CustomerInfo,
+} from "@/lib/revenuecat";
 
 export interface ProStatus {
   isPro: boolean;
   source: "subscription" | "admin_grant" | "none";
   expiresAt: string | null;
-  subscription: SubscriptionRow | null;
+  customerInfo: CustomerInfo | null;
   loading: boolean;
   refresh: () => Promise<void>;
 }
 
-const ACTIVE_STATUSES = new Set(["active", "trialing", "past_due"]);
-
+/**
+ * Pro status is the union of:
+ *   1. RevenueCat "linguascript Pro" entitlement (paid users)
+ *   2. profiles.is_pro with pro_source='admin_grant' (admin-granted)
+ */
 export function useSubscription(): ProStatus {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [profileRow, setProfileRow] = useState<{ is_pro: boolean; pro_source: string; pro_expires_at: string | null } | null>(null);
-  const [subscription, setSubscription] = useState<SubscriptionRow | null>(null);
+  const [customerInfo, setCustomerInfo] = useState<CustomerInfo | null>(null);
 
-  const refresh = async () => {
-    if (!user) {
-      setProfileRow(null);
-      setSubscription(null);
-      setLoading(false);
-      return;
-    }
+  const refresh = useCallback(async () => {
     setLoading(true);
+    configureRevenueCat(user?.id ?? null);
 
-    const profileQ = supabase
-      .from("profiles")
-      .select("is_pro, pro_source, pro_expires_at")
-      .eq("user_id", user.id)
-      .maybeSingle();
+    const profilePromise = user
+      ? supabase
+          .from("profiles")
+          .select("is_pro, pro_source, pro_expires_at")
+          .eq("user_id", user.id)
+          .maybeSingle()
+      : Promise.resolve({ data: null } as any);
 
-    const env = isPaymentsConfigured() ? getStripeEnvironment() : "sandbox";
-    const subQ = supabase
-      .from("subscriptions")
-      .select("id, status, price_id, current_period_end, cancel_at_period_end, stripe_customer_id")
-      .eq("user_id", user.id)
-      .eq("environment", env)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    const [{ data: prof }, { data: sub }] = await Promise.all([profileQ, subQ]);
+    const [{ data: prof }, info] = await Promise.all([profilePromise, getCustomerInfo()]);
     setProfileRow((prof as any) ?? null);
-    setSubscription((sub as any) ?? null);
+    setCustomerInfo(info);
     setLoading(false);
-  };
+  }, [user?.id]);
 
   useEffect(() => {
     void refresh();
     if (!user) return;
     const channel = supabase
       .channel(`sub-${user.id}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "subscriptions", filter: `user_id=eq.${user.id}` }, () => void refresh())
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "profiles", filter: `user_id=eq.${user.id}` }, () => void refresh())
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "profiles", filter: `user_id=eq.${user.id}` },
+        () => void refresh(),
+      )
       .subscribe();
-    return () => { void supabase.removeChannel(channel); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [user?.id, refresh]);
 
-  const subActive = !!subscription
-    && ACTIVE_STATUSES.has(subscription.status)
-    && (!subscription.current_period_end || new Date(subscription.current_period_end) > new Date());
-  const profileActive = !!profileRow?.is_pro
+  const rcPro = hasProEntitlement(customerInfo);
+  const rcExpires = customerInfo?.entitlements.active["linguascript Pro"]?.expirationDate ?? null;
+  const adminPro = !!profileRow?.is_pro
+    && profileRow.pro_source === "admin_grant"
     && (!profileRow.pro_expires_at || new Date(profileRow.pro_expires_at) > new Date());
 
-  const isPro = subActive || profileActive;
-  const source = (profileRow?.pro_source as ProStatus["source"]) || (subActive ? "subscription" : "none");
+  const isPro = rcPro || adminPro;
+  const source: ProStatus["source"] = adminPro ? "admin_grant" : rcPro ? "subscription" : "none";
+  const expiresAt = adminPro
+    ? profileRow?.pro_expires_at ?? null
+    : rcExpires
+      ? (rcExpires instanceof Date ? rcExpires.toISOString() : String(rcExpires))
+      : null;
 
-  return {
-    isPro,
-    source,
-    expiresAt: profileRow?.pro_expires_at ?? subscription?.current_period_end ?? null,
-    subscription,
-    loading,
-    refresh,
-  };
+  return { isPro, source, expiresAt, customerInfo, loading, refresh };
 }
