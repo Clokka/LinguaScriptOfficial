@@ -242,6 +242,49 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     return true;
   }
 
+  if (msg.type === 'WORD_DETAIL') {
+    const { word, sourceLang = 'fr', targetLang = 'en' } = msg;
+    (async () => {
+      try {
+        const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${sourceLang}&tl=${targetLang}&dt=t&dt=ss&dt=ex&q=${encodeURIComponent(word)}`;
+        const res = await fetch(url);
+        const data = await res.json();
+
+        // Translation
+        const translation = (data[0] || []).map(c => c?.[0] || '').join('').trim();
+
+        // Synonyms — data[1]: array of [pos, null, [[word,...], score, gender], ...]
+        const synonymGroups = [];
+        if (Array.isArray(data[1])) {
+          for (const group of data[1]) {
+            const pos = group[0] || '';
+            const words = [];
+            const entries = group[2] || [];
+            for (const entry of entries) {
+              const list = Array.isArray(entry[0]) ? entry[0] : [];
+              words.push(...list.filter(w => typeof w === 'string'));
+            }
+            if (words.length) synonymGroups.push({ pos, words: words.slice(0, 8) });
+          }
+        }
+
+        // Examples — data[11]: array of [example_html, source_html]
+        const examples = [];
+        if (Array.isArray(data[11])) {
+          for (const ex of data[11].slice(0, 3)) {
+            const raw = (ex[0] || '').replace(/<b>/g, '').replace(/<\/b>/g, '').replace(/<[^>]+>/g, '').trim();
+            if (raw) examples.push(raw);
+          }
+        }
+
+        sendResponse({ ok: true, translation, synonymGroups, examples });
+      } catch(e) {
+        sendResponse({ ok: false });
+      }
+    })();
+    return true;
+  }
+
   if (msg.type === 'TRANSLATE') {
     const { text, targetLang, sourceLang = 'auto' } = msg;
     (async () => {
