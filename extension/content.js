@@ -150,7 +150,7 @@
 
       /* ── Word card ── */
       #ls-card {
-        position: fixed; z-index: 2147483647; width: 272px;
+        position: fixed; z-index: 2147483647; width: 300px;
         background: rgba(10,10,18,0.97); border: 1px solid rgba(124,58,237,0.4);
         border-radius: 14px; padding: 16px 18px 14px;
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -163,8 +163,22 @@
         to   { opacity:1; transform:scale(1) translateY(0); }
       }
       #ls-card-word  { font-size: 22px; font-weight: 800; margin-bottom: 3px; letter-spacing: -0.3px; }
-      #ls-card-tier  { font-size: 11px; font-weight: 600; letter-spacing: 0.04em; margin-bottom: 10px; opacity: 0.9; }
-      #ls-card-trans { font-size: 15px; color: #bbb; margin-bottom: 14px; min-height: 20px; font-style: italic; line-height: 1.4; }
+      #ls-card-tier  { font-size: 11px; font-weight: 600; letter-spacing: 0.04em; margin-bottom: 8px; opacity: 0.9; }
+      #ls-card-trans { font-size: 17px; font-weight: 700; color: #fff; margin-bottom: 10px; min-height: 20px; line-height: 1.3; }
+      .ls-card-section-label { font-size: 10px; font-weight: 600; letter-spacing: 0.08em; color: #555; text-transform: uppercase; margin-bottom: 5px; }
+      .ls-card-synonyms { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 10px; }
+      .ls-card-syn-chip {
+        font-size: 12px; color: #b8a0ff; background: rgba(124,58,237,0.15);
+        border: 1px solid rgba(124,58,237,0.25); border-radius: 20px;
+        padding: 2px 9px; cursor: pointer; transition: background 0.12s;
+      }
+      .ls-card-syn-chip:hover { background: rgba(124,58,237,0.3); }
+      .ls-card-examples { margin-bottom: 12px; }
+      .ls-card-example {
+        font-size: 12px; color: #777; line-height: 1.5; padding: 4px 0;
+        border-left: 2px solid rgba(124,58,237,0.25); padding-left: 8px; margin-bottom: 4px;
+      }
+      .ls-card-example em { color: #b8a0ff; font-style: normal; font-weight: 600; }
       #ls-card-save  {
         width: 100%; padding: 9px; border: none; border-radius: 8px;
         background: #7c3aed; color: #fff; font-size: 13px; font-weight: 700; cursor: pointer;
@@ -253,26 +267,73 @@
       <button id="ls-card-close">✕</button>
       <div id="ls-card-word">${word}</div>
       <div id="ls-card-tier" style="color:${tierColor}">${tierLabel}</div>
-      <div id="ls-card-trans" style="color:#555;font-style:italic;">translating…</div>
+      <div id="ls-card-trans" style="color:#555;font-style:italic;font-size:14px;">looking up…</div>
+      <div id="ls-card-body"></div>
       <button id="ls-card-save"${alreadySaved ? ' disabled' : ''}>${alreadySaved ? '✓ In your flashcards' : '+ Save to flashcards'}</button>
     `;
     document.body.appendChild(card);
     card.querySelector('#ls-card-close').addEventListener('click', closeCard);
 
     const rect = anchorEl.getBoundingClientRect();
-    let left = rect.left + rect.width/2 - 130;
-    left = Math.max(8, Math.min(left, window.innerWidth - 268));
-    const top = rect.top - 140 < 8 ? rect.bottom + 8 : rect.top - 140;
+    let left = rect.left + rect.width/2 - 150;
+    left = Math.max(8, Math.min(left, window.innerWidth - 308));
+    const top = rect.top - 180 < 8 ? rect.bottom + 8 : rect.top - 180;
     card.style.left = left + 'px'; card.style.top = top + 'px';
 
     setTimeout(() => document.addEventListener('click', e => { if (!card.contains(e.target)) closeCard(); }, { once: true }), 0);
 
     let resolvedTranslation = '';
-    translate(clean, currentNativeLang, currentLang).then(tr => {
-      resolvedTranslation = tr || '';
-      const el = card.querySelector('#ls-card-trans');
-      if (el) { el.style.cssText = 'font-size:15px;color:#e5e5e5;margin-bottom:12px;'; el.textContent = tr || 'Translation unavailable'; }
-    });
+
+    chrome.runtime.sendMessage(
+      { type: 'WORD_DETAIL', word: clean, sourceLang: lang, targetLang: currentNativeLang },
+      detail => {
+        if (!activeCard) return;
+        const transEl = card.querySelector('#ls-card-trans');
+        const bodyEl  = card.querySelector('#ls-card-body');
+
+        if (detail?.ok && detail.translation) {
+          resolvedTranslation = detail.translation;
+          if (transEl) transEl.textContent = detail.translation;
+
+          let bodyHTML = '';
+
+          // Synonyms
+          if (detail.synonymGroups?.length) {
+            const chips = detail.synonymGroups
+              .flatMap(g => g.words)
+              .slice(0, 10)
+              .map(w => `<span class="ls-card-syn-chip">${w}</span>`)
+              .join('');
+            bodyHTML += `<div class="ls-card-section-label">Synonyms</div><div class="ls-card-synonyms">${chips}</div>`;
+          }
+
+          // Current subtitle as first example
+          const examples = [];
+          if (fullLine && fullLine !== clean) {
+            const highlighted = fullLine.replace(new RegExp(`\\b${clean}\\b`, 'gi'), m => `<em>${m}</em>`);
+            examples.push(`<div class="ls-card-example">${highlighted}</div>`);
+          }
+          // Tatoeba examples from GTX
+          if (detail.examples?.length) {
+            detail.examples.slice(0, 2).forEach(ex => {
+              const highlighted = ex.replace(new RegExp(`\\b${clean}\\b`, 'gi'), m => `<em>${m}</em>`);
+              examples.push(`<div class="ls-card-example">${highlighted}</div>`);
+            });
+          }
+          if (examples.length) {
+            bodyHTML += `<div class="ls-card-section-label">Examples</div><div class="ls-card-examples">${examples.join('')}</div>`;
+          }
+
+          if (bodyEl) bodyEl.innerHTML = bodyHTML;
+        } else {
+          // Fallback to plain translation
+          translate(clean, currentNativeLang, lang).then(tr => {
+            resolvedTranslation = tr || '';
+            if (transEl) { transEl.style.cssText = 'font-size:15px;color:#e5e5e5;margin-bottom:12px;'; transEl.textContent = tr || 'Translation unavailable'; }
+          });
+        }
+      }
+    );
 
     card.querySelector('#ls-card-save').addEventListener('click', () => {
       const btn = card.querySelector('#ls-card-save');
