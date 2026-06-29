@@ -247,54 +247,46 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     (async () => {
       const sl = (sourceLang && sourceLang !== 'auto') ? sourceLang : 'fr';
 
-      // 1. MyMemory — most reliable from service workers
-      try {
-        const mmUrl = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${sl}|${targetLang}`;
-        console.log('[LS translate] MyMemory:', mmUrl);
-        const mmRes = await fetch(mmUrl);
-        const mmData = await mmRes.json();
-        console.log('[LS translate] MyMemory response:', JSON.stringify(mmData).slice(0, 200));
-        const tr = mmData?.responseData?.translatedText;
-        if (tr && !tr.startsWith('MYMEMORY WARNING') && tr.toLowerCase() !== text.toLowerCase()) {
-          sendResponse({ ok: true, translation: tr });
-          return;
-        }
-      } catch(e) { console.error('[LS translate] MyMemory error:', e.message); }
+      // ── Slot for DeepL (fastest, ~150ms) — add key when available ───────────
+      // const DEEPL_KEY = 'your-deepl-free-key-here';
+      // try {
+      //   const res = await fetch('https://api-free.deepl.com/v2/translate', {
+      //     method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `DeepL-Auth-Key ${DEEPL_KEY}` },
+      //     body: JSON.stringify({ text: [text], source_lang: sl.toUpperCase(), target_lang: targetLang.toUpperCase() }),
+      //   });
+      //   const data = await res.json();
+      //   const tr = data?.translations?.[0]?.text;
+      //   if (tr) { sendResponse({ ok: true, translation: tr }); return; }
+      // } catch(e) {}
 
-      // 2. Google Translate gtx
+      const timeout = (ms) => new Promise((_, r) => setTimeout(() => r(new Error('timeout')), ms));
+
+      // 1. Google GTX — fast (~200ms), hard 2s timeout
       try {
         const gUrl = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${sl}&tl=${encodeURIComponent(targetLang)}&dt=t&q=${encodeURIComponent(text)}`;
-        console.log('[LS translate] Google:', gUrl);
-        const gRes = await fetch(gUrl);
-        console.log('[LS translate] Google status:', gRes.status);
+        const gRes = await Promise.race([fetch(gUrl), timeout(2000)]);
         if (gRes.ok) {
           const data = await gRes.json();
           const tr = (data[0] || []).map(c => c?.[0] || '').join('').trim();
-          console.log('[LS translate] Google result:', tr);
           if (tr && tr.toLowerCase() !== text.toLowerCase()) {
-            sendResponse({ ok: true, translation: tr });
-            return;
+            sendResponse({ ok: true, translation: tr }); return;
           }
         }
-      } catch(e) { console.error('[LS translate] Google error:', e.message); }
+      } catch(e) {}
 
-      // 3. Lingva (alternative Google Translate frontend)
+      // 2. MyMemory — fallback, 4s timeout
       try {
-        const lgUrl = `https://lingva.ml/api/v1/${sl}/${targetLang}/${encodeURIComponent(text)}`;
-        console.log('[LS translate] Lingva:', lgUrl);
-        const lgRes = await fetch(lgUrl);
-        if (lgRes.ok) {
-          const data = await lgRes.json();
-          const tr = data?.translation;
-          console.log('[LS translate] Lingva result:', tr);
-          if (tr && tr.toLowerCase() !== text.toLowerCase()) {
-            sendResponse({ ok: true, translation: tr });
-            return;
-          }
+        const mmRes = await Promise.race([
+          fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${sl}|${targetLang}`),
+          timeout(4000)
+        ]);
+        const mmData = await mmRes.json();
+        const tr = mmData?.responseData?.translatedText;
+        if (tr && !tr.startsWith('MYMEMORY WARNING') && tr.toLowerCase() !== text.toLowerCase()) {
+          sendResponse({ ok: true, translation: tr }); return;
         }
-      } catch(e) { console.error('[LS translate] Lingva error:', e.message); }
+      } catch(e) {}
 
-      console.error('[LS translate] All endpoints failed for:', text, sl, '->', targetLang);
       sendResponse({ ok: false, translation: null });
     })();
     return true;
