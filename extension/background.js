@@ -160,7 +160,7 @@ async function syncWords(language) {
 
   const existing = await fetchExistingWords(userId, accessToken);
 
-  const now = new Date().toISOString();
+  const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
   const rows = [];
   for (const [word, context] of wordMap.entries()) {
     if (existing.has(word)) continue;
@@ -172,7 +172,7 @@ async function syncWords(language) {
       translation: '',
       ipa: '',
       pronunciation: '',
-      next_review: now,
+      next_review: yesterday,
     });
   }
 
@@ -372,7 +372,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         const existing = await checkRes.json();
         if (existing?.length > 0) return sendResponse({ ok: true, already: true });
 
-        const now = new Date().toISOString();
+        const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
         const row = {
           user_id: userId,
           word,
@@ -381,7 +381,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
           translation: msg.translation || '',
           ipa: '',
           pronunciation: '',
-          next_review: now,
+          next_review: yesterday,
         };
 
         const insertRes = await fetch(`${SUPABASE_URL}/rest/v1/saved_words`, {
