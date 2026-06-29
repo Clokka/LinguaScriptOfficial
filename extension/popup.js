@@ -18,6 +18,17 @@ async function init() {
   showPanel('main');
   $('user-email').textContent = session.user?.email || '';
 
+  // Fetch live word count + user ID straight from Supabase to confirm DB alignment
+  chrome.runtime.sendMessage({ type: 'GET_SAVED_COUNT' }, (res) => {
+    if (res?.ok) {
+      $('db-word-count').textContent = res.count;
+      $('db-user-id').textContent = res.userId || '—';
+    } else {
+      $('db-word-count').textContent = 'err';
+      $('db-user-id').textContent = res?.error || 'failed';
+    }
+  });
+
   // Restore saved language preferences
   chrome.storage.local.get({ ls_language: 'es', ls_native_language: 'en' }, ({ ls_language, ls_native_language }) => {
     $('language').value = ls_language;
