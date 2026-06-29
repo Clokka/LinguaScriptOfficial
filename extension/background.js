@@ -397,11 +397,43 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
 
         if (!insertRes.ok) {
           const err = await insertRes.text();
-          return sendResponse({ ok: false, error: err });
+          console.error('[LS] SAVE_WORD insert failed:', insertRes.status, err);
+          return sendResponse({ ok: false, error: `DB error ${insertRes.status}: ${err}` });
         }
-        sendResponse({ ok: true });
+
+        // Verify the row landed by immediately re-fetching it
+        const verifyRes = await fetch(
+          `${SUPABASE_URL}/rest/v1/saved_words?user_id=eq.${userId}&word=eq.${encodeURIComponent(word)}&select=id,word,user_id`,
+          { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${accessToken}` } }
+        );
+        const verified = await verifyRes.json();
+        const landed = Array.isArray(verified) && verified.length > 0;
+        console.log('[LS] SAVE_WORD verify:', landed ? 'confirmed in DB' : 'NOT FOUND after insert', verified);
+        sendResponse({ ok: true, landed, userId });
       })
       .catch(e => sendResponse({ ok: false, error: e.message }));
+    return true;
+  }
+
+  if (msg.type === 'GET_SAVED_COUNT') {
+    getValidSession()
+      .then(async (session) => {
+        const res = await fetch(
+          `${SUPABASE_URL}/rest/v1/saved_words?user_id=eq.${session.user.id}&select=id`,
+          {
+            headers: {
+              'apikey': SUPABASE_ANON_KEY,
+              'Authorization': `Bearer ${session.access_token}`,
+              'Prefer': 'count=exact',
+              'Range': '0-0',
+            },
+          }
+        );
+        const countHeader = res.headers.get('Content-Range');
+        const total = countHeader ? parseInt(countHeader.split('/')[1], 10) : 0;
+        sendResponse({ ok: true, count: total, userId: session.user.id, email: session.user.email });
+      })
+      .catch(e => sendResponse({ ok: false, count: 0, error: e.message }));
     return true;
   }
 });
