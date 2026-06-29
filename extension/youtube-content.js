@@ -148,11 +148,13 @@
     if(document.getElementById('ls-styles')) return;
     const s = document.createElement('style'); s.id='ls-styles';
     s.textContent = `
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
       /* ── Subtitle overlay ── */
       #ls-overlay {
         position:fixed; bottom:92px; left:0; right:380px;
         z-index:2147483640; text-align:center; pointer-events:none;
-        font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+        font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
         transition: right 0.3s ease;
       }
       #ls-overlay.ls-panel-hidden { right:0; }
@@ -210,7 +212,7 @@
         position:fixed; z-index:2147483647; width:272px;
         background:rgba(10,10,18,0.95); border:1px solid rgba(124,58,237,0.4);
         border-radius:14px; padding:16px 18px 14px;
-        font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+        font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
         box-shadow:0 16px 48px rgba(0,0,0,0.9), 0 0 0 1px rgba(124,58,237,0.18);
         backdrop-filter:blur(20px); pointer-events:auto; color:#fff;
         animation:ls-card-in 0.22s cubic-bezier(0.34,1.56,0.64,1);
@@ -241,7 +243,7 @@
         position:fixed; top:0; right:0; bottom:0; width:360px;
         background:rgba(7,7,12,0.97); border-left:1px solid rgba(124,58,237,0.18);
         z-index:2147483639; display:flex; flex-direction:column;
-        font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+        font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
         backdrop-filter:blur(12px); transition:transform 0.3s cubic-bezier(0.4,0,0.2,1);
       }
       #ls-panel.ls-hidden { transform:translateX(360px); }
@@ -405,39 +407,53 @@
     if(btn) btn.classList.toggle('ls-on', panelVisible);
   }
 
-  function populatePanel(subs) {
+  function makeWordSpansForPanel(text, lang, nativeLang) {
+    const frag = document.createDocumentFragment();
+    text.split(/\s+/).filter(Boolean).forEach(w=>{
+      const clean=w.replace(/[.,!?;:"""''«»¿¡\n]/g,'').trim().toLowerCase();
+      const span=document.createElement('span');
+      const col=savedWordMap.get(clean);
+      span.className = col ? 'ls-word ls-'+col : 'ls-word';
+      span.textContent=w+' '; span.dataset.word=clean;
+      span.addEventListener('click',e=>{
+        e.stopPropagation();
+        openCard({word:w, clean, fullLine:text, lang, nativeLang, anchorEl:span});
+      });
+      frag.appendChild(span);
+    });
+    return frag;
+  }
+
+  async function populatePanel(subs) {
     const list=document.getElementById('ls-panel-list');
     if(!list) return;
     list.innerHTML='';
+
+    // Batch-fetch all translations in parallel (up to 40 at once to avoid rate limits)
+    const BATCH=40;
+    const translations=new Array(subs.length).fill('');
+    for(let i=0; i<subs.length; i+=BATCH){
+      const slice=subs.slice(i, i+BATCH);
+      const results=await Promise.all(
+        slice.map(s=>translate(s.text, currentNativeLang, currentLang).catch(()=>''))
+      );
+      results.forEach((tr,j)=>{ translations[i+j]=tr||''; });
+    }
+
+    // Render all lines at once with translations already loaded
     subs.forEach((sub,i)=>{
       const div=document.createElement('div');
       div.className='ls-panel-line'; div.dataset.idx=i;
 
-      // Colour-coded word spans (same system as subtitle overlay)
       const textEl=document.createElement('div'); textEl.className='ls-panel-line-text';
-      sub.text.split(/\s+/).filter(Boolean).forEach(w=>{
-        const clean=w.replace(/[.,!?;:"""''«»¿¡\n]/g,'').trim().toLowerCase();
-        const span=document.createElement('span');
-        const col=savedWordMap.get(clean);
-        if(col) { span.className='ls-word ls-'+col; } else { span.className='ls-word'; }
-        span.textContent=w+' ';
-        span.dataset.word=clean;
-        span.addEventListener('click',e=>{
-          e.stopPropagation();
-          openCard({word:w, clean, fullLine:sub.text, lang:currentLang, nativeLang:currentNativeLang, anchorEl:span});
-        });
-        textEl.appendChild(span);
-      });
+      textEl.appendChild(makeWordSpansForPanel(sub.text, currentLang, currentNativeLang));
 
       const trEl=document.createElement('div'); trEl.className='ls-panel-line-tr';
+      trEl.textContent=translations[i];
+
       div.appendChild(textEl); div.appendChild(trEl);
       div.addEventListener('click',()=>seekToSub(i));
       list.appendChild(div);
-
-      // Lazy-load translation for panel line
-      translate(sub.text, currentNativeLang, currentLang).then(tr=>{
-        if(tr) trEl.textContent=tr;
-      });
     });
   }
 
@@ -625,12 +641,11 @@
       return;
     }
 
-    populatePanel(primary);
-
     videoEl=document.querySelector('video');
     if(!videoEl){ for(let i=0;i<20;i++){await new Promise(r=>setTimeout(r,500));videoEl=document.querySelector('video');if(videoEl)break;} }
     if(!videoEl) return;
     startSync();
+    populatePanel(primary); // runs async in background — panel fills in after sync starts
   }
 
   let activeVideoId=null;
