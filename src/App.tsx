@@ -30,6 +30,7 @@ import Unsubscribe from "./pages/Unsubscribe";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Pricing from "./pages/Pricing";
+import Upgrade from "./pages/Upgrade";
 import CheckoutReturn from "./pages/CheckoutReturn";
 import Privacy from "./pages/Privacy";
 import PrivacyExtension from "./pages/PrivacyExtension";
@@ -67,6 +68,7 @@ const App = () => (
                 <Route path="/onboarding" element={<Onboarding />} />
                 <Route path="/unsubscribe" element={<Unsubscribe />} />
                 <Route path="/pricing" element={<Pricing />} />
+                <Route path="/upgrade" element={<Upgrade />} />
                 <Route path="/checkout/return" element={<CheckoutReturn />} />
                 <Route path="/privacy" element={<Privacy />} />
                 <Route path="/privacy-extension" element={<PrivacyExtension />} />
