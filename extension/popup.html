@@ -285,6 +285,21 @@
         <button class="logout-btn" id="logout-btn">Log out</button>
       </div>
 
+      <!-- Live DB word count — confirms extension is writing to the right account -->
+      <div class="stats-card" style="margin-bottom:12px;">
+        <div class="stats-row">
+          <div class="stat">
+            <div class="stat-value" id="db-word-count">—</div>
+            <div class="stat-label">Words in DB</div>
+          </div>
+          <div class="divider"></div>
+          <div class="stat" style="flex:2; text-align:left; padding-left:12px;">
+            <div style="font-size:10px;color:#5a5a7a;word-break:break-all;" id="db-user-id">loading…</div>
+            <div style="font-size:9px;color:#3a3a55;margin-top:2px;">Supabase user ID</div>
+          </div>
+        </div>
+      </div>
+
       <!-- Review flashcards link — always visible when logged in -->
       <a href="https://linguascript.co.uk/flashcards" target="_blank" class="review-link">
         📚 Review flashcards on LinguaScript
