@@ -54,19 +54,23 @@
 
   // ── Colour coding ─────────────────────────────────────────────────────────
   let savedWordMap = new Map();
-  async function loadSavedWords(accessToken, userId) {
-    try {
-      const SUPA = 'https://ffephracinqeylfhqkiz.supabase.co';
-      const KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZmZXBocmFjaW5xZXlsZmhxa2l6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2MTc4MDgsImV4cCI6MjA5MDE5MzgwOH0.CzCejyUYY1i6-T_gCxkLqq_Cmc1OSRlXAhmPC-Ud4zA';
-      const res = await fetch(`${SUPA}/rest/v1/saved_words?user_id=eq.${userId}&select=word,review_count,interval_days,ease_factor`,
-        { headers: { apikey:KEY, Authorization:`Bearer ${accessToken}` } });
-      if (!res.ok) return;
-      savedWordMap.clear();
-      for (const r of await res.json()) {
-        const w=r.word.toLowerCase(), count=r.review_count||0, interval=r.interval_days||0, ease=r.ease_factor||2.5;
-        savedWordMap.set(w, (interval>=21||(count>=5&&ease>=2.5)) ? 'green' : (count>=2||interval>=3) ? 'orange' : 'red');
-      }
-    } catch {}
+  async function loadSavedWords() {
+    return new Promise(resolve => {
+      chrome.runtime.sendMessage({ type: 'GET_WORDS' }, res => {
+        if (chrome.runtime.lastError || !res?.ok) { resolve(); return; }
+        savedWordMap.clear();
+        for (const [word, tier] of Object.entries(res.words || {})) {
+          savedWordMap.set(word, tier);
+        }
+        savedWordMap.forEach((tier, word) => {
+          document.querySelectorAll(`.ls-word[data-word="${word}"]`).forEach(el => {
+            el.classList.remove('ls-red', 'ls-orange', 'ls-green');
+            el.classList.add('ls-' + tier);
+          });
+        });
+        resolve();
+      });
+    });
   }
 
   // ── InnerTube subtitle fetch ──────────────────────────────────────────────
@@ -163,7 +167,7 @@
         background:rgba(8,8,8,0.65); border-radius:3px;
         padding:2px 12px; pointer-events:none; letter-spacing:0.01em;
       }
-      .ls-word { cursor:pointer; border-radius:3px; padding:0 2px; transition:background 0.12s; display:inline; }
+      .ls-word { cursor:pointer; border-radius:3px; padding:0 2px; transition:color 0.35s ease, background 0.12s; display:inline; }
       .ls-word:hover { background:rgba(255,255,255,0.2); }
       .ls-red    { color:#f87171; }
       .ls-orange { color:#fb923c; }
@@ -173,9 +177,11 @@
       #ls-controls {
         position:fixed; bottom:20px; left:50%; transform:translateX(-50%);
         z-index:2147483640; display:flex; align-items:center; gap:6px;
-        background:rgba(8,8,8,0.85); border-radius:8px; padding:6px 10px;
+        background:rgba(10,8,20,0.88); border:1px solid rgba(124,58,237,0.25);
+        border-radius:12px; padding:6px 10px;
         font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-        backdrop-filter:blur(6px); transition:left 0.3s, transform 0.3s;
+        backdrop-filter:blur(16px); transition:left 0.3s, transform 0.3s;
+        box-shadow:0 4px 24px rgba(0,0,0,0.6), 0 0 0 1px rgba(124,58,237,0.1);
       }
       .ls-btn {
         background:rgba(255,255,255,0.08); color:#fff; border:none;
@@ -197,12 +203,16 @@
         backdrop-filter:blur(16px); pointer-events:auto; color:#fff;
       }
       #ls-card-word  { font-size:21px; font-weight:700; margin-bottom:2px; }
+      #ls-card-tier  { font-size:11px; font-weight:600; letter-spacing:0.04em; margin-bottom:10px; opacity:0.85; }
       #ls-card-trans { font-size:15px; color:#ccc; margin-bottom:12px; min-height:20px; font-style:italic; }
       #ls-card-save  {
         width:100%; padding:8px; border:none; border-radius:6px;
         background:#7c3aed; color:#fff; font-size:13px; font-weight:700; cursor:pointer;
+        transition:background 0.15s, transform 0.1s;
       }
-      #ls-card-save:disabled { background:#2a2a2a; color:#555; cursor:default; }
+      #ls-card-save:hover { background:#6d28d9; }
+      #ls-card-save:active { transform:scale(0.97); }
+      #ls-card-save:disabled { background:#2a2a2a; color:#555; cursor:default; transform:none; }
       #ls-card-close {
         position:absolute; top:10px; right:12px; background:none; border:none;
         color:#555; font-size:16px; cursor:pointer; line-height:1;
@@ -267,12 +277,18 @@
 
   function openCard({ word, clean, fullLine, lang, nativeLang, anchorEl }) {
     closeCard();
+    const tier = savedWordMap.get(clean);
+    const tierLabel = tier === 'green' ? '🟢 Known' : tier === 'orange' ? '🟠 Learning' : tier === 'red' ? '🔴 New word' : '⬜ Unseen';
+    const tierColor = tier === 'green' ? '#4ade80' : tier === 'orange' ? '#fb923c' : tier === 'red' ? '#f87171' : '#666';
+    const alreadySaved = !!tier;
+
     const card=document.createElement('div'); card.id='ls-card'; activeCard=card;
     card.innerHTML=`
       <button id="ls-card-close">✕</button>
       <div id="ls-card-word">${word}</div>
+      <div id="ls-card-tier" style="color:${tierColor}">${tierLabel}</div>
       <div id="ls-card-trans" style="color:#555;font-style:italic">translating…</div>
-      <button id="ls-card-save">+ Save to flashcards</button>
+      <button id="ls-card-save"${alreadySaved ? ' disabled' : ''}>${alreadySaved ? '✓ In your flashcards' : '+ Save to flashcards'}</button>
     `;
     document.body.appendChild(card);
     card.querySelector('#ls-card-close').addEventListener('click', closeCard);
@@ -529,7 +545,7 @@
     currentLang=lang; currentNativeLang=nativeLang;
 
     chrome.runtime.sendMessage({type:'GET_AUTH'},async res=>{
-      if(res?.session) await loadSavedWords(res.session.access_token, res.session.user.id);
+      if(res?.session) await loadSavedWords();
     });
 
     const {primary,secondary}=await fetchSubtitles(videoId,lang,nativeLang);
