@@ -68,7 +68,20 @@ export default function Pricing() {
     }
     setPurchasing(pkg.identifier);
     try {
-      await purchasePackage(pkg);
+      const info = await purchasePackage(pkg);
+      // Fire GoAffPro conversion using the latest transaction as the order reference.
+      const txns = (info as any)?.nonSubscriptionTransactions ?? [];
+      const latestTxn = txns[txns.length - 1];
+      const orderNumber =
+        latestTxn?.transactionIdentifier ||
+        (info as any)?.originalAppUserId ||
+        `${user.id}-${pkg.identifier}-${Date.now()}`;
+      const price = pkg.rcBillingProduct?.currentPrice;
+      trackGoAffProConversion({
+        number: orderNumber,
+        total: Number(price?.amountMicros ? price.amountMicros / 1_000_000 : 0),
+        currency: price?.currency,
+      });
       await refresh();
       toast({ title: "Welcome to Pro 🎉", description: "All languages unlocked." });
       navigate("/browse");
