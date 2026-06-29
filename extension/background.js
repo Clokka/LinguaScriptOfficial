@@ -300,6 +300,27 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     return true;
   }
 
+  if (msg.type === 'GET_WORDS') {
+    getValidSession()
+      .then(async (session) => {
+        const res = await fetch(
+          `${SUPABASE_URL}/rest/v1/saved_words?user_id=eq.${session.user.id}&select=word,review_count,interval_days,ease_factor`,
+          { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${session.access_token}` } }
+        );
+        if (!res.ok) return sendResponse({ ok: false, words: {} });
+        const rows = await res.json();
+        const words = {};
+        for (const r of rows) {
+          const count = r.review_count || 0, interval = r.interval_days || 0, ease = r.ease_factor || 2.5;
+          words[r.word.toLowerCase()] = (interval >= 21 || (count >= 5 && ease >= 2.5)) ? 'green'
+            : (count >= 2 || interval >= 3) ? 'orange' : 'red';
+        }
+        sendResponse({ ok: true, words });
+      })
+      .catch(() => sendResponse({ ok: false, words: {} }));
+    return true;
+  }
+
   if (msg.type === 'SAVE_WORD') {
     getValidSession()
       .then(async (session) => {
