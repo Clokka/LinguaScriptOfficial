@@ -228,6 +228,22 @@
       text-decoration: none;
     }
 
+    .review-link {
+      display: block;
+      text-align: center;
+      background: rgba(124,58,237,0.12);
+      border: 1px solid rgba(124,58,237,0.3);
+      border-radius: 8px;
+      padding: 9px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #b8a0ff;
+      text-decoration: none;
+      margin-bottom: 14px;
+      transition: background 0.15s;
+    }
+    .review-link:hover { background: rgba(124,58,237,0.22); color: #fff; }
+
     .error-box {
       background: #2a1520;
       border: 1px solid #3d1c2a;
@@ -268,6 +284,11 @@
         <span class="user-email" id="user-email"></span>
         <button class="logout-btn" id="logout-btn">Log out</button>
       </div>
+
+      <!-- Review flashcards link — always visible when logged in -->
+      <a href="https://linguascript.co.uk/flashcards" target="_blank" class="review-link">
+        📚 Review flashcards on LinguaScript
+      </a>
 
       <!-- Not on Netflix notice -->
       <div id="not-netflix">
