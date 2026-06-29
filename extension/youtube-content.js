@@ -148,115 +148,154 @@
     if(document.getElementById('ls-styles')) return;
     const s = document.createElement('style'); s.id='ls-styles';
     s.textContent = `
+      /* ── Subtitle overlay ── */
       #ls-overlay {
-        position:fixed; bottom:80px; left:50%; transform:translateX(-50%);
+        position:fixed; bottom:92px; left:0; right:380px;
         z-index:2147483640; text-align:center; pointer-events:none;
-        width:calc(90% - 340px); max-width:860px;
         font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-        transition: width 0.3s;
+        transition: right 0.3s ease;
       }
-      #ls-overlay.ls-panel-hidden { width:90%; max-width:900px; }
+      #ls-overlay.ls-panel-hidden { right:0; }
+
       #ls-primary {
-        display:inline-block; background:rgba(8,8,8,0.85); border-radius:4px;
-        padding:6px 20px 8px; margin-bottom:4px; font-size:24px; font-weight:700;
-        color:#fff; line-height:1.55; pointer-events:auto; cursor:pointer;
-        text-shadow:0 1px 4px rgba(0,0,0,0.8); letter-spacing:0.01em;
+        display:inline-block; background:rgba(0,0,0,0.82);
+        border-radius:6px; padding:10px 28px 14px; margin-bottom:6px;
+        font-size:34px; font-weight:800;
+        color:#fff; line-height:1.45; pointer-events:auto; cursor:pointer;
+        text-shadow:0 2px 8px rgba(0,0,0,0.95); letter-spacing:0.01em;
+        max-width:100%;
       }
       #ls-secondary {
-        display:block; font-size:15px; color:rgba(255,255,255,0.75);
-        background:rgba(8,8,8,0.65); border-radius:3px;
-        padding:2px 12px; pointer-events:none; letter-spacing:0.01em;
+        display:block; font-size:20px; font-weight:500;
+        color:rgba(255,255,255,0.82);
+        background:rgba(0,0,0,0.68); border-radius:4px;
+        padding:4px 18px 6px; pointer-events:none; letter-spacing:0.01em;
+        text-shadow:0 1px 4px rgba(0,0,0,0.9);
       }
-      .ls-word { cursor:pointer; border-radius:3px; padding:0 2px; transition:color 0.35s ease, background 0.12s; display:inline; }
-      .ls-word:hover { background:rgba(255,255,255,0.2); }
+
+      /* ── Word spans ── */
+      .ls-word { cursor:pointer; border-radius:3px; padding:0 3px; transition:color 0.35s ease, background 0.12s; display:inline; }
+      .ls-word:hover { background:rgba(255,255,255,0.18); }
       .ls-red    { color:#f87171; }
       .ls-orange { color:#fb923c; }
       .ls-green  { color:#4ade80; }
 
-      /* Control bar */
+      /* ── Control bar ── */
       #ls-controls {
-        position:fixed; bottom:20px; left:50%; transform:translateX(-50%);
-        z-index:2147483640; display:flex; align-items:center; gap:6px;
-        background:rgba(10,8,20,0.88); border:1px solid rgba(124,58,237,0.25);
-        border-radius:12px; padding:6px 10px;
-        font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-        backdrop-filter:blur(16px); transition:left 0.3s, transform 0.3s;
-        box-shadow:0 4px 24px rgba(0,0,0,0.6), 0 0 0 1px rgba(124,58,237,0.1);
+        position:fixed; bottom:22px; left:0; right:380px;
+        z-index:2147483640; display:flex; align-items:center; justify-content:center; gap:6px;
+        pointer-events:none; transition:right 0.3s ease;
+      }
+      #ls-controls.ls-panel-hidden { right:0; }
+      #ls-controls-inner {
+        display:flex; align-items:center; gap:6px;
+        background:rgba(10,8,20,0.9); border:1px solid rgba(124,58,237,0.28);
+        border-radius:12px; padding:7px 12px;
+        backdrop-filter:blur(16px); pointer-events:auto;
+        box-shadow:0 4px 24px rgba(0,0,0,0.7), 0 0 0 1px rgba(124,58,237,0.1);
       }
       .ls-btn {
         background:rgba(255,255,255,0.08); color:#fff; border:none;
-        border-radius:5px; padding:5px 10px; font-size:12px; font-weight:600;
-        cursor:pointer; transition:background 0.12s; white-space:nowrap;
+        border-radius:6px; padding:5px 11px; font-size:12px; font-weight:600;
+        cursor:pointer; transition:background 0.12s, transform 0.1s; white-space:nowrap;
       }
-      .ls-btn:hover { background:rgba(255,255,255,0.22); }
+      .ls-btn:hover { background:rgba(255,255,255,0.2); transform:scale(1.04); }
+      .ls-btn:active { transform:scale(0.96); }
       .ls-btn.ls-on { background:#7c3aed; }
-      .ls-sep { width:1px; height:18px; background:rgba(255,255,255,0.15); margin:0 2px; }
+      .ls-sep { width:1px; height:18px; background:rgba(255,255,255,0.13); margin:0 2px; }
       .ls-kbd { font-size:10px; color:rgba(255,255,255,0.4); margin-left:3px; }
 
-      /* Word card */
+      /* ── Word card ── */
       #ls-card {
-        position:fixed; z-index:2147483647; width:260px;
-        background:rgba(12,12,18,0.92); border:1px solid rgba(124,58,237,0.35);
-        border-radius:12px; padding:14px 16px 12px;
+        position:fixed; z-index:2147483647; width:272px;
+        background:rgba(10,10,18,0.95); border:1px solid rgba(124,58,237,0.4);
+        border-radius:14px; padding:16px 18px 14px;
         font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-        box-shadow:0 12px 40px rgba(0,0,0,0.85), 0 0 0 1px rgba(124,58,237,0.15);
-        backdrop-filter:blur(16px); pointer-events:auto; color:#fff;
+        box-shadow:0 16px 48px rgba(0,0,0,0.9), 0 0 0 1px rgba(124,58,237,0.18);
+        backdrop-filter:blur(20px); pointer-events:auto; color:#fff;
+        animation:ls-card-in 0.22s cubic-bezier(0.34,1.56,0.64,1);
       }
-      #ls-card-word  { font-size:21px; font-weight:700; margin-bottom:2px; }
-      #ls-card-tier  { font-size:11px; font-weight:600; letter-spacing:0.04em; margin-bottom:10px; opacity:0.85; }
-      #ls-card-trans { font-size:15px; color:#ccc; margin-bottom:12px; min-height:20px; font-style:italic; }
+      @keyframes ls-card-in {
+        from { opacity:0; transform:scale(0.88) translateY(6px); }
+        to   { opacity:1; transform:scale(1) translateY(0); }
+      }
+      #ls-card-word  { font-size:22px; font-weight:800; margin-bottom:3px; letter-spacing:-0.3px; }
+      #ls-card-tier  { font-size:11px; font-weight:600; letter-spacing:0.04em; margin-bottom:10px; opacity:0.9; }
+      #ls-card-trans { font-size:15px; color:#bbb; margin-bottom:14px; min-height:20px; font-style:italic; line-height:1.4; }
       #ls-card-save  {
-        width:100%; padding:8px; border:none; border-radius:6px;
+        width:100%; padding:9px; border:none; border-radius:8px;
         background:#7c3aed; color:#fff; font-size:13px; font-weight:700; cursor:pointer;
         transition:background 0.15s, transform 0.1s;
       }
       #ls-card-save:hover { background:#6d28d9; }
       #ls-card-save:active { transform:scale(0.97); }
-      #ls-card-save:disabled { background:#2a2a2a; color:#555; cursor:default; transform:none; }
+      #ls-card-save:disabled { background:#1e1e2e; color:#444; cursor:default; transform:none; }
       #ls-card-close {
-        position:absolute; top:10px; right:12px; background:none; border:none;
-        color:#555; font-size:16px; cursor:pointer; line-height:1;
+        position:absolute; top:12px; right:14px; background:none; border:none;
+        color:#444; font-size:16px; cursor:pointer; line-height:1; transition:color 0.1s;
       }
       #ls-card-close:hover { color:#fff; }
 
-      /* Side panel */
+      /* ── Side panel (Language Reactor style) ── */
       #ls-panel {
-        position:fixed; top:0; right:0; bottom:0; width:320px;
-        background:rgba(8,8,8,0.96); border-left:1px solid rgba(255,255,255,0.08);
+        position:fixed; top:0; right:0; bottom:0; width:360px;
+        background:rgba(7,7,12,0.97); border-left:1px solid rgba(124,58,237,0.18);
         z-index:2147483639; display:flex; flex-direction:column;
         font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-        backdrop-filter:blur(10px); transition:transform 0.3s;
+        backdrop-filter:blur(12px); transition:transform 0.3s cubic-bezier(0.4,0,0.2,1);
       }
-      #ls-panel.ls-hidden { transform:translateX(320px); }
-      #ls-panel-header {
-        padding:12px 14px; border-bottom:1px solid rgba(255,255,255,0.08);
-        font-size:12px; font-weight:700; color:#888; letter-spacing:0.08em;
-        text-transform:uppercase; display:flex; justify-content:space-between; align-items:center;
-      }
-      #ls-panel-close { background:none; border:none; color:#555; cursor:pointer; font-size:16px; }
-      #ls-panel-close:hover { color:#fff; }
-      #ls-panel-list { flex:1; overflow-y:auto; padding:8px 0; }
-      #ls-panel-list::-webkit-scrollbar { width:4px; }
-      #ls-panel-list::-webkit-scrollbar-track { background:transparent; }
-      #ls-panel-list::-webkit-scrollbar-thumb { background:#333; border-radius:2px; }
-      .ls-panel-line {
-        padding:8px 14px; cursor:pointer; border-left:3px solid transparent;
-        transition:background 0.1s;
-      }
-      .ls-panel-line:hover { background:rgba(255,255,255,0.05); }
-      .ls-panel-line.ls-current {
-        border-left-color:#7c3aed; background:rgba(124,58,237,0.08);
-      }
-      .ls-panel-line-text { font-size:13px; color:#ddd; line-height:1.45; }
-      .ls-panel-line-tr   { font-size:11px; color:#666; margin-top:2px; line-height:1.4; }
+      #ls-panel.ls-hidden { transform:translateX(360px); }
 
-      /* Toast */
-      #ls-toast {
-        position:fixed; bottom:70px; left:50%; transform:translateX(-50%);
-        background:#7c3aed; color:#fff; padding:6px 18px; border-radius:20px;
-        font-size:13px; font-weight:700; pointer-events:none; opacity:0;
-        transition:opacity 0.2s; z-index:2147483647;
+      #ls-panel-header {
+        padding:14px 16px 12px;
+        border-bottom:1px solid rgba(124,58,237,0.15);
+        display:flex; justify-content:space-between; align-items:center;
+        flex-shrink:0;
       }
+      #ls-panel-logo {
+        font-size:14px; font-weight:800; letter-spacing:-0.3px; color:#fff;
+      }
+      #ls-panel-logo span { color:#7c3aed; }
+      #ls-panel-meta { font-size:10px; color:#444; margin-top:1px; }
+      #ls-panel-toggle {
+        background:rgba(124,58,237,0.15); border:1px solid rgba(124,58,237,0.25);
+        color:#9d7bea; border-radius:6px; cursor:pointer; font-size:11px;
+        font-weight:600; padding:4px 10px; transition:background 0.12s;
+      }
+      #ls-panel-toggle:hover { background:rgba(124,58,237,0.28); }
+
+      #ls-panel-list { flex:1; overflow-y:auto; padding:6px 0 80px; }
+      #ls-panel-list::-webkit-scrollbar { width:3px; }
+      #ls-panel-list::-webkit-scrollbar-track { background:transparent; }
+      #ls-panel-list::-webkit-scrollbar-thumb { background:rgba(124,58,237,0.3); border-radius:2px; }
+
+      .ls-panel-line {
+        padding:10px 16px 8px; cursor:pointer;
+        border-left:3px solid transparent;
+        transition:background 0.12s, border-color 0.12s;
+      }
+      .ls-panel-line:hover { background:rgba(255,255,255,0.04); }
+      .ls-panel-line.ls-current {
+        border-left-color:#7c3aed;
+        background:rgba(124,58,237,0.1);
+      }
+      .ls-panel-line-text {
+        font-size:14px; line-height:1.55; margin-bottom:3px;
+        color:#ccc;
+      }
+      .ls-panel-line.ls-current .ls-panel-line-text { color:#fff; }
+      .ls-panel-line-tr { font-size:11px; color:#555; line-height:1.4; }
+      .ls-panel-line.ls-current .ls-panel-line-tr { color:#777; }
+
+      /* ── Toast ── */
+      #ls-toast {
+        position:fixed; bottom:80px; left:50%; transform:translateX(-50%);
+        background:#7c3aed; color:#fff; padding:7px 20px; border-radius:20px;
+        font-size:13px; font-weight:700; pointer-events:none; opacity:0;
+        transition:opacity 0.2s, transform 0.2s cubic-bezier(0.34,1.56,0.64,1);
+        transform:translateX(-50%) translateY(6px); z-index:2147483647;
+      }
+      #ls-toast.ls-show { opacity:1; transform:translateX(-50%) translateY(0); }
       #ls-toast.ls-show { opacity:1; }
     `;
     document.head.appendChild(s);
@@ -342,21 +381,26 @@
     const panel=document.createElement('div'); panel.id='ls-panel';
     panel.innerHTML=`
       <div id="ls-panel-header">
-        <span>Transcript</span>
-        <button id="ls-panel-close">✕</button>
+        <div>
+          <div id="ls-panel-logo">Lingua<span>Script</span></div>
+          <div id="ls-panel-meta">Transcript</div>
+        </div>
+        <button id="ls-panel-toggle">Hide</button>
       </div>
       <div id="ls-panel-list"></div>
     `;
     document.body.appendChild(panel);
-    document.getElementById('ls-panel-close').addEventListener('click',()=>togglePanel(false));
+    document.getElementById('ls-panel-toggle').addEventListener('click',()=>togglePanel(false));
   }
 
   function togglePanel(show) {
     panelVisible = show ?? !panelVisible;
     const panel=document.getElementById('ls-panel');
     const overlay=document.getElementById('ls-overlay');
+    const controls=document.getElementById('ls-controls');
     if(panel) panel.classList.toggle('ls-hidden',!panelVisible);
     if(overlay) overlay.classList.toggle('ls-panel-hidden',!panelVisible);
+    if(controls) controls.classList.toggle('ls-panel-hidden',!panelVisible);
     const btn=document.getElementById('ls-panel-btn');
     if(btn) btn.classList.toggle('ls-on', panelVisible);
   }
@@ -368,9 +412,32 @@
     subs.forEach((sub,i)=>{
       const div=document.createElement('div');
       div.className='ls-panel-line'; div.dataset.idx=i;
-      div.innerHTML=`<div class="ls-panel-line-text">${sub.text}</div><div class="ls-panel-line-tr"></div>`;
+
+      // Colour-coded word spans (same system as subtitle overlay)
+      const textEl=document.createElement('div'); textEl.className='ls-panel-line-text';
+      sub.text.split(/\s+/).filter(Boolean).forEach(w=>{
+        const clean=w.replace(/[.,!?;:"""''«»¿¡\n]/g,'').trim().toLowerCase();
+        const span=document.createElement('span');
+        const col=savedWordMap.get(clean);
+        if(col) { span.className='ls-word ls-'+col; } else { span.className='ls-word'; }
+        span.textContent=w+' ';
+        span.dataset.word=clean;
+        span.addEventListener('click',e=>{
+          e.stopPropagation();
+          openCard({word:w, clean, fullLine:sub.text, lang:currentLang, nativeLang:currentNativeLang, anchorEl:span});
+        });
+        textEl.appendChild(span);
+      });
+
+      const trEl=document.createElement('div'); trEl.className='ls-panel-line-tr';
+      div.appendChild(textEl); div.appendChild(trEl);
       div.addEventListener('click',()=>seekToSub(i));
       list.appendChild(div);
+
+      // Lazy-load translation for panel line
+      translate(sub.text, currentNativeLang, currentLang).then(tr=>{
+        if(tr) trEl.textContent=tr;
+      });
     });
   }
 
@@ -405,23 +472,25 @@
   function buildControls() {
     if(document.getElementById('ls-controls')) return;
     const bar=document.createElement('div'); bar.id='ls-controls';
+    const inner=document.createElement('div'); inner.id='ls-controls-inner';
+    bar.appendChild(inner);
 
     const btn=(label,hint,onClick,id)=>{
       const b=document.createElement('button'); b.className='ls-btn';
       if(id) b.id=id;
-      b.innerHTML=`${label}<span class="ls-kbd">${hint}</span>`;
+      b.innerHTML=hint ? `${label}<span class="ls-kbd">${hint}</span>` : label;
       b.addEventListener('click',e=>{e.stopPropagation();onClick();});
       return b;
     };
     const sep=()=>{const d=document.createElement('div');d.className='ls-sep';return d;};
 
-    const apBtn=btn('A|P','Q',()=>{
+    const apBtn=btn('A|P Off','Q',()=>{
       autoPause=!autoPause; autoPausedAt=-1;
       apBtn.innerHTML=`${autoPause?'A|P On':'A|P Off'}<span class="ls-kbd">Q</span>`;
       apBtn.classList.toggle('ls-on',autoPause);
     });
 
-    const panelBtn=btn('≡ Subs','',()=>togglePanel(),'ls-panel-btn');
+    const panelBtn=btn('≡ Transcript','',()=>togglePanel(),'ls-panel-btn');
     panelBtn.classList.add('ls-on');
 
     const speedBtns=[0.5,0.75,1,1.25,1.5].map(sp=>{
@@ -436,7 +505,6 @@
 
     const hideBtn=btn('LS','',()=>{
       overlayVisible=!overlayVisible;
-      hideBtn.innerHTML=`LS`;
       hideBtn.classList.toggle('ls-on',overlayVisible);
       const ov=document.getElementById('ls-overlay');
       if(ov) ov.style.opacity=overlayVisible?'1':'0';
@@ -447,7 +515,7 @@
      btn('↩','S',()=>seekToSub(currentSubIdx)),
      btn('⏭','D',()=>seekToSub(currentSubIdx+1)),
      sep(), apBtn, sep(), ...speedBtns, sep(), panelBtn, hideBtn
-    ].forEach(el=>bar.appendChild(el));
+    ].forEach(el=>inner.appendChild(el));
 
     document.body.appendChild(bar);
   }
