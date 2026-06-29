@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LinguaScript</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0f0f13;
+      color: #e8e8f0;
+      width: 320px;
+      min-height: 200px;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #6c3ff5 0%, #4f1fe0 100%);
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .logo {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      color: #fff;
+    }
+
+    .logo span { color: #b8a0ff; }
+
+    .content { padding: 20px; }
+
+    /* ── Auth panel ── */
+    #auth-panel {}
+
+    .field {
+      margin-bottom: 12px;
+    }
+
+    label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      color: #8888aa;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 5px;
+    }
+
+    input[type="email"],
+    input[type="password"] {
+      width: 100%;
+      padding: 9px 12px;
+      background: #1c1c28;
+      border: 1px solid #2e2e44;
+      border-radius: 8px;
+      color: #e8e8f0;
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    input:focus { border-color: #6c3ff5; }
+
+    .btn {
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+
+    .btn:active { transform: scale(0.98); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #6c3ff5, #4f1fe0);
+      color: #fff;
+    }
+
+    .btn-secondary {
+      background: #1c1c28;
+      color: #8888aa;
+      border: 1px solid #2e2e44;
+      margin-top: 8px;
+    }
+
+    .btn-danger {
+      background: #2a1520;
+      color: #e05050;
+      border: 1px solid #3d1c2a;
+      margin-top: 8px;
+    }
+
+    /* ── Main panel ── */
+    #main-panel { display: none; }
+
+    .user-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .user-email {
+      font-size: 12px;
+      color: #8888aa;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 180px;
+    }
+
+    .logout-btn {
+      font-size: 11px;
+      color: #5a5a7a;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 2px 6px;
+    }
+
+    .logout-btn:hover { color: #e05050; }
+
+    /* ── Stats card ── */
+    .stats-card {
+      background: #1c1c28;
+      border: 1px solid #2e2e44;
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin-bottom: 16px;
+    }
+
+    .stats-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .stat {
+      text-align: center;
+      flex: 1;
+    }
+
+    .stat-value {
+      font-size: 22px;
+      font-weight: 700;
+      color: #b8a0ff;
+      line-height: 1;
+    }
+
+    .stat-label {
+      font-size: 10px;
+      color: #5a5a7a;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-top: 3px;
+    }
+
+    .divider {
+      width: 1px;
+      height: 30px;
+      background: #2e2e44;
+    }
+
+    /* ── Language selector ── */
+    .lang-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .lang-row label {
+      font-size: 11px;
+      margin: 0;
+      white-space: nowrap;
+    }
+
+    select {
+      flex: 1;
+      padding: 7px 10px;
+      background: #1c1c28;
+      border: 1px solid #2e2e44;
+      border-radius: 8px;
+      color: #e8e8f0;
+      font-size: 12px;
+      outline: none;
+    }
+
+    select:focus { border-color: #6c3ff5; }
+
+    /* ── Status message ── */
+    #status {
+      font-size: 12px;
+      text-align: center;
+      min-height: 18px;
+      margin-top: 10px;
+      transition: color 0.2s;
+    }
+
+    .status-success { color: #60d394; }
+    .status-error { color: #e05050; }
+    .status-info { color: #8888aa; }
+
+    /* ── Not-on-Netflix notice ── */
+    #not-netflix {
+      display: none;
+      text-align: center;
+      padding: 20px 0;
+    }
+
+    #not-netflix p {
+      font-size: 13px;
+      color: #5a5a7a;
+      line-height: 1.5;
+    }
+
+    #not-netflix a {
+      color: #6c3ff5;
+      text-decoration: none;
+    }
+
+    .error-box {
+      background: #2a1520;
+      border: 1px solid #3d1c2a;
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 12px;
+      color: #e05050;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="logo">Lingua<span>Script</span></div>
+    <button id="test-tr-btn" style="margin-left:auto;background:rgba(255,255,255,0.15);border:none;color:#fff;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;">Test TR</button>
+  </div>
+
+  <div class="content">
+
+    <!-- Login form -->
+    <div id="auth-panel">
+      <div class="field">
+        <label>Email</label>
+        <input type="email" id="email" placeholder="you@example.com" autocomplete="email" />
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input type="password" id="password" placeholder="••••••••" autocomplete="current-password" />
+      </div>
+      <button class="btn btn-primary" id="login-btn">Log in to LinguaScript</button>
+      <div id="auth-error" class="error-box" style="display:none;"></div>
+    </div>
+
+    <!-- Main panel (shown when logged in) -->
+    <div id="main-panel">
+      <div class="user-row">
+        <span class="user-email" id="user-email"></span>
+        <button class="logout-btn" id="logout-btn">Log out</button>
+      </div>
+
+      <!-- Not on Netflix notice -->
+      <div id="not-netflix">
+        <p>Open a video on <a href="https://netflix.com" target="_blank">Netflix</a> or <a href="https://youtube.com" target="_blank">YouTube</a><br/>to start capturing subtitles.</p>
+      </div>
+
+      <!-- On Netflix: stats + sync -->
+      <div id="netflix-panel" style="display:none;">
+        <div class="stats-card">
+          <div class="stats-row">
+            <div class="stat">
+              <div class="stat-value" id="line-count">0</div>
+              <div class="stat-label">Lines</div>
+            </div>
+            <div class="divider"></div>
+            <div class="stat">
+              <div class="stat-value" id="word-count">0</div>
+              <div class="stat-label">New words</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="lang-row">
+          <label>Learning</label>
+          <select id="language">
+            <option value="es">Spanish</option>
+            <option value="fr">French</option>
+            <option value="de">German</option>
+            <option value="it">Italian</option>
+            <option value="pt">Portuguese</option>
+            <option value="ja">Japanese</option>
+            <option value="ko">Korean</option>
+            <option value="zh">Chinese</option>
+            <option value="ru">Russian</option>
+            <option value="ar">Arabic</option>
+            <option value="nl">Dutch</option>
+            <option value="pl">Polish</option>
+            <option value="sv">Swedish</option>
+            <option value="tr">Turkish</option>
+            <option value="en">English</option>
+          </select>
+        </div>
+        <div class="lang-row">
+          <label>Native</label>
+          <select id="native-language">
+            <option value="en">English</option>
+            <option value="es">Spanish</option>
+            <option value="fr">French</option>
+            <option value="de">German</option>
+            <option value="it">Italian</option>
+            <option value="pt">Portuguese</option>
+            <option value="ja">Japanese</option>
+            <option value="ko">Korean</option>
+            <option value="zh">Chinese</option>
+            <option value="ru">Russian</option>
+            <option value="ar">Arabic</option>
+            <option value="nl">Dutch</option>
+            <option value="pl">Polish</option>
+            <option value="sv">Swedish</option>
+            <option value="tr">Turkish</option>
+          </select>
+        </div>
+
+        <button class="btn btn-primary" id="sync-btn">Sync to LinguaScript</button>
+        <button class="btn btn-secondary" id="clear-btn">Clear captured subtitles</button>
+        <div id="status" class="status-info"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
