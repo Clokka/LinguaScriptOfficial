@@ -15,21 +15,20 @@
   // ── Translation — direct fetch first, SW fallback ────────────────────────
   async function translate(text, targetLang, sourceLang = 'auto') {
     const sl = (sourceLang && sourceLang !== 'auto') ? sourceLang : 'fr';
+    const timeout = (ms) => new Promise((_, r) => setTimeout(() => r(new Error('timeout')), ms));
 
-    // 1. Try direct fetch from content script (extension host_permissions bypass CSP)
+    // 1. Google GTX direct — fastest (~200ms), hard 2s timeout
     try {
-      const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${sl}|${targetLang}`;
-      const res = await fetch(url);
+      const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${sl}&tl=${encodeURIComponent(targetLang)}&dt=t&q=${encodeURIComponent(text)}`;
+      const res = await Promise.race([fetch(url), timeout(2000)]);
       if (res.ok) {
         const data = await res.json();
-        const tr = data?.responseData?.translatedText;
-        if (tr && !tr.startsWith('MYMEMORY WARNING') && tr.toLowerCase() !== text.toLowerCase()) {
-          return tr;
-        }
+        const tr = (data[0] || []).map(c => c?.[0] || '').join('').trim();
+        if (tr && tr.toLowerCase() !== text.toLowerCase()) return tr;
       }
-    } catch(e) { console.warn('[LS] direct fetch failed:', e.message); }
+    } catch(e) {}
 
-    // 2. Fallback: route through background service worker
+    // 2. Background SW (GTX → MyMemory chain)
     return new Promise(resolve => {
       let tries = 0;
       function attempt() {
