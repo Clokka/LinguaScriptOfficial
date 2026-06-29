@@ -55,6 +55,98 @@ function isStudentEmail(email: string): boolean {
 type CurrentPlan = 'free' | 'pro' | 'family';
 type HoveredCard = 'free' | 'pro' | 'family' | null;
 
+// ── All 8 pets ───────────────────────────────────────────────────
+const PETS = [
+  { name: 'Sparrow',  file: 'Sparrow_Animations.glb',  anim: 'Idle_A' },
+  { name: 'Gecko',    file: 'Gecko_Animations.glb',    anim: 'Idle_B' },
+  { name: 'Colobus',  file: 'Colobus_Animations.glb',  anim: 'Idle_C' },
+  { name: 'Inkfish',  file: 'Inkfish_Animations.glb',  anim: 'Bounce' },
+  { name: 'Pudu',     file: 'Pudu_Animations.glb',     anim: 'Sit'    },
+  { name: 'Muskrat',  file: 'Muskrat_Animations.glb',  anim: 'Idle_A' },
+  { name: 'Herring',  file: 'Herring_Animations.glb',  anim: 'Idle_B' },
+  { name: 'Taipan',   file: 'Taipan_Animations.glb',   anim: 'Idle_C' },
+] as const;
+
+function PetShowcase({ currentPlan, onUpgradeClick }: {
+  currentPlan: CurrentPlan;
+  onUpgradeClick: () => void;
+}) {
+  const isPro = currentPlan === 'pro' || currentPlan === 'family';
+  return (
+    <div className="mt-14 mb-2">
+      {/* Section heading */}
+      <div className="text-center mb-8">
+        <p className="text-[10px] font-black tracking-[0.2em] text-[#4ade80] mb-2">PRO COMPANIONS</p>
+        <h2 className="text-2xl md:text-3xl font-black text-white mb-2">
+          8 living pets, all yours with Pro
+        </h2>
+        <p className="text-[#a1a1aa] text-sm max-w-md mx-auto">
+          Each one animates, reacts to your progress, and greets you every time you log in.
+          Free plan includes Sparrow only.
+        </p>
+      </div>
+
+      {/* Pet grid */}
+      <div className="grid grid-cols-4 md:grid-cols-8 gap-3 md:gap-2 max-w-4xl mx-auto px-2">
+        {PETS.map((pet, i) => {
+          const locked = !isPro && i > 0;
+          return (
+            <div key={pet.name} className="flex flex-col items-center gap-1 group">
+              <div
+                className={`relative rounded-2xl overflow-hidden transition-all duration-200
+                  ${locked
+                    ? 'opacity-40 grayscale'
+                    : 'opacity-100 hover:scale-105'}`}
+                style={{
+                  background: locked ? '#18181b' : 'radial-gradient(circle at 50% 60%, rgba(74,222,128,0.08), transparent 70%)',
+                  border: locked ? '1px solid #27272a' : '1px solid rgba(74,222,128,0.2)',
+                }}
+              >
+                <model-viewer
+                  src={`/pets/${pet.file}`}
+                  animation-name={pet.anim}
+                  autoplay
+                  environment-image="neutral"
+                  shadow-intensity="0"
+                  style={{
+                    width: '100%',
+                    aspectRatio: '1/1',
+                    background: 'transparent',
+                    display: 'block',
+                    minWidth: '72px',
+                  } as React.CSSProperties}
+                />
+                {locked && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="text-xl">🔒</span>
+                  </div>
+                )}
+              </div>
+              <span className={`text-[10px] font-semibold tracking-wide
+                ${locked ? 'text-[#3f3f46]' : 'text-[#a1a1aa] group-hover:text-white'} transition-colors`}>
+                {pet.name}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Unlock CTA — only shown to free users */}
+      {!isPro && (
+        <div className="text-center mt-8">
+          <button
+            onClick={onUpgradeClick}
+            className="inline-flex items-center gap-2 bg-[#4ade80] text-[#09090b] font-bold
+                       px-7 py-3 rounded-full hover:brightness-110 active:scale-95 transition-all text-sm"
+          >
+            Unlock all 8 pets with Pro →
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Feature row ──────────────────────────────────────────────────
 function Feature({ label, checked, color }: { label: string; checked: boolean; color: string }) {
   return (
@@ -418,6 +510,9 @@ export default function Upgrade() {
           </div>
 
         </div>
+
+        {/* ── Pet showcase ─────────────────────────────────────── */}
+        <PetShowcase currentPlan={currentPlan} onUpgradeClick={() => !loadingPlan && handlePurchase('pro')} />
 
         {/* ── Student CTA ──────────────────────────────────────── */}
         <p className="text-center mt-8 text-[#a1a1aa] text-sm">
