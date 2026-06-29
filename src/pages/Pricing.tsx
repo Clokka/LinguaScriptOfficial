@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
 import { getCurrentOffering, purchasePackage, configureRevenueCat, type Package } from "@/lib/revenuecat";
+import { trackGoAffProConversion } from "@/lib/goaffpro";
 import { toast } from "@/hooks/use-toast";
 
 const FEATURES = [
