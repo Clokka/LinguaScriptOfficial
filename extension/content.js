@@ -193,6 +193,33 @@
       }
       #ls-card-close:hover { color: #fff; }
 
+      /* ── Mini login (shown inside card when not authenticated) ── */
+      .ls-card-login-note { font-size: 12px; color: #666; margin-bottom: 10px; line-height: 1.5; }
+      .ls-card-login-input {
+        width: 100%; padding: 7px 10px; margin-bottom: 7px;
+        background: #0d0d18; border: 1px solid #2a2a40; border-radius: 7px;
+        color: #e8e8f0; font-size: 12px; outline: none; box-sizing: border-box; font-family: inherit;
+        transition: border-color 0.15s;
+      }
+      .ls-card-login-input:focus { border-color: #7c3aed; }
+      .ls-card-login-btn {
+        width: 100%; padding: 8px; border: none; border-radius: 7px;
+        background: #7c3aed; color: #fff; font-size: 12px; font-weight: 700;
+        cursor: pointer; font-family: inherit; transition: background 0.15s;
+      }
+      .ls-card-login-btn:hover { background: #6d28d9; }
+      .ls-card-login-btn:disabled { opacity: 0.5; cursor: default; }
+      .ls-card-login-err { font-size: 11px; color: #f87171; margin-top: 5px; min-height: 14px; }
+
+      /* ── Flashcards control button ── */
+      .ls-ctrl-link {
+        background: rgba(74,222,128,0.12); color: #4ade80; border: 1px solid rgba(74,222,128,0.25);
+        border-radius: 6px; padding: 5px 11px; font-size: 12px; font-weight: 600;
+        cursor: pointer; text-decoration: none; transition: background 0.12s; white-space: nowrap;
+        font-family: inherit; display: inline-flex; align-items: center;
+      }
+      .ls-ctrl-link:hover { background: rgba(74,222,128,0.22); }
+
       /* ── Side panel ── */
       #ls-panel {
         position: fixed; top: 0; right: 0; bottom: 0; width: 360px;
@@ -335,22 +362,87 @@
       }
     );
 
-    card.querySelector('#ls-card-save').addEventListener('click', () => {
-      const btn = card.querySelector('#ls-card-save');
-      btn.textContent = 'Saving…'; btn.disabled = true;
-      chrome.runtime.sendMessage(
-        { type: 'SAVE_WORD', word: clean, context: fullLine, language: lang, translation: resolvedTranslation },
-        res => {
-          if (chrome.runtime.lastError || !res?.ok) { btn.textContent = 'Not logged in'; return; }
-          savedWordMap.set(clean, 'red');
-          document.querySelectorAll(`.ls-word[data-word="${clean}"]`).forEach(el => {
-            el.classList.remove('ls-orange', 'ls-green'); el.classList.add('ls-red');
-          });
-          btn.textContent = res.already ? 'Already saved' : 'Saved!';
-          setTimeout(closeCard, 800);
-        }
-      );
+    // Check auth — swap save button for mini login if not signed in
+    chrome.runtime.sendMessage({ type: 'GET_AUTH' }, authRes => {
+      if (!activeCard) return;
+      const isLoggedIn = !!authRes?.session;
+      const saveBtn = card.querySelector('#ls-card-save');
+
+      if (!isLoggedIn) {
+        // Replace save button with inline login form
+        saveBtn.replaceWith(buildMiniLogin(card, clean, fullLine, lang, () => resolvedTranslation));
+      } else {
+        saveBtn.addEventListener('click', () => {
+          saveBtn.textContent = 'Saving…'; saveBtn.disabled = true;
+          chrome.runtime.sendMessage(
+            { type: 'SAVE_WORD', word: clean, context: fullLine, language: lang, translation: resolvedTranslation },
+            res => {
+              if (chrome.runtime.lastError || !res?.ok) {
+                saveBtn.textContent = '+ Save to flashcards'; saveBtn.disabled = false; return;
+              }
+              savedWordMap.set(clean, 'red');
+              document.querySelectorAll(`.ls-word[data-word="${clean}"]`).forEach(el => {
+                el.classList.remove('ls-orange', 'ls-green'); el.classList.add('ls-red');
+              });
+              saveBtn.textContent = res.already ? '✓ Already saved' : '✓ Saved!';
+              saveBtn.disabled = true;
+              setTimeout(closeCard, 900);
+            }
+          );
+        });
+      }
     });
+  }
+
+  function buildMiniLogin(card, word, context, lang, getTranslation) {
+    const wrap = document.createElement('div');
+    wrap.innerHTML = `
+      <p class="ls-card-login-note">Log in to save words to your flashcards.</p>
+      <input class="ls-card-login-input" id="ls-mini-email" type="email" placeholder="Email" autocomplete="email" />
+      <input class="ls-card-login-input" id="ls-mini-pw" type="password" placeholder="Password" autocomplete="current-password" />
+      <button class="ls-card-login-btn" id="ls-mini-submit">Log in &amp; Save</button>
+      <div class="ls-card-login-err" id="ls-mini-err"></div>
+    `;
+
+    // Stop card from closing when typing
+    wrap.addEventListener('click', e => e.stopPropagation());
+
+    wrap.querySelector('#ls-mini-submit').addEventListener('click', () => {
+      const email = wrap.querySelector('#ls-mini-email').value.trim();
+      const pw    = wrap.querySelector('#ls-mini-pw').value;
+      const errEl = wrap.querySelector('#ls-mini-err');
+      const btn   = wrap.querySelector('#ls-mini-submit');
+      if (!email || !pw) { errEl.textContent = 'Enter your email and password.'; return; }
+      btn.textContent = 'Logging in…'; btn.disabled = true; errEl.textContent = '';
+
+      chrome.runtime.sendMessage({ type: 'SIGN_IN', email, password: pw }, res => {
+        if (!res?.ok) {
+          errEl.textContent = res?.error || 'Login failed — check credentials.';
+          btn.textContent = 'Log in & Save'; btn.disabled = false; return;
+        }
+        // Logged in — now save the word
+        btn.textContent = 'Saving…';
+        chrome.runtime.sendMessage(
+          { type: 'SAVE_WORD', word, context, language: lang, translation: getTranslation() },
+          saveRes => {
+            if (!saveRes?.ok) { btn.textContent = 'Saved (refresh to colour words)'; btn.disabled = true; return; }
+            savedWordMap.set(word, 'red');
+            document.querySelectorAll(`.ls-word[data-word="${word}"]`).forEach(el => {
+              el.classList.remove('ls-orange', 'ls-green'); el.classList.add('ls-red');
+            });
+            btn.textContent = '✓ Saved!'; btn.disabled = true;
+            setTimeout(closeCard, 900);
+          }
+        );
+      });
+    });
+
+    // Enter key submits
+    wrap.querySelector('#ls-mini-pw').addEventListener('keydown', e => {
+      if (e.key === 'Enter') wrap.querySelector('#ls-mini-submit').click();
+    });
+
+    return wrap;
   }
 
   // ── Word span ─────────────────────────────────────────────────────────────
@@ -500,10 +592,17 @@
     });
     hideBtn.classList.add('ls-active');
 
+    const flashcardsLink = document.createElement('a');
+    flashcardsLink.className = 'ls-ctrl-link';
+    flashcardsLink.href = 'https://linguascript.co.uk/flashcards';
+    flashcardsLink.target = '_blank';
+    flashcardsLink.rel = 'noopener noreferrer';
+    flashcardsLink.textContent = '📚 Flashcards';
+
     [btn('⏮', 'A', () => { const v = document.querySelector('video'); if (v) v.currentTime = Math.max(0, v.currentTime - 8); }),
      btn('↩', 'S', () => { const v = document.querySelector('video'); if (v) v.currentTime = Math.max(0, v.currentTime - 4); }),
      btn('⏭', 'D', () => { const v = document.querySelector('video'); if (v) v.currentTime += 3; }),
-     sep(), apBtn, sep(), ...speedBtns, sep(), panelBtn, hideBtn
+     sep(), apBtn, sep(), ...speedBtns, sep(), panelBtn, hideBtn, sep(), flashcardsLink
     ].forEach(el => bar.appendChild(el));
     document.body.appendChild(bar);
   }
