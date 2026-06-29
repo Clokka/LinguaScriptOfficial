@@ -102,104 +102,131 @@
     if (document.getElementById('ls-styles')) return;
     const s = document.createElement('style'); s.id = 'ls-styles';
     s.textContent = `
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
       .player-timedtext { visibility: hidden !important; }
 
+      /* ── Subtitle band — below video, Language Reactor style ── */
       #ls-overlay {
-        position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
-        z-index: 2147483640; text-align: center; pointer-events: none;
-        width: calc(90% - 340px); max-width: 860px;
-        font-family: 'Netflix Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-        transition: width 0.3s;
+        position: fixed; left: 0; right: 360px; bottom: 0;
+        z-index: 2147483640; pointer-events: none;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        background: rgba(5,4,12,0.96);
+        border-top: 1px solid rgba(124,58,237,0.2);
+        padding: 14px 0 18px;
+        text-align: center;
+        transition: right 0.3s ease;
+        min-height: 100px;
       }
-      #ls-overlay.ls-panel-hidden { width: 90%; max-width: 900px; }
+      #ls-overlay.ls-panel-hidden { right: 0; }
+
       #ls-primary {
-        display: inline-block; background: rgba(8,8,8,0.82); border-radius: 4px;
-        padding: 6px 20px 8px; margin-bottom: 4px; font-size: 24px; font-weight: 700;
-        color: #fff; line-height: 1.55; pointer-events: auto; cursor: pointer;
-        text-shadow: 0 1px 4px rgba(0,0,0,0.8); letter-spacing: 0.01em;
+        display: inline-block; padding: 0 32px;
+        font-size: 32px; font-weight: 700;
+        color: #fff; line-height: 1.5; pointer-events: auto; cursor: pointer;
+        letter-spacing: -0.2px;
       }
       #ls-secondary {
-        display: block; font-size: 15px; color: rgba(255,255,255,0.75);
-        background: rgba(8,8,8,0.6); border-radius: 3px;
-        padding: 2px 12px; pointer-events: none; letter-spacing: 0.01em;
+        display: block; font-size: 18px; font-weight: 400;
+        color: rgba(255,255,255,0.6);
+        padding: 4px 32px 0; pointer-events: none;
+        letter-spacing: 0.01em;
       }
-      .ls-word { cursor: pointer; border-radius: 3px; padding: 0 2px; transition: color 0.35s ease, background 0.12s; display: inline; }
-      .ls-word:hover { background: rgba(255,255,255,0.18); }
+      .ls-word { cursor: pointer; border-radius: 4px; padding: 0 3px; transition: color 0.35s ease, background 0.12s; display: inline; }
+      .ls-word:hover { background: rgba(255,255,255,0.14); }
       .ls-red    { color: #f87171; }
       .ls-orange { color: #fb923c; }
       .ls-green  { color: #4ade80; }
 
+      /* ── Controls bar — sits inside the subtitle band ── */
       #ls-controls {
-        position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
-        z-index: 2147483640; display: flex; align-items: center; gap: 6px;
-        background: rgba(10,8,20,0.88); border: 1px solid rgba(124,58,237,0.25);
-        border-radius: 12px; padding: 6px 10px;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-        backdrop-filter: blur(16px);
-        box-shadow: 0 4px 24px rgba(0,0,0,0.6), 0 0 0 1px rgba(124,58,237,0.1);
+        position: fixed; bottom: 0; left: 0; right: 360px;
+        z-index: 2147483641; display: flex; align-items: center; justify-content: center; gap: 6px;
+        padding: 6px 12px 8px;
+        background: rgba(4,3,10,0.98); border-top: 1px solid rgba(124,58,237,0.15);
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        transition: right 0.3s ease;
       }
+      #ls-controls.ls-panel-hidden { right: 0; }
       .ls-ctrl-btn {
-        background: rgba(255,255,255,0.08); color: #fff; border: none;
-        border-radius: 5px; padding: 5px 10px; font-size: 12px; font-weight: 600;
-        cursor: pointer; transition: background 0.12s; white-space: nowrap;
+        background: rgba(255,255,255,0.07); color: #fff; border: none;
+        border-radius: 6px; padding: 5px 11px; font-size: 12px; font-weight: 600;
+        cursor: pointer; transition: background 0.12s, transform 0.1s; white-space: nowrap;
+        font-family: inherit;
       }
-      .ls-ctrl-btn:hover { background: rgba(255,255,255,0.2); }
+      .ls-ctrl-btn:hover { background: rgba(255,255,255,0.18); transform: scale(1.04); }
+      .ls-ctrl-btn:active { transform: scale(0.96); }
       .ls-ctrl-btn.ls-active { background: #7c3aed; }
-      .ls-kbd { font-size: 10px; color: rgba(255,255,255,0.4); margin-left: 3px; }
-      .ls-divider { width: 1px; height: 20px; background: rgba(255,255,255,0.15); margin: 0 2px; }
+      .ls-kbd { font-size: 10px; color: rgba(255,255,255,0.35); margin-left: 3px; }
+      .ls-divider { width: 1px; height: 18px; background: rgba(255,255,255,0.1); margin: 0 2px; }
 
+      /* ── Word card ── */
       #ls-card {
-        position: fixed; z-index: 2147483647; width: 260px;
-        background: rgba(12,12,18,0.92); border: 1px solid rgba(124,58,237,0.35);
-        border-radius: 12px; padding: 14px 16px 12px;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-        box-shadow: 0 12px 40px rgba(0,0,0,0.8), 0 0 0 1px rgba(124,58,237,0.15);
-        backdrop-filter: blur(16px); pointer-events: auto; color: #fff;
+        position: fixed; z-index: 2147483647; width: 272px;
+        background: rgba(10,10,18,0.97); border: 1px solid rgba(124,58,237,0.4);
+        border-radius: 14px; padding: 16px 18px 14px;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        box-shadow: 0 16px 48px rgba(0,0,0,0.9), 0 0 0 1px rgba(124,58,237,0.18);
+        backdrop-filter: blur(20px); pointer-events: auto; color: #fff;
+        animation: ls-card-in 0.22s cubic-bezier(0.34,1.56,0.64,1);
       }
-      #ls-card-word  { font-size: 20px; font-weight: 700; margin-bottom: 2px; }
-      #ls-card-tier  { font-size: 11px; font-weight: 600; letter-spacing: 0.04em; margin-bottom: 10px; opacity: 0.85; }
-      #ls-card-trans { font-size: 15px; color: #e5e5e5; margin-bottom: 12px; min-height: 20px; }
+      @keyframes ls-card-in {
+        from { opacity:0; transform:scale(0.88) translateY(6px); }
+        to   { opacity:1; transform:scale(1) translateY(0); }
+      }
+      #ls-card-word  { font-size: 22px; font-weight: 800; margin-bottom: 3px; letter-spacing: -0.3px; }
+      #ls-card-tier  { font-size: 11px; font-weight: 600; letter-spacing: 0.04em; margin-bottom: 10px; opacity: 0.9; }
+      #ls-card-trans { font-size: 15px; color: #bbb; margin-bottom: 14px; min-height: 20px; font-style: italic; line-height: 1.4; }
       #ls-card-save  {
-        width: 100%; padding: 8px; border: none; border-radius: 6px;
+        width: 100%; padding: 9px; border: none; border-radius: 8px;
         background: #7c3aed; color: #fff; font-size: 13px; font-weight: 700; cursor: pointer;
-        transition: background 0.15s, transform 0.1s;
+        transition: background 0.15s, transform 0.1s; font-family: inherit;
       }
       #ls-card-save:hover { background: #6d28d9; }
       #ls-card-save:active { transform: scale(0.97); }
-      #ls-card-save:disabled { background: #2a2a3a; color: #555; cursor: default; transform: none; }
+      #ls-card-save:disabled { background: #1e1e2e; color: #444; cursor: default; transform: none; }
       #ls-card-close {
-        position: absolute; top: 10px; right: 12px; background: none; border: none;
-        color: #666; font-size: 16px; cursor: pointer; padding: 0; line-height: 1;
+        position: absolute; top: 12px; right: 14px; background: none; border: none;
+        color: #444; font-size: 16px; cursor: pointer; padding: 0; line-height: 1; transition: color 0.1s;
       }
       #ls-card-close:hover { color: #fff; }
 
-      /* Side panel */
+      /* ── Side panel ── */
       #ls-panel {
-        position: fixed; top: 0; right: 0; bottom: 0; width: 320px;
-        background: rgba(8,8,8,0.96); border-left: 1px solid rgba(255,255,255,0.08);
+        position: fixed; top: 0; right: 0; bottom: 0; width: 360px;
+        background: rgba(7,7,12,0.98); border-left: 1px solid rgba(124,58,237,0.18);
         z-index: 2147483639; display: flex; flex-direction: column;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-        backdrop-filter: blur(10px); transition: transform 0.3s;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        backdrop-filter: blur(12px); transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
       }
-      #ls-panel.ls-hidden { transform: translateX(320px); }
+      #ls-panel.ls-hidden { transform: translateX(360px); }
       #ls-panel-header {
-        padding: 12px 14px; border-bottom: 1px solid rgba(255,255,255,0.08);
-        font-size: 12px; font-weight: 700; color: #888; letter-spacing: 0.08em;
-        text-transform: uppercase; display: flex; justify-content: space-between; align-items: center;
+        padding: 14px 16px 12px; border-bottom: 1px solid rgba(124,58,237,0.15);
+        display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;
       }
-      #ls-panel-close { background: none; border: none; color: #555; cursor: pointer; font-size: 16px; }
-      #ls-panel-close:hover { color: #fff; }
-      #ls-panel-list { flex: 1; overflow-y: auto; padding: 8px 0; }
-      #ls-panel-list::-webkit-scrollbar { width: 4px; }
+      #ls-panel-logo { font-size: 15px; font-weight: 800; letter-spacing: -0.3px; color: #fff; }
+      #ls-panel-logo span { color: #4ade80; }
+      #ls-panel-meta { font-size: 10px; color: #444; margin-top: 1px; }
+      #ls-panel-toggle {
+        background: rgba(124,58,237,0.15); border: 1px solid rgba(124,58,237,0.25);
+        color: #9d7bea; border-radius: 6px; cursor: pointer; font-size: 11px;
+        font-weight: 600; padding: 4px 10px; transition: background 0.12s; font-family: inherit;
+      }
+      #ls-panel-toggle:hover { background: rgba(124,58,237,0.28); }
+      #ls-panel-list { flex: 1; overflow-y: auto; padding: 6px 0 60px; }
+      #ls-panel-list::-webkit-scrollbar { width: 3px; }
       #ls-panel-list::-webkit-scrollbar-track { background: transparent; }
-      #ls-panel-list::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+      #ls-panel-list::-webkit-scrollbar-thumb { background: rgba(124,58,237,0.3); border-radius: 2px; }
       .ls-panel-line {
-        padding: 8px 14px; cursor: pointer; border-left: 3px solid transparent; transition: background 0.1s;
+        padding: 10px 16px 8px; cursor: pointer;
+        border-left: 3px solid transparent; transition: background 0.12s, border-color 0.12s;
       }
-      .ls-panel-line:hover { background: rgba(255,255,255,0.05); }
-      .ls-panel-line.ls-current { border-left-color: #7c3aed; background: rgba(124,58,237,0.08); }
-      .ls-panel-line-text { font-size: 13px; color: #ddd; line-height: 1.45; }
-      .ls-panel-line-tr   { font-size: 11px; color: #666; margin-top: 2px; line-height: 1.4; }
+      .ls-panel-line:hover { background: rgba(255,255,255,0.04); }
+      .ls-panel-line.ls-current { border-left-color: #7c3aed; background: rgba(124,58,237,0.1); }
+      .ls-panel-line-text { font-size: 14px; color: #ccc; line-height: 1.55; margin-bottom: 3px; }
+      .ls-panel-line.ls-current .ls-panel-line-text { color: #fff; }
+      .ls-panel-line-tr { font-size: 11px; color: #555; line-height: 1.4; }
+      .ls-panel-line.ls-current .ls-panel-line-tr { color: #777; }
 
       #ls-toast {
         position: fixed; bottom: 70px; left: 50%; transform: translateX(-50%);
@@ -296,21 +323,26 @@
     const panel = document.createElement('div'); panel.id = 'ls-panel';
     panel.innerHTML = `
       <div id="ls-panel-header">
-        <span>Transcript</span>
-        <button id="ls-panel-close">✕</button>
+        <div>
+          <div id="ls-panel-logo">Lingua<span>Script</span></div>
+          <div id="ls-panel-meta">Transcript</div>
+        </div>
+        <button id="ls-panel-toggle">Hide</button>
       </div>
       <div id="ls-panel-list"></div>
     `;
     document.body.appendChild(panel);
-    document.getElementById('ls-panel-close').addEventListener('click', () => togglePanel(false));
+    document.getElementById('ls-panel-toggle').addEventListener('click', () => togglePanel(false));
   }
 
   function togglePanel(show) {
     panelVisible = show ?? !panelVisible;
     const panel = document.getElementById('ls-panel');
     const overlay = document.getElementById('ls-overlay');
+    const controls = document.getElementById('ls-controls');
     if (panel) panel.classList.toggle('ls-hidden', !panelVisible);
     if (overlay) overlay.classList.toggle('ls-panel-hidden', !panelVisible);
+    if (controls) controls.classList.toggle('ls-panel-hidden', !panelVisible);
     const btn = document.getElementById('ls-panel-btn');
     if (btn) btn.classList.toggle('ls-active', panelVisible);
   }
