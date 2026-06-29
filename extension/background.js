@@ -173,6 +173,9 @@ async function syncWords(language) {
       ipa: '',
       pronunciation: '',
       next_review: yesterday,
+      interval_days: 0,
+      review_count: 0,
+      ease_factor: 2.5,
     });
   }
 
@@ -382,6 +385,9 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
           ipa: '',
           pronunciation: '',
           next_review: yesterday,
+          interval_days: 0,
+          review_count: 0,
+          ease_factor: 2.5,
         };
 
         const insertRes = await fetch(`${SUPABASE_URL}/rest/v1/saved_words`, {
