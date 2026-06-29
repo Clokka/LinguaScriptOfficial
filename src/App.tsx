@@ -80,7 +80,7 @@ const App = () => (
               <StreakCelebrationModal />
               <XpToast />
               <InterestsPromptModal />
-              <PetCompanion />
+              {/* PetCompanion removed per user request */}
             </TourProvider>
             </PetProvider>
           </XpProvider>
