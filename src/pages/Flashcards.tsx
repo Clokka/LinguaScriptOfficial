@@ -96,6 +96,21 @@ const Flashcards = () => {
 
   useEffect(() => { fetchCards(); }, [fetchCards]);
 
+  // Realtime: re-fetch when the extension (or any other client) inserts a new word.
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel("saved_words_ext_inserts")
+      .on("postgres_changes", {
+        event: "INSERT",
+        schema: "public",
+        table: "saved_words",
+        filter: `user_id=eq.${user.id}`,
+      }, () => fetchCards(false))
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [user, fetchCards]);
+
   // Reinforcement bonus when user arrives from "Review now" CTA after a video.
   useEffect(() => {
     if (consumeReinforcementPending()) {
