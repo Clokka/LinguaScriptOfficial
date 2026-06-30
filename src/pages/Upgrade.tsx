@@ -512,7 +512,7 @@ export default function Upgrade() {
             onClick={async () => {
               try {
                 const { Purchases } = await import('@revenuecat/purchases-js');
-                await Purchases.getSharedInstance().restorePurchases();
+                await (Purchases.getSharedInstance() as any).restorePurchases();
                 toast.success('Purchases restored.');
               } catch { toast.error('Could not restore purchases.'); }
             }}
