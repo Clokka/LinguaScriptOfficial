@@ -23,7 +23,7 @@ export function AdminPaymentLinks() {
   const [customPriceId, setCustomPriceId] = useState("");
   const [email, setEmail] = useState("");
   const [note, setNote] = useState("");
-  const [environment, setEnvironment] = useState<"sandbox" | "live">("live");
+  const [environment, setEnvironment] = useState<"sandbox" | "live">("sandbox");
   const [loading, setLoading] = useState(false);
   const [link, setLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -49,7 +49,16 @@ export function AdminPaymentLinks() {
           note: note || undefined,
         },
       });
-      if (error) throw error;
+      // Non-2xx: parse the JSON body off error.context for the real message.
+      if (error) {
+        let msg = error.message;
+        try {
+          const ctx: any = (error as any).context;
+          const body = ctx && typeof ctx.json === "function" ? await ctx.json() : null;
+          if (body?.error) msg = body.error;
+        } catch {}
+        throw new Error(msg);
+      }
       if (!data?.url) throw new Error(data?.error || "No link returned");
       setLink(data.url);
       toast({ title: "Payment link ready", description: "Copy and send it to your user." });
@@ -63,6 +72,7 @@ export function AdminPaymentLinks() {
       setLoading(false);
     }
   };
+
 
   const copy = async () => {
     if (!link) return;
