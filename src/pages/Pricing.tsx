@@ -62,10 +62,17 @@ export default function Pricing() {
     let cancelled = false;
     (async () => {
       setLoadingOfferings(true);
-      const offering = await getCurrentOffering();
-      if (cancelled) return;
-      setPackages(offering?.availablePackages ?? []);
-      setLoadingOfferings(false);
+      try {
+        const offering = await getCurrentOffering();
+        if (cancelled) return;
+        const pkgs = offering?.availablePackages ?? [];
+        setPackages(pkgs);
+        if (pkgs.length === 0) setRcFailed(true);
+      } catch {
+        if (!cancelled) setRcFailed(true);
+      } finally {
+        if (!cancelled) setLoadingOfferings(false);
+      }
     })();
     return () => { cancelled = true; };
   }, [user?.id]);
