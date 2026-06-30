@@ -28,6 +28,7 @@ interface SubtitleOverlayProps {
   className?: string;
   mode: "single" | "dual";
   onSaveWord?: (word: Word) => void;
+  onSavePhrase?: (phrase: string) => void;
   onMarkKnown?: (word: Word) => void;
   nativeLanguage?: string;
   contentLanguage?: string;
