@@ -23,6 +23,7 @@ interface FlashcardData {
   language?: string;
   state?: DeckState;
   times_correct?: number;
+  is_phrase?: boolean;
 }
 
 interface FlashcardReviewProps {
