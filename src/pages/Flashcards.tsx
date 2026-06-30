@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Loader2, Sparkles, ChevronRight } from "lucide-react";
+import { ArrowLeft, Loader2, Sparkles, ChevronRight, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FlashcardReview } from "@/components/FlashcardReview";
 import { supabase } from "@/integrations/supabase/client";
@@ -56,6 +56,7 @@ const Flashcards = () => {
   const [allCards, setAllCards] = useState<SavedWord[]>([]);
   const [starterDecks, setStarterDecks] = useState<StarterDeck[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [activeDeck, setActiveDeck] = useState<DeckKey | null>(null);
   const [reviewCards, setReviewCards] = useState<SavedWord[]>([]);
 
@@ -97,6 +98,7 @@ const Flashcards = () => {
   useEffect(() => { fetchCards(); }, [fetchCards]);
 
   // Realtime: re-fetch when the extension (or any other client) inserts a new word.
+  // Requires saved_words to be in the supabase_realtime publication.
   useEffect(() => {
     if (!user) return;
     const channel = supabase
@@ -117,6 +119,12 @@ const Flashcards = () => {
       award("reinforcement");
     }
   }, [award]);
+
+  const handleManualRefresh = async () => {
+    setRefreshing(true);
+    await fetchCards(false);
+    setRefreshing(false);
+  };
 
   const counts: Record<DeckKey, number> = {
     red: allCards.filter((c) => (c.state ?? "red") === "red").length,
@@ -170,7 +178,18 @@ const Flashcards = () => {
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <h1 className="text-lg font-bold text-foreground">Flashcards</h1>
-          <div className="ml-auto"><ActiveLanguageBadge /></div>
+          <div className="ml-auto flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleManualRefresh}
+              disabled={refreshing}
+              title="Refresh deck counts"
+            >
+              <RefreshCw className={cn("w-4 h-4", refreshing && "animate-spin")} />
+            </Button>
+            <ActiveLanguageBadge />
+          </div>
         </div>
       </header>
 
