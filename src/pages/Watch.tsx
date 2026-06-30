@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { SubtitleOverlay } from "@/components/SubtitleOverlay";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useSubscription } from "@/hooks/useSubscription";
+import { useUpgradeTrigger } from "@/hooks/useUpgradeTrigger";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTour } from "@/contexts/TourContext";
 import { getLanguageLabel, getLanguageFlag } from "@/lib/languages";
@@ -256,6 +258,9 @@ const Watch = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { isPro } = useSubscription();
+  const { onWordSaved, onVideoFinished } = useUpgradeTrigger(isPro);
+  const savedTodayRef = useRef(0);
   const { learningLanguage, languageContext, isContentLocked } = useLanguage();
   const { award } = useXp();
   const { triggerReaction } = usePet();
@@ -575,6 +580,7 @@ const Watch = () => {
                   }
                 } else {
                   setSessionResult({ watch_number: 1, prev_pct: null, new_pct: comp.pct, delta: 0, first_pct: comp.pct, best_pct: comp.pct });
+                  onVideoFinished(true);
                 }
                 setShowReinforce(true);
               })();
@@ -680,6 +686,8 @@ const Watch = () => {
       });
       award("add_word");
       triggerReaction("happy", 2000);
+      savedTodayRef.current += 1;
+      onWordSaved(savedTodayRef.current);
       return;
     }
 
@@ -696,6 +704,8 @@ const Watch = () => {
     }, { onConflict: "user_id,word,language" });
     award("add_word");
     triggerReaction("happy", 2000);
+    savedTodayRef.current += 1;
+    onWordSaved(savedTodayRef.current);
   };
 
   const markWordKnown = async (word: { text: string; translation?: string }) => {
