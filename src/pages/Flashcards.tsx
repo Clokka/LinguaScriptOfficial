@@ -27,6 +27,7 @@ interface SavedWord {
   review_count: number;
   state: DeckState;
   times_correct: number;
+  is_phrase?: boolean;
 }
 
 interface StarterDeck {
