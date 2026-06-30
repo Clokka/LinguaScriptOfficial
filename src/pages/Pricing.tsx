@@ -1,11 +1,15 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Check, Sparkles, ArrowLeft, Loader2 } from "lucide-react";
+import { Check, Sparkles, ArrowLeft, Loader2, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
 import { getCurrentOffering, purchasePackage, configureRevenueCat, type Package } from "@/lib/revenuecat";
 import { trackGoAffProConversion } from "@/lib/goaffpro";
+import { getEnabledFallbackPlans } from "@/lib/stripeFallback";
+import { StripeEmbeddedCheckout } from "@/components/StripeEmbeddedCheckout";
+import { isPaymentsConfigured } from "@/lib/stripe";
 import { toast } from "@/hooks/use-toast";
 
 const FEATURES = [
@@ -47,16 +51,28 @@ export default function Pricing() {
   const [packages, setPackages] = useState<Package[]>([]);
   const [loadingOfferings, setLoadingOfferings] = useState(true);
   const [purchasing, setPurchasing] = useState<string | null>(null);
+  const [rcFailed, setRcFailed] = useState(false);
+  const [stripePriceId, setStripePriceId] = useState<string | null>(null);
+  const fallbackPlans = useMemo(() => getEnabledFallbackPlans(), []);
+  const stripeAvailable = isPaymentsConfigured();
+  const showFallback = fallbackPlans.length > 0 && stripeAvailable && (rcFailed || packages.length === 0 || !loadingOfferings);
 
   useEffect(() => {
     configureRevenueCat(user?.id ?? null);
     let cancelled = false;
     (async () => {
       setLoadingOfferings(true);
-      const offering = await getCurrentOffering();
-      if (cancelled) return;
-      setPackages(offering?.availablePackages ?? []);
-      setLoadingOfferings(false);
+      try {
+        const offering = await getCurrentOffering();
+        if (cancelled) return;
+        const pkgs = offering?.availablePackages ?? [];
+        setPackages(pkgs);
+        if (pkgs.length === 0) setRcFailed(true);
+      } catch {
+        if (!cancelled) setRcFailed(true);
+      } finally {
+        if (!cancelled) setLoadingOfferings(false);
+      }
     })();
     return () => { cancelled = true; };
   }, [user?.id]);
@@ -185,12 +201,59 @@ export default function Pricing() {
           </ul>
         </div>
 
+        {showFallback && (
+          <div className="glass-panel p-6 rounded-2xl mb-8">
+            <div className="flex items-center gap-2 mb-2">
+              <CreditCard className="w-4 h-4 text-primary" />
+              <h3 className="font-semibold text-foreground">
+                {rcFailed ? "Having trouble checking out?" : "Prefer paying with card?"}
+              </h3>
+            </div>
+            <p className="text-sm text-muted-foreground mb-4">
+              Use our Stripe checkout as a backup option.
+            </p>
+            <div className="grid sm:grid-cols-3 gap-3">
+              {fallbackPlans.map((p) => (
+                <button
+                  key={p.key}
+                  onClick={() => {
+                    if (!user) { navigate("/auth?next=/pricing"); return; }
+                    setStripePriceId(p.priceId);
+                  }}
+                  className="text-left p-4 rounded-xl border border-border hover:border-primary/40 transition"
+                >
+                  <div className="text-xs text-muted-foreground capitalize mb-1">{p.label}</div>
+                  <div className="text-base font-semibold text-foreground mb-2">{p.priceDisplay}</div>
+                  <div className="text-xs text-primary inline-flex items-center gap-1">
+                    <CreditCard className="w-3 h-3" /> Pay with Stripe
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {!user && (
           <Button variant="hero" size="lg" className="w-full" onClick={() => navigate("/auth?next=/pricing")}>
             Sign in to upgrade
           </Button>
         )}
       </div>
+
+      <Dialog open={!!stripePriceId} onOpenChange={(o) => { if (!o) setStripePriceId(null); }}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Complete your purchase</DialogTitle>
+          </DialogHeader>
+          {stripePriceId && (
+            <StripeEmbeddedCheckout
+              priceId={stripePriceId}
+              customerEmail={user?.email ?? undefined}
+              userId={user?.id}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

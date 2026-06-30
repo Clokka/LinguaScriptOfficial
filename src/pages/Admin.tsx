@@ -18,6 +18,7 @@ import { Pencil } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { getIntegrations, saveIntegrations, type IntegrationKey, type IntegrationConfig } from "@/lib/integrations";
 import { AdminProGrants } from "@/components/AdminProGrants";
+import { AdminStripeFallback } from "@/components/AdminStripeFallback";
 
 function RowHeader({ row, onRename, onDelete }: { row: { id: string; title: string }; onRename: (id: string, title: string) => void; onDelete: (id: string) => void; }) {
   const [editing, setEditing] = useState(false);
@@ -348,8 +349,7 @@ const Admin = () => {
         <p className="text-muted-foreground mb-8">Add films and upload subtitle tracks, or let fetched YouTube captions auto-save here per film.</p>
 
         <AdminProGrants />
-
-
+        <AdminStripeFallback />
 
         {/* Add Film Form */}
         <form onSubmit={addFilm} className="glass-panel-strong p-6 space-y-4 mb-8">
