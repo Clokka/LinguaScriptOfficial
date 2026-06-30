@@ -19,6 +19,7 @@ import { Switch } from "@/components/ui/switch";
 import { getIntegrations, saveIntegrations, type IntegrationKey, type IntegrationConfig } from "@/lib/integrations";
 import { AdminProGrants } from "@/components/AdminProGrants";
 import { AdminStripeFallback } from "@/components/AdminStripeFallback";
+import { AdminPaymentLinks } from "@/components/AdminPaymentLinks";
 
 function RowHeader({ row, onRename, onDelete }: { row: { id: string; title: string }; onRename: (id: string, title: string) => void; onDelete: (id: string) => void; }) {
   const [editing, setEditing] = useState(false);
@@ -350,6 +351,7 @@ const Admin = () => {
 
         <AdminProGrants />
         <AdminStripeFallback />
+        <AdminPaymentLinks />
 
         {/* Add Film Form */}
         <form onSubmit={addFilm} className="glass-panel-strong p-6 space-y-4 mb-8">
