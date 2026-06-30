@@ -143,6 +143,8 @@ const Flashcards = () => {
     setActiveDeck(deck);
   };
 
+  const phraseCount = allCards.filter((c) => c.is_phrase).length;
+
   const flashcardData = reviewCards.map((c) => ({
     id: c.id,
     word: c.word,
@@ -154,6 +156,7 @@ const Flashcards = () => {
     language: c.language,
     state: (c.state ?? "red") as DeckState,
     times_correct: c.times_correct ?? 0,
+    is_phrase: !!c.is_phrase,
   }));
 
   if (activeDeck && flashcardData.length > 0) {
