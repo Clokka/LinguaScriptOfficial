@@ -1,11 +1,15 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Check, Sparkles, ArrowLeft, Loader2 } from "lucide-react";
+import { Check, Sparkles, ArrowLeft, Loader2, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
 import { getCurrentOffering, purchasePackage, configureRevenueCat, type Package } from "@/lib/revenuecat";
 import { trackGoAffProConversion } from "@/lib/goaffpro";
+import { getEnabledFallbackPlans } from "@/lib/stripeFallback";
+import { StripeEmbeddedCheckout } from "@/components/StripeEmbeddedCheckout";
+import { isPaymentsConfigured } from "@/lib/stripe";
 import { toast } from "@/hooks/use-toast";
 
 const FEATURES = [
@@ -47,6 +51,11 @@ export default function Pricing() {
   const [packages, setPackages] = useState<Package[]>([]);
   const [loadingOfferings, setLoadingOfferings] = useState(true);
   const [purchasing, setPurchasing] = useState<string | null>(null);
+  const [rcFailed, setRcFailed] = useState(false);
+  const [stripePriceId, setStripePriceId] = useState<string | null>(null);
+  const fallbackPlans = useMemo(() => getEnabledFallbackPlans(), []);
+  const stripeAvailable = isPaymentsConfigured();
+  const showFallback = fallbackPlans.length > 0 && stripeAvailable && (rcFailed || packages.length === 0 || !loadingOfferings);
 
   useEffect(() => {
     configureRevenueCat(user?.id ?? null);
