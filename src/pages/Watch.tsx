@@ -708,6 +708,7 @@ const Watch = () => {
     triggerReaction("happy", 2000);
     savedTodayRef.current += 1;
     onWordSaved(savedTodayRef.current);
+    playDing("success");
   };
 
   const markWordKnown = async (word: { text: string; translation?: string }) => {
