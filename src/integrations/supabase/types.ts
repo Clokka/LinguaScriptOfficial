@@ -599,6 +599,7 @@ export type Database = {
           id: string
           interval_days: number
           ipa: string
+          is_phrase: boolean
           language: string
           next_review: string
           pronunciation: string
@@ -618,6 +619,7 @@ export type Database = {
           id?: string
           interval_days?: number
           ipa?: string
+          is_phrase?: boolean
           language?: string
           next_review?: string
           pronunciation?: string
@@ -637,6 +639,7 @@ export type Database = {
           id?: string
           interval_days?: number
           ipa?: string
+          is_phrase?: boolean
           language?: string
           next_review?: string
           pronunciation?: string
