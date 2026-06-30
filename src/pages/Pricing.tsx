@@ -201,12 +201,59 @@ export default function Pricing() {
           </ul>
         </div>
 
+        {showFallback && (
+          <div className="glass-panel p-6 rounded-2xl mb-8">
+            <div className="flex items-center gap-2 mb-2">
+              <CreditCard className="w-4 h-4 text-primary" />
+              <h3 className="font-semibold text-foreground">
+                {rcFailed ? "Having trouble checking out?" : "Prefer paying with card?"}
+              </h3>
+            </div>
+            <p className="text-sm text-muted-foreground mb-4">
+              Use our Stripe checkout as a backup option.
+            </p>
+            <div className="grid sm:grid-cols-3 gap-3">
+              {fallbackPlans.map((p) => (
+                <button
+                  key={p.key}
+                  onClick={() => {
+                    if (!user) { navigate("/auth?next=/pricing"); return; }
+                    setStripePriceId(p.priceId);
+                  }}
+                  className="text-left p-4 rounded-xl border border-border hover:border-primary/40 transition"
+                >
+                  <div className="text-xs text-muted-foreground capitalize mb-1">{p.label}</div>
+                  <div className="text-base font-semibold text-foreground mb-2">{p.priceDisplay}</div>
+                  <div className="text-xs text-primary inline-flex items-center gap-1">
+                    <CreditCard className="w-3 h-3" /> Pay with Stripe
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {!user && (
           <Button variant="hero" size="lg" className="w-full" onClick={() => navigate("/auth?next=/pricing")}>
             Sign in to upgrade
           </Button>
         )}
       </div>
+
+      <Dialog open={!!stripePriceId} onOpenChange={(o) => { if (!o) setStripePriceId(null); }}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Complete your purchase</DialogTitle>
+          </DialogHeader>
+          {stripePriceId && (
+            <StripeEmbeddedCheckout
+              priceId={stripePriceId}
+              customerEmail={user?.email ?? undefined}
+              userId={user?.id}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
