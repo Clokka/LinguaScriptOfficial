@@ -170,6 +170,19 @@ export const SubtitleOverlay = ({
             {greenScore.pct}% green
           </div>
         )}
+        {onSavePhrase && primaryText.trim() && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onSavePhrase(primaryText.trim());
+            }}
+            className="absolute -top-3 left-4 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-500/20 text-purple-200 border border-purple-400/40 backdrop-blur hover:bg-purple-500/40 transition-colors"
+            title="Save this whole line as a phrase flashcard"
+          >
+            + Save phrase
+          </button>
+        )}
         <p className="subtitle-text leading-relaxed">
           {renderWords()}
         </p>
