@@ -3,26 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
-// ── model-viewer web component types ────────────────────────────
-declare global {
-  namespace JSX {
-    interface IntrinsicElements {
-      'model-viewer': React.DetailedHTMLProps<
-        React.HTMLAttributes<HTMLElement> & {
-          src?: string;
-          'animation-name'?: string;
-          autoplay?: boolean | '';
-          'camera-controls'?: boolean | '';
-          ar?: boolean | '';
-          'environment-image'?: string;
-          'shadow-intensity'?: string;
-          'auto-rotate'?: boolean | '';
-        },
-        HTMLElement
-      >;
-    }
-  }
-}
+// model-viewer types are declared globally elsewhere in the project.
 
 type ModelViewerEl = HTMLElement & {
   animationName: string;
@@ -213,7 +194,7 @@ export default function Upgrade() {
         const { Purchases } = await import('@revenuecat/purchases-js');
         const rcKey = (import.meta as any).env?.VITE_RC_PUBLIC_KEY;
         if (rcKey) {
-          Purchases.configure({ apiKey: rcKey, appUserID: user.id });
+          Purchases.configure({ apiKey: rcKey, appUserId: user.id });
           const info = await Purchases.getSharedInstance().getCustomerInfo();
           const active = info.entitlements.active;
           if (active['family_pro']) setCurrentPlan('family');
@@ -531,7 +512,7 @@ export default function Upgrade() {
             onClick={async () => {
               try {
                 const { Purchases } = await import('@revenuecat/purchases-js');
-                await Purchases.getSharedInstance().restorePurchases();
+                await (Purchases.getSharedInstance() as any).restorePurchases();
                 toast.success('Purchases restored.');
               } catch { toast.error('Could not restore purchases.'); }
             }}

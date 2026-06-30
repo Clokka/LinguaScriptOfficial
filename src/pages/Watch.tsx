@@ -17,6 +17,7 @@ import { ContentLockScreen } from "@/components/ContentLockScreen";
 import { ActiveLanguageBadge } from "@/components/ActiveLanguageBadge";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { saveGuestWord } from "@/lib/guestWords";
+import { playDing } from "@/lib/sound";
 import { useXp } from "@/contexts/XpContext";
 import { usePet } from "@/contexts/PetContext";
 import { recordDailyVideoWatch, setReinforcementPending } from "@/lib/dailyVideo";
@@ -688,6 +689,7 @@ const Watch = () => {
       triggerReaction("happy", 2000);
       savedTodayRef.current += 1;
       onWordSaved(savedTodayRef.current);
+      playDing("success");
       return;
     }
 
@@ -706,6 +708,7 @@ const Watch = () => {
     triggerReaction("happy", 2000);
     savedTodayRef.current += 1;
     onWordSaved(savedTodayRef.current);
+    playDing("success");
   };
 
   const markWordKnown = async (word: { text: string; translation?: string }) => {
