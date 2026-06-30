@@ -224,7 +224,14 @@ const Flashcards = () => {
             )}
             {/* 3 deck cards */}
             <section>
-              <h2 className="text-2xl font-bold mb-4">Your Decks</h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-2xl font-bold">Your Decks</h2>
+                {phraseCount > 0 && (
+                  <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold bg-purple-500/15 text-purple-300 border border-purple-400/40">
+                    💜 {phraseCount} phrase{phraseCount === 1 ? "" : "s"} saved
+                  </span>
+                )}
+              </div>
               <div className="grid gap-5 sm:grid-cols-3">
                 {(Object.keys(DECK_CONFIG) as DeckKey[]).map((key) => {
                   const cfg = DECK_CONFIG[key];
