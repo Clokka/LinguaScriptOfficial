@@ -27,6 +27,7 @@ interface SavedWord {
   review_count: number;
   state: DeckState;
   times_correct: number;
+  is_phrase?: boolean;
 }
 
 interface StarterDeck {
@@ -70,7 +71,7 @@ const Flashcards = () => {
       // saved_words too, so cached state would go stale.
       let q = supabase
         .from("saved_words")
-        .select("id, word, translation, pronunciation, ipa, context, language, next_review, review_count, state, times_correct")
+        .select("id, word, translation, pronunciation, ipa, context, language, next_review, review_count, state, times_correct, is_phrase")
         .eq("user_id", user.id)
         .order("next_review", { ascending: true, nullsFirst: true });
       if (learningLanguage) q = q.eq("language", learningLanguage);
@@ -142,6 +143,8 @@ const Flashcards = () => {
     setActiveDeck(deck);
   };
 
+  const phraseCount = allCards.filter((c) => c.is_phrase).length;
+
   const flashcardData = reviewCards.map((c) => ({
     id: c.id,
     word: c.word,
@@ -153,6 +156,7 @@ const Flashcards = () => {
     language: c.language,
     state: (c.state ?? "red") as DeckState,
     times_correct: c.times_correct ?? 0,
+    is_phrase: !!c.is_phrase,
   }));
 
   if (activeDeck && flashcardData.length > 0) {
@@ -220,7 +224,14 @@ const Flashcards = () => {
             )}
             {/* 3 deck cards */}
             <section>
-              <h2 className="text-2xl font-bold mb-4">Your Decks</h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-2xl font-bold">Your Decks</h2>
+                {phraseCount > 0 && (
+                  <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold bg-purple-500/15 text-purple-300 border border-purple-400/40">
+                    💜 {phraseCount} phrase{phraseCount === 1 ? "" : "s"} saved
+                  </span>
+                )}
+              </div>
               <div className="grid gap-5 sm:grid-cols-3">
                 {(Object.keys(DECK_CONFIG) as DeckKey[]).map((key) => {
                   const cfg = DECK_CONFIG[key];

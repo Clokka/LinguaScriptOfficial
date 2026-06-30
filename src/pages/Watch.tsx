@@ -711,6 +711,61 @@ const Watch = () => {
     playDing("success");
   };
 
+  const savePhrase = async (phrase: string) => {
+    const trimmed = phrase.trim();
+    if (!trimmed) return;
+    const context = currentSubtitle?.primary || trimmed;
+    const langCode = learningLanguage || film?.language || "fr";
+    const fromLang = getLanguageLabel(langCode);
+    const toLang = getLanguageLabel(nativeLanguage);
+
+    let translation = "";
+    try {
+      const { data, error } = await supabase.functions.invoke("translate-word", {
+        body: { word: trimmed, context, fromLanguage: fromLang, toLanguage: toLang },
+      });
+      if (!error && data) {
+        translation = data.contextTranslation || data.translation || "";
+      }
+    } catch (e) {
+      console.error("Phrase translation failed:", e);
+    }
+
+    if (!user) {
+      saveGuestWord({
+        word: trimmed,
+        translation,
+        pronunciation: "",
+        ipa: "",
+        context,
+        language: langCode,
+      });
+      toast.success("Phrase saved");
+      playDing("success");
+      return;
+    }
+
+    if (!film) return;
+    const { error } = await supabase.from("saved_words").upsert({
+      user_id: user.id,
+      word: trimmed,
+      translation,
+      pronunciation: "",
+      ipa: "",
+      context,
+      film_id: film.id,
+      language: langCode,
+      is_phrase: true,
+    } as any, { onConflict: "user_id,word,language" });
+    if (error) {
+      console.error("Save phrase failed", error);
+      toast.error("Couldn't save phrase");
+      return;
+    }
+    toast.success("Phrase saved to flashcards");
+    playDing("success");
+  };
+
   const markWordKnown = async (word: { text: string; translation?: string }) => {
     const langCode = learningLanguage || film?.language || "fr";
     if (!user) {
@@ -871,6 +926,7 @@ const Watch = () => {
           words={currentSubtitle.words}
           mode={subtitleMode}
           onSaveWord={saveWordToFlashcards}
+          onSavePhrase={savePhrase}
           onMarkKnown={markWordKnown}
           nativeLanguage={nativeLanguage}
           contentLanguage={film.language ?? "fr"}
@@ -998,6 +1054,7 @@ const Watch = () => {
                 words={currentSubtitle.words}
                 mode={subtitleMode}
                 onSaveWord={saveWordToFlashcards}
+                onSavePhrase={savePhrase}
           onMarkKnown={markWordKnown}
                 nativeLanguage={nativeLanguage}
                 contentLanguage={film.language ?? "fr"}

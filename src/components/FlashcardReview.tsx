@@ -23,6 +23,7 @@ interface FlashcardData {
   language?: string;
   state?: DeckState;
   times_correct?: number;
+  is_phrase?: boolean;
 }
 
 interface FlashcardReviewProps {
@@ -233,6 +234,14 @@ export const FlashcardReview = ({ cards: initialCards, onClose, onCardReviewed, 
         </div>
         <div className="w-10" />
       </div>
+
+      {currentCard.is_phrase && (
+        <div className="flex justify-center mb-3">
+          <span className="inline-flex items-center gap-1 rounded-full px-3 py-1 text-[11px] font-bold tracking-wider bg-purple-500/20 text-purple-200 border border-purple-400/40">
+            💜 PHRASE
+          </span>
+        </div>
+      )}
 
       {/* Direction toggle */}
       <div className="flex justify-center mb-6">
