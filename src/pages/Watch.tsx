@@ -926,6 +926,7 @@ const Watch = () => {
           words={currentSubtitle.words}
           mode={subtitleMode}
           onSaveWord={saveWordToFlashcards}
+          onSavePhrase={savePhrase}
           onMarkKnown={markWordKnown}
           nativeLanguage={nativeLanguage}
           contentLanguage={film.language ?? "fr"}
