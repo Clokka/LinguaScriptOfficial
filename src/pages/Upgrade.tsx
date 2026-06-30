@@ -3,26 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
-// ── model-viewer web component types ────────────────────────────
-declare global {
-  namespace JSX {
-    interface IntrinsicElements {
-      'model-viewer': React.DetailedHTMLProps<
-        React.HTMLAttributes<HTMLElement> & {
-          src?: string;
-          'animation-name'?: string;
-          autoplay?: boolean | '';
-          'camera-controls'?: boolean | '';
-          ar?: boolean | '';
-          'environment-image'?: string;
-          'shadow-intensity'?: string;
-          'auto-rotate'?: boolean | '';
-        },
-        HTMLElement
-      >;
-    }
-  }
-}
+// model-viewer types are declared globally elsewhere in the project.
 
 type ModelViewerEl = HTMLElement & {
   animationName: string;
