@@ -49,6 +49,7 @@ export const SubtitleOverlay = ({
   className,
   mode,
   onSaveWord,
+  onSavePhrase,
   onMarkKnown,
   nativeLanguage,
   contentLanguage,
