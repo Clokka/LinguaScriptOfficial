@@ -71,7 +71,7 @@ const Flashcards = () => {
       // saved_words too, so cached state would go stale.
       let q = supabase
         .from("saved_words")
-        .select("id, word, translation, pronunciation, ipa, context, language, next_review, review_count, state, times_correct")
+        .select("id, word, translation, pronunciation, ipa, context, language, next_review, review_count, state, times_correct, is_phrase")
         .eq("user_id", user.id)
         .order("next_review", { ascending: true, nullsFirst: true });
       if (learningLanguage) q = q.eq("language", learningLanguage);
