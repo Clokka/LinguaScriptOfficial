@@ -213,7 +213,7 @@ export default function Upgrade() {
         const { Purchases } = await import('@revenuecat/purchases-js');
         const rcKey = (import.meta as any).env?.VITE_RC_PUBLIC_KEY;
         if (rcKey) {
-          Purchases.configure({ apiKey: rcKey, appUserID: user.id });
+          Purchases.configure({ apiKey: rcKey, appUserId: user.id });
           const info = await Purchases.getSharedInstance().getCustomerInfo();
           const active = info.entitlements.active;
           if (active['family_pro']) setCurrentPlan('family');
