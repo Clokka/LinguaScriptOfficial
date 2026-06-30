@@ -17,6 +17,7 @@ import { ContentLockScreen } from "@/components/ContentLockScreen";
 import { ActiveLanguageBadge } from "@/components/ActiveLanguageBadge";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { saveGuestWord } from "@/lib/guestWords";
+import { playDing } from "@/lib/sound";
 import { useXp } from "@/contexts/XpContext";
 import { usePet } from "@/contexts/PetContext";
 import { recordDailyVideoWatch, setReinforcementPending } from "@/lib/dailyVideo";
