@@ -28,7 +28,18 @@ Deno.serve(async (req) => {
       });
     }
 
+    if (environment === "live" && !Deno.env.get("STRIPE_LIVE_API_KEY")) {
+      return new Response(
+        JSON.stringify({
+          error:
+            "Live Stripe is not connected yet. Complete Stripe go-live (Payments → Live) or switch the Environment selector to Sandbox to test.",
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     const stripe = createStripeClient(environment);
+
 
     // Resolve human-readable priceId (lookup_key) → real Stripe price.
     let stripePriceId = priceId;
