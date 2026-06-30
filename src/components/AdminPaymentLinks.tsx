@@ -23,7 +23,7 @@ export function AdminPaymentLinks() {
   const [customPriceId, setCustomPriceId] = useState("");
   const [email, setEmail] = useState("");
   const [note, setNote] = useState("");
-  const [environment, setEnvironment] = useState<"sandbox" | "live">("live");
+  const [environment, setEnvironment] = useState<"sandbox" | "live">("sandbox");
   const [loading, setLoading] = useState(false);
   const [link, setLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
