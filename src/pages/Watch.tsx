@@ -31,6 +31,7 @@ import {
 import { recordWatchSession, type RecordResult } from "@/lib/watchSessions";
 import { WatchResultsModal } from "@/components/WatchResultsModal";
 import { LearningBreakModal, type QuizWord } from "@/components/LearningBreakModal";
+import { PronunciationJudge } from "@/components/PronunciationJudge";
 
 interface FilmData {
   id: string;
