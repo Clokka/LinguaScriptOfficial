@@ -704,6 +704,7 @@ const Watch = () => {
       savedTodayRef.current += 1;
       onWordSaved(savedTodayRef.current);
       playDing("success");
+      maybeTriggerLearningBreak({ word: word.text, translation });
       return;
     }
 
