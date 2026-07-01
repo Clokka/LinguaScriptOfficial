@@ -289,6 +289,19 @@ const Watch = () => {
   const [captionsLoading, setCaptionsLoading] = useState(false);
   const [captionsStatus, setCaptionsStatus] = useState<string | null>(null);
   const [captionsError, setCaptionsError] = useState<string | null>(null);
+  const [showLearningBreak, setShowLearningBreak] = useState(false);
+  const sessionSavedRef = useRef<QuizWord[]>([]);
+  const breakTriggeredRef = useRef(false);
+
+  const maybeTriggerLearningBreak = useCallback((entry: QuizWord) => {
+    if (!entry.word || !entry.translation) return;
+    sessionSavedRef.current = [...sessionSavedRef.current, entry];
+    if (!breakTriggeredRef.current && sessionSavedRef.current.length >= 5) {
+      breakTriggeredRef.current = true;
+      try { playerRef.current?.pauseVideo?.(); } catch { /* noop */ }
+      setShowLearningBreak(true);
+    }
+  }, []);
   const [nativeLanguage, setNativeLanguage] = useState("en");
   const [isFullscreen, setIsFullscreen] = useState(false);
   const isMobile = useIsMobile();
