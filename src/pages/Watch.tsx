@@ -30,6 +30,7 @@ import {
 } from "@/lib/videoComprehension";
 import { recordWatchSession, type RecordResult } from "@/lib/watchSessions";
 import { WatchResultsModal } from "@/components/WatchResultsModal";
+import { LearningBreakModal, type QuizWord } from "@/components/LearningBreakModal";
 
 interface FilmData {
   id: string;
@@ -288,6 +289,19 @@ const Watch = () => {
   const [captionsLoading, setCaptionsLoading] = useState(false);
   const [captionsStatus, setCaptionsStatus] = useState<string | null>(null);
   const [captionsError, setCaptionsError] = useState<string | null>(null);
+  const [showLearningBreak, setShowLearningBreak] = useState(false);
+  const sessionSavedRef = useRef<QuizWord[]>([]);
+  const breakTriggeredRef = useRef(false);
+
+  const maybeTriggerLearningBreak = useCallback((entry: QuizWord) => {
+    if (!entry.word || !entry.translation) return;
+    sessionSavedRef.current = [...sessionSavedRef.current, entry];
+    if (!breakTriggeredRef.current && sessionSavedRef.current.length >= 5) {
+      breakTriggeredRef.current = true;
+      try { playerRef.current?.pauseVideo?.(); } catch { /* noop */ }
+      setShowLearningBreak(true);
+    }
+  }, []);
   const [nativeLanguage, setNativeLanguage] = useState("en");
   const [isFullscreen, setIsFullscreen] = useState(false);
   const isMobile = useIsMobile();
@@ -690,6 +704,7 @@ const Watch = () => {
       savedTodayRef.current += 1;
       onWordSaved(savedTodayRef.current);
       playDing("success");
+      maybeTriggerLearningBreak({ word: word.text, translation });
       return;
     }
 
@@ -709,6 +724,7 @@ const Watch = () => {
     savedTodayRef.current += 1;
     onWordSaved(savedTodayRef.current);
     playDing("success");
+    maybeTriggerLearningBreak({ word: word.text, translation });
   };
 
   const savePhrase = async (phrase: string) => {
@@ -1080,6 +1096,16 @@ const Watch = () => {
           }}
         />
       )}
+
+      <LearningBreakModal
+        open={showLearningBreak}
+        words={sessionSavedRef.current}
+        onClose={() => setShowLearningBreak(false)}
+        onResume={() => {
+          setShowLearningBreak(false);
+          try { playerRef.current?.playVideo?.(); } catch { /* noop */ }
+        }}
+      />
     </div>
   );
 };
