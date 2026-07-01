@@ -38,10 +38,8 @@ function buildQuestions(words: QuizWord[]): Question[] {
     return {
       prompt: p.translation,
       correct: p.word,
-      options: shuffle([p.correct ?? p.word, ...distractors].slice(0, Math.min(4, distractors.length + 1))).map(
-        (opt) => (typeof opt === "string" ? opt : p.word),
-      ),
-    } as Question;
+      options: shuffle([p.word, ...distractors]),
+    };
   });
 }
 
