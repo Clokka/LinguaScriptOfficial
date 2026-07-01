@@ -31,6 +31,7 @@ import {
 import { recordWatchSession, type RecordResult } from "@/lib/watchSessions";
 import { WatchResultsModal } from "@/components/WatchResultsModal";
 import { LearningBreakModal, type QuizWord } from "@/components/LearningBreakModal";
+import { PronunciationJudge } from "@/components/PronunciationJudge";
 
 interface FilmData {
   id: string;
@@ -948,6 +949,12 @@ const Watch = () => {
           contentLanguage={film.language ?? "fr"}
           className={isLandscape ? "!px-3 !py-2 [&_.subtitle-text]:!text-base" : "!px-4 !py-3 [&_.subtitle-text]:!text-lg"}
         />
+        <div className="flex justify-center mt-1.5">
+          <PronunciationJudge
+            text={currentSubtitle.primary}
+            language={film.language ?? "fr"}
+          />
+        </div>
       </div>
     );
 
