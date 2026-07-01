@@ -30,6 +30,7 @@ import {
 } from "@/lib/videoComprehension";
 import { recordWatchSession, type RecordResult } from "@/lib/watchSessions";
 import { WatchResultsModal } from "@/components/WatchResultsModal";
+import { LearningBreakModal, type QuizWord } from "@/components/LearningBreakModal";
 
 interface FilmData {
   id: string;
