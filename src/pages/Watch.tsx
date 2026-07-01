@@ -1096,6 +1096,16 @@ const Watch = () => {
           }}
         />
       )}
+
+      <LearningBreakModal
+        open={showLearningBreak}
+        words={sessionSavedRef.current}
+        onClose={() => setShowLearningBreak(false)}
+        onResume={() => {
+          setShowLearningBreak(false);
+          try { playerRef.current?.playVideo?.(); } catch { /* noop */ }
+        }}
+      />
     </div>
   );
 };
