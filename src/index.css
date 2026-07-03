@@ -6,75 +6,86 @@
 
 @layer base {
   :root {
-    /* Deep cinematic dark theme */
-    --background: 230 25% 7%;
+    /* LinguaScript palette — sourced from the brand colour system slide.
+       Page BG #09090b · Base card #111113 · Raised #141416 · Modal #1a1a1e · Tooltip #222226
+       Primary Purple #7c3aed · Purple Light #a78bfa · Green #4ade80
+       Orange #fb923c · Yellow #facc15 · Coral #f87171 */
+
+    --background: 240 6% 5%;              /* #09090b */
     --foreground: 210 40% 98%;
 
-    --card: 230 25% 10%;
+    --card: 240 5% 7%;                    /* #111113 base card */
     --card-foreground: 210 40% 98%;
 
-    --popover: 230 25% 12%;
+    --popover: 240 5% 10%;                /* #1a1a1e modal */
     --popover-foreground: 210 40% 98%;
 
-    /* Primary: Deep indigo/purple */
-    --primary: 252 100% 69%;
-    --primary-foreground: 230 25% 7%;
+    /* Primary: Brand purple #7c3aed — XP, level, actions */
+    --primary: 262 83% 58%;
+    --primary-foreground: 0 0% 100%;
 
-    /* Secondary: Muted purple */
-    --secondary: 250 30% 20%;
+    /* Secondary: raised card surface #141416 */
+    --secondary: 240 5% 9%;
     --secondary-foreground: 210 40% 98%;
 
-    --muted: 230 20% 15%;
-    --muted-foreground: 215 20% 55%;
+    --muted: 240 5% 12%;
+    --muted-foreground: 240 5% 65%;
 
-    /* Accent: Warm orange for gamification */
-    --accent: 32 100% 55%;
-    --accent-foreground: 230 25% 7%;
+    /* Accent: Purple Light #a78bfa — highlights, links */
+    --accent: 258 90% 76%;
+    --accent-foreground: 240 6% 5%;
 
-    /* Success: Soft green */
-    --success: 142 70% 45%;
-    --success-foreground: 230 25% 7%;
+    /* Success: Green #4ade80 — known words */
+    --success: 142 71% 58%;
+    --success-foreground: 240 6% 5%;
 
-    /* Warning: Bright yellow for stars */
-    --warning: 45 100% 55%;
-    --warning-foreground: 230 25% 7%;
+    /* Warning: Yellow #facc15 */
+    --warning: 48 96% 53%;
+    --warning-foreground: 240 6% 5%;
 
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 210 40% 98%;
+    /* Streaks / secondary attention: Orange #fb923c */
+    --streak: 27 96% 61%;
+    --streak-foreground: 240 6% 5%;
 
-    --border: 250 20% 18%;
-    --input: 250 20% 18%;
-    --ring: 252 100% 69%;
+    /* Destructive: Coral #f87171 */
+    --destructive: 0 91% 71%;
+    --destructive-foreground: 240 6% 5%;
+
+    --border: 240 5% 15%;
+    --input: 240 5% 15%;
+    --ring: 262 83% 58%;
 
     --radius: 0.75rem;
 
-    /* Glass effect variables */
-    --glass-bg: 230 25% 12% / 0.7;
-    --glass-border: 250 30% 30% / 0.3;
+    /* Glass effect variables — tuned to the new base-card surface */
+    --glass-bg: 240 5% 8% / 0.72;
+    --glass-border: 258 40% 40% / 0.28;
     --glass-blur: 20px;
 
-    /* Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(252 100% 69%), hsl(280 100% 60%));
-    --gradient-accent: linear-gradient(135deg, hsl(32 100% 55%), hsl(45 100% 60%));
-    --gradient-success: linear-gradient(135deg, hsl(142 70% 45%), hsl(160 70% 50%));
-    --gradient-card: linear-gradient(180deg, hsl(230 25% 12%), hsl(230 25% 8%));
-    --gradient-hero: radial-gradient(ellipse at top, hsl(252 60% 20% / 0.5), transparent 70%);
+    /* Gradients — primary purple → purple light for XP/level moments,
+       orange → yellow for streak celebrations, green for correct answers. */
+    --gradient-primary: linear-gradient(135deg, hsl(262 83% 58%), hsl(258 90% 76%));
+    --gradient-accent: linear-gradient(135deg, hsl(27 96% 61%), hsl(48 96% 53%));
+    --gradient-success: linear-gradient(135deg, hsl(142 71% 45%), hsl(142 71% 58%));
+    --gradient-card: linear-gradient(180deg, hsl(240 5% 8%), hsl(240 6% 5%));
+    --gradient-hero: radial-gradient(ellipse at top, hsl(262 60% 22% / 0.55), transparent 70%);
 
     /* Shadows */
-    --shadow-glow-primary: 0 0 40px hsl(252 100% 69% / 0.3);
-    --shadow-glow-accent: 0 0 30px hsl(32 100% 55% / 0.4);
-    --shadow-glow-success: 0 0 20px hsl(142 70% 45% / 0.3);
-    --shadow-card: 0 8px 32px hsl(230 25% 3% / 0.5);
-    --shadow-float: 0 20px 60px hsl(230 25% 3% / 0.7);
+    --shadow-glow-primary: 0 0 40px hsl(262 83% 58% / 0.35);
+    --shadow-glow-accent: 0 0 30px hsl(27 96% 61% / 0.4);
+    --shadow-glow-success: 0 0 20px hsl(142 71% 58% / 0.3);
+    --shadow-card: 0 8px 32px hsl(240 6% 2% / 0.6);
+    --shadow-float: 0 20px 60px hsl(240 6% 2% / 0.75);
 
-    --sidebar-background: 230 25% 8%;
+    --sidebar-background: 240 5% 6%;
     --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 252 100% 69%;
-    --sidebar-primary-foreground: 230 25% 7%;
-    --sidebar-accent: 250 30% 20%;
+    --sidebar-primary: 262 83% 58%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 5% 10%;
     --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 250 20% 18%;
-    --sidebar-ring: 252 100% 69%;
+    --sidebar-border: 240 5% 15%;
+    --sidebar-ring: 262 83% 58%;
+
   }
 }
 
