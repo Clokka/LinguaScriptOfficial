@@ -76,6 +76,7 @@ const App = () => (
                 <Route path="/teacher" element={<Teacher />} />
                 <Route path="/progress" element={<Progress />} />
                 <Route path="/gift" element={<GiftClaim />} />
+                <Route path="/mieoframes" element={<MieoFrames />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
               <TourOverlay />
