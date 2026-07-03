@@ -125,6 +125,24 @@ export async function persistSubtitleTrack(
   }
 }
 
+/**
+ * Supadata (and YouTube's caption endpoint) often returns the video's
+ * ORIGINAL-language track when the requested language isn't actually
+ * available — so a "secondary" fetch/store can end up being a byte-for-byte
+ * copy of the primary. Detect that so we can fall back to AI translation
+ * instead of showing the same line twice.
+ */
+function tracksAreDuplicate(a: SubtitleSegment[], b: SubtitleSegment[]): boolean {
+  if (!a.length || !b.length) return false;
+  const sampleSize = Math.min(6, a.length, b.length);
+  let identical = 0;
+  for (let i = 0; i < sampleSize; i++) {
+    if ((a[i].text || "").trim() === (b[i].text || "").trim()) identical++;
+  }
+  // If nearly every sampled line matches, treat as duplicate.
+  return identical >= Math.max(3, sampleSize - 1);
+}
+
 export async function ensureSubtitleTracks({
   filmId,
   videoId,
@@ -149,15 +167,32 @@ export async function ensureSubtitleTracks({
     }
   }
 
-  if (secondaryLanguage !== primaryLanguage && !secondary.length) {
-    secondary = await fetchSubtitleTrackFromBackend(videoId, secondaryLanguage);
-
-    if (!secondary.length && primary.length) {
-      secondary = await translateSubtitleTrack(primary, primaryLanguage, secondaryLanguage);
+  if (secondaryLanguage !== primaryLanguage) {
+    // Self-heal: previously-stored secondary rows may actually be primary-language
+    // duplicates from an earlier bad fetch. Discard them so we re-translate.
+    if (secondary.length && tracksAreDuplicate(primary, secondary)) {
+      console.warn(
+        `[subtitleSync] Stored ${secondaryLanguage} track duplicates ${primaryLanguage} — regenerating via AI translation`,
+      );
+      await supabase.from("subtitles").delete().eq("film_id", filmId).eq("language", secondaryLanguage);
+      secondary = [];
     }
 
-    if (secondary.length) {
-      await persistSubtitleTrack(filmId, secondaryLanguage, secondary);
+    if (!secondary.length) {
+      const fetched = await fetchSubtitleTrackFromBackend(videoId, secondaryLanguage);
+      // If YT/Supadata handed back the primary track pretending to be the secondary,
+      // ignore it and translate instead.
+      if (fetched.length && !tracksAreDuplicate(primary, fetched)) {
+        secondary = fetched;
+      }
+
+      if (!secondary.length && primary.length) {
+        secondary = await translateSubtitleTrack(primary, primaryLanguage, secondaryLanguage);
+      }
+
+      if (secondary.length) {
+        await persistSubtitleTrack(filmId, secondaryLanguage, secondary);
+      }
     }
   }
 
