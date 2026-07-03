@@ -37,6 +37,7 @@ import PrivacyExtension from "./pages/PrivacyExtension";
 import Teacher from "./pages/Teacher";
 import Progress from "./pages/Progress";
 import GiftClaim from "./pages/GiftClaim";
+import MieoFrames from "./pages/MieoFrames";
 
 const queryClient = new QueryClient();
 
