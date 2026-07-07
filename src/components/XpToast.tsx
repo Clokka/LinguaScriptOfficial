@@ -1,10 +1,28 @@
 // MOTIVATION LAYER — floating +XP feedback.
-import { useEffect, useState } from "react";
+// Word saves and level-ups spawn the 3D pet celebration; other XP actions
+// keep the lightweight chip. Falls back to the chip when no pet is equipped
+// or the user prefers reduced motion.
+import { lazy, Suspense, useEffect, useState } from "react";
 import { Sparkles, Trophy } from "lucide-react";
 import { useXp } from "@/contexts/XpContext";
 import { XpAction } from "@/lib/xp";
 import { cn } from "@/lib/utils";
 import { usePet } from "@/contexts/PetContext";
+import {
+  WORD_SAVED_DURATION_MS,
+  LEVEL_UP_DURATION_MS,
+} from "@/components/pets/PetCelebration";
+
+const WordSavedCelebration = lazy(() =>
+  import("@/components/pets/PetCelebration").then((m) => ({
+    default: m.WordSavedCelebration,
+  })),
+);
+const LevelUpCelebration = lazy(() =>
+  import("@/components/pets/PetCelebration").then((m) => ({
+    default: m.LevelUpCelebration,
+  })),
+);
 
 const LABELS: Record<XpAction, string> = {
   add_word: "Word saved",
@@ -14,37 +32,74 @@ const LABELS: Record<XpAction, string> = {
   reinforcement: "Reinforcement",
 };
 
+const prefersReducedMotion = () =>
+  typeof window !== "undefined" &&
+  window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
 export const XpToast = () => {
-  const { recentGain, leveledUpTo, consumeLevelUp } = useXp();
-  const { triggerReaction } = usePet();
+  const { recentGain, leveledUpTo, consumeLevelUp, award } = useXp();
+  const { activePet, triggerReaction } = usePet();
   const [visible, setVisible] = useState<{
     amount: number;
     action: XpAction;
     key: number;
   } | null>(null);
 
+  const petCelebrations = activePet != null && !prefersReducedMotion();
+
+  // Warm up the celebration chunk + active pet model so the first
+  // spawn is instant instead of stuttering on network fetches.
+  useEffect(() => {
+    if (!petCelebrations) return;
+    void import("@/components/pets/PetCelebration").then((m) =>
+      m.preloadPetModel(activePet),
+    );
+  }, [activePet, petCelebrations]);
+
   useEffect(() => {
     if (!recentGain) return;
     setVisible(recentGain);
-    const t = setTimeout(() => setVisible(null), 1400);
+    const isPetSpawn = petCelebrations && recentGain.action === "add_word";
+    const t = setTimeout(
+      () => setVisible(null),
+      isPetSpawn ? WORD_SAVED_DURATION_MS : 1400,
+    );
     return () => clearTimeout(t);
+    // petCelebrations is intentionally not a dep: changing it mid-toast
+    // shouldn't restart the dismiss timer.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recentGain]);
 
   useEffect(() => {
     if (leveledUpTo == null) return;
-    triggerReaction("excited", 3200);
-    const t = setTimeout(consumeLevelUp, 3200);
+    triggerReaction("excited", LEVEL_UP_DURATION_MS);
+    const t = setTimeout(consumeLevelUp, LEVEL_UP_DURATION_MS);
     return () => clearTimeout(t);
   }, [leveledUpTo, consumeLevelUp, triggerReaction]);
 
+  const petWordSpawn =
+    petCelebrations && visible?.action === "add_word" ? visible : null;
+
   return (
     <>
-      {/* +XP chip */}
+      {/* Word saved — 3D pet spawn toast (non-blocking, bottom-right) */}
+      {petWordSpawn && activePet && (
+        <Suspense fallback={null}>
+          <WordSavedCelebration
+            key={petWordSpawn.key}
+            petId={activePet}
+            amount={petWordSpawn.amount}
+            label={LABELS[petWordSpawn.action]}
+          />
+        </Suspense>
+      )}
+
+      {/* +XP chip for everything else */}
       <div
         className="pointer-events-none fixed left-1/2 -translate-x-1/2 z-[100]"
         style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 90px)" }}
       >
-        {visible && (
+        {visible && !petWordSpawn && (
           <div
             key={visible.key}
             className={cn(
@@ -62,24 +117,42 @@ export const XpToast = () => {
       </div>
 
       {/* Level-up celebration */}
-      {leveledUpTo != null && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center pointer-events-none">
-          <div className="glass-panel-strong p-8 text-center animate-bounce-in pointer-events-auto">
-            <div className="w-16 h-16 mx-auto mb-3 rounded-full bg-gradient-accent flex items-center justify-center shadow-glow-accent">
-              <Trophy className="w-8 h-8 text-accent-foreground" />
+      {leveledUpTo != null &&
+        (petCelebrations && activePet ? (
+          <Suspense fallback={null}>
+            <LevelUpCelebration petId={activePet} level={leveledUpTo} />
+          </Suspense>
+        ) : (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center pointer-events-none">
+            <div className="glass-panel-strong p-8 text-center animate-bounce-in pointer-events-auto">
+              <div className="w-16 h-16 mx-auto mb-3 rounded-full bg-gradient-accent flex items-center justify-center shadow-glow-accent">
+                <Trophy className="w-8 h-8 text-accent-foreground" />
+              </div>
+              <div className="text-sm uppercase tracking-widest text-muted-foreground">
+                Level up
+              </div>
+              <div className="text-4xl font-black gradient-text mt-1">
+                Level {leveledUpTo}
+              </div>
+              <p className="text-sm text-muted-foreground mt-2">
+                Keep the streak going!
+              </p>
             </div>
-            <div className="text-sm uppercase tracking-widest text-muted-foreground">
-              Level up
-            </div>
-            <div className="text-4xl font-black gradient-text mt-1">
-              Level {leveledUpTo}
-            </div>
-            <p className="text-sm text-muted-foreground mt-2">
-              Keep the streak going!
-            </p>
           </div>
-        </div>
-      )}
+        ))}
+
+      {/* Dev-only preview triggers: open any page with ?petdemo=1 */}
+      {import.meta.env.DEV &&
+        new URLSearchParams(window.location.search).has("petdemo") && (
+          <div className="fixed bottom-4 left-4 z-[120] flex gap-2">
+            <button
+              className="rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground shadow"
+              onClick={() => award("add_word")}
+            >
+              Demo: save word (+20 XP)
+            </button>
+          </div>
+        )}
     </>
   );
 };
