@@ -134,10 +134,11 @@ export default function OnboardingMobile() {
             {/* Main lesson flag button on the path */}
             <Hotspot label="Start lesson" top="47%" left="30%" width="30%" height="12%" onClick={() => go(4)} rounded="rounded-full" />
             {/* Bottom nav — home (active), streak, video, achievements, profile */}
+            {/* Bottom nav — home, leaderboard, practice, shop, profile */}
             <Hotspot label="Home tab" top="92%" left="12%" width="14%" height="6%" onClick={() => go(3)} rounded="rounded-full" />
-            <Hotspot label="Streak tab" top="92%" left="27%" width="14%" height="6%" onClick={() => go(6)} rounded="rounded-full" />
+            <Hotspot label="Leaderboard tab" top="92%" left="27%" width="14%" height="6%" onClick={() => go(9)} rounded="rounded-full" />
             <Hotspot label="Practice tab" top="92%" left="43%" width="14%" height="6%" onClick={() => go(4)} rounded="rounded-full" />
-            <Hotspot label="Achievements tab" top="92%" left="58%" width="14%" height="6%" onClick={() => go(5)} rounded="rounded-full" />
+            <Hotspot label="Shop tab" top="92%" left="58%" width="14%" height="6%" onClick={() => go(8)} rounded="rounded-full" />
             <Hotspot label="Profile tab" top="92%" left="73%" width="14%" height="6%" onClick={() => go(7)} rounded="rounded-full" />
           </FrameWrap>
         </motion.div>
