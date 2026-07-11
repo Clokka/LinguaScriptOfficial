@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Check } from "lucide-react";
@@ -9,11 +9,40 @@ import survey1 from "@/assets/mieoframes/survey-1.png.asset.json";
 
 type Step = 0 | 1 | 2;
 
+const useLiveClock = () => {
+  const [time, setTime] = useState(() =>
+    new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+  );
+  useEffect(() => {
+    const id = setInterval(() => {
+      setTime(
+        new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      );
+    }, 15_000);
+    return () => clearInterval(id);
+  }, []);
+  return time;
+};
+
 /**
- * Full-bleed mockup frames with transparent hotspots layered over the real
- * buttons in the artwork. No duplicated CTAs — the illustration IS the UI.
- * Hotspot coordinates are % of the source frame (1500 × 3248).
+ * Covers the fake status bar baked into the mockup art and prints the real
+ * device time on the right. Background matches each frame's top color so the
+ * seam is invisible.
  */
+const StatusBarCover = ({ bg }: { bg: string }) => {
+  const time = useLiveClock();
+  return (
+    <div
+      className="absolute top-0 left-0 right-0 z-10 flex items-center justify-end px-6"
+      style={{ height: "5%", background: bg }}
+    >
+      <span className="text-slate-900 font-semibold text-sm tabular-nums">
+        {time}
+      </span>
+    </div>
+  );
+};
+
 const Hotspot = ({
   top,
   left,
@@ -32,15 +61,23 @@ const Hotspot = ({
   <button
     onClick={onClick}
     aria-label={label}
-    className="absolute rounded-2xl focus:outline-none focus-visible:ring-4 focus-visible:ring-[#4FB8F5]/50 active:scale-[0.97] transition-transform"
+    className="absolute z-20 rounded-2xl focus:outline-none focus-visible:ring-4 focus-visible:ring-[#4FB8F5]/50 hover:bg-white/10 active:bg-white/20 active:scale-[0.98] transition"
     style={{ top, left, width, height, background: "transparent" }}
   />
 );
 
-// Same mobile frame wrapper, sky background so any letterboxing blends in.
-const FrameWrap = ({ children }: { children: React.ReactNode }) => (
-  <div className="min-h-dvh w-full bg-[#E4F3FC]">
-    <div className="mx-auto max-w-md relative">{children}</div>
+const FrameWrap = ({
+  children,
+  statusBg,
+}: {
+  children: React.ReactNode;
+  statusBg: string;
+}) => (
+  <div className="min-h-dvh w-full" style={{ background: statusBg }}>
+    <div className="mx-auto max-w-md relative">
+      <StatusBarCover bg={statusBg} />
+      {children}
+    </div>
   </div>
 );
 
@@ -75,7 +112,7 @@ export default function OnboardingMobile() {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
         >
-          <FrameWrap>
+          <FrameWrap statusBg="#FFFFFF">
             <img
               src={onboarding0.url}
               alt="Learn any language faster than ever"
@@ -111,7 +148,7 @@ export default function OnboardingMobile() {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
         >
-          <FrameWrap>
+          <FrameWrap statusBg="#CDECFA">
             <img
               src={onboarding1.url}
               alt="I just want to ask you some questions"
