@@ -112,7 +112,7 @@ export default function OnboardingMobile() {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
         >
-          <FrameWrap>
+          <FrameWrap statusBg="#FFFFFF">
             <img
               src={onboarding0.url}
               alt="Learn any language faster than ever"
@@ -148,7 +148,7 @@ export default function OnboardingMobile() {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
         >
-          <FrameWrap>
+          <FrameWrap statusBg="#CDECFA">
             <img
               src={onboarding1.url}
               alt="I just want to ask you some questions"
