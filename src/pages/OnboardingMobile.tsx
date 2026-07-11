@@ -172,9 +172,9 @@ export default function OnboardingMobile() {
           <FrameWrap imgSrc={streak.url} alt="My streak" statusBg="#FCE9B8">
             {/* Bottom nav */}
             <Hotspot label="Home tab" top="94%" left="12%" width="14%" height="5%" onClick={() => go(3)} rounded="rounded-full" />
-            <Hotspot label="Streak tab" top="94%" left="27%" width="14%" height="5%" onClick={() => go(6)} rounded="rounded-full" />
+            <Hotspot label="Leaderboard tab" top="94%" left="27%" width="14%" height="5%" onClick={() => go(9)} rounded="rounded-full" />
             <Hotspot label="Practice tab" top="94%" left="43%" width="14%" height="5%" onClick={() => go(4)} rounded="rounded-full" />
-            <Hotspot label="Achievements tab" top="94%" left="58%" width="14%" height="5%" onClick={() => go(5)} rounded="rounded-full" />
+            <Hotspot label="Shop tab" top="94%" left="58%" width="14%" height="5%" onClick={() => go(8)} rounded="rounded-full" />
             <Hotspot label="Profile tab" top="94%" left="73%" width="14%" height="5%" onClick={() => go(7)} rounded="rounded-full" />
           </FrameWrap>
         </motion.div>
@@ -188,9 +188,41 @@ export default function OnboardingMobile() {
             <Hotspot label="Settings" top="87.5%" left="5%" width="90%" height="4%" onClick={() => navigate("/profile")} />
             {/* Bottom nav */}
             <Hotspot label="Home tab" top="94%" left="12%" width="14%" height="5%" onClick={() => go(3)} rounded="rounded-full" />
-            <Hotspot label="Streak tab" top="94%" left="27%" width="14%" height="5%" onClick={() => go(6)} rounded="rounded-full" />
+            <Hotspot label="Leaderboard tab" top="94%" left="27%" width="14%" height="5%" onClick={() => go(9)} rounded="rounded-full" />
             <Hotspot label="Practice tab" top="94%" left="43%" width="14%" height="5%" onClick={() => go(4)} rounded="rounded-full" />
-            <Hotspot label="Achievements tab" top="94%" left="58%" width="14%" height="5%" onClick={() => go(5)} rounded="rounded-full" />
+            <Hotspot label="Shop tab" top="94%" left="58%" width="14%" height="5%" onClick={() => go(8)} rounded="rounded-full" />
+            <Hotspot label="Profile tab" top="94%" left="73%" width="14%" height="5%" onClick={() => go(7)} rounded="rounded-full" />
+          </FrameWrap>
+        </motion.div>
+      )}
+
+      {/* 8 — Shop */}
+      {step === 8 && (
+        <motion.div key="s8" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+          <FrameWrap imgSrc={shop.url} alt="Shop" statusBg="#CDECFA">
+            {/* Back arrow (top-left, if present) */}
+            <Hotspot label="Back to home" top="6.5%" left="4%" width="12%" height="5.5%" onClick={() => go(3)} />
+            {/* Bottom nav */}
+            <Hotspot label="Home tab" top="94%" left="12%" width="14%" height="5%" onClick={() => go(3)} rounded="rounded-full" />
+            <Hotspot label="Leaderboard tab" top="94%" left="27%" width="14%" height="5%" onClick={() => go(9)} rounded="rounded-full" />
+            <Hotspot label="Practice tab" top="94%" left="43%" width="14%" height="5%" onClick={() => go(4)} rounded="rounded-full" />
+            <Hotspot label="Shop tab" top="94%" left="58%" width="14%" height="5%" onClick={() => go(8)} rounded="rounded-full" />
+            <Hotspot label="Profile tab" top="94%" left="73%" width="14%" height="5%" onClick={() => go(7)} rounded="rounded-full" />
+          </FrameWrap>
+        </motion.div>
+      )}
+
+      {/* 9 — Leaderboard */}
+      {step === 9 && (
+        <motion.div key="s9" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+          <FrameWrap imgSrc={leaderboard.url} alt="Leaderboard — week start" statusBg="#CDECFA">
+            {/* Back arrow */}
+            <Hotspot label="Back to home" top="6.5%" left="4%" width="12%" height="5.5%" onClick={() => go(3)} />
+            {/* Bottom nav */}
+            <Hotspot label="Home tab" top="94%" left="12%" width="14%" height="5%" onClick={() => go(3)} rounded="rounded-full" />
+            <Hotspot label="Leaderboard tab" top="94%" left="27%" width="14%" height="5%" onClick={() => go(9)} rounded="rounded-full" />
+            <Hotspot label="Practice tab" top="94%" left="43%" width="14%" height="5%" onClick={() => go(4)} rounded="rounded-full" />
+            <Hotspot label="Shop tab" top="94%" left="58%" width="14%" height="5%" onClick={() => go(8)} rounded="rounded-full" />
             <Hotspot label="Profile tab" top="94%" left="73%" width="14%" height="5%" onClick={() => go(7)} rounded="rounded-full" />
           </FrameWrap>
         </motion.div>
