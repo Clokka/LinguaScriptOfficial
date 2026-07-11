@@ -38,6 +38,7 @@ import Teacher from "./pages/Teacher";
 import Progress from "./pages/Progress";
 import GiftClaim from "./pages/GiftClaim";
 import MieoFrames from "./pages/MieoFrames";
+import OnboardingMobile from "./pages/OnboardingMobile";
 
 const queryClient = new QueryClient();
 
@@ -77,6 +78,8 @@ const App = () => (
                 <Route path="/progress" element={<Progress />} />
                 <Route path="/gift" element={<GiftClaim />} />
                 <Route path="/mieoframes" element={<MieoFrames />} />
+                <Route path="/onboarding/mobile" element={<OnboardingMobile />} />
+                <Route path="/welcome" element={<OnboardingMobile />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
               <TourOverlay />
