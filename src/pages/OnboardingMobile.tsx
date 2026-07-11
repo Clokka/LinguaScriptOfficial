@@ -117,7 +117,7 @@ export default function OnboardingMobile() {
             <img
               src={onboarding0.url}
               alt="Learn any language faster than ever"
-              className="block w-full h-auto select-none"
+              className="block w-full h-auto select-none pointer-events-none"
               draggable={false}
             />
             {/* "Let's Get a Fresh Start" — primary CTA */}
