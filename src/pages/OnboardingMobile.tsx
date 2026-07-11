@@ -13,8 +13,10 @@ import game from "@/assets/mieoframes2/05GamePlay.png.asset.json";
 import result from "@/assets/mieoframes2/06Result.png.asset.json";
 import streak from "@/assets/mieoframes2/07StreakMieoTalk.png.asset.json";
 import profile from "@/assets/mieoframes2/08Profile.png.asset.json";
+import shop from "@/assets/mieoframes/shop.png.asset.json";
+import leaderboard from "@/assets/mieoframes/leaderboard-week-start.png.asset.json";
 
-type Step = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
+type Step = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
 
 const useLiveClock = () => {
   const [time, setTime] = useState(() =>
@@ -30,19 +32,18 @@ const useLiveClock = () => {
 };
 
 /**
- * Masks the baked-in 9:41 + signal/wifi/battery mockup art and prints the
- * device's real time on the left. `bg` should match the frame's top color so
- * the seam disappears.
+ * Small pill masking just the baked-in "9:41" on the left of the status bar,
+ * printing the device's real time. Keeps the rest of the mockup's top section
+ * (header art, notch, right-side icons) visible.
  */
 const StatusBarCover = ({ bg }: { bg: string }) => {
   const time = useLiveClock();
   return (
     <div
-      className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-6"
-      style={{ height: "4.6%", background: bg }}
+      className="absolute z-20 flex items-center justify-start pl-6"
+      style={{ top: "1.1%", left: 0, height: "2.2%", width: "34%", background: bg }}
     >
-      <span className="text-slate-900 font-semibold text-sm tabular-nums">{time}</span>
-      <span />
+      <span className="text-slate-900 font-semibold text-[11px] leading-none tabular-nums">{time}</span>
     </div>
   );
 };
@@ -133,10 +134,11 @@ export default function OnboardingMobile() {
             {/* Main lesson flag button on the path */}
             <Hotspot label="Start lesson" top="47%" left="30%" width="30%" height="12%" onClick={() => go(4)} rounded="rounded-full" />
             {/* Bottom nav — home (active), streak, video, achievements, profile */}
+            {/* Bottom nav — home, leaderboard, practice, shop, profile */}
             <Hotspot label="Home tab" top="92%" left="12%" width="14%" height="6%" onClick={() => go(3)} rounded="rounded-full" />
-            <Hotspot label="Streak tab" top="92%" left="27%" width="14%" height="6%" onClick={() => go(6)} rounded="rounded-full" />
+            <Hotspot label="Leaderboard tab" top="92%" left="27%" width="14%" height="6%" onClick={() => go(9)} rounded="rounded-full" />
             <Hotspot label="Practice tab" top="92%" left="43%" width="14%" height="6%" onClick={() => go(4)} rounded="rounded-full" />
-            <Hotspot label="Achievements tab" top="92%" left="58%" width="14%" height="6%" onClick={() => go(5)} rounded="rounded-full" />
+            <Hotspot label="Shop tab" top="92%" left="58%" width="14%" height="6%" onClick={() => go(8)} rounded="rounded-full" />
             <Hotspot label="Profile tab" top="92%" left="73%" width="14%" height="6%" onClick={() => go(7)} rounded="rounded-full" />
           </FrameWrap>
         </motion.div>
@@ -170,9 +172,9 @@ export default function OnboardingMobile() {
           <FrameWrap imgSrc={streak.url} alt="My streak" statusBg="#FCE9B8">
             {/* Bottom nav */}
             <Hotspot label="Home tab" top="94%" left="12%" width="14%" height="5%" onClick={() => go(3)} rounded="rounded-full" />
-            <Hotspot label="Streak tab" top="94%" left="27%" width="14%" height="5%" onClick={() => go(6)} rounded="rounded-full" />
+            <Hotspot label="Leaderboard tab" top="94%" left="27%" width="14%" height="5%" onClick={() => go(9)} rounded="rounded-full" />
             <Hotspot label="Practice tab" top="94%" left="43%" width="14%" height="5%" onClick={() => go(4)} rounded="rounded-full" />
-            <Hotspot label="Achievements tab" top="94%" left="58%" width="14%" height="5%" onClick={() => go(5)} rounded="rounded-full" />
+            <Hotspot label="Shop tab" top="94%" left="58%" width="14%" height="5%" onClick={() => go(8)} rounded="rounded-full" />
             <Hotspot label="Profile tab" top="94%" left="73%" width="14%" height="5%" onClick={() => go(7)} rounded="rounded-full" />
           </FrameWrap>
         </motion.div>
@@ -186,9 +188,41 @@ export default function OnboardingMobile() {
             <Hotspot label="Settings" top="87.5%" left="5%" width="90%" height="4%" onClick={() => navigate("/profile")} />
             {/* Bottom nav */}
             <Hotspot label="Home tab" top="94%" left="12%" width="14%" height="5%" onClick={() => go(3)} rounded="rounded-full" />
-            <Hotspot label="Streak tab" top="94%" left="27%" width="14%" height="5%" onClick={() => go(6)} rounded="rounded-full" />
+            <Hotspot label="Leaderboard tab" top="94%" left="27%" width="14%" height="5%" onClick={() => go(9)} rounded="rounded-full" />
             <Hotspot label="Practice tab" top="94%" left="43%" width="14%" height="5%" onClick={() => go(4)} rounded="rounded-full" />
-            <Hotspot label="Achievements tab" top="94%" left="58%" width="14%" height="5%" onClick={() => go(5)} rounded="rounded-full" />
+            <Hotspot label="Shop tab" top="94%" left="58%" width="14%" height="5%" onClick={() => go(8)} rounded="rounded-full" />
+            <Hotspot label="Profile tab" top="94%" left="73%" width="14%" height="5%" onClick={() => go(7)} rounded="rounded-full" />
+          </FrameWrap>
+        </motion.div>
+      )}
+
+      {/* 8 — Shop */}
+      {step === 8 && (
+        <motion.div key="s8" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+          <FrameWrap imgSrc={shop.url} alt="Shop" statusBg="#CDECFA">
+            {/* Back arrow (top-left, if present) */}
+            <Hotspot label="Back to home" top="6.5%" left="4%" width="12%" height="5.5%" onClick={() => go(3)} />
+            {/* Bottom nav */}
+            <Hotspot label="Home tab" top="94%" left="12%" width="14%" height="5%" onClick={() => go(3)} rounded="rounded-full" />
+            <Hotspot label="Leaderboard tab" top="94%" left="27%" width="14%" height="5%" onClick={() => go(9)} rounded="rounded-full" />
+            <Hotspot label="Practice tab" top="94%" left="43%" width="14%" height="5%" onClick={() => go(4)} rounded="rounded-full" />
+            <Hotspot label="Shop tab" top="94%" left="58%" width="14%" height="5%" onClick={() => go(8)} rounded="rounded-full" />
+            <Hotspot label="Profile tab" top="94%" left="73%" width="14%" height="5%" onClick={() => go(7)} rounded="rounded-full" />
+          </FrameWrap>
+        </motion.div>
+      )}
+
+      {/* 9 — Leaderboard */}
+      {step === 9 && (
+        <motion.div key="s9" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+          <FrameWrap imgSrc={leaderboard.url} alt="Leaderboard — week start" statusBg="#CDECFA">
+            {/* Back arrow */}
+            <Hotspot label="Back to home" top="6.5%" left="4%" width="12%" height="5.5%" onClick={() => go(3)} />
+            {/* Bottom nav */}
+            <Hotspot label="Home tab" top="94%" left="12%" width="14%" height="5%" onClick={() => go(3)} rounded="rounded-full" />
+            <Hotspot label="Leaderboard tab" top="94%" left="27%" width="14%" height="5%" onClick={() => go(9)} rounded="rounded-full" />
+            <Hotspot label="Practice tab" top="94%" left="43%" width="14%" height="5%" onClick={() => go(4)} rounded="rounded-full" />
+            <Hotspot label="Shop tab" top="94%" left="58%" width="14%" height="5%" onClick={() => go(8)} rounded="rounded-full" />
             <Hotspot label="Profile tab" top="94%" left="73%" width="14%" height="5%" onClick={() => go(7)} rounded="rounded-full" />
           </FrameWrap>
         </motion.div>
