@@ -59,10 +59,11 @@ const Hotspot = ({
   label: string;
 }) => (
   <button
+    type="button"
     onClick={onClick}
     aria-label={label}
-    className="absolute z-20 rounded-2xl focus:outline-none focus-visible:ring-4 focus-visible:ring-[#4FB8F5]/50 hover:bg-white/10 active:bg-white/20 active:scale-[0.98] transition"
-    style={{ top, left, width, height, background: "transparent" }}
+    className="absolute z-30 rounded-2xl bg-transparent cursor-pointer touch-manipulation appearance-none border-0 p-0 focus:outline-none focus-visible:ring-4 focus-visible:ring-[#4FB8F5]/50 hover:bg-white/10 active:bg-white/25 active:scale-[0.98] transition-transform duration-100"
+    style={{ top, left, width, height }}
   />
 );
 
