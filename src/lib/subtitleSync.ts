@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { getLanguageLabel } from "@/lib/languages";
+import { fetchCaptionsFromBrowser } from "@/lib/browserCaptionFetcher";
 
 export interface SubtitleSegment {
   start: number;
@@ -159,6 +160,31 @@ export async function ensureSubtitleTracks({
     primaryLanguage,
     secondaryLanguage,
   );
+
+  // Free-first: if either side is missing, try the browser-side YouTube
+  // fetcher before hitting the paid Supadata edge function. Runs entirely
+  // in the user's browser — no server cost.
+  const needPrimary = !primary.length;
+  const needSecondary = secondaryLanguage !== primaryLanguage && !secondary.length;
+  if (needPrimary || needSecondary) {
+    try {
+      const browser = await fetchCaptionsFromBrowser(videoId, primaryLanguage, secondaryLanguage);
+      if (needPrimary && browser.learning.length) {
+        primary = browser.learning;
+        await persistSubtitleTrack(filmId, primaryLanguage, primary);
+      }
+      if (
+        needSecondary &&
+        browser.native.length &&
+        !tracksAreDuplicate(primary, browser.native)
+      ) {
+        secondary = browser.native;
+        await persistSubtitleTrack(filmId, secondaryLanguage, secondary);
+      }
+    } catch (e) {
+      console.warn("[subtitleSync] Browser fetch failed, falling back to backend", e);
+    }
+  }
 
   if (!primary.length) {
     primary = await fetchSubtitleTrackFromBackend(videoId, primaryLanguage);
