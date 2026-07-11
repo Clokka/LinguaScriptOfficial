@@ -13,8 +13,10 @@ import game from "@/assets/mieoframes2/05GamePlay.png.asset.json";
 import result from "@/assets/mieoframes2/06Result.png.asset.json";
 import streak from "@/assets/mieoframes2/07StreakMieoTalk.png.asset.json";
 import profile from "@/assets/mieoframes2/08Profile.png.asset.json";
+import shop from "@/assets/mieoframes/shop.png.asset.json";
+import leaderboard from "@/assets/mieoframes/leaderboard-week-start.png.asset.json";
 
-type Step = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
+type Step = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
 
 const useLiveClock = () => {
   const [time, setTime] = useState(() =>
