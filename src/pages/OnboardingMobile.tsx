@@ -59,10 +59,11 @@ const Hotspot = ({
   label: string;
 }) => (
   <button
+    type="button"
     onClick={onClick}
     aria-label={label}
-    className="absolute z-20 rounded-2xl focus:outline-none focus-visible:ring-4 focus-visible:ring-[#4FB8F5]/50 hover:bg-white/10 active:bg-white/20 active:scale-[0.98] transition"
-    style={{ top, left, width, height, background: "transparent" }}
+    className="absolute z-30 rounded-2xl bg-transparent cursor-pointer touch-manipulation appearance-none border-0 p-0 focus:outline-none focus-visible:ring-4 focus-visible:ring-[#4FB8F5]/50 hover:bg-white/10 active:bg-white/25 active:scale-[0.98] transition-transform duration-100"
+    style={{ top, left, width, height }}
   />
 );
 
@@ -116,7 +117,7 @@ export default function OnboardingMobile() {
             <img
               src={onboarding0.url}
               alt="Learn any language faster than ever"
-              className="block w-full h-auto select-none"
+              className="block w-full h-auto select-none pointer-events-none"
               draggable={false}
             />
             {/* "Let's Get a Fresh Start" — primary CTA */}
@@ -152,7 +153,7 @@ export default function OnboardingMobile() {
             <img
               src={onboarding1.url}
               alt="I just want to ask you some questions"
-              className="block w-full h-auto select-none"
+              className="block w-full h-auto select-none pointer-events-none"
               draggable={false}
             />
             {/* Back arrow, top-left */}
