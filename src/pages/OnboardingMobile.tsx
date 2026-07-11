@@ -32,19 +32,18 @@ const useLiveClock = () => {
 };
 
 /**
- * Masks the baked-in 9:41 + signal/wifi/battery mockup art and prints the
- * device's real time on the left. `bg` should match the frame's top color so
- * the seam disappears.
+ * Small pill masking just the baked-in "9:41" on the left of the status bar,
+ * printing the device's real time. Keeps the rest of the mockup's top section
+ * (header art, notch, right-side icons) visible.
  */
 const StatusBarCover = ({ bg }: { bg: string }) => {
   const time = useLiveClock();
   return (
     <div
-      className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-6"
-      style={{ height: "4.6%", background: bg }}
+      className="absolute z-20 flex items-center justify-start pl-6"
+      style={{ top: "1.1%", left: 0, height: "2.2%", width: "34%", background: bg }}
     >
-      <span className="text-slate-900 font-semibold text-sm tabular-nums">{time}</span>
-      <span />
+      <span className="text-slate-900 font-semibold text-[11px] leading-none tabular-nums">{time}</span>
     </div>
   );
 };
