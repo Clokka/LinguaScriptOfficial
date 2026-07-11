@@ -153,7 +153,7 @@ export default function OnboardingMobile() {
             <img
               src={onboarding1.url}
               alt="I just want to ask you some questions"
-              className="block w-full h-auto select-none"
+              className="block w-full h-auto select-none pointer-events-none"
               draggable={false}
             />
             {/* Back arrow, top-left */}
