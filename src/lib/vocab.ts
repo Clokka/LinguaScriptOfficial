@@ -84,7 +84,6 @@ export async function loadDeckIndex(
     }
     return m;
   }
-  const { data, error } = await supabase
   const pageSize = 1000;
   let from = 0;
   while (true) {
