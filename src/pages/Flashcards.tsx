@@ -13,6 +13,7 @@ import { useXp } from "@/contexts/XpContext";
 import { consumeReinforcementPending } from "@/lib/dailyVideo";
 import { ActiveLanguageBadge } from "@/components/ActiveLanguageBadge";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { toast } from "sonner";
 
 interface SavedWord {
   id: string;
@@ -58,25 +59,44 @@ const Flashcards = () => {
   const [starterDecks, setStarterDecks] = useState<StarterDeck[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [activeDeck, setActiveDeck] = useState<DeckKey | null>(null);
   const [reviewCards, setReviewCards] = useState<SavedWord[]>([]);
 
   const fetchCards = useCallback(async (showSpinner = true) => {
     if (showSpinner) setLoading(true);
+    setLoadError(null);
     if (!user) {
       const guest = getGuestWords();
       setAllCards(guest as unknown as SavedWord[]);
     } else {
       // Always fetch fresh from Supabase — the Chrome extension can write to
-      // saved_words too, so cached state would go stale.
-      let q = supabase
-        .from("saved_words")
-        .select("id, word, translation, pronunciation, ipa, context, language, next_review, review_count, state, times_correct, is_phrase")
-        .eq("user_id", user.id)
-        .order("next_review", { ascending: true, nullsFirst: true });
-      if (learningLanguage) q = q.eq("language", learningLanguage);
-      const { data } = await q;
-      setAllCards((data as SavedWord[]) || []);
+      // saved_words too, so cached state would go stale. Large accounts exceed
+      // the Data API's default 1,000-row window, so page through everything.
+      const pageSize = 1000;
+      let from = 0;
+      const rows: SavedWord[] = [];
+      while (true) {
+        let q = supabase
+          .from("saved_words")
+          .select("id, word, translation, pronunciation, ipa, context, language, next_review, review_count, state, times_correct, is_phrase")
+          .eq("user_id", user.id)
+          .order("next_review", { ascending: true, nullsFirst: true })
+          .range(from, from + pageSize - 1);
+        if (learningLanguage) q = q.eq("language", learningLanguage);
+        const { data, error } = await q;
+        if (error) {
+          console.error("Flashcards fetch failed", error);
+          setLoadError(error.message);
+          toast.error("Couldn't load your flashcards", { description: error.message });
+          break;
+        }
+        const batch = (data as SavedWord[]) || [];
+        rows.push(...batch);
+        if (batch.length < pageSize) break;
+        from += pageSize;
+      }
+      setAllCards(rows);
     }
 
     // Starter decks with counts
@@ -204,6 +224,12 @@ const Flashcards = () => {
           </div>
         ) : (
           <>
+            {loadError && (
+              <section className="glass-panel-strong rounded-2xl p-4 border-destructive/40">
+                <p className="text-sm font-semibold text-destructive">Flashcards could not be fetched.</p>
+                <p className="text-xs text-muted-foreground mt-1">{loadError}</p>
+              </section>
+            )}
             {allCards.length === 0 && (
               <section className="glass-panel-strong rounded-3xl p-8 text-center space-y-4">
                 <div className="text-5xl">🧩</div>

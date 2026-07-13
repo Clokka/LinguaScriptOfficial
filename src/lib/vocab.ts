@@ -85,16 +85,25 @@ export async function loadDeckIndex(
     return m;
   }
   const { data, error } = await supabase
-    .from("saved_words")
-    .select("id, word, language, state, times_correct, review_count")
-    .eq("user_id", userId)
-    .eq("language", language);
-  if (error) {
-    console.error("loadDeckIndex", error);
-    return m;
-  }
-  for (const row of (data as any[]) || []) {
-    m.set(normalizeToken(row.word), { ...row, state: coerceDeckState(row.state) } as SavedWordLite);
+  const pageSize = 1000;
+  let from = 0;
+  while (true) {
+    const { data, error } = await supabase
+      .from("saved_words")
+      .select("id, word, language, state, times_correct, review_count")
+      .eq("user_id", userId)
+      .eq("language", language)
+      .range(from, from + pageSize - 1);
+    if (error) {
+      console.error("loadDeckIndex", error);
+      return m;
+    }
+    const batch = (data as any[]) || [];
+    for (const row of batch) {
+      m.set(normalizeToken(row.word), { ...row, state: coerceDeckState(row.state) } as SavedWordLite);
+    }
+    if (batch.length < pageSize) break;
+    from += pageSize;
   }
   return m;
 }
