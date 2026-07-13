@@ -46,6 +46,24 @@ export default {
           DEFAULT: "hsl(var(--success))",
           foreground: "hsl(var(--success-foreground))",
         },
+        brand: {
+          green: "hsl(var(--brand-green))",
+          "green-foreground": "hsl(var(--brand-green-foreground))",
+        },
+        browse: {
+          forest: "hsl(var(--browse-forest))",
+          "forest-foreground": "hsl(var(--browse-forest-foreground))",
+          canopy: "hsl(var(--browse-canopy))",
+          "canopy-foreground": "hsl(var(--browse-canopy-foreground))",
+          leaf: "hsl(var(--browse-leaf))",
+          mist: "hsl(var(--browse-mist))",
+          trail: "hsl(var(--browse-trail))",
+        },
+        state: {
+          red: "hsl(var(--state-red))",
+          orange: "hsl(var(--state-orange))",
+          green: "hsl(var(--state-green))",
+        },
         warning: {
           DEFAULT: "hsl(var(--warning))",
           foreground: "hsl(var(--warning-foreground))",
@@ -94,6 +112,9 @@ export default {
         'gradient-success': 'var(--gradient-success)',
         'gradient-card': 'var(--gradient-card)',
         'gradient-hero': 'var(--gradient-hero)',
+        'gradient-browse-sky': 'var(--gradient-browse-sky)',
+        'gradient-browse-card': 'var(--gradient-browse-card)',
+        'gradient-browse-video': 'var(--gradient-browse-video)',
       },
       boxShadow: {
         'glow-primary': 'var(--shadow-glow-primary)',
@@ -101,6 +122,7 @@ export default {
         'glow-success': 'var(--shadow-glow-success)',
         'card': 'var(--shadow-card)',
         'float': 'var(--shadow-float)',
+        'forest': 'var(--shadow-forest)',
       },
     },
   },

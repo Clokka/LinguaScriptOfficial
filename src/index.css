@@ -39,6 +39,20 @@
     --success: 142 71% 58%;
     --success-foreground: 240 6% 5%;
 
+    /* LinguaScript forest browse system */
+    --brand-green: 87 54% 45%;
+    --brand-green-foreground: 240 6% 5%;
+    --browse-forest: 151 62% 6%;
+    --browse-forest-foreground: 118 42% 92%;
+    --browse-canopy: 142 45% 13%;
+    --browse-canopy-foreground: 118 42% 92%;
+    --browse-leaf: 135 44% 22%;
+    --browse-mist: 176 32% 72%;
+    --browse-trail: 37 42% 24%;
+    --state-red: 0 84% 60%;
+    --state-orange: 24 96% 61%;
+    --state-green: 87 54% 45%;
+
     /* Warning: Yellow #facc15 */
     --warning: 48 96% 53%;
     --warning-foreground: 240 6% 5%;
@@ -69,6 +83,9 @@
     --gradient-success: linear-gradient(135deg, hsl(142 71% 45%), hsl(142 71% 58%));
     --gradient-card: linear-gradient(180deg, hsl(240 5% 8%), hsl(240 6% 5%));
     --gradient-hero: radial-gradient(ellipse at top, hsl(262 60% 22% / 0.55), transparent 70%);
+    --gradient-browse-sky: linear-gradient(180deg, hsl(176 32% 72% / 0.85) 0%, hsl(148 43% 18% / 0.9) 54%, hsl(151 62% 6%) 100%);
+    --gradient-browse-card: linear-gradient(145deg, hsl(142 45% 13% / 0.94), hsl(151 62% 6% / 0.96));
+    --gradient-browse-video: linear-gradient(135deg, hsl(142 45% 13%), hsl(37 42% 24%), hsl(151 62% 6%));
 
     /* Shadows */
     --shadow-glow-primary: 0 0 40px hsl(262 83% 58% / 0.35);
@@ -76,6 +93,7 @@
     --shadow-glow-success: 0 0 20px hsl(142 71% 58% / 0.3);
     --shadow-card: 0 8px 32px hsl(240 6% 2% / 0.6);
     --shadow-float: 0 20px 60px hsl(240 6% 2% / 0.75);
+    --shadow-forest: 0 24px 70px hsl(151 62% 3% / 0.65);
 
     --sidebar-background: 240 5% 6%;
     --sidebar-foreground: 210 40% 98%;

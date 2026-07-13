@@ -710,7 +710,7 @@ const Watch = () => {
     }
 
     if (!film) return;
-    await supabase.from("saved_words").upsert({
+    const { error: saveError } = await supabase.from("saved_words").upsert({
       user_id: user.id,
       word: word.text,
       translation,
@@ -720,6 +720,11 @@ const Watch = () => {
       film_id: film.id,
       language: langCode,
     }, { onConflict: "user_id,word,language" });
+    if (saveError) {
+      console.error("Save word failed", saveError);
+      toast.error("Couldn't save this flashcard", { description: saveError.message });
+      return;
+    }
     award("add_word");
     triggerReaction("happy", 2000);
     savedTodayRef.current += 1;
@@ -797,7 +802,7 @@ const Watch = () => {
       toast.success("Marked as known: " + word.text);
       return;
     }
-    await supabase.from("saved_words").upsert({
+    const { error: knownError } = await supabase.from("saved_words").upsert({
       user_id: user.id,
       word: word.text,
       translation: word.translation || "",
@@ -807,6 +812,11 @@ const Watch = () => {
       state: "green",
       state_changed_at: new Date().toISOString(),
     }, { onConflict: "user_id,word,language" });
+    if (knownError) {
+      console.error("Mark known failed", knownError);
+      toast.error("Couldn't update this flashcard", { description: knownError.message });
+      return;
+    }
     toast.success("Marked as known: " + word.text);
   };
 
