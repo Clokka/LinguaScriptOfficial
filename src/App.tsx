@@ -3,6 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { lazy, Suspense } from "react";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { XpProvider } from "@/contexts/XpContext";
 import { TourProvider } from "@/contexts/TourContext";
@@ -17,6 +18,7 @@ import Landing from "./pages/Landing";
 import LandingPage2 from "./pages/LandingPage2";
 import Browse from "./pages/Browse";
 import Browse1 from "./pages/Browse1";
+const Browse2 = lazy(() => import("./pages/Browse2"));
 import Auth from "./pages/Auth";
 import Profile from "./pages/Profile";
 import Watch from "./pages/Watch";
@@ -59,6 +61,7 @@ const App = () => (
                 <Route path="/landingpage2" element={<LandingPage2 />} />
                 <Route path="/browse" element={<Browse1 />} />
                 <Route path="/browse1" element={<Browse1 />} />
+                <Route path="/browse2" element={<Suspense fallback={null}><Browse2 /></Suspense>} />
                 <Route path="/discover" element={<Browse />} />
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/profile" element={<Profile />} />
