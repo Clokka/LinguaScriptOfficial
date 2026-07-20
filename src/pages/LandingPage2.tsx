@@ -18,6 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ProductDemoPlayer } from "@/components/ProductDemoPlayer";
+import { LineBlastDemo } from "@/components/LineBlastDemo";
 
 /**
  * LinguaScript Landing Page v2 — product-walkthrough style.
@@ -230,6 +231,43 @@ const LandingPage2 = () => {
           </motion.div>
 
           <StageProgression />
+        </div>
+      </section>
+
+      {/* ─── Line Blast interactive demo ─── */}
+      <section id="line-blast" className="relative py-24">
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-emerald-500/5 to-transparent pointer-events-none" />
+        <div className="relative max-w-5xl mx-auto px-6">
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-100px" }}
+            className="text-center mb-12"
+          >
+            <motion.div variants={fadeUp} custom={0} className="inline-flex items-center gap-2 glass-panel rounded-full px-4 py-1.5 mb-4">
+              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+              <span className="text-xs font-semibold tracking-wide">New · Line Blast</span>
+            </motion.div>
+            <motion.h2 variants={fadeUp} custom={1} className="text-3xl sm:text-5xl font-bold mb-4">
+              Complete the line.{" "}
+              <span className="text-amber-400">Feel the blast.</span>
+            </motion.h2>
+            <motion.p variants={fadeUp} custom={2} className="text-muted-foreground max-w-2xl mx-auto">
+              When the last word of a subtitle turns green, the whole line erupts —
+              combos build across lines and multiply your XP up to ×5. Try it: tap the
+              white words below.
+            </motion.p>
+          </motion.div>
+
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-100px" }}
+            variants={fadeUp}
+            className="glass-panel-strong rounded-3xl p-3 sm:p-5 border border-border/60 shadow-[0_40px_120px_-40px_rgba(52,211,153,0.35)]"
+          >
+            <LineBlastDemo />
+          </motion.div>
         </div>
       </section>
 
