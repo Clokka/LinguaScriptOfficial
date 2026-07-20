@@ -1,0 +1,159 @@
+{
+  "version": 1,
+  "sdk_version": "0.24.0",
+  "path": "/functions/v1/mcp",
+  "auth": {
+    "type": "oauth",
+    "issuer": "https://ffephracinqeylfhqkiz.supabase.co/auth/v1",
+    "accepted_audiences": [
+      "authenticated"
+    ]
+  },
+  "mcp": {
+    "server": {
+      "name": "linguascript-mcp",
+      "version": "0.1.0",
+      "title": "LinguaScript"
+    },
+    "tools": [
+      {
+        "name": "list_saved_words",
+        "title": "List saved words",
+        "description": "List the signed-in user's saved LinguaScript flashcards (words and phrases), optionally filtered by language or SRS state.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "language": {
+              "description": "ISO language code, e.g. 'fr', 'es'.",
+              "type": "string"
+            },
+            "state": {
+              "description": "SRS deck state filter.",
+              "type": "string",
+              "enum": [
+                "red",
+                "orange",
+                "green"
+              ]
+            },
+            "limit": {
+              "description": "Max rows (default 50).",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            }
+          }
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "get_progress",
+        "title": "Get learning progress",
+        "description": "Return the signed-in user's LinguaScript profile: learning language, native language, XP, streak, level, and counts of saved words per SRS state.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {}
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "save_word",
+        "title": "Save a flashcard",
+        "description": "Save a word or phrase to the signed-in user's LinguaScript flashcards. Duplicates for the same word+language are skipped.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "word": {
+              "type": "string",
+              "minLength": 1,
+              "description": "The word or phrase to save."
+            },
+            "language": {
+              "type": "string",
+              "minLength": 2,
+              "description": "ISO language code of the word, e.g. 'fr'."
+            },
+            "translation": {
+              "description": "Optional translation into the user's native language.",
+              "type": "string"
+            },
+            "context": {
+              "description": "Optional sentence the word appeared in.",
+              "type": "string"
+            },
+            "is_phrase": {
+              "description": "True if saving a full phrase rather than a single word.",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "word",
+            "language"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_films",
+        "title": "Browse LinguaScript content",
+        "description": "List LinguaScript video lessons from the shared catalog, optionally filtered by language, category, or difficulty.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "language": {
+              "description": "ISO language code, e.g. 'fr'.",
+              "type": "string"
+            },
+            "category": {
+              "description": "Category slug, e.g. 'travel', 'news'.",
+              "type": "string"
+            },
+            "difficulty": {
+              "type": "string",
+              "enum": [
+                "A1",
+                "A2",
+                "B1",
+                "B2",
+                "C1",
+                "C2"
+              ]
+            },
+            "limit": {
+              "description": "Max rows (default 20).",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          }
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}
