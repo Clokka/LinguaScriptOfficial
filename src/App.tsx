@@ -16,6 +16,7 @@ import { PetProvider } from "@/contexts/PetContext";
 import { PetCompanion } from "@/components/pets/PetCompanion";
 import Landing from "./pages/Landing";
 import LandingPage2 from "./pages/LandingPage2";
+import Demo from "./pages/Demo";
 import Browse from "./pages/Browse";
 import Browse1 from "./pages/Browse1";
 const Browse2 = lazy(() => import("./pages/Browse2"));
@@ -59,6 +60,7 @@ const App = () => (
                 <Route path="/" element={<Index />} />
                 <Route path="/landing" element={<Landing />} />
                 <Route path="/landingpage2" element={<LandingPage2 />} />
+                <Route path="/demo" element={<Demo />} />
                 <Route path="/browse" element={<Browse1 />} />
                 <Route path="/browse1" element={<Browse1 />} />
                 <Route path="/browse2" element={<Suspense fallback={null}><Browse2 /></Suspense>} />
