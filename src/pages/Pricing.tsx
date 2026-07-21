@@ -100,7 +100,7 @@ export default function Pricing() {
       });
       await refresh();
       toast({ title: "Welcome to Pro 🎉", description: "All languages unlocked." });
-      navigate("/browse");
+      navigate("/discover");
     } catch (e: any) {
       if (e?.errorCode !== 1) {
         // 1 = user cancelled

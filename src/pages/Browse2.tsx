@@ -126,7 +126,7 @@ export default function Browse2() {
         </svg>
         <nav className="nav">
           <div className="logo">Lingua<b>Script</b></div>
-          <Link to="/browse" className="active">Discover</Link>
+          <Link to="/discover" className="active">Discover</Link>
           <Link to="/flashcards">Flashcards</Link>
           <Link to="/progress">Progress</Link>
           <Link to="/friends">Friends</Link>

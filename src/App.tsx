@@ -62,7 +62,7 @@ const App = () => (
                 <Route path="/landing" element={<Landing />} />
                 <Route path="/landingpage2" element={<LandingPage2 />} />
                 <Route path="/demo" element={<Demo />} />
-                <Route path="/browse" element={<Navigate to="/discover" replace />} />
+                <Route path="/discover" element={<Navigate to="/discover" replace />} />
                 <Route path="/browse1" element={<Navigate to="/discover" replace />} />
                 <Route path="/browse2" element={<Navigate to="/discover" replace />} />
                 <Route path="/discover" element={<Browse />} />

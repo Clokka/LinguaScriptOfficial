@@ -143,7 +143,7 @@ const Onboarding = () => {
       }
       try { localStorage.removeItem(ONBOARDING_KEY); } catch { /* ignore */ }
       playDing("success");
-      navigate("/browse");
+      navigate("/discover");
     }
   };
 

@@ -12,7 +12,7 @@ export default function Progress() {
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-xl border-b border-border">
         <div className="flex items-center gap-3 px-6 py-3 max-w-6xl mx-auto">
-          <Button variant="ghost" size="sm" onClick={() => navigate("/browse")} className="gap-2">
+          <Button variant="ghost" size="sm" onClick={() => navigate("/discover")} className="gap-2">
             <ArrowLeft className="w-4 h-4" /> Back
           </Button>
           <h1 className="text-base font-semibold text-foreground">Your Progress</h1>

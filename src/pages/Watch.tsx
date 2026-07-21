@@ -848,7 +848,7 @@ const Watch = () => {
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <p className="text-muted-foreground mb-4">Film not found</p>
-          <Button variant="ghost" onClick={() => navigate("/browse")}>Go Home</Button>
+          <Button variant="ghost" onClick={() => navigate("/discover")}>Go Home</Button>
         </div>
       </div>
     );
@@ -865,7 +865,7 @@ const Watch = () => {
         activeLanguage={languageContext}
         thumbnailUrl={film.thumbnail_url}
         title={film.title}
-        onBack={() => navigate("/browse")}
+        onBack={() => navigate("/discover")}
         onUpgrade={() => navigate("/pricing")}
       />
     );
@@ -875,7 +875,7 @@ const Watch = () => {
   if (isMobile && !isFullscreen) {
     const header = (
       <div className="flex items-center gap-2 p-2 bg-black/80 backdrop-blur z-20">
-        <Button data-tour="page-back" variant="ghost" size="icon" onClick={() => navigate("/browse")} className="text-white hover:bg-white/10 shrink-0 h-9 w-9">
+        <Button data-tour="page-back" variant="ghost" size="icon" onClick={() => navigate("/discover")} className="text-white hover:bg-white/10 shrink-0 h-9 w-9">
           <ArrowLeft className="w-5 h-5" />
         </Button>
         <div className="flex-1 min-w-0">
@@ -1011,7 +1011,7 @@ const Watch = () => {
   return (
     <div className="min-h-screen bg-black flex flex-col">
       <div className="flex items-center gap-3 p-4 bg-black/80 backdrop-blur z-20">
-        <Button data-tour="page-back" variant="ghost" size="icon" onClick={() => navigate("/browse")} className="text-white hover:bg-white/10">
+        <Button data-tour="page-back" variant="ghost" size="icon" onClick={() => navigate("/discover")} className="text-white hover:bg-white/10">
           <ArrowLeft className="w-5 h-5" />
         </Button>
         <div className="flex-1 min-w-0">

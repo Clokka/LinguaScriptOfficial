@@ -16,7 +16,7 @@ const Auth = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const inviteToken = searchParams.get("invite");
-  const next = searchParams.get("next") || (inviteToken ? "/browse" : "/browse");
+  const next = searchParams.get("next") || (inviteToken ? "/discover" : "/discover");
   const { toast } = useToast();
 
   const acceptInviteIfAny = async () => {

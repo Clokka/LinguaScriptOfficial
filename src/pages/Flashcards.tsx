@@ -198,7 +198,7 @@ const Flashcards = () => {
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-xl border-b border-border">
         <div className="flex items-center gap-3 px-6 py-3">
-          <Button data-tour="page-back" variant="ghost" size="icon" onClick={() => navigate("/browse")}>
+          <Button data-tour="page-back" variant="ghost" size="icon" onClick={() => navigate("/discover")}>
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <h1 className="text-lg font-bold text-foreground">Flashcards</h1>

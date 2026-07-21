@@ -6,7 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 const Index = () => {
   const { user, loading } = useAuth();
   if (loading) return null;
-  return <Navigate to={user ? "/browse" : "/landingpage2"} replace />;
+  return <Navigate to={user ? "/discover" : "/landingpage2"} replace />;
 };
 
 export default Index;
