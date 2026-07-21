@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ProductDemoPlayer } from "@/components/ProductDemoPlayer";
 import { LineBlastDemo } from "@/components/LineBlastDemo";
+import { LandingPetShowcase } from "@/components/LandingPetShowcase";
 
 /**
  * LinguaScript Landing Page v2 — product-walkthrough style.
@@ -268,6 +269,32 @@ const LandingPage2 = () => {
           >
             <LineBlastDemo />
           </motion.div>
+        </div>
+      </section>
+
+      {/* ─── 3D study companions ─── */}
+      <section id="companions" className="relative py-24">
+        <div className="max-w-6xl mx-auto px-6">
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-100px" }}
+            className="text-center mb-12"
+          >
+            <motion.div variants={fadeUp} custom={0} className="inline-flex items-center gap-2 glass-panel rounded-full px-4 py-1.5 mb-4">
+              <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="text-xs font-semibold tracking-wide">Study companions</span>
+            </motion.div>
+            <motion.h2 variants={fadeUp} custom={1} className="text-3xl sm:text-5xl font-bold mb-4">
+              Learn with a friend on your shoulder
+            </motion.h2>
+            <motion.p variants={fadeUp} custom={2} className="text-muted-foreground max-w-2xl mx-auto">
+              Earn 3D companions by keeping streaks, watching videos, and collecting gems.
+              They celebrate every word you save. Go on — give one a tap.
+            </motion.p>
+          </motion.div>
+
+          <LandingPetShowcase />
         </div>
       </section>
 
