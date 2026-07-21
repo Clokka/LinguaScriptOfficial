@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { lazy, Suspense } from "react";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { XpProvider } from "@/contexts/XpContext";
@@ -62,9 +62,9 @@ const App = () => (
                 <Route path="/landing" element={<Landing />} />
                 <Route path="/landingpage2" element={<LandingPage2 />} />
                 <Route path="/demo" element={<Demo />} />
-                <Route path="/browse" element={<Browse1 />} />
-                <Route path="/browse1" element={<Browse1 />} />
-                <Route path="/browse2" element={<Suspense fallback={null}><Browse2 /></Suspense>} />
+                <Route path="/browse" element={<Navigate to="/discover" replace />} />
+                <Route path="/browse1" element={<Navigate to="/discover" replace />} />
+                <Route path="/browse2" element={<Navigate to="/discover" replace />} />
                 <Route path="/discover" element={<Browse />} />
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/profile" element={<Profile />} />
