@@ -253,7 +253,7 @@ export default function Upgrade() {
       const { data: { user } } = await supabase.auth.getUser();
       const name = user?.email?.split('@')[0] ?? 'there';
       toast.success(`Welcome to ${plan === 'pro' ? 'Pro' : 'Family'}, ${name}! 🎉`);
-      setTimeout(() => navigate('/browse'), 3000);
+      setTimeout(() => navigate('/discover'), 3000);
     } catch (err: any) {
       const msg = String(err?.message ?? '').toLowerCase();
       if (!msg.includes('cancel') && !msg.includes('cancelled')) {

@@ -37,7 +37,7 @@ export default function CheckoutReturn() {
         <div className="flex flex-col sm:flex-row gap-2 justify-center">
           <Button asChild variant="ghost"><Link to="/pricing">Back to plans</Link></Button>
           <Button asChild variant="hero" disabled={!isPro && loading}>
-            <Link to="/browse">Start learning</Link>
+            <Link to="/discover">Start learning</Link>
           </Button>
         </div>
       </div>

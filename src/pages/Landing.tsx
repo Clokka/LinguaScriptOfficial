@@ -132,7 +132,7 @@ const Landing = () => {
             <Button variant="ghost" size="sm" onClick={() => navigate("/auth")} className="text-muted-foreground hover:text-foreground">
               Sign In
             </Button>
-            <Button size="sm" onClick={() => navigate("/browse")} className="bg-gradient-to-r from-primary to-[hsl(280,100%,60%)] text-primary-foreground">
+            <Button size="sm" onClick={() => navigate("/discover")} className="bg-gradient-to-r from-primary to-[hsl(280,100%,60%)] text-primary-foreground">
               Open App
             </Button>
           </div>

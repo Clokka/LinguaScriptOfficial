@@ -32,7 +32,7 @@ export const TourOverlay = () => {
   const expectedRouteForStep = (id: string): string | null => {
     if (id.startsWith("watch-")) return trainingFilmId ? `/watch/${trainingFilmId}` : null;
     if (id.startsWith("flashcards-") || id.startsWith("deck-") || id.startsWith("red-") || id.startsWith("orange-") || id.startsWith("green-")) return "/flashcards";
-    if (id.startsWith("browse-") || id.startsWith("settings-") || id === "finale") return "/browse";
+    if (id.startsWith("browse-") || id.startsWith("settings-") || id === "finale") return "/discover";
     return null;
   };
 

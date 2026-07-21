@@ -300,7 +300,7 @@ const Friends = () => {
     <div className="min-h-screen bg-background">
       <div className="absolute inset-0 bg-gradient-hero pointer-events-none" />
       <div className="relative z-10 max-w-3xl mx-auto px-6 py-10">
-        <Button variant="glass" onClick={() => navigate("/browse")} className="mb-6 gap-2">
+        <Button variant="glass" onClick={() => navigate("/discover")} className="mb-6 gap-2">
           <ArrowLeft className="w-4 h-4" /> Back
         </Button>
 

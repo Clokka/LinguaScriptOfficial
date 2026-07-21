@@ -99,7 +99,7 @@ export const TOUR_STEPS: TourStep[] = [
     copy: "Head back to your dashboard to keep exploring.",
     placement: "bottom",
     pad: 6,
-    expectRoute: "/browse",
+    expectRoute: "/discover",
   },
   {
     id: "browse-flashcards",
@@ -203,7 +203,7 @@ export const TOUR_STEPS: TourStep[] = [
     selector: '[data-tour="page-back"]',
     copy: "Head back to your learning dashboard.",
     placement: "right",
-    expectRoute: "/browse",
+    expectRoute: "/discover",
   },
   {
     id: "browse-calendar",

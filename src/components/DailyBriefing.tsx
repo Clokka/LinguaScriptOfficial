@@ -179,7 +179,7 @@ export const DailyBriefing = () => {
                 if (step < 2) setStep(step + 1);
                 else {
                   close();
-                  navigate("/browse");
+                  navigate("/discover");
                 }
               }}
               className="rounded-full bg-orange-500 hover:bg-orange-600 text-white gap-2"
