@@ -85,12 +85,19 @@ export const LandingChameleonDemo = () => {
 
   const stateColor = allGreen ? GREEN : rampColor(pct);
 
+  // Recolour the actual skin: hue shifts from red (0%) up to the model's
+  // native green (100%), so the chameleon keeps its eyes and features and
+  // genuinely changes colour rather than glowing.
+  // The model's native skin is yellow-green; rotate hue negatively to reach
+  // red at 0% and back toward a rich green at 100%.
+  const skinHue = -100 + (pct / 100) * 118;
   const tint: MascotTint = god
-    ? { color: GREEN, god: true }
+    ? { god: true }
     : {
-        color: stateColor,
+        hueRotate: skinHue,
+        saturate: 1.45,
         emissive: stateColor,
-        emissiveIntensity: 0.25 + (pct / 100) * 0.35,
+        emissiveIntensity: 0.12,
       };
 
   const advance = (i: number) => {

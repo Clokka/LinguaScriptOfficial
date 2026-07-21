@@ -1,10 +1,13 @@
 // Live three.js viewer for a pet GLB with imperative animation control.
 // Fetches the real model from public/pets/ and crossfades between clips.
 //
-// Optional `tint` drives a magical colour-state look: the model's material is
-// recoloured (and glows via emissive) and smoothly lerps toward the target
-// each frame, so red→orange→green transitions animate. `god` mode oscillates
-// between gold and blue at high intensity for a hyper/"god" state.
+// Optional `tint` drives a magical colour-state look. Two modes:
+//  • Skin recolour (hueRotate set): the baseColor texture is redrawn through a
+//    `hue-rotate/saturate` filter, so the skin genuinely changes colour while
+//    unsaturated detail (eyes, mouth, claws) stays intact. Best for real
+//    red/orange/green chameleon skins.
+//  • Solid tint (no hueRotate): the material colour/emissive lerp to a target.
+// `god` mode oscillates a gold skin with a pulsing blue glow for a hyper state.
 import {
   forwardRef,
   useEffect,
@@ -15,15 +18,17 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
 export interface MascotTint {
-  /** Base colour the body lerps toward, e.g. "#ef4444". */
-  color: string;
-  /** Emissive glow colour (defaults to a dimmed `color`). */
+  /** Solid-tint mode: colour the body lerps toward, e.g. "#ef4444". */
+  color?: string;
+  /** Skin-recolour mode: degrees to rotate the texture hue (green≈baseline). */
+  hueRotate?: number;
+  /** Saturation multiplier for skin-recolour mode. Default 1. */
+  saturate?: number;
+  /** Emissive glow colour (defaults to a dimmed target). */
   emissive?: string;
-  /** Emissive strength, 0–~2. Default 0.35. */
+  /** Emissive strength, 0–~2. Default 0.3. */
   emissiveIntensity?: number;
-  /** Keep the original baseColor texture (muddies strong tints). Default false. */
-  keepMap?: boolean;
-  /** Hyper state: oscillate gold↔blue at high glow, ignoring `color`. */
+  /** Hyper state: gold skin + pulsing blue glow, ignores other fields. */
   god?: boolean;
 }
 
@@ -40,8 +45,7 @@ interface PetLiveProps {
   onReady?: () => void;
 }
 
-const GOLD = new THREE.Color("#ffd014");
-const BLUE = new THREE.Color("#3b82f6");
+const GOLD = new THREE.Color("#f5b301");
 
 export const PetLive = forwardRef<PetLiveHandle, PetLiveProps>(
   ({ glbFile, size, idleClip = "Idle_A", tint, onReady }, ref) => {
@@ -53,11 +57,11 @@ export const PetLive = forwardRef<PetLiveHandle, PetLiveProps>(
     const onReadyRef = useRef(onReady);
     onReadyRef.current = onReady;
 
-    // Tint plumbing: the loaded materials + the live target the tick lerps to.
     const matsRef = useRef<THREE.MeshStandardMaterial[]>([]);
     const origMapsRef = useRef<(THREE.Texture | null)[]>([]);
+    // Cache of recoloured skin textures, keyed by "hue|sat", per material index.
+    const skinCacheRef = useRef<Map<string, THREE.Texture>[]>([]);
     const tintRef = useRef<MascotTint | undefined>(tint);
-    tintRef.current = tint;
 
     const play = (name: string, loop = false) => {
       const a = actionsRef.current[name];
@@ -76,6 +80,53 @@ export const PetLive = forwardRef<PetLiveHandle, PetLiveProps>(
     };
 
     useImperativeHandle(ref, () => ({ play: (clip) => play(clip) }));
+
+    // Build (and cache) a recoloured copy of a material's original texture.
+    const recolouredSkin = (i: number, hue: number, sat: number): THREE.Texture | null => {
+      const orig = origMapsRef.current[i];
+      const img = orig?.image as (HTMLImageElement | ImageBitmap | undefined);
+      if (!orig || !img || !("width" in img)) return orig;
+      const key = `${Math.round(hue)}|${sat.toFixed(2)}`;
+      const cache = (skinCacheRef.current[i] ??= new Map());
+      const hit = cache.get(key);
+      if (hit) return hit;
+      const canvas = document.createElement("canvas");
+      canvas.width = (img as { width: number }).width;
+      canvas.height = (img as { height: number }).height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return orig;
+      ctx.filter = `hue-rotate(${hue}deg) saturate(${sat})`;
+      ctx.drawImage(img as CanvasImageSource, 0, 0);
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.colorSpace = orig.colorSpace;
+      tex.flipY = orig.flipY;
+      tex.wrapS = orig.wrapS;
+      tex.wrapT = orig.wrapT;
+      tex.needsUpdate = true;
+      cache.set(key, tex);
+      return tex;
+    };
+
+    // Apply the current tint's *discrete* parts (skin texture / map swap).
+    const applySkin = (t: MascotTint | undefined) => {
+      if (!matsRef.current.length) return;
+      matsRef.current.forEach((m, i) => {
+        if (t?.god) {
+          m.map = recolouredSkin(i, -55, 1.6); // gold skin
+        } else if (t && t.hueRotate !== undefined) {
+          m.map = recolouredSkin(i, t.hueRotate, t.saturate ?? 1);
+        } else {
+          m.map = t?.color ? null : origMapsRef.current[i];
+        }
+        m.needsUpdate = true;
+      });
+    };
+
+    useEffect(() => {
+      tintRef.current = tint;
+      applySkin(tint);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [tint?.hueRotate, tint?.saturate, tint?.god, tint?.color]);
 
     useEffect(() => {
       const host = hostRef.current;
@@ -107,7 +158,6 @@ export const PetLive = forwardRef<PetLiveHandle, PetLiveProps>(
         model.position.sub(c);
         scene.add(model);
 
-        // Collect materials so tinting can recolour + glow them.
         const mats: THREE.MeshStandardMaterial[] = [];
         const origMaps: (THREE.Texture | null)[] = [];
         model.traverse((obj) => {
@@ -124,7 +174,8 @@ export const PetLive = forwardRef<PetLiveHandle, PetLiveProps>(
         });
         matsRef.current = mats;
         origMapsRef.current = origMaps;
-        applyTintImmediate(tintRef.current);
+        skinCacheRef.current = mats.map(() => new Map());
+        applySkin(tintRef.current);
 
         mixer = new THREE.AnimationMixer(model);
         const actions: Record<string, THREE.AnimationAction> = {};
@@ -136,52 +187,37 @@ export const PetLive = forwardRef<PetLiveHandle, PetLiveProps>(
         onReadyRef.current?.();
       });
 
-      // Seed the material to the target instantly (avoids a colour flash on load).
-      const applyTintImmediate = (t: MascotTint | undefined) => {
-        if (!t) return;
-        const col = new THREE.Color(t.color);
-        matsRef.current.forEach((m, i) => {
-          m.map = t.keepMap ? origMapsRef.current[i] : null;
-          m.color.copy(col);
-          m.emissive.copy(new THREE.Color(t.emissive ?? t.color));
-          m.emissiveIntensity = t.emissiveIntensity ?? 0.35;
-          m.needsUpdate = true;
-        });
-      };
-
       const clock = new THREE.Clock();
       const tmpColor = new THREE.Color();
       const tmpEmissive = new THREE.Color();
+      const white = new THREE.Color(0xffffff);
       const tick = () => {
         if (disposed) return;
         raf = requestAnimationFrame(tick);
         const dt = clock.getDelta();
         mixer?.update(dt);
 
-        // Smoothly lerp materials toward the current tint target each frame.
         const t = tintRef.current;
         if (t && matsRef.current.length) {
           const time = clock.elapsedTime;
+          const skinMode = t.god || t.hueRotate !== undefined;
           if (t.god) {
-            const k = 0.5 + 0.5 * Math.sin(time * 2.2); // gold↔blue
-            tmpColor.copy(GOLD).lerp(BLUE, k);
-            tmpEmissive.copy(tmpColor);
+            // gold skin with a gentle golden self-glow; the blue "divine"
+            // halo is supplied by the surrounding aura, keeping the skin gold.
+            tmpColor.copy(white);
+            tmpEmissive.copy(GOLD);
+          } else if (skinMode) {
+            tmpColor.copy(white); // let the recoloured texture show true
+            tmpEmissive.set(t.emissive ?? "#000000");
           } else {
-            tmpColor.set(t.color);
-            tmpEmissive.set(t.emissive ?? t.color);
+            tmpColor.set(t.color ?? "#ffffff");
+            tmpEmissive.set(t.emissive ?? t.color ?? "#000000");
           }
           const targetIntensity = t.god
-            ? 1.4 + 0.5 * Math.sin(time * 6)
-            : t.emissiveIntensity ?? 0.35;
-          const lerp = 1 - Math.pow(0.5, dt * 6); // ~frame-rate independent
-          matsRef.current.forEach((m, i) => {
-            if (t.keepMap && origMapsRef.current[i] && m.map !== origMapsRef.current[i]) {
-              m.map = origMapsRef.current[i];
-              m.needsUpdate = true;
-            } else if (!t.keepMap && m.map) {
-              m.map = null;
-              m.needsUpdate = true;
-            }
+            ? 0.4 + 0.15 * Math.sin(time * 5)
+            : t.emissiveIntensity ?? (skinMode ? 0.12 : 0.3);
+          const lerp = 1 - Math.pow(0.5, dt * 6);
+          matsRef.current.forEach((m) => {
             m.color.lerp(tmpColor, lerp);
             m.emissive.lerp(tmpEmissive, lerp);
             m.emissiveIntensity += (targetIntensity - m.emissiveIntensity) * lerp;
@@ -201,6 +237,7 @@ export const PetLive = forwardRef<PetLiveHandle, PetLiveProps>(
         currentRef.current = null;
         matsRef.current = [];
         origMapsRef.current = [];
+        skinCacheRef.current = [];
       };
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [glbFile, size]);
