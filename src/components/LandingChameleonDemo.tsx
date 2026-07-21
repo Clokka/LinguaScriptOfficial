@@ -1,31 +1,51 @@
-// "How LinguaScript works" explainer, told through the chameleon mascot:
-// as the demo subtitle turns green, a green aura behind the mascot grows and
-// the comprehension meter fills — dramatising the core USP (the language
-// turns green). Uses the Gecko GLB as a stand-in chameleon; swap glbFile for
-// the real mascot model when it lands.
-import { useEffect, useRef, useState } from "react";
-import { motion, useInView } from "framer-motion";
-import { PetLive, PetLiveHandle } from "@/components/pets/PetLive";
+// "The mascot that turns green when you do" — rebuild of the chameleon
+// concept as an interactive landing demo. Click the red words to save/review
+// them (red→orange→green); the comprehension meter and the 3D chameleon's
+// colour track your progress. Hit 100% and the chameleon flips into a
+// gold/blue "god mode" hyper state.
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useInView } from "framer-motion";
+import { PetLive, PetLiveHandle, MascotTint } from "@/components/pets/PetLive";
 import { cn } from "@/lib/utils";
 
 const MASCOT_GLB = "/pets/Gecko_Animations.glb";
 
-// "Je voudrais un café noir" — function words start green (low weight),
-// two content words are the reveal.
-const TOKENS = [
-  { t: "Je", fn: true, green: true },
-  { t: "voudrais", green: false },
-  { t: "un", fn: true, green: true },
-  { t: "café", green: true },
-  { t: "noir", green: false },
-];
-const REVEAL = [1, 4]; // indices of the two learnable words
+type WordState = "green" | "red" | "orange";
+interface Word {
+  t: string;
+  fn?: boolean; // function word — always green, low weight
+  state: WordState;
+}
 
-const STEPS = [
-  { n: 1, title: "Watch anything", body: "Films, YouTube, Netflix — LinguaScript overlays living dual subtitles." },
-  { n: 2, title: "A word clicks", body: "Tap to save it, or just recognise it. The word turns green in place." },
-  { n: 3, title: "Everything gets greener", body: "Your mascot — and your whole transcript — shifts green as you understand more." },
+// "Je voudrais apprendre davantage avec toi" — matches the concept sentence.
+const INITIAL: Word[] = [
+  { t: "Je", fn: true, state: "green" },
+  { t: "voudrais", state: "red" },
+  { t: "apprendre", state: "red" },
+  { t: "davantage", state: "red" },
+  { t: "avec", fn: true, state: "green" },
+  { t: "toi", state: "red" },
 ];
+
+const RED = "#ef4444";
+const ORANGE = "#fb923c";
+const GREEN = "#34d399";
+
+const hexToRgb = (h: string) => [
+  parseInt(h.slice(1, 3), 16),
+  parseInt(h.slice(3, 5), 16),
+  parseInt(h.slice(5, 7), 16),
+];
+const rgbToHex = (r: number, g: number, b: number) =>
+  "#" + [r, g, b].map((v) => Math.round(v).toString(16).padStart(2, "0")).join("");
+const lerpHex = (a: string, b: string, t: number) => {
+  const ca = hexToRgb(a);
+  const cb = hexToRgb(b);
+  return rgbToHex(ca[0] + (cb[0] - ca[0]) * t, ca[1] + (cb[1] - ca[1]) * t, ca[2] + (cb[2] - ca[2]) * t);
+};
+// Comprehension % → a colour on the red→orange→green ramp.
+const rampColor = (pct: number) =>
+  pct < 50 ? lerpHex(RED, ORANGE, pct / 50) : lerpHex(ORANGE, GREEN, (pct - 50) / 50);
 
 const prefersReducedMotion = () =>
   typeof window !== "undefined" &&
@@ -36,71 +56,78 @@ export const LandingChameleonDemo = () => {
   const liveRef = useRef<PetLiveHandle>(null);
   const inView = useInView(rootRef, { once: true, margin: "120px" });
   const [ready, setReady] = useState(false);
-  const [greens, setGreens] = useState<boolean[]>(() => TOKENS.map((t) => !!t.green));
+  const [words, setWords] = useState<Word[]>(INITIAL);
+  const [god, setGod] = useState(false);
+  const godTimer = useRef<number>(0);
 
-  const weight = (i: number) => (TOKENS[i].fn ? 0.25 : 1);
-  const pct = (() => {
+  const weight = (w: Word) => (w.fn ? 0.25 : 1);
+  const pct = useMemo(() => {
     let known = 0;
     let total = 0;
-    TOKENS.forEach((_, i) => {
-      total += weight(i);
-      if (greens[i]) known += weight(i);
-    });
-    return Math.round((known / total) * 100);
-  })();
-
-  // Loop the reveal so the USP is always visibly happening.
-  useEffect(() => {
-    if (!inView) return;
-    const reduced = prefersReducedMotion();
-    if (reduced) {
-      setGreens(TOKENS.map(() => true));
-      return;
+    for (const w of words) {
+      total += weight(w);
+      if (w.state === "green") known += weight(w);
     }
-    let step = 0;
-    let timer: number;
-    const run = () => {
-      if (step < REVEAL.length) {
-        const idx = REVEAL[step];
-        setGreens((prev) => {
-          const next = [...prev];
-          next[idx] = true;
-          return next;
-        });
-        step += 1;
-        // celebratory hop when the last word lands (line complete)
-        if (step === REVEAL.length) liveRef.current?.play("Bounce");
-        timer = window.setTimeout(run, 1500);
-      } else {
-        // hold on full green, then reset and replay
-        timer = window.setTimeout(() => {
-          setGreens(TOKENS.map((t) => !!t.green));
-          step = 0;
-          timer = window.setTimeout(run, 1000);
-        }, 2400);
-      }
-    };
-    timer = window.setTimeout(run, 1400);
-    return () => clearTimeout(timer);
-  }, [inView]);
+    return Math.round((known / total) * 100);
+  }, [words]);
 
-  // Aura strength tracks comprehension.
-  const auraOpacity = 0.15 + (pct / 100) * 0.55;
-  const auraScale = 0.85 + (pct / 100) * 0.4;
+  const allGreen = pct === 100;
+
+  // Fire god mode once everything is green, then settle back to green.
+  useEffect(() => {
+    if (!allGreen) return;
+    liveRef.current?.play("Spin");
+    setGod(true);
+    clearTimeout(godTimer.current);
+    godTimer.current = window.setTimeout(() => setGod(false), 2600);
+    return () => clearTimeout(godTimer.current);
+  }, [allGreen]);
+
+  const stateColor = allGreen ? GREEN : rampColor(pct);
+
+  const tint: MascotTint = god
+    ? { color: GREEN, god: true }
+    : {
+        color: stateColor,
+        emissive: stateColor,
+        emissiveIntensity: 0.25 + (pct / 100) * 0.35,
+      };
+
+  const advance = (i: number) => {
+    setWords((prev) =>
+      prev.map((w, j) => {
+        if (j !== i || w.fn) return w;
+        const next: WordState = w.state === "red" ? "orange" : "green";
+        return { ...w, state: next };
+      }),
+    );
+    if (!prefersReducedMotion()) liveRef.current?.play("Clicked");
+  };
+
+  const reset = () => {
+    setGod(false);
+    setWords(INITIAL);
+  };
+
+  const wordColor: Record<WordState, string> = {
+    red: "text-red-400",
+    orange: "text-amber-400",
+    green: "text-emerald-400/80",
+  };
 
   return (
     <div ref={rootRef} className="grid grid-cols-1 items-center gap-10 lg:grid-cols-2">
-      {/* Mascot stage */}
-      <div className="relative mx-auto flex h-[320px] w-full max-w-[420px] items-center justify-center">
-        {/* Green aura, scaled by comprehension */}
+      {/* Chameleon stage */}
+      <div className="relative mx-auto flex h-[340px] w-full max-w-[440px] items-center justify-center">
         <div
           aria-hidden
-          className="pointer-events-none absolute rounded-full bg-emerald-400 blur-[70px] transition-all duration-700"
+          className="pointer-events-none absolute rounded-full blur-[70px] transition-all duration-700"
           style={{
             width: 260,
             height: 260,
-            opacity: auraOpacity,
-            transform: `scale(${auraScale})`,
+            background: god ? "#7dd3fc" : stateColor,
+            opacity: god ? 0.75 : 0.18 + (pct / 100) * 0.5,
+            transform: `scale(${god ? 1.35 : 0.85 + (pct / 100) * 0.4})`,
           }}
         />
         {!ready && (
@@ -110,62 +137,75 @@ export const LandingChameleonDemo = () => {
         )}
         {inView && (
           <div className={cn("relative transition-opacity duration-500", ready ? "opacity-100" : "opacity-0")}>
-            <PetLive ref={liveRef} glbFile={MASCOT_GLB} size={300} onReady={() => setReady(true)} />
+            <PetLive ref={liveRef} glbFile={MASCOT_GLB} size={320} tint={tint} onReady={() => setReady(true)} />
           </div>
         )}
-
-        {/* Demo subtitle + meter, floating under the mascot */}
-        <div className="absolute -bottom-2 left-1/2 w-[320px] max-w-[90%] -translate-x-1/2">
-          <div className="rounded-xl border border-white/10 bg-[rgba(8,12,11,0.72)] px-4 py-3 text-center backdrop-blur-md">
-            <p className="text-base font-medium leading-relaxed sm:text-lg">
-              {TOKENS.map((tok, i) => (
-                <span
-                  key={i}
-                  className={cn(
-                    "inline-block whitespace-pre transition-colors duration-500",
-                    greens[i]
-                      ? cn("text-emerald-400/80", !tok.fn && "font-medium")
-                      : "font-semibold text-white",
-                  )}
-                >
-                  {tok.t}
-                  {i < TOKENS.length - 1 ? " " : ""}
-                </span>
-              ))}
-            </p>
-            <div className="mt-2 flex items-center gap-2">
-              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/10">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-emerald-300 transition-all duration-500"
-                  style={{ width: `${pct}%` }}
-                />
-              </div>
-              <span className="text-[11px] font-bold tabular-nums text-emerald-300">{pct}%</span>
-            </div>
+        {god && (
+          <div className="pointer-events-none absolute -top-1 rounded-full border border-amber-300/60 bg-black/50 px-3 py-1 text-xs font-black tracking-wide text-amber-300 backdrop-blur">
+            ✦ HYPER MODE ✦
           </div>
-        </div>
+        )}
       </div>
 
-      {/* Steps */}
-      <div className="flex flex-col gap-5">
-        {STEPS.map((step, i) => (
-          <motion.div
-            key={step.n}
-            initial={{ opacity: 0, x: 20 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: i * 0.1, duration: 0.5 }}
-            className="flex gap-4"
+      {/* Interactive panel — mirrors the concept */}
+      <div className="rounded-2xl border border-border/60 bg-background/40 p-6 backdrop-blur">
+        <div className="mb-4 flex items-center gap-3">
+          <span
+            className="text-3xl font-black tabular-nums transition-colors duration-500"
+            style={{ color: god ? "#fcd34d" : stateColor }}
           >
-            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-emerald-500/15 text-base font-black text-emerald-300">
-              {step.n}
-            </div>
-            <div>
-              <h3 className="text-lg font-bold">{step.title}</h3>
-              <p className="text-sm leading-relaxed text-muted-foreground">{step.body}</p>
-            </div>
-          </motion.div>
-        ))}
+            {pct}%
+          </span>
+          <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+            French understanding
+          </span>
+        </div>
+        <div className="mb-5 h-2 overflow-hidden rounded-full bg-secondary/50">
+          <div
+            className="h-full rounded-full transition-all duration-500"
+            style={{ width: `${pct}%`, background: god ? "linear-gradient(90deg,#fcd34d,#60a5fa)" : stateColor }}
+          />
+        </div>
+
+        <p className="text-2xl font-semibold leading-relaxed">
+          {words.map((w, i) => (
+            <span
+              key={i}
+              role={w.fn ? undefined : "button"}
+              tabIndex={w.fn || w.state === "green" ? undefined : 0}
+              onClick={() => advance(i)}
+              onKeyDown={(e) => {
+                if ((e.key === "Enter" || e.key === " ") && !w.fn) {
+                  e.preventDefault();
+                  advance(i);
+                }
+              }}
+              className={cn(
+                "inline-block whitespace-pre transition-colors duration-500",
+                wordColor[w.state],
+                !w.fn && w.state !== "green" && "cursor-pointer rounded hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400",
+              )}
+            >
+              {w.t}
+              {i < words.length - 1 ? " " : ""}
+            </span>
+          ))}
+        </p>
+
+        <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
+          Click a <span className="font-semibold text-red-400">red word</span> to save it, click
+          again as it's reviewed. When the sentence turns green, so does the chameleon.
+        </p>
+
+        {allGreen && (
+          <button
+            type="button"
+            onClick={reset}
+            className="mt-4 rounded-full border border-border bg-secondary/40 px-4 py-1.5 text-sm font-semibold transition-colors hover:bg-secondary/70"
+          >
+            ↺ Try again
+          </button>
+        )}
       </div>
     </div>
   );
