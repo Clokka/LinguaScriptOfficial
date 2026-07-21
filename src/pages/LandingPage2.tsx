@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils";
 import { ProductDemoPlayer } from "@/components/ProductDemoPlayer";
 import { LineBlastDemo } from "@/components/LineBlastDemo";
 import { LandingPetShowcase } from "@/components/LandingPetShowcase";
+import { LandingChameleonDemo } from "@/components/LandingChameleonDemo";
 
 /**
  * LinguaScript Landing Page v2 — product-walkthrough style.
@@ -162,6 +163,32 @@ const LandingPage2 = () => {
         >
           <ProductDemoPlayer />
         </motion.div>
+      </section>
+
+      {/* ─── How it works: the chameleon demo ─── */}
+      <section id="how-it-works" className="relative py-20">
+        <div className="max-w-6xl mx-auto px-6">
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-100px" }}
+            className="text-center mb-12"
+          >
+            <motion.div variants={fadeUp} custom={0} className="inline-flex items-center gap-2 glass-panel rounded-full px-4 py-1.5 mb-4">
+              <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="text-xs font-semibold tracking-wide">How LinguaScript works</span>
+            </motion.div>
+            <motion.h2 variants={fadeUp} custom={1} className="text-3xl sm:text-5xl font-bold mb-4">
+              The more you understand, the <span className="text-emerald-400">greener</span> it gets
+            </motion.h2>
+            <motion.p variants={fadeUp} custom={2} className="text-muted-foreground max-w-2xl mx-auto">
+              Meet your chameleon guide. Watch a word turn green the moment it clicks — and watch
+              everything grow greener as your comprehension climbs.
+            </motion.p>
+          </motion.div>
+
+          <LandingChameleonDemo />
+        </div>
       </section>
 
       {/* ─── Features grid ─── */}
