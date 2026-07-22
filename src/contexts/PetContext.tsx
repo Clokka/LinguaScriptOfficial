@@ -16,7 +16,7 @@ interface PetContextValue {
   isCompanionVisible: boolean;
 }
 
-const PetContext = createContext<PetContextValue | null>(null);
+export const PetContext = createContext<PetContextValue | null>(null);
 
 const FREE_PET_IDS = PETS.filter((p) => p.unlock.type === "free").map((p) => p.id);
 
