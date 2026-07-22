@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { usePet } from "@/contexts/PetContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { getPetById } from "@/lib/pets";
+import { getLanguageColor, ColorValue } from "@/lib/felixColors";
 import { PetViewer, PetAnimation } from "./PetViewer";
 
 // --- Animation mapping per reaction ---
@@ -35,9 +37,20 @@ function pick<T>(arr: T[]): T {
 
 export function PetCompanion() {
   const { activePet, reaction, isCompanionVisible } = usePet();
+  const { languageContext } = useLanguage();
   const [message, setMessage] = useState<string | null>(null);
   const [chainStep, setChainStep] = useState(0);
+  const [languageColor, setLanguageColor] = useState<ColorValue | undefined>();
   const pet = activePet ? getPetById(activePet) : null;
+
+  // Update color when language changes (Felix only)
+  useEffect(() => {
+    if (activePet === "felix") {
+      setLanguageColor(getLanguageColor(languageContext));
+    } else {
+      setLanguageColor(undefined);
+    }
+  }, [languageContext, activePet]);
 
   // Update speech bubble on reaction change
   useEffect(() => {
@@ -135,6 +148,7 @@ export function PetCompanion() {
           glbFile={pet.glbFile}
           animation={animation}
           size={size}
+          languageColor={languageColor}
         />
       </motion.div>
     </div>
