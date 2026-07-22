@@ -55,7 +55,7 @@ interface LanguageContextType {
   speak: (text: string, lang?: string) => Promise<void> | void;
 }
 
-const LanguageContext = createContext<LanguageContextType>({
+export const LanguageContext = createContext<LanguageContextType>({
   languageContext: "fr",
   learningLanguage: "fr",
   setLearningLanguage: () => {},

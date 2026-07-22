@@ -290,3 +290,34 @@ export async function getLinguascriptStats(
     avgCombo,
   };
 }
+
+/**
+ * Create LinguaScript from a saved word using RPC
+ */
+export async function createLinguaScriptFromSavedWord(
+  userId: string,
+  savedWordId: string,
+  word: string,
+  translation: string,
+  language: string,
+  context: string,
+  gapOptions: any,
+  mcqOptions: any
+): Promise<string> {
+  const { data, error } = await supabase.rpc(
+    "create_linguascript_from_saved_word",
+    {
+      p_user_id: userId,
+      p_saved_word_id: savedWordId,
+      p_word: word,
+      p_translation: translation,
+      p_language: language,
+      p_context: context,
+      p_gap_options: gapOptions,
+      p_mcq_options: mcqOptions,
+    }
+  );
+
+  if (error) throw error;
+  return data;
+}
