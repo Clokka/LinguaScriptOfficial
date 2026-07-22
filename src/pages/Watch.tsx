@@ -710,6 +710,7 @@ const Watch = () => {
     }
 
     if (!film) return;
+    const today = new Date().toISOString().split("T")[0];
     const { error: saveError } = await supabase.from("saved_words").upsert({
       user_id: user.id,
       word: word.text,
@@ -719,6 +720,10 @@ const Watch = () => {
       context,
       film_id: film.id,
       language: langCode,
+      next_review: today,
+      state: "red",
+      review_count: 0,
+      times_correct: 0,
     }, { onConflict: "user_id,word,language" });
     if (saveError) {
       console.error("Save word failed", saveError);
@@ -768,6 +773,7 @@ const Watch = () => {
     }
 
     if (!film) return;
+    const today = new Date().toISOString().split("T")[0];
     const { error } = await supabase.from("saved_words").upsert({
       user_id: user.id,
       word: trimmed,
@@ -778,6 +784,10 @@ const Watch = () => {
       film_id: film.id,
       language: langCode,
       is_phrase: true,
+      next_review: today,
+      state: "red",
+      review_count: 0,
+      times_correct: 0,
     } as any, { onConflict: "user_id,word,language" });
     if (error) {
       console.error("Save phrase failed", error);

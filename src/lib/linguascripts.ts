@@ -292,25 +292,7 @@ export async function getLinguascriptStats(
 }
 
 /**
- * Get saved words that need review today
- */
-export async function getWordsNeedingReview(
-  userId: string,
-  language: string,
-  limit: number = 5
-): Promise<any[]> {
-  const { data, error } = await supabase.rpc("get_words_needing_review", {
-    p_user_id: userId,
-    p_language: language,
-    p_limit: limit,
-  });
-
-  if (error) throw error;
-  return data || [];
-}
-
-/**
- * Create LinguaScript from a saved word
+ * Create LinguaScript from a saved word using RPC
  */
 export async function createLinguaScriptFromSavedWord(
   userId: string,
@@ -338,21 +320,4 @@ export async function createLinguaScriptFromSavedWord(
 
   if (error) throw error;
   return data;
-}
-
-/**
- * Update SRS after completing a LinguaScript exercise
- */
-export async function updateSrsAfterLinguaScript(
-  linguascriptId: string,
-  userId: string,
-  correct: boolean
-): Promise<void> {
-  const { error } = await supabase.rpc("update_srs_after_linguascript", {
-    p_linguascript_id: linguascriptId,
-    p_user_id: userId,
-    p_correct: correct,
-  });
-
-  if (error) throw error;
 }
