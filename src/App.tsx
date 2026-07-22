@@ -44,6 +44,7 @@ import GiftClaim from "./pages/GiftClaim";
 import MieoFrames from "./pages/MieoFrames";
 import OnboardingMobile from "./pages/OnboardingMobile";
 import OAuthConsent from "./pages/OAuthConsent";
+import LinguaScripts from "./pages/LinguaScripts";
 
 const queryClient = new QueryClient();
 
@@ -88,6 +89,7 @@ const App = () => (
                 <Route path="/mieoframes" element={<MieoFrames />} />
                 <Route path="/onboarding/mobile" element={<OnboardingMobile />} />
                 <Route path="/welcome" element={<OnboardingMobile />} />
+                <Route path="/linguascripts" element={<LinguaScripts />} />
                 <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
