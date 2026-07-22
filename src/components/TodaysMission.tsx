@@ -1,7 +1,12 @@
 import { useState, useEffect } from "react";
-import { getDailyLinguascripts, type LinguaScript } from "@/lib/linguascripts";
+import {
+  getWordsNeedingReview,
+  createLinguaScriptFromSavedWord,
+  generateLinguaScript,
+  type LinguaScript
+} from "@/lib/linguascripts";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowRight, Zap, Target } from "lucide-react";
+import { ArrowRight, Zap, Target, Sparkles } from "lucide-react";
 
 interface TodaysMissionProps {
   language: string;
@@ -12,6 +17,7 @@ export function TodaysMission({ language, onStartExercise }: TodaysMissionProps)
   const [scripts, setScripts] = useState<LinguaScript[]>([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({ completed: 0, total: 0, xpEarned: 0 });
+  const [generatingFor, setGeneratingFor] = useState<string | null>(null);
 
   useEffect(() => {
     loadMission();
@@ -23,13 +29,77 @@ export function TodaysMission({ language, onStartExercise }: TodaysMissionProps)
       const user = (await supabase.auth.getUser()).data.user;
       if (!user) return;
 
-      const dailyScripts = await getDailyLinguascripts(user.id, language);
-      setScripts(dailyScripts);
+      // Get saved words needing review
+      const wordsNeedingReview = await getWordsNeedingReview(user.id, language, 10);
 
-      const completed = dailyScripts.filter(s => s.status === "completed").length;
-      const xpEarned = dailyScripts.reduce((sum, s) => sum + (s.xp_earned || 0), 0);
+      if (wordsNeedingReview.length === 0) {
+        // No saved words yet, show sample exercises
+        const { data } = await supabase
+          .from("linguascripts")
+          .select("*")
+          .eq("user_id", user.id)
+          .eq("language", language)
+          .order("created_at", { ascending: false })
+          .limit(5);
 
-      setStats({ completed, total: dailyScripts.length, xpEarned });
+        if (data) {
+          setScripts(data as LinguaScript[]);
+          calculateStats(data as LinguaScript[]);
+        }
+        return;
+      }
+
+      // Generate LinguaScripts for words needing review
+      const generatedScripts: LinguaScript[] = [];
+
+      for (const savedWord of wordsNeedingReview) {
+        try {
+          setGeneratingFor(savedWord.word);
+
+          // Generate AI content for the word
+          const generated = await generateLinguaScript(
+            savedWord.word,
+            language,
+            []
+          );
+
+          // Create LinguaScript in database
+          const linguascriptId = await createLinguaScriptFromSavedWord(
+            user.id,
+            savedWord.id,
+            savedWord.word,
+            generated.translation,
+            language,
+            savedWord.context || generated.sentence,
+            generated.gapOptions,
+            generated.mcqOptions
+          );
+
+          generatedScripts.push({
+            id: linguascriptId,
+            user_id: user.id,
+            language,
+            target_word: savedWord.word,
+            sentence: generated.sentence,
+            translation: generated.translation,
+            interest: "",
+            gap_position: generated.gapPosition,
+            gap_options: generated.gapOptions,
+            mcq_options: generated.mcqOptions,
+            status: "pending",
+            attempts: 0,
+            scheduled_to_srs: true,
+            combo_multiplier: 1,
+            created_at: new Date().toISOString(),
+          } as LinguaScript);
+        } catch (err) {
+          console.error(`Failed to generate LinguaScript for "${savedWord.word}":`, err);
+        }
+      }
+
+      setGeneratingFor(null);
+      setScripts(generatedScripts);
+      calculateStats(generatedScripts);
     } catch (err) {
       console.error("Failed to load mission:", err);
     } finally {
@@ -37,12 +107,24 @@ export function TodaysMission({ language, onStartExercise }: TodaysMissionProps)
     }
   }
 
-  if (loading) {
+  function calculateStats(scripts: LinguaScript[]) {
+    const completed = scripts.filter(s => s.status === "completed").length;
+    const xpEarned = scripts.reduce((sum, s) => sum + (s.xp_earned || 0), 0);
+    setStats({ completed, total: scripts.length, xpEarned });
+  }
+
+  if (loading || generatingFor) {
     return (
-      <div className="bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700 rounded-2xl p-8">
+      <div className="bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700 rounded-2xl p-8 backdrop-blur-sm">
         <div className="animate-pulse space-y-4">
           <div className="h-6 bg-slate-700 rounded w-3/4"></div>
           <div className="h-4 bg-slate-700 rounded w-1/2"></div>
+          {generatingFor && (
+            <div className="mt-4 flex items-center gap-2 text-amber-400">
+              <Sparkles className="w-4 h-4 animate-spin" />
+              <span className="text-sm">Generating exercise for "{generatingFor}"...</span>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -61,7 +143,7 @@ export function TodaysMission({ language, onStartExercise }: TodaysMissionProps)
           </div>
           <div>
             <h2 className="text-2xl font-black bg-gradient-to-r from-amber-300 to-emerald-300 bg-clip-text text-transparent">Today's Mission</h2>
-            <p className="text-sm text-slate-400 mt-1">Learn {stats.total} vocabulary words</p>
+            <p className="text-sm text-slate-400 mt-1">Review {stats.total} vocabulary words</p>
           </div>
         </div>
         <div className="text-right">
@@ -77,9 +159,7 @@ export function TodaysMission({ language, onStartExercise }: TodaysMissionProps)
       <div className="mb-8">
         <div className="relative w-24 h-24 mx-auto mb-4">
           <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-            {/* Background circle */}
             <circle cx="50" cy="50" r="45" fill="none" stroke="rgba(71, 85, 105, 0.3)" strokeWidth="8" />
-            {/* Progress circle */}
             <circle
               cx="50"
               cy="50"
@@ -145,8 +225,8 @@ export function TodaysMission({ language, onStartExercise }: TodaysMissionProps)
         </div>
       ) : (
         <div className="text-center py-8 mb-6">
-          <p className="text-slate-400 text-sm">No exercises for today yet</p>
-          <p className="text-xs text-slate-500 mt-2">Check back tomorrow or create new exercises</p>
+          <p className="text-slate-400 text-sm">No exercises for today</p>
+          <p className="text-xs text-slate-500 mt-2">Save words in your vocabulary to generate exercises</p>
         </div>
       )}
 

@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { useContext } from "react";
 import { useComboTracker } from "@/hooks/useComboTracker";
 import { PetContext } from "@/contexts/PetContext";
+import { updateSrsAfterLinguaScript } from "@/lib/linguascripts";
+import { supabase } from "@/integrations/supabase/client";
 import { ArrowRight, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

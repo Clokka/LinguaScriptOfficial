@@ -290,3 +290,69 @@ export async function getLinguascriptStats(
     avgCombo,
   };
 }
+
+/**
+ * Get saved words that need review today
+ */
+export async function getWordsNeedingReview(
+  userId: string,
+  language: string,
+  limit: number = 5
+): Promise<any[]> {
+  const { data, error } = await supabase.rpc("get_words_needing_review", {
+    p_user_id: userId,
+    p_language: language,
+    p_limit: limit,
+  });
+
+  if (error) throw error;
+  return data || [];
+}
+
+/**
+ * Create LinguaScript from a saved word
+ */
+export async function createLinguaScriptFromSavedWord(
+  userId: string,
+  savedWordId: string,
+  word: string,
+  translation: string,
+  language: string,
+  context: string,
+  gapOptions: any,
+  mcqOptions: any
+): Promise<string> {
+  const { data, error } = await supabase.rpc(
+    "create_linguascript_from_saved_word",
+    {
+      p_user_id: userId,
+      p_saved_word_id: savedWordId,
+      p_word: word,
+      p_translation: translation,
+      p_language: language,
+      p_context: context,
+      p_gap_options: gapOptions,
+      p_mcq_options: mcqOptions,
+    }
+  );
+
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Update SRS after completing a LinguaScript exercise
+ */
+export async function updateSrsAfterLinguaScript(
+  linguascriptId: string,
+  userId: string,
+  correct: boolean
+): Promise<void> {
+  const { error } = await supabase.rpc("update_srs_after_linguascript", {
+    p_linguascript_id: linguascriptId,
+    p_user_id: userId,
+    p_correct: correct,
+  });
+
+  if (error) throw error;
+}
