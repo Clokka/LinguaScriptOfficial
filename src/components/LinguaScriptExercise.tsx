@@ -1,18 +1,9 @@
 import { useState, useEffect } from "react";
 import { useContext } from "react";
-import { useXp } from "@/hooks/useXp";
 import { useComboTracker } from "@/hooks/useComboTracker";
 import { PetContext } from "@/contexts/PetContext";
-import {
-  generateLinguaScript,
-  createLinguaScript,
-  submitGapFill,
-  submitMCQ,
-  skipLinguascript,
-  type LinguaScript,
-  type GeneratedContent,
-} from "@/lib/linguascripts";
 import { supabase } from "@/integrations/supabase/client";
+import { ArrowRight, RotateCcw, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import confetti from "canvas-confetti";
@@ -20,365 +11,331 @@ import confetti from "canvas-confetti";
 type ExerciseMode = "gap-fill" | "mcq" | "speaking";
 
 interface LinguaScriptExerciseProps {
-  targetWord: string;
+  targetWord?: string;
   language: string;
   interests?: string[];
   mode?: ExerciseMode;
-  onComplete?: (script: LinguaScript) => void;
+  onComplete?: (script: any) => void;
 }
 
 export function LinguaScriptExercise({
-  targetWord,
+  targetWord = "bonjour",
   language,
   interests = [],
   mode = "gap-fill",
   onComplete,
 }: LinguaScriptExerciseProps) {
+  const [exercise, setExercise] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [script, setScript] = useState<LinguaScript | null>(null);
-  const [content, setContent] = useState<GeneratedContent | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [answered, setAnswered] = useState(false);
   const [correct, setCorrect] = useState(false);
   const [userAnswer, setUserAnswer] = useState("");
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [xpAwarded, setXpAwarded] = useState(0);
 
-  const xp = useXp();
-  const petCtx = useContext(PetContext);
-  const { combo, recordCorrect, recordIncorrect, recordSkip } = useComboTracker();
+  const { combo, recordCorrect, recordIncorrect } = useComboTracker();
 
-  // Generate content on mount
   useEffect(() => {
-    generateContent();
+    loadExercise();
   }, [targetWord, language]);
 
-  async function generateContent() {
+  async function loadExercise() {
     try {
       setLoading(true);
       setError(null);
 
-      // Generate AI content
-      const generated = await generateLinguaScript(
-        targetWord,
-        language,
-        interests
-      );
-      setContent(generated);
+      // Fetch exercise from database
+      const { data, error: fetchError } = await supabase
+        .from("linguascripts")
+        .select("*")
+        .eq("language", language)
+        .eq("target_word", targetWord)
+        .eq("status", "pending")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single();
 
-      // Create DB record
-      const user = (await supabase.auth.getUser()).data.user;
-      if (!user) throw new Error("Not authenticated");
+      if (fetchError && fetchError.code !== "PGRST116") {
+        throw fetchError;
+      }
 
-      const created = await createLinguaScript(
-        user.id,
-        language,
-        targetWord,
-        generated
-      );
-
-      setScript(created);
+      if (!data) {
+        // No exercise found, create a temporary one with sample data
+        setExercise({
+          id: `temp-${targetWord}`,
+          target_word: targetWord,
+          sentence: `______ - Learning ${targetWord}`,
+          translation: `Learn ${targetWord}`,
+          gap_options: { correct: targetWord, distractors: ["option1", "option2", "option3"] },
+          mcq_options: { correct: 0, options: [targetWord, "option1", "option2", "option3"] },
+        });
+      } else {
+        setExercise(data);
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to generate");
+      console.error("Failed to load exercise:", err);
+      setError(err instanceof Error ? err.message : "Failed to load exercise");
     } finally {
       setLoading(false);
     }
   }
 
-  async function handleSubmitGapFill() {
-    if (!script || !content) return;
+  function handleSubmitGapFill() {
+    const isCorrect =
+      userAnswer.toLowerCase().trim() ===
+      exercise.gap_options.correct.toLowerCase();
+    const baseXp = isCorrect ? 15 : 5;
+    const xpWithCombo = Math.floor(baseXp * (1 + combo * 0.1));
 
-    try {
-      const { correct: isCorrect, xp } = await submitGapFill(
-        script.id,
-        userAnswer,
-        content.gapOptions.correct,
-        combo
-      );
+    setCorrect(isCorrect);
+    setAnswered(true);
+    setShowFeedback(true);
+    setXpAwarded(xpWithCombo);
 
-      setCorrect(isCorrect);
-      setAnswered(true);
+    if (isCorrect) {
+      recordCorrect();
+      confetti({
+        particleCount: Math.min(40 + combo * 30, 170),
+        spread: 60,
+        origin: { x: 0.5, y: 0.5 },
+        colors: ["#fbbf24", "#fcd34d", "#34d399", "#6ee7b7", "#f4f7f5"],
+      });
+    } else {
+      recordIncorrect();
+    }
 
-      // Update XP and trigger celebration
-      if (isCorrect) {
-        xp.award("review_card", { correct: true });
-        recordCorrect();
-
-        // Trigger pet celebration
-        petCtx?.celebrate("learning_milestone");
-
-        // Trigger line blast effect
-        triggerBlastEffect();
-
-        // Award confetti
-        if (combo >= 2) {
-          confetti({
-            particleCount: Math.min(40 + combo * 30, 170),
-            spread: 60,
-            origin: { y: 0.6 },
-          });
-        }
-      } else {
-        recordIncorrect();
-      }
-
-      // Refetch script
-      if (script.id) {
-        const { data } = await supabase
+    setTimeout(async () => {
+      // Update database
+      if (exercise.id && !exercise.id.startsWith("temp-")) {
+        await supabase
           .from("linguascripts")
-          .select("*")
-          .eq("id", script.id)
-          .single();
-        if (data) setScript(data as LinguaScript);
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to submit");
-    }
-  }
-
-  async function handleSubmitMCQ() {
-    if (!script || !content || selectedOption === null) return;
-
-    try {
-      const { correct: isCorrect, xp } = await submitMCQ(
-        script.id,
-        selectedOption,
-        content.mcqOptions.correct,
-        combo
-      );
-
-      setCorrect(isCorrect);
-      setAnswered(true);
-
-      if (isCorrect) {
-        xp.award("review_card", { correct: true });
-        recordCorrect();
-        petCtx?.celebrate("learning_milestone");
-        triggerBlastEffect();
-
-        if (combo >= 2) {
-          confetti({
-            particleCount: Math.min(40 + combo * 30, 170),
-            spread: 60,
-            origin: { y: 0.6 },
-          });
-        }
-      } else {
-        recordIncorrect();
+          .update({
+            status: isCorrect ? "completed" : "started",
+            correct: isCorrect,
+            gap_answer: userAnswer,
+            completed_at: isCorrect ? new Date().toISOString() : null,
+            xp_earned: xpWithCombo,
+            combo_multiplier: combo,
+          })
+          .eq("id", exercise.id);
       }
 
-      const { data } = await supabase
-        .from("linguascripts")
-        .select("*")
-        .eq("id", script.id)
-        .single();
-      if (data) setScript(data as LinguaScript);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to submit");
-    }
+      onComplete?.({
+        ...exercise,
+        xp_earned: xpWithCombo,
+        combo_multiplier: combo,
+        status: isCorrect ? "completed" : "started",
+      });
+    }, 800);
   }
 
-  async function handleSkip() {
-    if (!script) return;
+  function handleSubmitMCQ() {
+    if (selectedOption === null) return;
 
-    try {
-      await skipLinguascript(script.id);
-      recordSkip();
-      onComplete?.(script);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to skip");
+    const isCorrect = selectedOption === exercise.mcq_options.correct;
+    const baseXp = isCorrect ? 15 : 5;
+    const xpWithCombo = Math.floor(baseXp * (1 + combo * 0.1));
+
+    setCorrect(isCorrect);
+    setAnswered(true);
+    setShowFeedback(true);
+    setXpAwarded(xpWithCombo);
+
+    if (isCorrect) {
+      recordCorrect();
+      confetti({
+        particleCount: Math.min(40 + combo * 30, 170),
+        spread: 60,
+        origin: { x: 0.5, y: 0.5 },
+        colors: ["#fbbf24", "#fcd34d", "#34d399", "#6ee7b7", "#f4f7f5"],
+      });
+    } else {
+      recordIncorrect();
     }
+
+    setTimeout(async () => {
+      // Update database
+      if (exercise.id && !exercise.id.startsWith("temp-")) {
+        await supabase
+          .from("linguascripts")
+          .update({
+            status: isCorrect ? "completed" : "started",
+            correct: isCorrect,
+            mcq_answer: selectedOption,
+            completed_at: isCorrect ? new Date().toISOString() : null,
+            xp_earned: xpWithCombo,
+            combo_multiplier: combo,
+          })
+          .eq("id", exercise.id);
+      }
+
+      onComplete?.({
+        ...exercise,
+        xp_earned: xpWithCombo,
+        combo_multiplier: combo,
+        status: isCorrect ? "completed" : "started",
+      });
+    }, 800);
   }
 
-  function triggerBlastEffect() {
-    // This would trigger the Line Blast animation
-    // In a full implementation, this would be a React component rendered
-    // to trigger the animation sequence from the prototype
+  function handleReset() {
+    setUserAnswer("");
+    setSelectedOption(null);
+    setAnswered(false);
+    setCorrect(false);
+    setShowFeedback(false);
+    setXpAwarded(0);
   }
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center p-8">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500 mx-auto mb-4"></div>
-          <p className="text-sm text-muted-foreground">
-            Generating your LinguaScript...
-          </p>
+      <div className="bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700 rounded-2xl p-8 backdrop-blur-sm">
+        <div className="animate-pulse space-y-4">
+          <div className="h-6 bg-slate-700 rounded w-3/4"></div>
+          <div className="h-4 bg-slate-700 rounded w-1/2"></div>
+          <div className="h-40 bg-slate-700 rounded mt-6"></div>
         </div>
       </div>
     );
   }
 
-  if (!content || !script) {
+  if (error || !exercise) {
     return (
-      <div className="p-8 text-center">
-        <p className="text-red-500 mb-4">{error || "Failed to generate"}</p>
-        <Button onClick={generateContent}>Try Again</Button>
-      </div>
-    );
-  }
-
-  // Gap-fill mode
-  if (mode === "gap-fill") {
-    const words = content.sentence.split(" ");
-    const sentenceWithGap = words.map((w, i) =>
-      w === "_____" ? `[${content.gapOptions.correct}]` : w
-    );
-
-    return (
-      <div className="w-full max-w-2xl mx-auto p-6 space-y-6">
-        {/* Sentence with gap */}
-        <div className="bg-slate-900 rounded-lg p-6 border border-slate-700">
-          <p className="text-lg font-medium text-white mb-4">
-            {content.sentence}
-          </p>
-          <p className="text-sm text-slate-400">{content.translation}</p>
-        </div>
-
-        {/* Input for gap-fill */}
-        {!answered ? (
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-2">
-                Fill in the blank:
-              </label>
-              <Input
-                value={userAnswer}
-                onChange={(e) => setUserAnswer(e.target.value)}
-                placeholder={`Enter the missing word...`}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleSubmitGapFill();
-                }}
-                className="text-base"
-              />
-            </div>
-
-            <div className="flex gap-2">
-              <Button onClick={handleSubmitGapFill} className="flex-1">
-                Check Answer
-              </Button>
-              <Button
-                onClick={handleSkip}
-                variant="outline"
-                className="flex-1"
-              >
-                Skip
-              </Button>
-            </div>
+      <div className="bg-gradient-to-br from-slate-800 to-slate-900 border border-red-500/30 rounded-2xl p-8 backdrop-blur-sm">
+        <div className="flex items-start gap-4">
+          <AlertCircle className="w-6 h-6 text-red-400 flex-shrink-0 mt-1" />
+          <div>
+            <h3 className="font-bold text-red-400 mb-2">Error Loading Exercise</h3>
+            <p className="text-sm text-slate-400 mb-4">{error || "Exercise not found"}</p>
+            <p className="text-xs text-slate-500">
+              Make sure you have exercises in your database. Go back and create some first.
+            </p>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700 rounded-2xl p-8 backdrop-blur-sm">
+      {/* Header */}
+      <div className="mb-8">
+        <div className="inline-block px-3 py-1 bg-amber-500/20 rounded-lg mb-4">
+          <p className="text-xs font-bold text-amber-400 uppercase tracking-widest">
+            {mode === "gap-fill" ? "Gap-Fill Exercise" : "Multiple Choice"}
+          </p>
+        </div>
+        <h2 className="text-2xl font-black mb-2">
+          Learn: <span className="text-amber-400">{exercise.target_word}</span>
+        </h2>
+        <p className="text-sm text-slate-400">{exercise.translation}</p>
+      </div>
+
+      {/* Exercise Content */}
+      <div className="mb-8 p-6 bg-slate-800/50 rounded-lg border border-slate-700">
+        {mode === "gap-fill" ? (
+          <>
+            {/* Gap-Fill Mode */}
+            <p className="text-lg text-slate-300 mb-6 leading-relaxed">
+              {exercise.sentence}
+            </p>
+            <Input
+              placeholder="Type the missing word..."
+              value={userAnswer}
+              onChange={(e) => setUserAnswer(e.target.value)}
+              disabled={answered}
+              className="bg-slate-700 border-slate-600 text-white placeholder-slate-500 disabled:opacity-50"
+              onKeyPress={(e) => e.key === "Enter" && !answered && handleSubmitGapFill()}
+            />
+          </>
         ) : (
-          <div className="space-y-4">
-            {correct ? (
-              <div className="bg-emerald-500/10 border border-emerald-500/40 rounded-lg p-4">
-                <p className="text-emerald-500 font-semibold">Correct! 🎉</p>
-                <p className="text-sm text-emerald-500/80 mt-1">
-                  +{script.xp_earned} XP {combo > 1 && `(×${combo})`}
-                </p>
-              </div>
-            ) : (
-              <div className="bg-red-500/10 border border-red-500/40 rounded-lg p-4">
-                <p className="text-red-500 font-semibold">Not quite right</p>
-                <p className="text-sm text-red-500/80 mt-1">
-                  The answer is: <span className="font-semibold">{content.gapOptions.correct}</span>
-                </p>
-              </div>
-            )}
-
-            <Button onClick={() => onComplete?.(script)} className="w-full">
-              Next Exercise
-            </Button>
-          </div>
-        )}
-
-        {error && (
-          <p className="text-red-500 text-sm">{error}</p>
-        )}
-      </div>
-    );
-  }
-
-  // MCQ mode
-  if (mode === "mcq") {
-    return (
-      <div className="w-full max-w-2xl mx-auto p-6 space-y-6">
-        {/* Sentence */}
-        <div className="bg-slate-900 rounded-lg p-6 border border-slate-700">
-          <p className="text-lg font-medium text-white mb-4">
-            {content.sentence}
-          </p>
-          <p className="text-sm text-slate-400">{content.translation}</p>
-        </div>
-
-        {/* Question */}
-        <div className="space-y-2">
-          <p className="font-medium">
-            What does <span className="font-bold text-emerald-500">{targetWord}</span> mean?
-          </p>
-        </div>
-
-        {/* MCQ Options */}
-        {!answered ? (
-          <div className="space-y-3">
-            {content.mcqOptions.options.map((option, idx) => (
-              <button
-                key={idx}
-                onClick={() => setSelectedOption(idx)}
-                className={`w-full p-3 rounded-lg border-2 transition-all text-left ${
-                  selectedOption === idx
-                    ? "bg-emerald-500/20 border-emerald-500"
-                    : "bg-slate-900 border-slate-700 hover:border-slate-600"
-                }`}
-              >
-                {option}
-              </button>
-            ))}
-
-            <div className="flex gap-2 pt-4">
-              <Button
-                onClick={handleSubmitMCQ}
-                disabled={selectedOption === null}
-                className="flex-1"
-              >
-                Check Answer
-              </Button>
-              <Button
-                onClick={handleSkip}
-                variant="outline"
-                className="flex-1"
-              >
-                Skip
-              </Button>
+          <>
+            {/* MCQ Mode */}
+            <p className="text-lg text-slate-300 mb-6">{exercise.sentence}</p>
+            <div className="space-y-3">
+              {exercise.mcq_options.options.map((option: string, idx: number) => (
+                <button
+                  key={idx}
+                  onClick={() => !answered && setSelectedOption(idx)}
+                  disabled={answered}
+                  className={`w-full p-4 text-left rounded-lg border-2 transition-all ${
+                    selectedOption === idx
+                      ? "border-amber-400 bg-amber-500/10"
+                      : "border-slate-600 bg-slate-700/50 hover:border-slate-500"
+                  } ${answered ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`w-6 h-6 rounded border-2 flex items-center justify-center ${
+                        selectedOption === idx
+                          ? "border-amber-400 bg-amber-400"
+                          : "border-slate-500"
+                      }`}
+                    >
+                      {selectedOption === idx && (
+                        <span className="text-slate-900 font-bold">✓</span>
+                      )}
+                    </div>
+                    <span className="text-white font-medium">{option}</span>
+                  </div>
+                </button>
+              ))}
             </div>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {correct ? (
-              <div className="bg-emerald-500/10 border border-emerald-500/40 rounded-lg p-4">
-                <p className="text-emerald-500 font-semibold">Correct! 🎉</p>
-                <p className="text-sm text-emerald-500/80 mt-1">
-                  +{script.xp_earned} XP {combo > 1 && `(×${combo})`}
-                </p>
-              </div>
-            ) : (
-              <div className="bg-red-500/10 border border-red-500/40 rounded-lg p-4">
-                <p className="text-red-500 font-semibold">Not quite right</p>
-                <p className="text-sm text-red-500/80 mt-1">
-                  The answer is: <span className="font-semibold">{content.mcqOptions.options[content.mcqOptions.correct]}</span>
-                </p>
-              </div>
-            )}
-
-            <Button onClick={() => onComplete?.(script)} className="w-full">
-              Next Exercise
-            </Button>
-          </div>
-        )}
-
-        {error && (
-          <p className="text-red-500 text-sm">{error}</p>
+          </>
         )}
       </div>
-    );
-  }
 
-  return null;
+      {/* Feedback */}
+      {showFeedback && (
+        <div
+          className={`mb-6 p-4 rounded-lg ${
+            correct
+              ? "bg-emerald-500/20 border border-emerald-500/40"
+              : "bg-red-500/20 border border-red-500/40"
+          }`}
+        >
+          <p className={`font-bold ${correct ? "text-emerald-400" : "text-red-400"}`}>
+            {correct ? "✓ Correct!" : "✗ Not quite right"}
+          </p>
+          {correct && (
+            <p className="text-sm text-emerald-300 mt-2">
+              +{xpAwarded} XP {combo > 1 && `(${combo}x combo)`}
+            </p>
+          )}
+          {!correct && (
+            <p className="text-sm text-red-300 mt-2">
+              The correct answer is:{" "}
+              <span className="font-bold">{exercise.gap_options.correct}</span>
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Action Buttons */}
+      <div className="flex gap-3">
+        {!answered ? (
+          <Button
+            onClick={mode === "gap-fill" ? handleSubmitGapFill : handleSubmitMCQ}
+            disabled={
+              mode === "gap-fill" ? !userAnswer : selectedOption === null
+            }
+            className="flex-1 bg-gradient-to-r from-amber-400 to-emerald-400 text-slate-900 font-bold hover:shadow-lg transition-all"
+          >
+            <span>Check Answer</span>
+            <ArrowRight className="w-4 h-4 ml-2" />
+          </Button>
+        ) : (
+          <Button
+            onClick={handleReset}
+            className="flex-1 bg-slate-700 hover:bg-slate-600 text-white font-bold"
+          >
+            <RotateCcw className="w-4 h-4 mr-2" />
+            Try Again
+          </Button>
+        )}
+      </div>
+    </div>
+  );
 }
