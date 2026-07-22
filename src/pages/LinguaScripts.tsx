@@ -112,6 +112,7 @@ export default function LinguaScriptsPage() {
               {/* Gap-Fill Card */}
               <div
                 onClick={() => {
+                  setSelectedScript(null);
                   setExerciseMode("gap-fill");
                   setViewMode("exercise");
                 }}
@@ -133,6 +134,7 @@ export default function LinguaScriptsPage() {
               {/* Multiple Choice Card */}
               <div
                 onClick={() => {
+                  setSelectedScript(null);
                   setExerciseMode("mcq");
                   setViewMode("exercise");
                 }}
@@ -201,26 +203,22 @@ export default function LinguaScriptsPage() {
           </div>
         ) : (
           <div className="max-w-2xl mx-auto">
-            {selectedScript ? (
-              <LinguaScriptExercise
-                key={selectedScript.id}
-                targetWord={selectedScript.target_word}
-                language={language}
-                interests={interests}
-                mode={exerciseMode}
-                onComplete={handleExerciseComplete}
-              />
-            ) : (
-              <div className="text-center py-12">
-                <p className="text-slate-400 mb-4">No exercise selected</p>
-                <button
-                  onClick={() => setViewMode("mission")}
-                  className="px-6 py-2 bg-gradient-to-r from-amber-400 to-emerald-400 text-slate-900 font-bold rounded-lg hover:shadow-lg hover:scale-105 transition-all duration-300"
-                >
-                  Back to Mission
-                </button>
-              </div>
-            )}
+            <LinguaScriptExercise
+              key={selectedScript?.id || `free-${exerciseMode}`}
+              targetWord={selectedScript?.target_word || "bonjour"}
+              language={language}
+              interests={interests}
+              mode={exerciseMode}
+              onComplete={handleExerciseComplete}
+            />
+            <div className="mt-6 text-center">
+              <button
+                onClick={() => setViewMode("mission")}
+                className="px-6 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded-lg transition-all duration-300"
+              >
+                ← Back to Mission
+              </button>
+            </div>
           </div>
         )}
       </div>
