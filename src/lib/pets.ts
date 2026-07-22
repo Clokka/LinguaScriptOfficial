@@ -89,6 +89,15 @@ export const PETS: PetMeta[] = [
     unlock: { type: "achievement", name: "Polyglot" },
     rarity: "legendary",
   },
+  {
+    id: "felix",
+    name: "Felix",
+    emoji: "🦎",
+    description: "A lucky chameleon who changes color with your learning language. Lucky means 'felix' in Latin!",
+    glbFile: "/pets/Chameleon_Animations.glb",
+    unlock: { type: "free" },
+    rarity: "legendary",
+  },
 ];
 
 export function getPetById(id: string): PetMeta | undefined {
