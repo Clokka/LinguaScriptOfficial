@@ -449,6 +449,98 @@ export type Database = {
         }
         Relationships: []
       }
+      linguascripts: {
+        Row: {
+          attempts: number | null
+          audio_url: string | null
+          combo_multiplier: number | null
+          completed_at: string | null
+          correct: boolean | null
+          created_at: string | null
+          gap_answer: string | null
+          gap_options: Json | null
+          gap_position: number | null
+          id: string
+          interest: string | null
+          language: string
+          mcq_answer: number | null
+          mcq_options: Json | null
+          saved_word_id: string | null
+          scheduled_to_srs: boolean | null
+          sentence: string
+          speaking_answer: string | null
+          status: string | null
+          target_word: string
+          time_spent_ms: number | null
+          translation: string
+          updated_at: string | null
+          user_id: string
+          xp_earned: number | null
+        }
+        Insert: {
+          attempts?: number | null
+          audio_url?: string | null
+          combo_multiplier?: number | null
+          completed_at?: string | null
+          correct?: boolean | null
+          created_at?: string | null
+          gap_answer?: string | null
+          gap_options?: Json | null
+          gap_position?: number | null
+          id?: string
+          interest?: string | null
+          language?: string
+          mcq_answer?: number | null
+          mcq_options?: Json | null
+          saved_word_id?: string | null
+          scheduled_to_srs?: boolean | null
+          sentence: string
+          speaking_answer?: string | null
+          status?: string | null
+          target_word: string
+          time_spent_ms?: number | null
+          translation: string
+          updated_at?: string | null
+          user_id: string
+          xp_earned?: number | null
+        }
+        Update: {
+          attempts?: number | null
+          audio_url?: string | null
+          combo_multiplier?: number | null
+          completed_at?: string | null
+          correct?: boolean | null
+          created_at?: string | null
+          gap_answer?: string | null
+          gap_options?: Json | null
+          gap_position?: number | null
+          id?: string
+          interest?: string | null
+          language?: string
+          mcq_answer?: number | null
+          mcq_options?: Json | null
+          saved_word_id?: string | null
+          scheduled_to_srs?: boolean | null
+          sentence?: string
+          speaking_answer?: string | null
+          status?: string | null
+          target_word?: string
+          time_spent_ms?: number | null
+          translation?: string
+          updated_at?: string | null
+          user_id?: string
+          xp_earned?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "linguascripts_saved_word_id_fkey"
+            columns: ["saved_word_id"]
+            isOneToOne: false
+            referencedRelation: "saved_words"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -1318,6 +1410,33 @@ export type Database = {
         Args: { _emails: string[]; _school_id: string }
         Returns: number
       }
+      create_daily_linguascript: {
+        Args: {
+          p_gap_options: Json
+          p_gap_position: number
+          p_interest: string
+          p_language: string
+          p_mcq_options: Json
+          p_sentence: string
+          p_target_word: string
+          p_translation: string
+          p_user_id: string
+        }
+        Returns: string
+      }
+      create_linguascript_from_saved_word: {
+        Args: {
+          p_context: string
+          p_gap_options: Json
+          p_language: string
+          p_mcq_options: Json
+          p_saved_word_id: string
+          p_translation: string
+          p_user_id: string
+          p_word: string
+        }
+        Returns: string
+      }
       create_school: { Args: { _name: string; _slug: string }; Returns: string }
       delete_email: {
         Args: { message_id: number; queue_name: string }
@@ -1329,6 +1448,34 @@ export type Database = {
         Returns: number
       }
       gen_friend_code: { Args: never; Returns: string }
+      get_daily_linguascripts: {
+        Args: { p_language: string; p_user_id: string }
+        Returns: {
+          attempts: number
+          audio_url: string
+          combo_multiplier: number
+          completed_at: string
+          correct: boolean
+          created_at: string
+          gap_answer: string
+          gap_options: Json
+          gap_position: number
+          id: string
+          interest: string
+          language: string
+          mcq_answer: number
+          mcq_options: Json
+          scheduled_to_srs: boolean
+          sentence: string
+          speaking_answer: string
+          status: string
+          target_word: string
+          time_spent_ms: number
+          translation: string
+          user_id: string
+          xp_earned: number
+        }[]
+      }
       get_friends_leaderboard: {
         Args: never
         Returns: {
@@ -1355,6 +1502,19 @@ export type Database = {
         }[]
       }
       get_unread_message_count: { Args: never; Returns: number }
+      get_words_needing_review: {
+        Args: { p_language: string; p_limit?: number; p_user_id: string }
+        Returns: {
+          context: string
+          id: string
+          next_review: string
+          review_count: number
+          state: string
+          times_correct: number
+          translation: string
+          word: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1431,6 +1591,10 @@ export type Database = {
         Args: { _display: string; _user_id: string; _username: string }
         Returns: string
       }
+      schedule_linguascript_to_srs: {
+        Args: { p_linguascript_id: string; p_user_id: string }
+        Returns: undefined
+      }
       seed_known_vocabulary: {
         Args: { _language: string; _level: string }
         Returns: number
@@ -1439,6 +1603,14 @@ export type Database = {
       update_email_prefs: { Args: { _prefs: Json }; Returns: Json }
       update_privacy_settings: {
         Args: { _discoverable: boolean; _show_on_leaderboard: boolean }
+        Returns: undefined
+      }
+      update_srs_after_linguascript: {
+        Args: {
+          p_correct: boolean
+          p_linguascript_id: string
+          p_user_id: string
+        }
         Returns: undefined
       }
       user_learning_rate: { Args: { _language: string }; Returns: number }
