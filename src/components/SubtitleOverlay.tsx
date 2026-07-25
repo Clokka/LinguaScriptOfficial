@@ -35,11 +35,12 @@ interface SubtitleOverlayProps {
 }
 
 // LinguaScript visual identity: green words = understood (dim, low-attention);
-// every other token = unknown (bright white, high-attention). Orange/red flash
-// only briefly via a small status dot for cards the learner is actively
-// reviewing — they should NOT compete with the green-vs-white contrast.
+// red/orange = learning (bright, draws attention); unknown = white.
+// Users see the full chameleon 🦎 color system: red (new) → orange (learning) → green (known).
 const STATE_TEXT: Partial<Record<DeckState, string>> = {
-  green: "text-emerald-400/70",
+  red: "text-red-400 font-semibold",          // #FF3B30 - new/unknown words
+  orange: "text-orange-400 font-semibold",    // #FF8A00 - learning words
+  green: "text-emerald-400/70",               // #34C759 - known words (dimmed)
 };
 
 export const SubtitleOverlay = ({
@@ -133,10 +134,10 @@ export const SubtitleOverlay = ({
         (w) => w.text.toLowerCase() === text.toLowerCase().replace(/[.,!?]/g, "")
       );
       const deckState = stateForToken(text);
-      const isGreen = deckState === "green";
-      const colorClass = isGreen
-        ? STATE_TEXT.green
-        : "text-white font-medium"; // unknown / learning → bright, draws the eye
+      // Use state-specific colors (red/orange/green), or white if unknown
+      const colorClass = deckState && STATE_TEXT[deckState]
+        ? STATE_TEXT[deckState]
+        : "text-white font-medium"; // unknown words stay bright white
       return (
         <span
           key={index}

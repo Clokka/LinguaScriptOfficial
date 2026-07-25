@@ -118,7 +118,10 @@ const Flashcards = () => {
 
   useEffect(() => { fetchCards(); }, [fetchCards]);
 
-  // Realtime: re-fetch when the extension (or any other client) inserts a new word.
+  // Realtime: re-fetch when the extension (or any other client) inserts a new
+  // word OR changes a word's state (red → orange → green). Listening to both
+  // events keeps deck counts and card colors in sync across every open tab,
+  // device, and the Chrome extension without a manual refresh.
   // Requires saved_words to be in the supabase_realtime publication.
   useEffect(() => {
     if (!user) return;
@@ -126,6 +129,12 @@ const Flashcards = () => {
       .channel("saved_words_ext_inserts")
       .on("postgres_changes", {
         event: "INSERT",
+        schema: "public",
+        table: "saved_words",
+        filter: `user_id=eq.${user.id}`,
+      }, () => fetchCards(false))
+      .on("postgres_changes", {
+        event: "UPDATE",
         schema: "public",
         table: "saved_words",
         filter: `user_id=eq.${user.id}`,
