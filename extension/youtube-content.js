@@ -571,6 +571,16 @@
   let currentSubIdx=0, syncInterval=null, videoEl=null;
   let currentLang='fr', currentNativeLang='en';
 
+  // Poll saved_words periodically so a word promoted in the app's flashcards
+  // (red → orange → green) recolours in the YouTube overlay without a reload.
+  // loadSavedWords() re-applies colours to already-rendered spans; the timer is
+  // cleared on every remount (SPA navigation) to avoid duplicate pollers.
+  let wordsRefreshTimer=null;
+  function startWordsRefresh(){
+    if(wordsRefreshTimer) return;
+    wordsRefreshTimer=setInterval(loadSavedWords,15000);
+  }
+
   function startSync() {
     if(syncInterval) clearInterval(syncInterval);
     syncInterval=setInterval(()=>{
@@ -611,6 +621,7 @@
     document.getElementById('ls-toast')?.remove();
     closeCard();
     if(syncInterval){clearInterval(syncInterval);syncInterval=null;}
+    if(wordsRefreshTimer){clearInterval(wordsRefreshTimer);wordsRefreshTimer=null;}
     lastText=null; lastSecondarySource=null; currentSubIdx=0;
 
     injectStyles();
@@ -628,7 +639,7 @@
     currentLang=lang; currentNativeLang=nativeLang;
 
     chrome.runtime.sendMessage({type:'GET_AUTH'},async res=>{
-      if(res?.session) await loadSavedWords();
+      if(res?.session){ await loadSavedWords(); startWordsRefresh(); }
     });
 
     const {primary,secondary}=await fetchSubtitles(videoId,lang,nativeLang);

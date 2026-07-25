@@ -686,11 +686,21 @@
     currentLang = lang; currentNativeLang = nativeLang;
 
     chrome.runtime.sendMessage({ type: 'GET_AUTH' }, async res => {
-      if (res?.session) await loadSavedWords();
+      if (res?.session) { await loadSavedWords(); startWordsRefresh(); }
     });
 
     const target = document.querySelector('.watch-video') || document.body;
     new MutationObserver(onSubtitleChange).observe(target, { childList: true, subtree: true, characterData: true });
+  }
+
+  // Poll saved_words periodically so a word promoted in the app's flashcards
+  // (red → orange → green) recolours in the Netflix overlay without a reload.
+  // loadSavedWords() re-applies colours to already-rendered spans, so this is
+  // cheap: one indexed query per open video tab.
+  let wordsRefreshTimer = null;
+  function startWordsRefresh() {
+    if (wordsRefreshTimer) return;
+    wordsRefreshTimer = setInterval(loadSavedWords, 15000);
   }
 
   function waitForPlayer() {

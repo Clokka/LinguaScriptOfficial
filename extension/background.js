@@ -432,17 +432,27 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg.type === 'GET_WORDS') {
     getValidSession()
       .then(async (session) => {
+        // Colour words directly from saved_words.state — the SAME column the
+        // app's flashcard review writes ("saved_words.state is the source of
+        // truth", FlashcardReview.tsx). The old code re-derived a tier from
+        // interval_days/review_count/ease_factor, but the app's review flow
+        // only advances `state`, so those SRS fields stay at their defaults
+        // and the extension's colours never matched the user's real decks.
+        // Now a word promoted to orange/green in the app shows orange/green
+        // in the Netflix & YouTube overlays too.
         const res = await fetch(
-          `${SUPABASE_URL}/rest/v1/saved_words?user_id=eq.${session.user.id}&select=word,review_count,interval_days,ease_factor`,
+          `${SUPABASE_URL}/rest/v1/saved_words?user_id=eq.${session.user.id}&select=word,state`,
           { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${session.access_token}` } }
         );
         if (!res.ok) return sendResponse({ ok: false, words: {} });
         const rows = await res.json();
         const words = {};
         for (const r of rows) {
-          const count = r.review_count || 0, interval = r.interval_days || 0, ease = r.ease_factor || 2.5;
-          words[r.word.toLowerCase()] = (interval >= 21 || (count >= 5 && ease >= 2.5)) ? 'green'
-            : (count >= 2 || interval >= 3) ? 'orange' : 'red';
+          // Coerce to a valid deck state, defaulting to red (matches the app's
+          // coerceDeckState). Key stays word.toLowerCase() so existing token
+          // matching in the content scripts is unchanged.
+          const state = r.state === 'green' ? 'green' : r.state === 'orange' ? 'orange' : 'red';
+          words[r.word.toLowerCase()] = state;
         }
         sendResponse({ ok: true, words });
       })
