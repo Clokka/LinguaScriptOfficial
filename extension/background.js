@@ -112,9 +112,25 @@ function extractWords(lines) {
 
 // ─── Supabase helpers ─────────────────────────────────────────────────────────
 
-async function fetchExistingWords(userId, accessToken) {
+// Normalise a token to its match key. MUST stay byte-for-byte identical to
+// normalizeToken() in src/lib/vocab.ts — the app and the extension share one
+// keyspace, so any divergence here silently breaks cross-context matching
+// (dedup on sync, and colour lookups for GET_DECK_STATE).
+function normalizeToken(raw) {
+  return raw
+    .toLowerCase()
+    .replace(/[.,!?;:"'`«»()\[\]…]/g, '')
+    .trim();
+}
+
+// Load the user's saved words for one language as a Map keyed by
+// normalizeToken(word) → state ('red' | 'orange' | 'green'). Scoped by
+// language to mirror the app's loadDeckIndex and the DB unique index
+// (user_id, word, language): the same word can legitimately live in two
+// languages, so dedup and colouring are per-language.
+async function loadDeckIndex(userId, language, accessToken) {
   const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/saved_words?user_id=eq.${userId}&select=word`,
+    `${SUPABASE_URL}/rest/v1/saved_words?user_id=eq.${userId}&language=eq.${encodeURIComponent(language)}&select=word,state`,
     {
       headers: {
         'apikey': SUPABASE_ANON_KEY,
@@ -123,8 +139,38 @@ async function fetchExistingWords(userId, accessToken) {
     }
   );
   const data = await res.json();
-  if (!res.ok) throw new Error('Failed to fetch existing words');
-  return new Set(data.map(r => r.word));
+  if (!res.ok) throw new Error('Failed to load deck index');
+  const m = new Map();
+  for (const row of data) {
+    // Coerce to a valid state, defaulting to red (matches coerceDeckState).
+    const state = row.state === 'green' ? 'green' : row.state === 'orange' ? 'orange' : 'red';
+    m.set(normalizeToken(row.word), state);
+  }
+  return m;
+}
+
+// ─── Deck index cache ─────────────────────────────────────────────────────────
+// Content scripts ask for the deck index on every subtitle change; refetching
+// from Supabase each time would be dozens of requests per line. Cache the map
+// per (user, language) for a short TTL. Because the MV3 service worker can't
+// hold a Supabase realtime subscription, this TTL is also how quickly colours
+// refresh in the player after a review in the app — 10s keeps it feeling live
+// without hammering the API. syncWords() invalidates the cache immediately so
+// freshly-saved words show as red without waiting for the TTL.
+const DECK_CACHE_TTL_MS = 10000;
+let _deckCache = { key: null, index: null, ts: 0 };
+
+async function getDeckIndexCached(userId, language, accessToken, { force = false } = {}) {
+  const key = `${userId}:${language}`;
+  const fresh = _deckCache.key === key && Date.now() - _deckCache.ts < DECK_CACHE_TTL_MS;
+  if (!force && fresh && _deckCache.index) return _deckCache.index;
+  const index = await loadDeckIndex(userId, language, accessToken);
+  _deckCache = { key, index, ts: Date.now() };
+  return index;
+}
+
+function invalidateDeckCache() {
+  _deckCache = { key: null, index: null, ts: 0 };
 }
 
 async function insertWords(rows, accessToken) {
@@ -158,16 +204,21 @@ async function syncWords(language) {
   const wordMap = extractWords(lines);
   if (wordMap.size === 0) return { synced: 0, message: 'No words extracted' };
 
-  const existing = await fetchExistingWords(userId, accessToken);
+  const lang = language || 'es';
+  // Load the full deck index (word → state) so we skip anything the user has
+  // already saved in ANY state — red, orange, or green — not just words that
+  // happen to still be red. Prevents duplicates when a reviewed word (now
+  // orange/green) reappears in later subtitles.
+  const deckIndex = await loadDeckIndex(userId, lang, accessToken);
 
   const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
   const rows = [];
   for (const [word, context] of wordMap.entries()) {
-    if (existing.has(word)) continue;
+    if (deckIndex.has(normalizeToken(word))) continue;
     rows.push({
       user_id: userId,
       word,
-      language: language || 'es',
+      language: lang,
       context,
       translation: '',
       ipa: '',
@@ -176,6 +227,7 @@ async function syncWords(language) {
       interval_days: 0,
       review_count: 0,
       ease_factor: 2.5,
+      state: 'red', // explicit: newly saved words start in the red deck
     });
   }
 
@@ -190,6 +242,10 @@ async function syncWords(language) {
 
   // Clear captured lines after successful sync
   await chrome.storage.local.set({ [STORAGE_KEY]: [] });
+
+  // Freshly-saved words are now in the deck as red — drop the cache so the
+  // player recolours them on the next subtitle without waiting for the TTL.
+  invalidateDeckCache();
 
   return { synced: total, message: `Synced ${total} new words to LinguaScript` };
 }
@@ -228,6 +284,41 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     syncWords(msg.language)
       .then(result => sendResponse({ ok: true, ...result }))
       .catch(e => sendResponse({ ok: false, error: e.message }));
+    return true;
+  }
+
+  // Bulk deck lookup for content scripts: returns the whole word→state map for
+  // one language as a plain object. Content scripts call this once per subtitle
+  // batch and look words up locally (see Section 3). Served from the cache.
+  if (msg.type === 'GET_DECK_INDEX') {
+    (async () => {
+      const session = await getValidSession().catch(() => null);
+      if (!session) return sendResponse({ ok: false, index: {} });
+      try {
+        const lang = msg.language || 'fr';
+        const index = await getDeckIndexCached(session.user.id, lang, session.access_token, { force: !!msg.force });
+        sendResponse({ ok: true, index: Object.fromEntries(index) });
+      } catch (e) {
+        sendResponse({ ok: false, index: {}, error: e.message });
+      }
+    })();
+    return true;
+  }
+
+  // Single-word convenience lookup, also served from the cached index so it
+  // never triggers a per-word network request.
+  if (msg.type === 'GET_DECK_STATE') {
+    (async () => {
+      const session = await getValidSession().catch(() => null);
+      if (!session) return sendResponse({ state: null });
+      try {
+        const lang = msg.language || 'fr';
+        const index = await getDeckIndexCached(session.user.id, lang, session.access_token);
+        sendResponse({ state: index.get(normalizeToken(msg.word || '')) || null });
+      } catch {
+        sendResponse({ state: null });
+      }
+    })();
     return true;
   }
 
