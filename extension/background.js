@@ -123,28 +123,59 @@ function normalizeToken(raw) {
     .trim();
 }
 
+// Coerce any stored value into a valid deck state (matches coerceDeckState).
+function coerceState(raw) {
+  return raw === 'green' ? 'green' : raw === 'orange' ? 'orange' : 'red';
+}
+
+// Deck order: green (known) > orange (learning) > red (new). When the same
+// token maps to more than one row — e.g. the word exists in more than one
+// language deck, or a stray duplicate — the MORE-ADVANCED state must win so a
+// word the user has mastered (green) is never dragged back to red by a lower
+// entry. Without this, unordered rows let whichever row lands last decide the
+// colour, which is exactly how green words like "le"/"la"/"des" showed red.
+const STATE_RANK = { red: 0, orange: 1, green: 2 };
+function higherState(current, next) {
+  if (!current) return next;
+  return STATE_RANK[next] > STATE_RANK[current] ? next : current;
+}
+
+// Fetch every row of a saved_words query, paging past PostgREST's default
+// 1000-row cap. A heavy learner can have thousands of saved words (this user
+// has ~3.5k); a single un-paged request silently returns only the first 1000,
+// so the rest of the deck never gets coloured (they render as unseen) and sync
+// re-inserts already-saved words. Loop with limit/offset until a short page.
+async function fetchAllSavedWords(query, accessToken) {
+  const PAGE = 1000;
+  const rows = [];
+  for (let offset = 0; ; offset += PAGE) {
+    const sep = query.includes('?') ? '&' : '?';
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/${query}${sep}limit=${PAGE}&offset=${offset}`,
+      { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${accessToken}` } }
+    );
+    if (!res.ok) throw new Error(`Failed to load saved_words (${res.status})`);
+    const page = await res.json();
+    rows.push(...page);
+    if (page.length < PAGE) break;
+  }
+  return rows;
+}
+
 // Load the user's saved words for one language as a Map keyed by
 // normalizeToken(word) → state ('red' | 'orange' | 'green'). Scoped by
 // language to mirror the app's loadDeckIndex and the DB unique index
 // (user_id, word, language): the same word can legitimately live in two
 // languages, so dedup and colouring are per-language.
 async function loadDeckIndex(userId, language, accessToken) {
-  const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/saved_words?user_id=eq.${userId}&language=eq.${encodeURIComponent(language)}&select=word,state`,
-    {
-      headers: {
-        'apikey': SUPABASE_ANON_KEY,
-        'Authorization': `Bearer ${accessToken}`,
-      },
-    }
+  const rows = await fetchAllSavedWords(
+    `saved_words?user_id=eq.${userId}&language=eq.${encodeURIComponent(language)}&select=word,state`,
+    accessToken
   );
-  const data = await res.json();
-  if (!res.ok) throw new Error('Failed to load deck index');
   const m = new Map();
-  for (const row of data) {
-    // Coerce to a valid state, defaulting to red (matches coerceDeckState).
-    const state = row.state === 'green' ? 'green' : row.state === 'orange' ? 'orange' : 'red';
-    m.set(normalizeToken(row.word), state);
+  for (const row of rows) {
+    const key = normalizeToken(row.word);
+    m.set(key, higherState(m.get(key), coerceState(row.state)));
   }
   return m;
 }
@@ -440,19 +471,21 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         // and the extension's colours never matched the user's real decks.
         // Now a word promoted to orange/green in the app shows orange/green
         // in the Netflix & YouTube overlays too.
-        const res = await fetch(
-          `${SUPABASE_URL}/rest/v1/saved_words?user_id=eq.${session.user.id}&select=word,state`,
-          { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${session.access_token}` } }
+        // Page past the 1000-row cap so the WHOLE deck is coloured — a user
+        // with thousands of green words would otherwise get only the first
+        // 1000 back and the rest would render as unseen.
+        const rows = await fetchAllSavedWords(
+          `saved_words?user_id=eq.${session.user.id}&select=word,state`,
+          session.access_token
         );
-        if (!res.ok) return sendResponse({ ok: false, words: {} });
-        const rows = await res.json();
         const words = {};
         for (const r of rows) {
-          // Coerce to a valid deck state, defaulting to red (matches the app's
-          // coerceDeckState). Key stays word.toLowerCase() so existing token
-          // matching in the content scripts is unchanged.
-          const state = r.state === 'green' ? 'green' : r.state === 'orange' ? 'orange' : 'red';
-          words[r.word.toLowerCase()] = state;
+          // Key stays word.toLowerCase() so existing token matching in the
+          // content scripts is unchanged. higherState() ensures a word that is
+          // green in one language deck is never overwritten to red by a lower
+          // entry from another deck (the "le/la/des show red" bug).
+          const key = r.word.toLowerCase();
+          words[key] = higherState(words[key], coerceState(r.state));
         }
         sendResponse({ ok: true, words });
       })
