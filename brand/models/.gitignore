@@ -1,0 +1,7 @@
+# Raw, unoptimised hero source models are held OUT of git — a 20 MB GLB would
+# bloat history permanently (there is no Git LFS here) and is far too heavy for
+# runtime. Commit only OPTIMISED derivatives (target < 2 MB, see ../README.md).
+chameleon-base.glb
+
+# Allow optimised/derivative models to be committed:
+!chameleon-optimised.glb
