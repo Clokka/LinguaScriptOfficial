@@ -34,13 +34,15 @@ interface SubtitleOverlayProps {
   contentLanguage?: string;
 }
 
-// LinguaScript visual identity: green words = understood (dim, low-attention);
-// red/orange = learning (bright, draws attention); unknown = white.
-// Users see the full chameleon 🦎 color system: red (new) → orange (learning) → green (known).
-const STATE_TEXT: Partial<Record<DeckState, string>> = {
-  red: "text-red-400 font-semibold",          // #FF3B30 - new/unknown words
-  orange: "text-orange-400 font-semibold",    // #FF8A00 - learning words
-  green: "text-emerald-400/70",               // #34C759 - known words (dimmed)
+// Canonical LinguaScript deck palette. These hexes MUST stay identical to
+// DECK_CONFIG in src/pages/Flashcards.tsx and to .ls-red/.ls-orange/.ls-green
+// in the Chrome extension, so a word's colour in the script is exactly its
+// flashcard deck colour across every surface (website, Netflix, YouTube).
+// Brand voice 🦎: red (unknown) → orange (learning) → green (known).
+const DECK_COLORS: Record<DeckState, string> = {
+  red: "#FF3B30",
+  orange: "#FF8A00",
+  green: "#34C759",
 };
 
 export const SubtitleOverlay = ({
@@ -134,10 +136,9 @@ export const SubtitleOverlay = ({
         (w) => w.text.toLowerCase() === text.toLowerCase().replace(/[.,!?]/g, "")
       );
       const deckState = stateForToken(text);
-      // Use state-specific colors (red/orange/green), or white if unknown
-      const colorClass = deckState && STATE_TEXT[deckState]
-        ? STATE_TEXT[deckState]
-        : "text-white font-medium"; // unknown words stay bright white
+      // Saved words render in their exact deck colour (red/orange/green);
+      // unknown words stay bright white to draw the eye.
+      const deckColor = deckState ? DECK_COLORS[deckState] : undefined;
       return (
         <span
           key={index}
@@ -145,8 +146,9 @@ export const SubtitleOverlay = ({
           className={cn(
             "subtitle-word inline-flex items-baseline",
             wordData && "cursor-pointer",
-            colorClass,
+            deckColor ? "font-semibold" : "text-white font-medium",
           )}
+          style={deckColor ? { color: deckColor } : undefined}
           onClick={(e) => {
             if (wordData) handleWordClick(wordData, e);
           }}

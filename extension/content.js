@@ -122,9 +122,12 @@
       }
       .ls-word { cursor: pointer; border-radius: 4px; padding: 0 3px; transition: color 0.35s ease, background 0.12s; display: inline; }
       .ls-word:hover { background: rgba(255,255,255,0.14); }
-      .ls-red    { color: #f87171; }
-      .ls-orange { color: #fb923c; }
-      .ls-green  { color: #4ade80; }
+      /* Exact LinguaScript deck palette — must match DECK_CONFIG in
+         src/pages/Flashcards.tsx and DECK_COLORS in SubtitleOverlay.tsx so a
+         word's colour is identical to its flashcard deck across every surface. */
+      .ls-red    { color: #FF3B30; }
+      .ls-orange { color: #FF8A00; }
+      .ls-green  { color: #34C759; }
 
       /* ── Controls bar — sits inside the subtitle band ── */
       #ls-controls {
