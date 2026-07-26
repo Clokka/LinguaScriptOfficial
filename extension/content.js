@@ -44,6 +44,10 @@
         for (const [word, tier] of Object.entries(res.words || {})) {
           savedWordMap.set(word, tier);
         }
+        // ── DIAGNOSTIC (temporary) — read in the Netflix page console (F12) ──
+        console.log('[LinguaScript] deck map loaded:', savedWordMap.size, 'words |',
+          'le →', savedWordMap.get('le'), 'la →', savedWordMap.get('la'), 'des →', savedWordMap.get('des'));
+        // ────────────────────────────────────────────────────────────────────
         // Re-colour any already-rendered word spans
         savedWordMap.forEach((tier, word) => {
           document.querySelectorAll(`.ls-word[data-word="${word}"]`).forEach(el => {

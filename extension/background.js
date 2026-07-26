@@ -487,9 +487,18 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
           const key = r.word.toLowerCase();
           words[key] = higherState(words[key], coerceState(r.state));
         }
+        // ── DIAGNOSTIC (temporary) ──────────────────────────────────────────
+        // Read this in the service-worker console: chrome://extensions →
+        // LinguaScript → "Inspect views: service worker". Tells us whether the
+        // whole deck was fetched and what colours the common articles resolve to.
+        const dist = Object.values(words).reduce((a, s) => (a[s]++, a), { red: 0, orange: 0, green: 0 });
+        console.log('[LinguaScript] GET_WORDS →', rows.length, 'rows,', Object.keys(words).length,
+          'unique keys, distribution', dist,
+          '| le/la/des =', words['le'], words['la'], words['des']);
+        // ────────────────────────────────────────────────────────────────────
         sendResponse({ ok: true, words });
       })
-      .catch(() => sendResponse({ ok: false, words: {} }));
+      .catch((err) => { console.warn('[LinguaScript] GET_WORDS failed:', err?.message || err); sendResponse({ ok: false, words: {} }); });
     return true;
   }
 
