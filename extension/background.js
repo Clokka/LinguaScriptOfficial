@@ -318,41 +318,6 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     return true;
   }
 
-  // Bulk deck lookup for content scripts: returns the whole word→state map for
-  // one language as a plain object. Content scripts call this once per subtitle
-  // batch and look words up locally (see Section 3). Served from the cache.
-  if (msg.type === 'GET_DECK_INDEX') {
-    (async () => {
-      const session = await getValidSession().catch(() => null);
-      if (!session) return sendResponse({ ok: false, index: {} });
-      try {
-        const lang = msg.language || 'fr';
-        const index = await getDeckIndexCached(session.user.id, lang, session.access_token, { force: !!msg.force });
-        sendResponse({ ok: true, index: Object.fromEntries(index) });
-      } catch (e) {
-        sendResponse({ ok: false, index: {}, error: e.message });
-      }
-    })();
-    return true;
-  }
-
-  // Single-word convenience lookup, also served from the cached index so it
-  // never triggers a per-word network request.
-  if (msg.type === 'GET_DECK_STATE') {
-    (async () => {
-      const session = await getValidSession().catch(() => null);
-      if (!session) return sendResponse({ state: null });
-      try {
-        const lang = msg.language || 'fr';
-        const index = await getDeckIndexCached(session.user.id, lang, session.access_token);
-        sendResponse({ state: index.get(normalizeToken(msg.word || '')) || null });
-      } catch {
-        sendResponse({ state: null });
-      }
-    })();
-    return true;
-  }
-
   if (msg.type === 'GET_STATS') {
     chrome.storage.local.get({ [STORAGE_KEY]: [] }, ({ [STORAGE_KEY]: lines }) => {
       const wordMap = extractWords(lines);
@@ -460,39 +425,26 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     return true;
   }
 
-  if (msg.type === 'GET_WORDS') {
-    getValidSession()
-      .then(async (session) => {
-        // Colour words directly from saved_words.state — the SAME column the
-        // app's flashcard review writes ("saved_words.state is the source of
-        // truth", FlashcardReview.tsx). The old code re-derived a tier from
-        // interval_days/review_count/ease_factor, but the app's review flow
-        // only advances `state`, so those SRS fields stay at their defaults
-        // and the extension's colours never matched the user's real decks.
-        // Now a word promoted to orange/green in the app shows orange/green
-        // in the Netflix & YouTube overlays too.
-        // Page past the 1000-row cap so the WHOLE deck is coloured — a user
-        // with thousands of green words would otherwise get only the first
-        // 1000 back and the rest would render as unseen.
-        const rows = await fetchAllSavedWords(
-          `saved_words?user_id=eq.${session.user.id}&select=word,state`,
-          session.access_token
-        );
-        const words = {};
-        for (const r of rows) {
-          // Key by the SAME normalizeToken the content scripts use to look words
-          // up. Keying by a bare toLowerCase() (no punctuation strip / trim) was
-          // how a green word stored as e.g. "le " or "Les." missed its lookup and
-          // fell back to red. higherState() additionally ensures a word that is
-          // green in one language deck is never overwritten to red by a lower
-          // entry from another deck.
-          const key = normalizeToken(r.word);
-          if (!key) continue;
-          words[key] = higherState(words[key], coerceState(r.state));
-        }
-        sendResponse({ ok: true, words });
-      })
-      .catch(() => sendResponse({ ok: false, words: {} }));
+  // ── THE deck colour source ─────────────────────────────────────────────────
+  // Returns the user's flashcard deck for ONE language as { normalizedWord:
+  // state }, exactly mirroring what the app's Flashcards page shows: that page
+  // scopes saved_words by learningLanguage (Flashcards.tsx), so we scope here by
+  // the same language — this is what guarantees a word wears the SAME colour in
+  // the overlay as on its flashcard. loadDeckIndex() does the paginated,
+  // normalized, highest-state-wins build; getDeckIndexCached() serves it from a
+  // short-TTL cache and is force-refreshed by the content script on demand.
+  if (msg.type === 'GET_DECK') {
+    (async () => {
+      const session = await getValidSession().catch(() => null);
+      if (!session) return sendResponse({ ok: false, deck: {} });
+      try {
+        const lang = msg.language || 'fr';
+        const index = await getDeckIndexCached(session.user.id, lang, session.access_token, { force: !!msg.force });
+        sendResponse({ ok: true, deck: Object.fromEntries(index) });
+      } catch {
+        sendResponse({ ok: false, deck: {} });
+      }
+    })();
     return true;
   }
 
@@ -551,7 +503,9 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         );
         const verified = await verifyRes.json();
         const landed = Array.isArray(verified) && verified.length > 0;
-        console.log('[LS] SAVE_WORD verify:', landed ? 'confirmed in DB' : 'NOT FOUND after insert', verified);
+        // Drop the cached deck so the newly-saved (red) word colours on the very
+        // next GET_DECK instead of waiting out the TTL.
+        invalidateDeckCache();
         sendResponse({ ok: true, landed, userId });
       })
       .catch(e => sendResponse({ ok: false, error: e.message }));

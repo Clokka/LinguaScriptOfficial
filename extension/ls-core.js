@@ -38,14 +38,9 @@
       .trim();
   }
 
-  // ── Deck palette — the ONE source of truth for word colours ─────────────────
-  // Must match DECK_CONFIG in src/pages/Flashcards.tsx.
-  const PALETTE = { red: '#FF3B30', orange: '#FF8A00', green: '#34C759' };
-  const TIER_CLASSES = ['ls-red', 'ls-orange', 'ls-green'];
-  function applyTier(el, tier) {
-    el.classList.remove(...TIER_CLASSES);
-    if (tier === 'red' || tier === 'orange' || tier === 'green') el.classList.add('ls-' + tier);
-  }
+  // The red/orange/green colour feature lives entirely in the Deck module below
+  // (defined after config, since it reads learningLang). Deck.PALETTE is the
+  // single source of truth for the three hexes.
 
   // ── Config (set by the adapter) ─────────────────────────────────────────────
   let learningLang = 'fr';
@@ -83,37 +78,76 @@
     });
   }
 
-  // ── Saved-word colour map ────────────────────────────────────────────────────
-  const savedWordMap = new Map();
-  function tierOf(word) { return savedWordMap.get(normalizeToken(word)); }
+  // ══ Deck — THE red/orange/green colour feature ═══════════════════════════════
+  // Single source of truth for word colours in the extension. It mirrors the
+  // user's flashcard decks 1:1:
+  //   • background GET_DECK returns { normalizedWord → state } for the CURRENT
+  //     learning language — the exact same language-scoped saved_words the app's
+  //     Flashcards page reads — so a word wears the same colour here as on its
+  //     card (red = UNKNOWN, orange = LEARNING, green = KNOWN).
+  //   • state is read straight from saved_words.state (what flashcard review
+  //     writes); no SRS re-derivation.
+  //   • lookups are keyed by normalizeToken(), identical on both sides, so a
+  //     stored "Les." / "le " can't miss its span and fall back to red.
+  // Nothing else in the codebase should read or write word colours directly —
+  // go through Deck.
+  const Deck = {
+    // Exact hexes from DECK_CONFIG in src/pages/Flashcards.tsx.
+    PALETTE: { red: '#FF3B30', orange: '#FF8A00', green: '#34C759' },
+    STATES: ['red', 'orange', 'green'],
+    _map: new Map(),          // normalizedWord → 'red' | 'orange' | 'green'
+    _timer: null,
 
-  function loadSavedWords() {
-    return new Promise((resolve) => {
-      chrome.runtime.sendMessage({ type: 'GET_WORDS' }, (res) => {
-        if (chrome.runtime.lastError || !res?.ok) { log('GET_WORDS failed'); resolve(); return; }
-        savedWordMap.clear();
-        // Keys arrive already normalised from background.js. Re-normalise here
-        // too so the two normalisers can never drift.
-        for (const [word, tier] of Object.entries(res.words || {})) {
-          savedWordMap.set(normalizeToken(word), tier);
-        }
-        const dist = { red: 0, orange: 0, green: 0 };
-        savedWordMap.forEach((t) => { if (dist[t] != null) dist[t]++; });
-        log('deck map loaded:', savedWordMap.size, 'words', dist,
-          '| le/la/des =', savedWordMap.get('le'), savedWordMap.get('la'), savedWordMap.get('des'));
-        // Re-colour already-rendered spans.
-        document.querySelectorAll('.ls-word').forEach((el) => applyTier(el, savedWordMap.get(el.dataset.word)));
-        resolve();
+    // The deck state for a word, or null if it isn't in any deck (unseen).
+    stateOf(word) { return this._map.get(normalizeToken(word)) || null; },
+
+    // Paint one span to match its deck (clears all three tier classes first so a
+    // recolour red→green never leaves a stale class behind).
+    paint(el, word) {
+      const s = this._map.get(normalizeToken(word ?? el.dataset.word ?? ''));
+      el.classList.remove('ls-red', 'ls-orange', 'ls-green');
+      if (s) el.classList.add('ls-' + s);
+    },
+
+    // Repaint every rendered word span from the current map.
+    repaintAll() { document.querySelectorAll('.ls-word').forEach((el) => this.paint(el)); },
+
+    // Pull the deck for the active learning language from the background and
+    // repaint. Called on mount and every refresh tick.
+    refresh(force = false) {
+      return new Promise((resolve) => {
+        chrome.runtime.sendMessage({ type: 'GET_DECK', language: learningLang, force }, (res) => {
+          if (chrome.runtime.lastError || !res?.ok) { log('GET_DECK failed'); resolve(false); return; }
+          this._map.clear();
+          for (const [word, state] of Object.entries(res.deck || {})) {
+            if (this.STATES.includes(state)) this._map.set(normalizeToken(word), state);
+          }
+          const dist = { red: 0, orange: 0, green: 0 };
+          this._map.forEach((s) => dist[s]++);
+          log('deck loaded:', this._map.size, 'words', dist, '| le/la/des =', this._map.get('le'), this._map.get('la'), this._map.get('des'));
+          this.repaintAll();
+          resolve(true);
+        });
       });
-    });
-  }
+    },
 
-  let wordsRefreshTimer = null;
-  function startWordsRefresh() {
-    if (wordsRefreshTimer) return;
-    wordsRefreshTimer = setInterval(loadSavedWords, 15000);
-  }
-  function stopWordsRefresh() { clearInterval(wordsRefreshTimer); wordsRefreshTimer = null; }
+    // A word just saved from the overlay enters the red (UNKNOWN) deck; reflect
+    // that instantly without waiting for the next refresh.
+    markSaved(word) {
+      const key = normalizeToken(word);
+      if (!key) return;
+      this._map.set(key, 'red');
+      document.querySelectorAll(`.ls-word[data-word="${CSS.escape(key)}"]`).forEach((el) => this.paint(el, key));
+    },
+
+    // Poll so a card promoted in the app (red→orange→green) recolours live. The
+    // background force-refreshes past its cache when we ask on the tick.
+    startAutoRefresh(ms = 15000) {
+      if (this._timer) return;
+      this._timer = setInterval(() => this.refresh(true), ms);
+    },
+    stopAutoRefresh() { clearInterval(this._timer); this._timer = null; },
+  };
 
   // ── Toast ────────────────────────────────────────────────────────────────────
   let toastTimer;
@@ -130,9 +164,9 @@
 
   function openCard({ word, clean, fullLine, anchorEl }) {
     closeCard();
-    const tier = savedWordMap.get(clean);
+    const tier = Deck.stateOf(clean);
     const tierLabel = tier === 'green' ? '🟢 Known' : tier === 'orange' ? '🟠 Learning' : tier === 'red' ? '🔴 New word' : '⬜ Unseen';
-    const tierColor = tier === 'green' ? PALETTE.green : tier === 'orange' ? PALETTE.orange : tier === 'red' ? PALETTE.red : '#888';
+    const tierColor = tier === 'green' ? Deck.PALETTE.green : tier === 'orange' ? Deck.PALETTE.orange : tier === 'red' ? Deck.PALETTE.red : '#888';
     const alreadySaved = !!tier;
 
     const card = document.createElement('div'); card.id = 'ls-card'; activeCard = card;
@@ -193,19 +227,13 @@
           saveBtn.textContent = 'Saving…'; saveBtn.disabled = true;
           chrome.runtime.sendMessage({ type: 'SAVE_WORD', word: clean, context: fullLine, language: learningLang, translation: resolvedTranslation }, (res) => {
             if (chrome.runtime.lastError || !res?.ok) { saveBtn.textContent = '+ Save to flashcards'; saveBtn.disabled = false; return; }
-            markSaved(clean);
+            Deck.markSaved(clean);
             saveBtn.textContent = res.already ? '✓ Already saved' : '✓ Saved!'; saveBtn.disabled = true;
             setTimeout(closeCard, 900);
           });
         });
       }
     });
-  }
-
-  // Newly-saved words enter the red deck; reflect that immediately.
-  function markSaved(clean) {
-    savedWordMap.set(clean, 'red');
-    document.querySelectorAll(`.ls-word[data-word="${CSS.escape(clean)}"]`).forEach((el) => applyTier(el, 'red'));
   }
 
   function buildMiniLogin(word, context, getTranslation) {
@@ -229,7 +257,7 @@
         btn.textContent = 'Saving…';
         chrome.runtime.sendMessage({ type: 'SAVE_WORD', word, context, language: learningLang, translation: getTranslation() }, (saveRes) => {
           if (!saveRes?.ok) { btn.textContent = 'Saved (refresh to colour words)'; btn.disabled = true; return; }
-          markSaved(word);
+          Deck.markSaved(word);
           btn.textContent = '✓ Saved!'; btn.disabled = true;
           setTimeout(closeCard, 900);
         });
@@ -246,7 +274,7 @@
     if (!clean) return document.createTextNode(word + ' ');
     const span = document.createElement('span');
     span.className = 'ls-word'; span.dataset.word = clean; span.textContent = word + ' ';
-    applyTier(span, savedWordMap.get(clean));
+    Deck.paint(span, clean);
     span.addEventListener('click', (e) => { e.stopPropagation(); openCard({ word, clean, fullLine, anchorEl: span }); });
     return span;
   }
@@ -379,9 +407,9 @@
     .ls-word { cursor:pointer; border-radius:4px; padding:0 3px; transition:color .35s ease, background .12s; display:inline; }
     .ls-word:hover { background:rgba(255,255,255,0.16); }
     /* The ONE deck palette — three distinct hexes, one per deck. */
-    .ls-red    { color:${PALETTE.red}   !important; }
-    .ls-orange { color:${PALETTE.orange}!important; }
-    .ls-green  { color:${PALETTE.green} !important; }
+    .ls-red    { color:${Deck.PALETTE.red}   !important; }
+    .ls-orange { color:${Deck.PALETTE.orange}!important; }
+    .ls-green  { color:${Deck.PALETTE.green} !important; }
 
     #ls-controls { position:fixed; z-index:2147483641; display:flex; align-items:center; justify-content:center; gap:6px; pointer-events:none; transition:right .3s ease; left:0; right:360px; }
     #ls-controls.ls-panel-hidden { right:0; }
@@ -451,9 +479,15 @@
   }
 
   window.LSCore = {
-    keepAlive, getStorage, normalizeToken, PALETTE,
+    keepAlive, getStorage, normalizeToken,
     setLangs, setDebug, get learningLang() { return learningLang; }, get nativeLang() { return nativeLang; },
-    translate, savedWordMap, tierOf, applyTier, loadSavedWords, startWordsRefresh, stopWordsRefresh,
+    translate,
+    // The colour feature — one module, one source of truth.
+    Deck, get PALETTE() { return Deck.PALETTE; },
+    // Back-compat aliases so adapters read cleanly.
+    loadSavedWords: (force) => Deck.refresh(force),
+    startWordsRefresh: () => Deck.startAutoRefresh(),
+    stopWordsRefresh: () => Deck.stopAutoRefresh(),
     showToast, openCard, closeCard, makeWordSpan, makeWordSpansFor,
     SubtitleShield, buildPanelShell, togglePanel, buildControls, attachKeyboardShortcuts,
     injectStyles,
