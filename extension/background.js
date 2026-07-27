@@ -480,25 +480,19 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         );
         const words = {};
         for (const r of rows) {
-          // Key stays word.toLowerCase() so existing token matching in the
-          // content scripts is unchanged. higherState() ensures a word that is
+          // Key by the SAME normalizeToken the content scripts use to look words
+          // up. Keying by a bare toLowerCase() (no punctuation strip / trim) was
+          // how a green word stored as e.g. "le " or "Les." missed its lookup and
+          // fell back to red. higherState() additionally ensures a word that is
           // green in one language deck is never overwritten to red by a lower
-          // entry from another deck (the "le/la/des show red" bug).
-          const key = r.word.toLowerCase();
+          // entry from another deck.
+          const key = normalizeToken(r.word);
+          if (!key) continue;
           words[key] = higherState(words[key], coerceState(r.state));
         }
-        // ── DIAGNOSTIC (temporary) ──────────────────────────────────────────
-        // Read this in the service-worker console: chrome://extensions →
-        // LinguaScript → "Inspect views: service worker". Tells us whether the
-        // whole deck was fetched and what colours the common articles resolve to.
-        const dist = Object.values(words).reduce((a, s) => (a[s]++, a), { red: 0, orange: 0, green: 0 });
-        console.log('[LinguaScript] GET_WORDS →', rows.length, 'rows,', Object.keys(words).length,
-          'unique keys, distribution', dist,
-          '| le/la/des =', words['le'], words['la'], words['des']);
-        // ────────────────────────────────────────────────────────────────────
         sendResponse({ ok: true, words });
       })
-      .catch((err) => { console.warn('[LinguaScript] GET_WORDS failed:', err?.message || err); sendResponse({ ok: false, words: {} }); });
+      .catch(() => sendResponse({ ok: false, words: {} }));
     return true;
   }
 
