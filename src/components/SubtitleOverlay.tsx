@@ -205,6 +205,24 @@ export const SubtitleOverlay = ({
           onClose={() => setSelectedWord(null)}
           onSave={() => {
             if (onSaveWord && selectedWord) onSaveWord(selectedWord);
+            // Optimistic local update so the word turns red (UNKNOWN — newly
+            // saved) immediately, mirroring the green update for "mark known".
+            if (selectedWord) {
+              setDeck((prev) => {
+                const next = new Map(prev);
+                const key = normalizeToken(selectedWord.text);
+                const existing = next.get(key);
+                next.set(key, {
+                  id: existing?.id || selectedWord.id,
+                  word: selectedWord.text,
+                  language: effectiveLang,
+                  state: existing?.state ?? "red",
+                  times_correct: existing?.times_correct ?? 0,
+                  review_count: existing?.review_count ?? 0,
+                });
+                return next;
+              });
+            }
             setSelectedWord(null);
           }}
           onMarkKnown={
