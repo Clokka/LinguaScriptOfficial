@@ -204,6 +204,37 @@ function invalidateDeckCache() {
   _deckCache = { key: null, index: null, ts: 0 };
 }
 
+// ─── Authoritative learning language ────────────────────────────────────────
+// THE fix that made the website work: colour the deck for the language the user
+// is actually learning — the same language their words are saved under — read
+// from profiles.learning_language (exactly what the web app's LanguageContext
+// reads). The extension popup's ls_language picker is unreliable (its default
+// disagreed with the content scripts, and users rarely set it), so trusting it
+// scoped the deck to the wrong language and returned an empty deck — no orange
+// or green. We resolve the real learning language here and only fall back to
+// the popup value if the profile has none.
+const LANG_CACHE_TTL_MS = 60000;
+let _langCache = { userId: null, lang: null, ts: 0 };
+
+async function getLearningLanguage(userId, accessToken) {
+  if (_langCache.userId === userId && _langCache.lang && Date.now() - _langCache.ts < LANG_CACHE_TTL_MS) {
+    return _langCache.lang;
+  }
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/profiles?user_id=eq.${userId}&select=learning_language`,
+      { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${accessToken}` } }
+    );
+    const rows = await res.json();
+    const raw = Array.isArray(rows) && rows[0]?.learning_language;
+    const lang = raw ? String(raw).toLowerCase() : null;
+    _langCache = { userId, lang, ts: Date.now() };
+    return lang;
+  } catch {
+    return null;
+  }
+}
+
 async function insertWords(rows, accessToken) {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/saved_words`, {
     method: 'POST',
@@ -438,9 +469,12 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       const session = await getValidSession().catch(() => null);
       if (!session) return sendResponse({ ok: false, deck: {} });
       try {
-        const lang = msg.language || 'fr';
+        // Authoritative language from profiles.learning_language (like the web
+        // app); the popup's ls_language is only a fallback.
+        const lang = (await getLearningLanguage(session.user.id, session.access_token))
+          || msg.language || 'fr';
         const index = await getDeckIndexCached(session.user.id, lang, session.access_token, { force: !!msg.force });
-        sendResponse({ ok: true, deck: Object.fromEntries(index) });
+        sendResponse({ ok: true, deck: Object.fromEntries(index), language: lang });
       } catch {
         sendResponse({ ok: false, deck: {} });
       }
@@ -465,10 +499,14 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         if (existing?.length > 0) return sendResponse({ ok: true, already: true });
 
         const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+        // Save into the SAME deck the app uses (profiles.learning_language) so a
+        // word saved from the overlay lands in the language it will be coloured
+        // and reviewed under; fall back to the content script's hint.
+        const saveLang = (await getLearningLanguage(userId, accessToken)) || msg.language || 'fr';
         const row = {
           user_id: userId,
           word,
-          language: msg.language || 'fr',
+          language: saveLang,
           context: msg.context || '',
           translation: msg.translation || '',
           ipa: '',

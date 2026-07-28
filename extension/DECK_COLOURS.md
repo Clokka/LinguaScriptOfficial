@@ -5,6 +5,15 @@ the user's flashcard decks**. A word is the same colour in the extension as it
 is on its card in the app. There is exactly one path; nothing else reads or
 writes word colours.
 
+## Language — read authoritatively (the fix that made it work)
+The deck is scoped to the user's **active learning language**, read from
+`profiles.learning_language` (exactly what the web app's `LanguageContext`
+reads), NOT from the extension popup's `ls_language` picker. Words are saved
+under `learning_language`, so colouring must use the same value or the deck
+comes back empty (no orange/green). `background.js` resolves it via
+`getLearningLanguage()` and uses it for both `GET_DECK` and `SAVE_WORD`; the
+popup value is only a fallback.
+
 ## Source of truth
 `saved_words.state` in Supabase — the same column the app's flashcard review
 writes (`FlashcardReview.tsx`). Three states, mapped to the exact hexes from
