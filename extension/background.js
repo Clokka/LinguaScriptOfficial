@@ -467,15 +467,23 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg.type === 'GET_DECK') {
     (async () => {
       const session = await getValidSession().catch(() => null);
-      if (!session) return sendResponse({ ok: false, deck: {} });
+      if (!session) {
+        console.warn('[LinguaScript] GET_DECK: not logged in — open the extension popup and sign in.');
+        return sendResponse({ ok: false, deck: {} });
+      }
       try {
         // Authoritative language from profiles.learning_language (like the web
         // app); the popup's ls_language is only a fallback.
-        const lang = (await getLearningLanguage(session.user.id, session.access_token))
-          || msg.language || 'fr';
+        const profileLang = await getLearningLanguage(session.user.id, session.access_token);
+        const lang = profileLang || msg.language || 'fr';
         const index = await getDeckIndexCached(session.user.id, lang, session.access_token, { force: !!msg.force });
+        // Temporary diagnostic — read in the service-worker console.
+        let r = 0, o = 0, g = 0;
+        index.forEach((s) => (s === 'green' ? g++ : s === 'orange' ? o++ : r++));
+        console.log(`[LinguaScript] GET_DECK: profileLang=${profileLang || '(none)'} → using '${lang}', ${index.size} words {red:${r}, orange:${o}, green:${g}}`);
         sendResponse({ ok: true, deck: Object.fromEntries(index), language: lang });
-      } catch {
+      } catch (e) {
+        console.warn('[LinguaScript] GET_DECK error:', e?.message || e);
         sendResponse({ ok: false, deck: {} });
       }
     })();
