@@ -113,23 +113,33 @@ export function LinguaScriptExercise({
     setTimeout(async () => {
       // Record review but DON'T update state yet (collecting data first)
       if (exercise.id && !exercise.id.startsWith("temp-")) {
-        // Log the review for analysis
-        await supabase.from("linguascript_reviews").insert({
-          word_id: exercise.id,
-          correct: isCorrect,
-          timestamp: new Date().toISOString(),
-          mode: "gap-fill",
-        }).catch(err => console.error("[LinguaScriptExercise] Review log failed:", err));
+        // Log the review for analysis (if table exists)
+        try {
+          await supabase.from("linguascript_reviews").insert({
+            word_id: exercise.id,
+            correct: isCorrect,
+            timestamp: new Date().toISOString(),
+            mode: "gap-fill",
+          });
+        } catch (err: any) {
+          // Gracefully handle if table doesn't exist yet
+          if (!err.message?.includes("relation") && !err.message?.includes("undefined")) {
+            console.error("[LinguaScriptExercise] Review log failed:", err);
+          }
+        }
 
         // Increment appearance_count (how many times shown)
-        await supabase
-          .from("saved_words")
-          .update({
-            appearance_count: (exercise.appearance_count || 0) + 1,
-            last_reviewed_at: new Date().toISOString(),
-          })
-          .eq("id", exercise.id)
-          .catch(err => console.error("[LinguaScriptExercise] Update failed:", err));
+        try {
+          await supabase
+            .from("saved_words")
+            .update({
+              appearance_count: ((exercise.appearance_count || 0) + 1) as any,
+              last_reviewed_at: new Date().toISOString(),
+            })
+            .eq("id", exercise.id);
+        } catch (err) {
+          console.warn("[LinguaScriptExercise] Update failed (schema may not be ready):", err);
+        }
       }
 
       onComplete?.({
@@ -168,23 +178,33 @@ export function LinguaScriptExercise({
     setTimeout(async () => {
       // Record review but DON'T update state yet (collecting data first)
       if (exercise.id && !exercise.id.startsWith("temp-")) {
-        // Log the review for analysis
-        await supabase.from("linguascript_reviews").insert({
-          word_id: exercise.id,
-          correct: isCorrect,
-          timestamp: new Date().toISOString(),
-          mode: "mcq",
-        }).catch(err => console.error("[LinguaScriptExercise] Review log failed:", err));
+        // Log the review for analysis (if table exists)
+        try {
+          await supabase.from("linguascript_reviews").insert({
+            word_id: exercise.id,
+            correct: isCorrect,
+            timestamp: new Date().toISOString(),
+            mode: "mcq",
+          });
+        } catch (err: any) {
+          // Gracefully handle if table doesn't exist yet
+          if (!err.message?.includes("relation") && !err.message?.includes("undefined")) {
+            console.error("[LinguaScriptExercise] Review log failed:", err);
+          }
+        }
 
         // Increment appearance_count (how many times shown)
-        await supabase
-          .from("saved_words")
-          .update({
-            appearance_count: (exercise.appearance_count || 0) + 1,
-            last_reviewed_at: new Date().toISOString(),
-          })
-          .eq("id", exercise.id)
-          .catch(err => console.error("[LinguaScriptExercise] Update failed:", err));
+        try {
+          await supabase
+            .from("saved_words")
+            .update({
+              appearance_count: ((exercise.appearance_count || 0) + 1) as any,
+              last_reviewed_at: new Date().toISOString(),
+            })
+            .eq("id", exercise.id);
+        } catch (err) {
+          console.warn("[LinguaScriptExercise] Update failed (schema may not be ready):", err);
+        }
       }
 
       onComplete?.({

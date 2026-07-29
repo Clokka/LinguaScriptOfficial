@@ -31,36 +31,39 @@ export function useLinguaScriptStatus() {
     try {
       setLoading(true);
 
-      // Count LinguaScripts ready for review
-      // These are saved_words that should appear in today's session
-      // For MVP: words with appearance_count < 3 and capture_date is today or earlier
+      // LinguaScripts ready for review: words with appearance_count < 3
+      // MVP strategy: Show first 10 words that haven't appeared 3 times yet
       const { data: linguascripts, error: lsError } = await supabase
         .from("saved_words")
         .select("id")
         .eq("user_id", user?.id)
         .eq("language", learningLanguage)
-        .is("appearance_count", null)
-        .or("appearance_count.lt.3")
+        .or("appearance_count.is.null,appearance_count.lt.3")
         .lte("created_at", new Date().toISOString())
-        .limit(20);
+        .order("created_at", { ascending: true })
+        .limit(10);
 
-      if (lsError) throw lsError;
+      if (lsError) {
+        console.warn("[useLinguaScriptStatus] LinguaScripts query failed:", lsError);
+        // Gracefully degrade if columns don't exist yet
+      }
 
       const linguaScriptsPending = linguascripts?.length || 0;
-      const dueIds = linguascripts?.map((w) => w.id) || [];
+      const dueIds = linguascripts?.map((w: any) => w.id) || [];
 
-      // Count flashcards due (for next review alert)
-      // These are words that have already appeared in LinguaScripts
-      // and are due for spaced repetition
+      // Flashcards due: words with appearance_count >= 3 and next_review_at <= now
       const { data: flashcards, error: fcError } = await supabase
         .from("saved_words")
         .select("id, last_reviewed_at")
         .eq("user_id", user?.id)
         .eq("language", learningLanguage)
-        .gt("appearance_count", 2)
-        .lte("next_review_at", new Date().toISOString());
+        .gte("appearance_count", 3)
+        .or(`next_review_at.is.null,next_review_at.lte.${new Date().toISOString()}`)
+        .limit(1);
 
-      if (fcError) throw fcError;
+      if (fcError) {
+        console.warn("[useLinguaScriptStatus] Flashcards query failed:", fcError);
+      }
 
       const flashcardsDue = flashcards?.length || 0;
 
@@ -82,7 +85,8 @@ export function useLinguaScriptStatus() {
         nextFlashcardReviewTime: flashcards?.[0]?.last_reviewed_at,
       });
     } catch (err) {
-      console.error("[useLinguaScriptStatus] Error:", err);
+      console.error("[useLinguaScriptStatus] Fatal error:", err);
+      // Fallback: show nothing if queries fail (e.g., columns don't exist yet)
       setStatus({
         state: "linguascripts-complete",
         linguascriptsPending: 0,
