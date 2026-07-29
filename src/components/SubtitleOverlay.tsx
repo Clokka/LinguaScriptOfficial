@@ -184,7 +184,9 @@ export const SubtitleOverlay = ({
           data-tour={wordData ? "subtitle-word" : undefined}
           className={cn(
             "subtitle-word inline-flex items-baseline",
-            wordData && "cursor-pointer",
+            // Only real words are interactive; everything else stays
+            // click-through so the video controls underneath remain reachable.
+            wordData && "cursor-pointer pointer-events-auto rounded hover:bg-white/10",
             deckColor ? "font-semibold" : "text-white font-medium",
           )}
           style={deckColor ? { color: deckColor } : undefined}
@@ -201,14 +203,18 @@ export const SubtitleOverlay = ({
 
   return (
     <>
+      {/* No box: the layer is click-through (pointer-events-none) so the video
+          controls underneath stay reachable — only the words re-enable clicks.
+          Legibility comes from a strong text shadow, Netflix / Language Reactor
+          style, instead of a solid panel that blocks the seek bar. */}
       <div
         className={cn(
-          "glass-panel-strong px-8 py-4 text-center max-w-4xl mx-auto relative",
+          "px-6 py-2 text-center max-w-4xl mx-auto relative pointer-events-none",
           className
         )}
       >
         {greenScore.totalCount > 0 && (
-          <div className="absolute -top-3 right-4 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 backdrop-blur">
+          <div className="pointer-events-auto absolute -top-3 right-4 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 backdrop-blur">
             {greenScore.pct}% green
           </div>
         )}
@@ -219,17 +225,21 @@ export const SubtitleOverlay = ({
               e.stopPropagation();
               onSavePhrase(primaryText.trim());
             }}
-            className="absolute -top-3 left-4 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-500/20 text-purple-200 border border-purple-400/40 backdrop-blur hover:bg-purple-500/40 transition-colors"
+            className="pointer-events-auto absolute -top-3 left-4 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-500/20 text-purple-200 border border-purple-400/40 backdrop-blur hover:bg-purple-500/40 transition-colors"
             title="Save this whole line as a phrase flashcard"
           >
             + Save phrase
           </button>
         )}
-        <p ref={lineRef} className="subtitle-text leading-relaxed">
+        <p
+          ref={lineRef}
+          className="subtitle-text leading-relaxed"
+          style={{ textShadow: "0 2px 10px rgba(0,0,0,0.95), 0 1px 2px rgba(0,0,0,0.9), 0 0 3px rgba(0,0,0,0.7)" }}
+        >
           {renderWords()}
         </p>
         {mode === "dual" && secondaryText && (
-          <p className="text-lg text-muted-foreground mt-2 font-light">
+          <p className="text-lg text-muted-foreground mt-2 font-light" style={{ textShadow: "0 2px 8px rgba(0,0,0,0.95)" }}>
             {secondaryText}
           </p>
         )}
