@@ -16,6 +16,8 @@ interface LinguaScriptExerciseProps {
   interests?: string[];
   mode?: ExerciseMode;
   onComplete?: (script: any) => void;
+  contextPhrase?: string; // Word in context: "Bonjour, comment allez-vous?"
+  contextTranslation?: string; // Translation of context
 }
 
 export function LinguaScriptExercise({
@@ -24,6 +26,8 @@ export function LinguaScriptExercise({
   interests = [],
   mode = "gap-fill",
   onComplete,
+  contextPhrase,
+  contextTranslation,
 }: LinguaScriptExerciseProps) {
   const [exercise, setExercise] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -107,26 +111,32 @@ export function LinguaScriptExercise({
     }
 
     setTimeout(async () => {
-      // Update database
+      // Record review but DON'T update state yet (collecting data first)
       if (exercise.id && !exercise.id.startsWith("temp-")) {
+        // Log the review for analysis
+        await supabase.from("linguascript_reviews").insert({
+          word_id: exercise.id,
+          correct: isCorrect,
+          timestamp: new Date().toISOString(),
+          mode: "gap-fill",
+        }).catch(err => console.error("[LinguaScriptExercise] Review log failed:", err));
+
+        // Increment appearance_count (how many times shown)
         await supabase
-          .from("linguascripts")
+          .from("saved_words")
           .update({
-            status: isCorrect ? "completed" : "started",
-            correct: isCorrect,
-            gap_answer: userAnswer,
-            completed_at: isCorrect ? new Date().toISOString() : null,
-            xp_earned: xpWithCombo,
-            combo_multiplier: combo,
+            appearance_count: (exercise.appearance_count || 0) + 1,
+            last_reviewed_at: new Date().toISOString(),
           })
-          .eq("id", exercise.id);
+          .eq("id", exercise.id)
+          .catch(err => console.error("[LinguaScriptExercise] Update failed:", err));
       }
 
       onComplete?.({
         ...exercise,
         xp_earned: xpWithCombo,
         combo_multiplier: combo,
-        status: isCorrect ? "completed" : "started",
+        correct: isCorrect,
       });
     }, 800);
   }
@@ -156,26 +166,32 @@ export function LinguaScriptExercise({
     }
 
     setTimeout(async () => {
-      // Update database
+      // Record review but DON'T update state yet (collecting data first)
       if (exercise.id && !exercise.id.startsWith("temp-")) {
+        // Log the review for analysis
+        await supabase.from("linguascript_reviews").insert({
+          word_id: exercise.id,
+          correct: isCorrect,
+          timestamp: new Date().toISOString(),
+          mode: "mcq",
+        }).catch(err => console.error("[LinguaScriptExercise] Review log failed:", err));
+
+        // Increment appearance_count (how many times shown)
         await supabase
-          .from("linguascripts")
+          .from("saved_words")
           .update({
-            status: isCorrect ? "completed" : "started",
-            correct: isCorrect,
-            mcq_answer: selectedOption,
-            completed_at: isCorrect ? new Date().toISOString() : null,
-            xp_earned: xpWithCombo,
-            combo_multiplier: combo,
+            appearance_count: (exercise.appearance_count || 0) + 1,
+            last_reviewed_at: new Date().toISOString(),
           })
-          .eq("id", exercise.id);
+          .eq("id", exercise.id)
+          .catch(err => console.error("[LinguaScriptExercise] Update failed:", err));
       }
 
       onComplete?.({
         ...exercise,
         xp_earned: xpWithCombo,
         combo_multiplier: combo,
-        status: isCorrect ? "completed" : "started",
+        correct: isCorrect,
       });
     }, 800);
   }
@@ -232,6 +248,17 @@ export function LinguaScriptExercise({
         </h2>
         <p className="text-sm text-slate-400">{exercise.translation}</p>
       </div>
+
+      {/* Context Display */}
+      {contextPhrase && (
+        <div className="mb-6 p-4 bg-slate-700/30 rounded-lg border border-slate-700">
+          <p className="text-xs text-slate-500 uppercase tracking-widest mb-1">From real content</p>
+          <p className="text-sm text-slate-200 italic mb-2">"{contextPhrase}"</p>
+          {contextTranslation && (
+            <p className="text-xs text-slate-400">→ {contextTranslation}</p>
+          )}
+        </div>
+      )}
 
       {/* Exercise Content */}
       <div className="mb-8 p-6 bg-slate-800/50 rounded-lg border border-slate-700">
