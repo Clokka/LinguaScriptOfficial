@@ -17,6 +17,7 @@ import { PetCompanion } from "@/components/pets/PetCompanion";
 import Landing from "./pages/Landing";
 import LandingPage2 from "./pages/LandingPage2";
 import LandingPage3 from "./pages/LandingPage3";
+import GapDemo from "./pages/GapDemo";
 import Demo from "./pages/Demo";
 import Browse from "./pages/Browse";
 import Browse1 from "./pages/Browse1";
@@ -64,6 +65,7 @@ const App = () => (
                 <Route path="/landing" element={<Landing />} />
                 <Route path="/landingpage2" element={<LandingPage2 />} />
                 <Route path="/landingpage3" element={<LandingPage3 />} />
+                <Route path="/gap-demo" element={<GapDemo />} />
                 <Route path="/demo" element={<Demo />} />
                 <Route path="/browse" element={<Navigate to="/discover" replace />} />
                 <Route path="/browse1" element={<Navigate to="/discover" replace />} />

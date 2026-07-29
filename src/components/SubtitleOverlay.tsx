@@ -12,6 +12,7 @@ import {
   normalizeToken,
 } from "@/lib/vocab";
 import { greenScoreForLine } from "@/lib/understanding";
+import { ChameleonReaction, ReactionMode } from "./ChameleonReaction";
 
 interface Word {
   id: string;
@@ -130,26 +131,31 @@ export const SubtitleOverlay = ({
   );
 
   const lineRef = useRef<HTMLParagraphElement>(null);
+  const [reaction, setReaction] = useState<ReactionMode | null>(null);
+
+  // Is every word in the line green EXCEPT the given one, which is in `expect`?
+  // ("expect: undefined" = the word is unsaved/white.)
+  const isLastNonGreen = (target: string, expect: DeckState | undefined): boolean => {
+    const targetKey = normalizeToken(target);
+    const tokens = primaryText.split(/\s+/).map(normalizeToken).filter(Boolean);
+    if (tokens.length < 2) return false;
+    let sawTarget = false;
+    for (const tk of tokens) {
+      const state = deck.get(tk)?.state;
+      if (tk === targetKey) {
+        if (state !== expect) return false;
+        sawTarget = true;
+      } else if (state !== "green") {
+        return false;
+      }
+    }
+    return sawTarget;
+  };
 
   // The line-blast reward: saving the LAST unreviewed (white) word on an
   // otherwise all-green line "completes" it. Returns true only when every other
   // word in the line is already green and the word being saved is still white.
-  const wouldCompleteLine = (savedText: string): boolean => {
-    const savedKey = normalizeToken(savedText);
-    const tokens = primaryText.split(/\s+/).map(normalizeToken).filter(Boolean);
-    if (tokens.length < 2) return false;
-    let sawSavedWhite = false;
-    for (const tk of tokens) {
-      const state = deck.get(tk)?.state;
-      if (tk === savedKey) {
-        if (state) return false;      // already in the deck → not the trigger
-        sawSavedWhite = true;
-      } else if (state !== "green") {
-        return false;                  // another word isn't green yet
-      }
-    }
-    return sawSavedWhite;
-  };
+  const wouldCompleteLine = (savedText: string): boolean => isLastNonGreen(savedText, undefined);
 
   // Gold sweep — the /demo effect: a yellow shimmer runs left→right through the
   // line's words, then each settles back to its real deck colour.
@@ -213,6 +219,9 @@ export const SubtitleOverlay = ({
           className
         )}
       >
+        {reaction && (
+          <ChameleonReaction mode={reaction} onDone={() => setReaction(null)} />
+        )}
         {greenScore.totalCount > 0 && (
           <div className="pointer-events-auto absolute -top-3 right-4 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 backdrop-blur">
             {greenScore.pct}% green
@@ -276,13 +285,22 @@ export const SubtitleOverlay = ({
             }
             setSelectedWord(null);
             // Fire the gold line-blast after the re-render so it sweeps the
-            // freshly-coloured words.
-            if (sweep) setTimeout(goldSweep, 40);
+            // freshly-coloured words — and send in the RED chameleon: a
+            // full-green line just gained a brand-new word.
+            if (sweep) {
+              setTimeout(goldSweep, 40);
+              setReaction("red");
+            }
           }}
           onMarkKnown={
             onMarkKnown
               ? () => {
                   if (selectedWord) {
+                    // Check BEFORE the update: was this the last non-green word,
+                    // and was it ORANGE? If so the chameleon starts orange and
+                    // transforms to green as the line completes.
+                    const orangeFinish = isLastNonGreen(selectedWord.text, "orange");
+                    const anyFinish = orangeFinish || isLastNonGreen(selectedWord.text, "red");
                     onMarkKnown(selectedWord);
                     // Optimistic local update so the word turns green immediately.
                     setDeck((prev) => {
@@ -299,6 +317,13 @@ export const SubtitleOverlay = ({
                       });
                       return next;
                     });
+                    // The line just turned fully green — sweep it in gold and
+                    // send in the chameleon (orange → green when the last word
+                    // was still in the learning deck).
+                    if (anyFinish) {
+                      setTimeout(goldSweep, 40);
+                      setReaction("orange-to-green");
+                    }
                   }
                   setSelectedWord(null);
                 }
