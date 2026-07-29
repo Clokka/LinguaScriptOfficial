@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { WordPopup } from "./WordPopup";
 import { supabase } from "@/integrations/supabase/client";
@@ -129,6 +129,45 @@ export const SubtitleOverlay = ({
     [primaryText, effectiveLang, deck],
   );
 
+  const lineRef = useRef<HTMLParagraphElement>(null);
+
+  // The line-blast reward: saving the LAST unreviewed (white) word on an
+  // otherwise all-green line "completes" it. Returns true only when every other
+  // word in the line is already green and the word being saved is still white.
+  const wouldCompleteLine = (savedText: string): boolean => {
+    const savedKey = normalizeToken(savedText);
+    const tokens = primaryText.split(/\s+/).map(normalizeToken).filter(Boolean);
+    if (tokens.length < 2) return false;
+    let sawSavedWhite = false;
+    for (const tk of tokens) {
+      const state = deck.get(tk)?.state;
+      if (tk === savedKey) {
+        if (state) return false;      // already in the deck → not the trigger
+        sawSavedWhite = true;
+      } else if (state !== "green") {
+        return false;                  // another word isn't green yet
+      }
+    }
+    return sawSavedWhite;
+  };
+
+  // Gold sweep — the /demo effect: a yellow shimmer runs left→right through the
+  // line's words, then each settles back to its real deck colour.
+  const goldSweep = () => {
+    const line = lineRef.current;
+    if (!line || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+    line.querySelectorAll<HTMLElement>(".subtitle-word").forEach((span, i) => {
+      span.animate(
+        [
+          {},
+          { color: "#fbbf24", textShadow: "0 0 16px rgba(251,191,36,0.85)", offset: 0.45 },
+          {},
+        ],
+        { duration: 520, delay: i * 30, easing: "ease-out" },
+      );
+    });
+  };
+
   const renderWords = () => {
     const textWords = primaryText.split(" ");
     return textWords.map((text, index) => {
@@ -186,7 +225,7 @@ export const SubtitleOverlay = ({
             + Save phrase
           </button>
         )}
-        <p className="subtitle-text leading-relaxed">
+        <p ref={lineRef} className="subtitle-text leading-relaxed">
           {renderWords()}
         </p>
         {mode === "dual" && secondaryText && (
@@ -204,6 +243,8 @@ export const SubtitleOverlay = ({
           language={effectiveLang}
           onClose={() => setSelectedWord(null)}
           onSave={() => {
+            // Check BEFORE the optimistic update (while the word is still white).
+            const sweep = selectedWord ? wouldCompleteLine(selectedWord.text) : false;
             if (onSaveWord && selectedWord) onSaveWord(selectedWord);
             // Optimistic local update so the word turns red (UNKNOWN — newly
             // saved) immediately, mirroring the green update for "mark known".
@@ -224,6 +265,9 @@ export const SubtitleOverlay = ({
               });
             }
             setSelectedWord(null);
+            // Fire the gold line-blast after the re-render so it sweeps the
+            // freshly-coloured words.
+            if (sweep) setTimeout(goldSweep, 40);
           }}
           onMarkKnown={
             onMarkKnown
