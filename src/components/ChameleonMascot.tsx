@@ -26,10 +26,13 @@ const CHAM_SVG = `
 </svg>`;
 
 const CHAM_CSS = `
-.ls-cham { --skin:#fb923c; --skin2:#ea6a1d; --belly:#fed7aa; --ridge:#c2551b; display:inline-block; line-height:0; }
-.ls-cham.tier-red    { --skin:#ef4444; --skin2:#c72f2f; --belly:#fca5a5; --ridge:#a52222; }
-.ls-cham.tier-orange { --skin:#fb923c; --skin2:#ea6a1d; --belly:#fed7aa; --ridge:#c2551b; }
-.ls-cham.tier-green  { --skin:#22c55e; --skin2:#15914c; --belly:#bbf7d0; --ridge:#0e6f3d; }
+/* Skin tones derive from the canonical deck colours in brand/README.md:
+   red #FF3B30 · orange #FF8A00 · green #34C759. These must not drift — the
+   mascot's colour IS the deck state, on every surface. See src/lib/deck-colors.ts */
+.ls-cham { --skin:#FF8A00; --skin2:#D97100; --belly:#FFE0B8; --ridge:#B35A00; display:inline-block; line-height:0; }
+.ls-cham.tier-red    { --skin:#FF3B30; --skin2:#D32B22; --belly:#FFC4C0; --ridge:#B02018; }
+.ls-cham.tier-orange { --skin:#FF8A00; --skin2:#D97100; --belly:#FFE0B8; --ridge:#B35A00; }
+.ls-cham.tier-green  { --skin:#34C759; --skin2:#26A047; --belly:#B8EFC8; --ridge:#1B7A35; }
 .ls-cham .skin  { fill:var(--skin);  transition:fill .7s; }
 .ls-cham .skin2 { fill:var(--skin2); transition:fill .7s; }
 .ls-cham .belly { fill:var(--belly); transition:fill .7s; }

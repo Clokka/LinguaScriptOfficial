@@ -1,7 +1,7 @@
-import { useLayoutEffect, useRef } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { ChameleonMark } from "./ChameleonMark";
+import { ChameleonMascot, type ChameleonTier } from "@/components/ChameleonMascot";
 import { DECK } from "@/lib/deck-colors";
 
 gsap.registerPlugin(ScrollTrigger);
@@ -27,8 +27,12 @@ const LINE = [
 export const GreenMoment = () => {
   const root = useRef<HTMLDivElement>(null);
   const wordRefs = useRef<(HTMLSpanElement | null)[]>([]);
-  const chamRef = useRef<HTMLDivElement>(null);
   const pctRef = useRef<HTMLSpanElement>(null);
+
+  // The mascot's tier is discrete, so it only re-renders on the two boundary
+  // crossings rather than on every scroll frame. `lastTier` guards the setState.
+  const [tier, setTier] = useState<ChameleonTier>("red");
+  const lastTier = useRef<ChameleonTier>("red");
 
   useLayoutEffect(() => {
     const el = root.current;
@@ -48,8 +52,14 @@ export const GreenMoment = () => {
         w.style.color = toColour(local);
         w.style.opacity = String(0.45 + local * 0.55);
       });
-      if (chamRef.current) chamRef.current.style.setProperty("--cham", toColour(p));
       if (pctRef.current) pctRef.current.textContent = `${Math.round(46 + p * 51)}%`;
+
+      // Every word green → the chameleon commits to green. This is the payoff.
+      const next: ChameleonTier = p > 0.82 ? "green" : p > 0.4 ? "orange" : "red";
+      if (next !== lastTier.current) {
+        lastTier.current = next;
+        setTier(next);
+      }
     };
 
     if (reduced) {
@@ -115,8 +125,8 @@ export const GreenMoment = () => {
             </p>
           </div>
 
-          <div ref={chamRef} style={{ ["--cham" as string]: DECK.red }} className="mx-auto w-full max-w-sm">
-            <ChameleonMark color="var(--cham)" />
+          <div className="mx-auto w-full max-w-sm">
+            <ChameleonMascot tier={tier} party={tier === "green"} />
           </div>
         </div>
       </div>

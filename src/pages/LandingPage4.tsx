@@ -3,7 +3,12 @@ import { motion } from "framer-motion";
 import { StoreBadges } from "@/components/landing/StoreBadges";
 import { GreenMoment } from "@/components/landing/GreenMoment";
 import { MagneticButton } from "@/components/landing/MagneticButton";
-import { ChameleonMark } from "@/components/landing/ChameleonMark";
+import { LiveWordmark } from "@/components/landing/LiveWordmark";
+import { LinguaCursor } from "@/components/landing/LinguaCursor";
+import { Chameleon3D } from "@/components/landing/Chameleon3D";
+import { ChameleonMascot } from "@/components/ChameleonMascot";
+import { LineBlastDemo } from "@/components/LineBlastDemo";
+import { PlatformLogos } from "@/components/landing/PlatformLogos";
 import { DECK } from "@/lib/deck-colors";
 
 /**
@@ -55,6 +60,8 @@ const LandingPage4 = () => {
 
   return (
     <div className="min-h-screen bg-[#08080B] text-white antialiased overflow-x-hidden">
+      <LinguaCursor />
+
       {/* ── Nav ── */}
       <nav className="sticky top-0 z-50 border-b border-white/[0.06] bg-[#08080B]/85 backdrop-blur-xl">
         <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
@@ -121,15 +128,18 @@ const LandingPage4 = () => {
 
       {/* ── Platforms ── */}
       <Section className="pb-24">
-        <div className="flex flex-wrap items-center justify-center gap-x-10 gap-y-4 text-sm text-white/30">
-          <span className="text-xs uppercase tracking-[0.25em]">Works on</span>
-          {["YouTube", "Netflix", "Crunchyroll", "Disney+"].map((p) => (
-            <span key={p} className="font-semibold text-white/45">
-              {p}
-            </span>
-          ))}
-        </div>
+        <PlatformLogos />
       </Section>
+
+      {/* ── The wordmark, alive ── */}
+      <section className="relative py-20 overflow-hidden border-t border-white/[0.06]">
+        <div className="max-w-6xl mx-auto px-6 text-center">
+          <LiveWordmark className="mb-6" />
+          <p className="text-sm text-white/35 max-w-md mx-auto">
+            Move your cursor across it. The name does what the app does.
+          </p>
+        </div>
+      </section>
 
       {/* ── 2. CONTEXT — the problem ── */}
       <Section className="py-24 border-t border-white/[0.06]">
@@ -182,9 +192,9 @@ const LandingPage4 = () => {
         </h2>
         <div className="grid gap-8 sm:grid-cols-3">
           {[
-            { c: DECK.red, n: "Red", d: "A word you've never met. Tap it once and it's saved.", label: "Unknown" },
-            { c: DECK.orange, n: "Orange", d: "You're learning it. It resurfaces until it sticks.", label: "Learning" },
-            { c: DECK.green, n: "Green", d: "You know it. It stops interrupting and starts counting.", label: "Known" },
+            { c: DECK.red, tier: "red" as const, n: "Red", d: "A word you've never met. Tap it once and it's saved.", label: "Unknown" },
+            { c: DECK.orange, tier: "orange" as const, n: "Orange", d: "You're learning it. It resurfaces until it sticks.", label: "Learning" },
+            { c: DECK.green, tier: "green" as const, n: "Green", d: "You know it. It stops interrupting and starts counting.", label: "Known" },
           ].map((s, i) => (
             <motion.div
               key={s.n}
@@ -194,8 +204,8 @@ const LandingPage4 = () => {
               custom={i}
               variants={reveal}
             >
-              <div className="w-16 mb-5">
-                <ChameleonMark color={s.c} branch={false} />
+              <div className="w-24 mb-5">
+                <ChameleonMascot tier={s.tier} />
               </div>
               <p
                 className="text-[11px] font-bold uppercase tracking-[0.2em] mb-2"
@@ -207,6 +217,56 @@ const LandingPage4 = () => {
               <p className="text-sm text-white/45 leading-relaxed">{s.d}</p>
             </motion.div>
           ))}
+        </div>
+      </Section>
+
+      {/* ── Line Blast — the key feature, playable ── */}
+      <Section className="py-24 border-t border-white/[0.06]">
+        <p className="text-xs font-semibold uppercase tracking-[0.35em] text-white/40 mb-5">
+          Line Blast
+        </p>
+        <h2 className="text-3xl sm:text-5xl font-extrabold tracking-tight leading-[1.08] mb-4">
+          Turn the last white word
+          <br />
+          <span style={{ color: DECK.green }}>and the line detonates.</span>
+        </h2>
+        <p className="text-white/45 max-w-xl mb-12">
+          Tap the words you know. When a subtitle goes fully green the whole line
+          erupts and your combo climbs. Try it — this is the real thing, not a video.
+        </p>
+
+        <div data-cursor="hot">
+          <LineBlastDemo />
+        </div>
+
+        <button
+          onClick={() => navigate("/demo")}
+          className="mt-8 text-sm font-semibold text-white/60 hover:text-white transition-colors"
+        >
+          Open the full Line Blast demo →
+        </button>
+      </Section>
+
+      {/* ── The chameleon, in 3D ── */}
+      <Section className="py-24 border-t border-white/[0.06]">
+        <div className="grid gap-12 md:grid-cols-2 md:items-center">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.35em] text-white/40 mb-5">
+              Your companion
+            </p>
+            <h2 className="text-3xl sm:text-5xl font-extrabold tracking-tight leading-[1.08] mb-5">
+              It changes colour
+              <br />
+              because you did.
+            </h2>
+            <p className="text-white/45 max-w-md">
+              The chameleon wears your progress. Red when a scene is full of
+              strangers, green when you've earned it. Drag to spin it.
+            </p>
+          </div>
+          <div className="flex justify-center" data-cursor="hot">
+            <Chameleon3D tier="green" size={360} />
+          </div>
         </div>
       </Section>
 
@@ -266,8 +326,8 @@ const LandingPage4 = () => {
 
       {/* ── 5. CALL TO ACTION ── */}
       <Section className="py-28 border-t border-white/[0.06] text-center">
-        <div className="w-28 mx-auto mb-8">
-          <ChameleonMark color={DECK.green} />
+        <div className="w-36 mx-auto mb-8">
+          <ChameleonMascot tier="green" party />
         </div>
         <h2 className="text-4xl sm:text-6xl font-extrabold tracking-tight leading-[1.05] mb-6">
           Start with tonight's episode.
