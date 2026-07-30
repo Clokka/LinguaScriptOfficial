@@ -1,45 +1,176 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import * as THREE from "three";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
 import { ChameleonMascot, type ChameleonTier } from "@/components/ChameleonMascot";
+import { DECK } from "@/lib/deck-colors";
 
 /**
- * The Quirky-Series chameleon as an actual 3D model.
+ * The Quirky-Series chameleon, rendered in real 3D.
  *
- * Uses the <model-viewer> web component already loaded in index.html (the same
- * one the pet system uses), pointed at the optimised GLB — 20.2 MB of raw
- * upload compressed to 678 KB so it can sit on a landing page.
+ * Built directly on three (already a project dependency, used by the pet
+ * system) rather than <model-viewer>. model-viewer is only available here via
+ * a CDN <script> in index.html, so any blocked or slow CDN silently killed the
+ * 3D; and the npm build of it can't be installed because model-viewer@3 wants
+ * three@^0.163 and @4 wants ^0.183, while the pet system pins ^0.169.
  *
- * If model-viewer hasn't defined itself (CDN blocked, offline, slow network) we
- * fall back to the flat mascot rather than showing an empty box.
+ * Loads the 678 KB optimised GLB, frames it automatically, spins it slowly,
+ * and lets the pointer swing it. Falls back to the flat mascot if WebGL is
+ * unavailable or the model fails to load.
  */
 export const Chameleon3D = ({
   tier = "green",
-  size = 340,
+  size = 360,
   className = "",
 }: {
   tier?: ChameleonTier;
   size?: number;
   className?: string;
 }) => {
-  const [ready, setReady] = useState(false);
+  const host = useRef<HTMLDivElement>(null);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
-    let cancelled = false;
-    // model-viewer registers asynchronously from a CDN module script.
-    customElements
-      .whenDefined("model-viewer")
-      .then(() => !cancelled && setReady(true))
-      .catch(() => !cancelled && setFailed(true));
+    const mount = host.current;
+    if (!mount) return;
 
-    // Don't wait forever on a blocked or slow CDN.
-    const t = window.setTimeout(() => !cancelled && setFailed(true), 6000);
-    return () => {
-      cancelled = true;
-      window.clearTimeout(t);
+    let renderer: THREE.WebGLRenderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+    } catch {
+      setFailed(true);
+      return;
+    }
+
+    let raf = 0;
+    let disposed = false;
+
+    renderer.setSize(size, size);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.domElement.style.cursor = "grab";
+    mount.appendChild(renderer.domElement);
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 100);
+    camera.position.set(0, 0.2, 3.4);
+    camera.lookAt(0, 0, 0);
+
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x223322, 2.1));
+    const key = new THREE.DirectionalLight(0xffffff, 2.3);
+    key.position.set(2.5, 4, 3);
+    scene.add(key);
+    const rim = new THREE.DirectionalLight(0x34c759, 1.5);
+    rim.position.set(-3, 1.5, -2);
+    scene.add(rim);
+
+    const pivot = new THREE.Group();
+    scene.add(pivot);
+
+    // Pointer swing — target values eased toward each frame.
+    let targetY = 0;
+    let targetX = 0;
+    let curY = 0;
+    let curX = 0;
+    let dragging = false;
+
+    const onMove = (e: PointerEvent) => {
+      const r = renderer.domElement.getBoundingClientRect();
+      const nx = (e.clientX - (r.left + r.width / 2)) / (r.width / 2);
+      const ny = (e.clientY - (r.top + r.height / 2)) / (r.height / 2);
+      targetY = nx * 0.7;
+      targetX = THREE.MathUtils.clamp(ny * 0.4, -0.5, 0.5);
     };
-  }, []);
+    const onEnter = () => (dragging = true);
+    const onLeave = () => {
+      dragging = false;
+      targetX = 0;
+    };
 
-  if (failed && !ready) {
+    renderer.domElement.addEventListener("pointermove", onMove);
+    renderer.domElement.addEventListener("pointerenter", onEnter);
+    renderer.domElement.addEventListener("pointerleave", onLeave);
+
+    const mixerRef: { current: THREE.AnimationMixer | null } = { current: null };
+    const clock = new THREE.Clock();
+
+    // The optimised GLB declares EXT_meshopt_compression as *required*, so the
+    // loader cannot read a single mesh without this decoder registered.
+    const gltfLoader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
+
+    gltfLoader.load(
+      "/brand/chameleon.glb",
+      (gltf) => {
+        if (disposed) return;
+        const model = gltf.scene;
+
+        // Frame the model: centre it and scale so its largest axis fills view.
+        const box = new THREE.Box3().setFromObject(model);
+        const sizeV = box.getSize(new THREE.Vector3());
+        const centre = box.getCenter(new THREE.Vector3());
+        const scale = 2 / Math.max(sizeV.x, sizeV.y, sizeV.z);
+        model.scale.setScalar(scale);
+        model.position.sub(centre.multiplyScalar(scale));
+
+        // The source model ships untextured (baseColorFactor 0.5 grey, zero
+        // images), so we paint it the deck colour. That's the right result
+        // anyway — the chameleon's colour IS the learner's state.
+        const skin = new THREE.MeshStandardMaterial({
+          color: new THREE.Color(DECK[tier]),
+          roughness: 0.45,
+          metalness: 0.05,
+        });
+        model.traverse((o) => {
+          const mesh = o as THREE.Mesh;
+          if (mesh.isMesh) mesh.material = skin;
+        });
+
+        pivot.add(model);
+
+        if (gltf.animations?.length) {
+          const mixer = new THREE.AnimationMixer(model);
+          mixer.clipAction(gltf.animations[0]).play();
+          mixerRef.current = mixer;
+        }
+      },
+      undefined,
+      () => !disposed && setFailed(true),
+    );
+
+    const tick = () => {
+      raf = requestAnimationFrame(tick);
+      const dt = clock.getDelta();
+      mixerRef.current?.update(dt);
+
+      // Idle spin unless the pointer is steering it.
+      if (!dragging) targetY += dt * 0.35;
+      curY += (targetY - curY) * 0.07;
+      curX += (targetX - curX) * 0.07;
+      pivot.rotation.y = curY;
+      pivot.rotation.x = curX;
+
+      renderer.render(scene, camera);
+    };
+    tick();
+
+    return () => {
+      disposed = true;
+      cancelAnimationFrame(raf);
+      renderer.domElement.removeEventListener("pointermove", onMove);
+      renderer.domElement.removeEventListener("pointerenter", onEnter);
+      renderer.domElement.removeEventListener("pointerleave", onLeave);
+      scene.traverse((o) => {
+        const m = o as THREE.Mesh;
+        if (m.geometry) m.geometry.dispose();
+        const mat = m.material as THREE.Material | THREE.Material[] | undefined;
+        if (Array.isArray(mat)) mat.forEach((x) => x.dispose());
+        else mat?.dispose();
+      });
+      renderer.dispose();
+      renderer.domElement.remove();
+    };
+  }, [size, tier]);
+
+  if (failed) {
     return (
       <div className={className} style={{ width: size }}>
         <ChameleonMascot tier={tier} />
@@ -47,29 +178,7 @@ export const Chameleon3D = ({
     );
   }
 
-  return (
-    <div className={className} style={{ width: size, height: size }}>
-      {/* model-viewer is a custom element; its JSX type is declared in PetViewer.tsx */}
-      <model-viewer
-        src="/brand/chameleon.glb"
-        alt="The LinguaScript chameleon, in 3D"
-        autoplay="true"
-        auto-rotate="true"
-        rotation-per-second="18deg"
-        camera-controls="true"
-        shadow-intensity="0.45"
-        exposure="1.15"
-        field-of-view="28deg"
-        style={{
-          width: "100%",
-          height: "100%",
-          background: "transparent",
-          opacity: ready ? 1 : 0,
-          transition: "opacity .6s ease",
-        }}
-      />
-    </div>
-  );
+  return <div ref={host} className={className} style={{ width: size, height: size }} />;
 };
 
 export default Chameleon3D;
