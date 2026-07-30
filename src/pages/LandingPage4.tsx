@@ -9,6 +9,7 @@ import { Chameleon3D } from "@/components/landing/Chameleon3D";
 import { ChameleonMascot } from "@/components/ChameleonMascot";
 import { LineBlastDemo } from "@/components/LineBlastDemo";
 import { PlatformLogos } from "@/components/landing/PlatformLogos";
+import { DeckCards } from "@/components/landing/DeckCards";
 import { DECK } from "@/lib/deck-colors";
 
 /**
@@ -226,13 +227,13 @@ const LandingPage4 = () => {
           Line Blast
         </p>
         <h2 className="text-3xl sm:text-5xl font-extrabold tracking-tight leading-[1.08] mb-4">
-          Turn the last white word
+          Finish the line.
           <br />
-          <span style={{ color: DECK.green }}>and the line detonates.</span>
+          <span style={{ color: DECK.green }}>Watch it go green.</span>
         </h2>
         <p className="text-white/45 max-w-xl mb-12">
-          Tap the words you know. When a subtitle goes fully green the whole line
-          erupts and your combo climbs. Try it — this is the real thing, not a video.
+          Tap the words you already know. When the last one turns, the whole line
+          is yours. This is the real thing below — not a video of it.
         </p>
 
         <div data-cursor="hot">
@@ -280,31 +281,11 @@ const LandingPage4 = () => {
           you actually understood.
         </p>
 
-        {/* Glass band #2 — neutral surface, no deck colour behind the blur. */}
-        <div className="rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-md p-8 sm:p-10">
-          <div className="grid gap-8 sm:grid-cols-3">
-            {[
-              { v: "22", l: "Unknown", s: "Newly saved words", c: DECK.red },
-              { v: "578", l: "Learning", s: "Strengthening words", c: DECK.orange },
-              { v: "2,951", l: "Known", s: "Acquired words", c: DECK.green },
-            ].map((k) => (
-              <div key={k.l}>
-                <span
-                  className="block text-[11px] font-bold uppercase tracking-[0.2em] mb-2"
-                  style={{ color: k.c }}
-                >
-                  {k.l}
-                </span>
-                <span className="block text-4xl font-extrabold tabular-nums mb-1">{k.v}</span>
-                <span className="block text-sm text-white/40">{k.s}</span>
-              </div>
-            ))}
-          </div>
-          <p className="mt-8 pt-6 border-t border-white/10 text-xs text-white/35">
-            One learner's vocabulary after a term of watching. Your numbers will
-            look different.
-          </p>
-        </div>
+        <DeckCards />
+        <p className="mt-6 text-xs text-white/35">
+          One learner's vocabulary after a term of watching. Your numbers will
+          look different.
+        </p>
 
         {/*
           TODO(rowan): real testimonials + store ratings.
