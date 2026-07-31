@@ -10,6 +10,7 @@ import {
   Heading,
   Hr,
   Html,
+  Img,
   Preview,
   Section,
   Text,
@@ -30,7 +31,7 @@ export const MagicLinkEmail = ({
     <Body style={main}>
       <Container style={container}>
         <Section style={header}>
-          <Text style={brand}>LinguaScript</Text>
+          <Img src="https://linguascript.co.uk/__l5e/assets-v1/d2255c4c-17d7-4181-94b4-54e366a951ae/linguascript-wordmark.png" alt="LinguaScript" width={180} height={54} style={{ display: 'block', margin: '0 auto' }} />
         </Section>
         <Section style={card}>
           <Heading style={h1}>Your login link</Heading>
@@ -48,6 +49,7 @@ export const MagicLinkEmail = ({
             If you didn't request this link, you can safely ignore this email.
           </Text>
         </Section>
+        <Img src="https://linguascript.co.uk/__l5e/assets-v1/29bea701-5f96-4bd0-a20a-edc43b4fdaf2/linguascript-mascot-green.png" alt="" width={88} height={40} style={{ display: 'block', margin: '20px auto 0' }} />
         <Text style={signature}>— The LinguaScript team</Text>
       </Container>
     </Body>
@@ -68,22 +70,22 @@ const brand = {
   fontSize: '20px',
   fontWeight: 700 as const,
   letterSpacing: '-0.01em',
-  background: 'linear-gradient(135deg, hsl(252, 100%, 69%), hsl(32, 100%, 55%))',
+  background: '#22c55e',
   WebkitBackgroundClip: 'text' as const,
   WebkitTextFillColor: 'transparent',
   margin: 0,
 }
 const card = {
   background: '#ffffff',
-  border: '1px solid #ECEAF7',
+  border: '1px solid #e6e8eb',
   borderRadius: '16px',
   padding: '32px 28px',
-  boxShadow: '0 8px 32px rgba(124, 92, 252, 0.08)',
+  boxShadow: '0 8px 32px rgba(15, 17, 21, 0.06)',
 }
 const h1 = {
   fontSize: '24px',
   fontWeight: 700 as const,
-  color: '#0F1020',
+  color: '#0f1115',
   margin: '0 0 16px',
   letterSpacing: '-0.02em',
 }
@@ -95,7 +97,7 @@ const text = {
 }
 const buttonWrap = { textAlign: 'center' as const, margin: '28px 0 12px' }
 const button = {
-  background: 'linear-gradient(135deg, hsl(252, 100%, 69%), hsl(280, 100%, 60%))',
+  background: '#22c55e',
   color: '#ffffff',
   fontSize: '15px',
   fontWeight: 600 as const,
@@ -104,7 +106,7 @@ const button = {
   textDecoration: 'none',
   display: 'inline-block',
 }
-const hr = { border: 'none', borderTop: '1px solid #ECEAF7', margin: '24px 0 16px' }
+const hr = { border: 'none', borderTop: '1px solid #e6e8eb', margin: '24px 0 16px' }
 const footer = { fontSize: '13px', color: '#94A3B8', margin: 0, lineHeight: '1.5' }
 const signature = {
   fontSize: '13px',
