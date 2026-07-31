@@ -8,11 +8,17 @@ import { PetLive, PetLiveHandle } from "@/components/pets/PetLive";
 import { cn } from "@/lib/utils";
 
 // A deliberate ladder: free → streak → videos → legendary.
-const SHOWCASE_IDS = ["sparrow", "muskrat", "pudu", "inkfish"] as const;
+const SHOWCASE_IDS = ["felix", "muskrat", "pudu", "inkfish"] as const;
 
 const HOVER_CLIPS = ["Bounce", "Spin", "Jump", "Roll"];
 
-const PetCard = ({ petId, index }: { petId: string; index: number }) => {
+interface PetCardProps {
+  petId: string;
+  index: number;
+  comprehensionPercent?: number;
+}
+
+const PetCard = ({ petId, index, comprehensionPercent }: PetCardProps) => {
   const pet = getPetById(petId);
   const cardRef = useRef<HTMLDivElement>(null);
   const liveRef = useRef<PetLiveHandle>(null);
@@ -58,6 +64,7 @@ const PetCard = ({ petId, index }: { petId: string; index: number }) => {
               ref={liveRef}
               glbFile={pet.glbFile}
               size={180}
+              comprehensionPercent={petId === "felix" ? comprehensionPercent : undefined}
               onReady={() => setReady(true)}
             />
           </div>
@@ -82,10 +89,14 @@ const PetCard = ({ petId, index }: { petId: string; index: number }) => {
   );
 };
 
-export const LandingPetShowcase = () => (
+interface LandingPetShowcaseProps {
+  comprehensionPercent?: number;
+}
+
+export const LandingPetShowcase = ({ comprehensionPercent }: LandingPetShowcaseProps = {}) => (
   <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
     {SHOWCASE_IDS.map((id, i) => (
-      <PetCard key={id} petId={id} index={i} />
+      <PetCard key={id} petId={id} index={i} comprehensionPercent={comprehensionPercent} />
     ))}
   </div>
 );

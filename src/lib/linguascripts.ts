@@ -113,7 +113,7 @@ export async function createLinguaScript(
     .single();
 
   if (error) throw error;
-  return data as LinguaScript;
+  return data as unknown as LinguaScript;
 }
 
 /**
@@ -273,7 +273,7 @@ export async function getLinguascriptStats(
 
   if (error) throw error;
 
-  const scripts = (data || []) as LinguaScript[];
+  const scripts = (data || []) as unknown as LinguaScript[];
   const completed = scripts.filter((s) => s.status === "completed");
   const correct = completed.filter((s) => s.correct).length;
   const xpEarned = scripts.reduce((sum, s) => sum + (s.xp_earned || 0), 0);

@@ -8,7 +8,8 @@ import { ChameleonMascot, ChameleonTier } from "./ChameleonMascot";
 type WordState = 0 | 1 | 2; // 0 new, 1 learning, 2 known
 const WORDS = ["Alors,", "quelle", "est", "la", "meilleure", "façon", "d'apprendre", "?"];
 const TRANSLATION = "So, what is the best way to learn?";
-const COLORS = ["#ef4444", "#fb923c", "#22c55e"];
+// Canonical deck colours — brand/README.md §1. Red → orange → green.
+const COLORS = ["#FF3B30", "#FF8A00", "#34C759"];
 
 export function ChameleonWordDemo() {
   const [states, setStates] = useState<WordState[]>(() => WORDS.map(() => 0));
