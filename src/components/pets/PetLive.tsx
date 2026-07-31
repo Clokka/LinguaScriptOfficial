@@ -42,13 +42,15 @@ interface PetLiveProps {
   size: number;
   idleClip?: string;
   tint?: MascotTint;
+  /** Comprehension percentage (0–100) to drive Felix's color changes. */
+  comprehensionPercent?: number;
   onReady?: () => void;
 }
 
 const GOLD = new THREE.Color("#f5b301");
 
 export const PetLive = forwardRef<PetLiveHandle, PetLiveProps>(
-  ({ glbFile, size, idleClip = "Idle_A", tint, onReady }, ref) => {
+  ({ glbFile, size, idleClip = "Idle_A", tint, comprehensionPercent, onReady }, ref) => {
     const hostRef = useRef<HTMLDivElement>(null);
     const actionsRef = useRef<Record<string, THREE.AnimationAction>>({});
     const currentRef = useRef<THREE.AnimationAction | null>(null);
@@ -123,10 +125,18 @@ export const PetLive = forwardRef<PetLiveHandle, PetLiveProps>(
     };
 
     useEffect(() => {
-      tintRef.current = tint;
-      applySkin(tint);
+      // If comprehensionPercent is provided, calculate hue-rotate for Felix's color change
+      let effectiveTint = tint;
+      if (comprehensionPercent !== undefined) {
+        // 0% = red (hue -100), 100% = green (hue ~18)
+        const hueRotate = -100 + (comprehensionPercent / 100) * 118;
+        const saturate = 1 + (comprehensionPercent / 100) * 0.25;
+        effectiveTint = { ...tint, hueRotate, saturate };
+      }
+      tintRef.current = effectiveTint;
+      applySkin(effectiveTint);
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [tint?.hueRotate, tint?.saturate, tint?.god, tint?.color]);
+    }, [tint?.hueRotate, tint?.saturate, tint?.god, tint?.color, comprehensionPercent]);
 
     useEffect(() => {
       const host = hostRef.current;
