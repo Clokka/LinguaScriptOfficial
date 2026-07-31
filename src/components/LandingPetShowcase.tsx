@@ -8,7 +8,7 @@ import { PetLive, PetLiveHandle } from "@/components/pets/PetLive";
 import { cn } from "@/lib/utils";
 
 // A deliberate ladder: free → streak → videos → legendary.
-const SHOWCASE_IDS = ["sparrow", "muskrat", "pudu", "inkfish"] as const;
+const SHOWCASE_IDS = ["felix", "muskrat", "pudu", "inkfish"] as const;
 
 const HOVER_CLIPS = ["Bounce", "Spin", "Jump", "Roll"];
 
