@@ -81,7 +81,7 @@ Deno.serve(async (req) => {
           templateData: {
             senderName,
             body,
-            inboxUrl: 'https://linguascript.xyz/friends',
+            inboxUrl: 'https://linguascript.co.uk/friends',
           },
         }),
       })
