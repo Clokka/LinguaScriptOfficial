@@ -53,13 +53,26 @@ export const FelixColorDemo = () => {
   }, [words]);
 
   const burstConfetti = useCallback(() => {
+    // Rainbow confetti burst
     confetti({
-      particleCount: 60,
-      spread: 70,
+      particleCount: 80,
+      spread: 100,
       origin: { y: 0.6 },
-      colors: ["#34d399", "#fbbf24", "#60a5fa"],
+      colors: ["#fbbf24", "#60a5fa", "#a78bfa", "#ec4899", "#f43f5e"],
+      shapes: ["star"],
       disableForReducedMotion: true,
     });
+    // Gold sparkle wave
+    setTimeout(() => {
+      confetti({
+        particleCount: 40,
+        spread: 60,
+        origin: { y: 0.5 },
+        colors: ["#fcd34d", "#fbbf24"],
+        gravity: 0.8,
+        disableForReducedMotion: true,
+      });
+    }, 100);
   }, []);
 
   const fireBlast = useCallback(() => {
@@ -67,12 +80,12 @@ export const FelixColorDemo = () => {
     setLocked(true);
     felixRef.current?.play("Spin");
     setTimeout(() => {
-      setPraise({ big: "LINE COMPLETE!", sub: "Felix celebrates!", key: Date.now() });
+      setPraise({ big: "🌟 ASCENSION 🌟", sub: "Felix reaches enlightenment!", key: Date.now() });
       burstConfetti();
     }, 200);
     setTimeout(() => {
       setLocked(false);
-    }, 3000);
+    }, 3500);
   }, [locked, burstConfetti]);
 
   const advance = (i: number) => {
@@ -113,26 +126,77 @@ export const FelixColorDemo = () => {
           80% { opacity: 1; }
           100% { opacity: 0; transform: scale(1.05) translateY(-20px); }
         }
+        @keyframes fx-ascension-text {
+          0% { opacity: 0; transform: scale(0.3) rotateZ(-10deg); }
+          15% { opacity: 1; transform: scale(1.15) rotateZ(0deg); }
+          25% { transform: scale(1); }
+          85% { opacity: 1; }
+          100% { opacity: 0; transform: scale(1.08) translateY(-30px) rotateZ(5deg); }
+        }
         @keyframes fx-gold-sweep {
           from { width: 0%; background: linear-gradient(90deg, transparent, #fbbf24, transparent); }
           to { width: 100%; background: transparent; }
         }
+        @keyframes fx-aurora-glow {
+          0% { opacity: 0; box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.8); }
+          20% { opacity: 1; box-shadow: 0 0 40px 20px rgba(251, 191, 36, 0.4); }
+          50% { box-shadow: 0 0 60px 30px rgba(96, 165, 250, 0.3), inset 0 0 40px rgba(167, 139, 250, 0.2); }
+          100% { opacity: 0; box-shadow: 0 0 20px 40px rgba(251, 191, 36, 0); }
+        }
+        @keyframes fx-scale-pulse {
+          0% { transform: scale(1); }
+          20% { transform: scale(1.08); }
+          40% { transform: scale(0.98); }
+          60% { transform: scale(1.04); }
+          80% { transform: scale(1); }
+          100% { transform: scale(1); }
+        }
+        @keyframes fx-rainbow-shimmer {
+          0% { background: radial-gradient(circle, rgba(251,191,36,0.4) 0%, rgba(96,165,250,0.2) 33%, rgba(167,139,250,0.2) 66%, transparent 100%); }
+          25% { background: radial-gradient(circle, rgba(96,165,250,0.4) 0%, rgba(167,139,250,0.2) 33%, rgba(236,72,153,0.2) 66%, transparent 100%); }
+          50% { background: radial-gradient(circle, rgba(167,139,250,0.4) 0%, rgba(236,72,153,0.2) 33%, rgba(244,63,94,0.2) 66%, transparent 100%); }
+          75% { background: radial-gradient(circle, rgba(34,211,153,0.4) 0%, rgba(251,191,36,0.2) 33%, rgba(96,165,250,0.2) 66%, transparent 100%); }
+          100% { background: radial-gradient(circle, rgba(251,191,36,0.4) 0%, rgba(96,165,250,0.2) 33%, rgba(167,139,250,0.2) 66%, transparent 100%); }
+        }
       `}</style>
 
-      {/* Felix 3D model — color-changing */}
-      <div className="relative mx-auto flex h-[320px] w-full max-w-[460px] items-center justify-center">
+      {/* Felix 3D model — color-changing + ascension effects */}
+      <div
+        className="relative mx-auto flex h-[320px] w-full max-w-[460px] items-center justify-center"
+        style={
+          praise
+            ? {
+                animation: "fx-scale-pulse 1s ease-out, fx-aurora-glow 1.2s ease-out forwards",
+              }
+            : undefined
+        }
+      >
+        {/* Aurora shimmer overlay */}
+        {praise && (
+          <div
+            className="pointer-events-none absolute inset-0 rounded-3xl"
+            style={{ animation: "fx-rainbow-shimmer 1.2s ease-out forwards" }}
+          />
+        )}
+
+        {/* Ascension praise text */}
         {praise && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
             <div
               key={`praise-${praise.key}`}
               className="text-center"
-              style={{ animation: "fx-praise 1s ease-out forwards" }}
+              style={{ animation: "fx-ascension-text 1.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards" }}
             >
-              <div className="text-4xl font-black text-amber-300">{praise.big}</div>
-              {praise.sub && <div className="text-sm font-semibold text-amber-200 mt-1">{praise.sub}</div>}
+              <div className="text-5xl font-black bg-gradient-to-r from-amber-300 via-pink-300 to-blue-300 bg-clip-text text-transparent drop-shadow-lg">
+                {praise.big}
+              </div>
+              {praise.sub && (
+                <div className="text-sm font-bold text-amber-200 mt-2 drop-shadow-md">{praise.sub}</div>
+              )}
             </div>
           </div>
         )}
+
         {inView && (
           <PetLive
             ref={felixRef}
