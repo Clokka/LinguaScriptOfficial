@@ -45,6 +45,7 @@ import MieoFrames from "./pages/MieoFrames";
 import OnboardingMobile from "./pages/OnboardingMobile";
 import OAuthConsent from "./pages/OAuthConsent";
 import LinguaScripts from "./pages/LinguaScripts";
+import { QuizUIDemo } from "./pages/QuizUIDemo";
 
 const queryClient = new QueryClient();
 
@@ -90,6 +91,7 @@ const App = () => (
                 <Route path="/onboarding/mobile" element={<OnboardingMobile />} />
                 <Route path="/welcome" element={<OnboardingMobile />} />
                 <Route path="/linguascripts" element={<LinguaScripts />} />
+                <Route path="/quiz-ui-demo" element={<QuizUIDemo />} />
                 <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
