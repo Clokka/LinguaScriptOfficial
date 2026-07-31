@@ -16,6 +16,8 @@ export interface SavedWordLite {
   state: DeckState;
   times_correct: number;
   review_count: number;
+  /** Due date for the next review — used to gate the in-video gap challenge. */
+  next_review?: string | null;
 }
 
 export const STATE_META: Record<DeckState, {
@@ -89,7 +91,7 @@ export async function loadDeckIndex(
   while (true) {
     const { data, error } = await supabase
       .from("saved_words")
-      .select("id, word, language, state, times_correct, review_count")
+      .select("id, word, language, state, times_correct, review_count, next_review")
       .eq("user_id", userId)
       .eq("language", language)
       .range(from, from + pageSize - 1);
