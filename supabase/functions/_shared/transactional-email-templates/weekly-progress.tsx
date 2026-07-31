@@ -7,7 +7,7 @@ interface Props {
   name?: string; xpGained?: number; cardsReviewed?: number; wordsLearned?: number;
   streak?: number; rank?: number | null; minutes?: number; dashboardUrl?: string
 }
-const PRIMARY = '#6366f1'; const ACCENT = '#f97316'; const INK = '#0f172a'; const MUTED = '#64748b'
+const PRIMARY = '#22c55e'; const ACCENT = '#16a34a'; const INK = '#0f1115'; const MUTED = '#64748b'
 
 const Stat = ({ label, value }: { label: string; value: React.ReactNode }) => (
   <Column style={{ width: '50%', padding: '8px 6px' }}>

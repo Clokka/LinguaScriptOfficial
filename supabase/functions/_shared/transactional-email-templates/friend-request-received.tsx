@@ -4,7 +4,7 @@ import type { TemplateEntry } from './registry.ts'
 import { BrandHeader } from './brand-header.tsx'
 
 interface Props { senderName?: string; friendsUrl?: string }
-const PRIMARY = '#6366f1'; const INK = '#0f172a'; const MUTED = '#64748b'
+const PRIMARY = '#22c55e'; const INK = '#0f1115'; const MUTED = '#64748b'
 
 const Email = ({ senderName = 'A LinguaScript learner', friendsUrl = 'https://linguascript.co.uk/friends' }: Props) => (
   <Html lang="en"><Head /><Preview>{`${senderName} wants to be your friend on LinguaScript`}</Preview>
