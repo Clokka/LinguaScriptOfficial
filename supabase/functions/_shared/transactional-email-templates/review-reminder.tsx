@@ -9,7 +9,7 @@ interface Props { name?: string; cardCount?: number; languageLabel?: string; rev
 
 const PRIMARY = '#6366f1'; const ACCENT = '#f97316'; const INK = '#0f172a'; const MUTED = '#64748b'
 
-const Email = ({ name = 'there', cardCount = 0, languageLabel = 'Your', reviewUrl = 'https://linguascript.xyz/flashcards' }: Props) => (
+const Email = ({ name = 'there', cardCount = 0, languageLabel = 'Your', reviewUrl = 'https://linguascript.co.uk/flashcards' }: Props) => (
   <Html lang="en"><Head /><Preview>{`${cardCount} cards ready for review`}</Preview>
     <Body style={main}><Container style={container}>
       <BrandHeader />
@@ -27,7 +27,7 @@ export const template = {
   component: Email,
   subject: (d: Props) => `You have ${d?.cardCount ?? ''} cards ready for review`.trim(),
   displayName: 'Review reminder',
-  previewData: { name: 'Rowan', cardCount: 12, languageLabel: 'French', reviewUrl: 'https://linguascript.xyz/flashcards' },
+  previewData: { name: 'Rowan', cardCount: 12, languageLabel: 'French', reviewUrl: 'https://linguascript.co.uk/flashcards' },
 } satisfies TemplateEntry
 
 const main = { backgroundColor: '#ffffff', fontFamily: 'Inter, -apple-system, sans-serif' }

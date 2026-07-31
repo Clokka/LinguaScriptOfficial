@@ -60,9 +60,9 @@ async function processFriendEvents() {
     const email = await emailFor(ev.recipient_id); if (!email) continue
     const actorName = safeName(actor)
     if (ev.kind === 'request_received') {
-      await sendTemplate('friend-request-received', email, `friend-req-${ev.id}`, { senderName: actorName, friendsUrl: 'https://linguascript.xyz/friends' })
+      await sendTemplate('friend-request-received', email, `friend-req-${ev.id}`, { senderName: actorName, friendsUrl: 'https://linguascript.co.uk/friends' })
     } else if (ev.kind === 'request_accepted') {
-      await sendTemplate('friend-request-accepted', email, `friend-acc-${ev.id}`, { friendName: actorName, friendsUrl: 'https://linguascript.xyz/friends' })
+      await sendTemplate('friend-request-accepted', email, `friend-acc-${ev.id}`, { friendName: actorName, friendsUrl: 'https://linguascript.co.uk/friends' })
     }
   }
 }
@@ -99,7 +99,7 @@ async function processReviewReminders() {
     const email = await emailFor((p as any).user_id); if (!email) continue
     const ok = await sendTemplate('review-reminder', email, `review-${(p as any).user_id}-${today}`, {
       name: safeName(p), cardCount: dueCount, languageLabel: 'Your',
-      reviewUrl: 'https://linguascript.xyz/flashcards',
+      reviewUrl: 'https://linguascript.co.uk/flashcards',
     })
     if (ok) {
       await svc.from('profiles').update({
@@ -127,7 +127,7 @@ async function processStreakRescue() {
     if (String(p.last_streak_date) !== yesterday) continue
     const email = await emailFor(p.user_id); if (!email) continue
     const ok = await sendTemplate('streak-rescue', email, `streak-${p.user_id}-${p.streak_count}`, {
-      name: safeName(p), streak: p.streak_count, watchUrl: 'https://linguascript.xyz/browse',
+      name: safeName(p), streak: p.streak_count, watchUrl: 'https://linguascript.co.uk/browse',
     })
     if (ok) await svc.from('profiles').update({ streak_rescue_for_streak: p.streak_count, last_streak_rescue_email_at: new Date().toISOString() }).eq('user_id', p.user_id)
   }
@@ -164,7 +164,7 @@ async function processWeekly() {
     const ok = await sendTemplate('weekly-progress', email, `weekly-${p.user_id}-${weekStartIso.slice(0,10)}`, {
       name: safeName(p), xpGained, cardsReviewed: cardsReviewed ?? 0, wordsLearned: wordsLearned ?? 0,
       streak: p.streak_count ?? 0, rank: null, minutes: 0,
-      dashboardUrl: 'https://linguascript.xyz/browse',
+      dashboardUrl: 'https://linguascript.co.uk/browse',
     })
     if (ok) await svc.from('profiles').update({ last_weekly_email_at: new Date().toISOString() }).eq('user_id', p.user_id)
   }
@@ -193,7 +193,7 @@ async function processMonthly() {
     const ok = await sendTemplate('monthly-recap', email, `monthly-${p.user_id}-${now.toISOString().slice(0,7)}`, {
       name: safeName(p), totalMinutes: 0, wordsSaved: wordsSaved ?? 0,
       wordsMastered: wordsMastered ?? 0, xpGrowth, longestStreak: 0,
-      dashboardUrl: 'https://linguascript.xyz/browse',
+      dashboardUrl: 'https://linguascript.co.uk/browse',
     })
     if (ok) await svc.from('profiles').update({ last_monthly_email_at: new Date().toISOString() }).eq('user_id', p.user_id)
   }

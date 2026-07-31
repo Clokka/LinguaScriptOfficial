@@ -18,7 +18,7 @@ const Stat = ({ label, value }: { label: string; value: React.ReactNode }) => (
   </Column>
 )
 
-const Email = ({ name = 'there', totalMinutes = 0, wordsSaved = 0, wordsMastered = 0, xpGrowth = 0, longestStreak = 0, dashboardUrl = 'https://linguascript.xyz/browse' }: Props) => (
+const Email = ({ name = 'there', totalMinutes = 0, wordsSaved = 0, wordsMastered = 0, xpGrowth = 0, longestStreak = 0, dashboardUrl = 'https://linguascript.co.uk/browse' }: Props) => (
   <Html lang="en"><Head /><Preview>Look how far you've come</Preview>
     <Body style={main}><Container style={container}>
       <BrandHeader />

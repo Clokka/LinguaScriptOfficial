@@ -6,7 +6,7 @@ import { BrandHeader } from './brand-header.tsx'
 interface Props { friendName?: string; friendsUrl?: string }
 const PRIMARY = '#6366f1'; const ACCENT = '#f97316'; const INK = '#0f172a'; const MUTED = '#64748b'
 
-const Email = ({ friendName = 'A learner', friendsUrl = 'https://linguascript.xyz/friends' }: Props) => (
+const Email = ({ friendName = 'A learner', friendsUrl = 'https://linguascript.co.uk/friends' }: Props) => (
   <Html lang="en"><Head /><Preview>{`${friendName} accepted your friend request`}</Preview>
     <Body style={main}><Container style={container}>
       <BrandHeader />
@@ -24,7 +24,7 @@ export const template = {
   component: Email,
   subject: (d: Props) => `${d?.friendName ?? 'Your friend'} accepted your friend request`,
   displayName: 'Friend request accepted',
-  previewData: { friendName: '@rowanawesome1', friendsUrl: 'https://linguascript.xyz/friends' },
+  previewData: { friendName: '@rowanawesome1', friendsUrl: 'https://linguascript.co.uk/friends' },
 } satisfies TemplateEntry
 
 const main = { backgroundColor: '#ffffff', fontFamily: 'Inter, -apple-system, sans-serif' }

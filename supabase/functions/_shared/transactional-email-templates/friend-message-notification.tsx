@@ -19,7 +19,7 @@ const MUTED = '#64748b'
 const Email = ({
   senderName = 'A LinguaScript learner',
   body = '',
-  inboxUrl = 'https://linguascript.xyz/friends',
+  inboxUrl = 'https://linguascript.co.uk/friends',
 }: Props) => (
   <Html lang="en" dir="ltr">
     <Head />
@@ -55,7 +55,7 @@ export const template = {
   previewData: {
     senderName: '@rowanawesome1',
     body: 'Hey! Want to race me to 1000 XP this week?',
-    inboxUrl: 'https://linguascript.xyz/friends',
+    inboxUrl: 'https://linguascript.co.uk/friends',
   },
 } satisfies TemplateEntry
 
