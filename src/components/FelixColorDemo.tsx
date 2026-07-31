@@ -1,4 +1,4 @@
-// Interactive Felix color-change demo with LineBlast-style celebration
+// Interactive Felix color-change demo with LineBlast praise + premium Ascension effects
 import { useCallback, useMemo, useRef, useState } from "react";
 import { motion, useInView } from "framer-motion";
 import confetti from "canvas-confetti";
@@ -34,6 +34,7 @@ const PRAISE: [string, string][] = [
 export const FelixColorDemo = () => {
   const rootRef = useRef<HTMLDivElement>(null);
   const felixRef = useRef<PetLiveHandle>(null);
+  const felixContainerRef = useRef<HTMLDivElement>(null);
   const inView = useInView(rootRef, { once: true, margin: "120px" });
   const [words, setWords] = useState<Word[]>(INITIAL);
   const [locked, setLocked] = useState(false);
@@ -53,13 +54,28 @@ export const FelixColorDemo = () => {
   }, [words]);
 
   const burstConfetti = useCallback(() => {
+    // Rainbow star burst (80 particles, 100° spread)
     confetti({
-      particleCount: 100,
-      spread: 90,
+      particleCount: 80,
+      spread: 100,
       origin: { y: 0.5 },
-      colors: ["#34d399", "#fbbf24", "#60a5fa", "#ec4899"],
+      colors: ["#fbbf24", "#60a5fa", "#a78bfa", "#ec4899", "#f43f5e", "#34d399"],
+      shapes: ["star"],
+      gravity: 0.5,
       disableForReducedMotion: true,
     });
+
+    // Gold sparkle wave (40 particles with gravity)
+    setTimeout(() => {
+      confetti({
+        particleCount: 40,
+        spread: 60,
+        origin: { y: 0.6 },
+        colors: ["#fcd34d", "#fbbf24"],
+        gravity: 1.2,
+        disableForReducedMotion: true,
+      });
+    }, 80);
   }, []);
 
   const fireBlast = useCallback(() => {
@@ -79,7 +95,7 @@ export const FelixColorDemo = () => {
 
     setTimeout(() => {
       setLocked(false);
-    }, 2800);
+    }, 3500);
   }, [locked, burstConfetti]);
 
   const advance = (i: number) => {
@@ -132,6 +148,28 @@ export const FelixColorDemo = () => {
           78% { opacity: 1; transform: scale(1); }
           100% { opacity: 0; transform: scale(1.04) translateY(-14px); }
         }
+        @keyframes fx-scale-pulse {
+          0% { transform: scale(1); }
+          20% { transform: scale(1.12); }
+          40% { transform: scale(0.96); }
+          60% { transform: scale(1.06); }
+          80% { transform: scale(1); }
+          100% { transform: scale(1); }
+        }
+        @keyframes fx-aurora-glow {
+          0% { opacity: 0; box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.8), inset 0 0 0 rgba(167, 139, 250, 0.3); }
+          20% { opacity: 1; box-shadow: 0 0 40px 15px rgba(251, 191, 36, 0.5), inset 0 0 40px rgba(167, 139, 250, 0.2); }
+          50% { box-shadow: 0 0 60px 35px rgba(96, 165, 250, 0.3), inset 0 0 60px rgba(167, 139, 250, 0.15); }
+          80% { box-shadow: 0 0 40px 25px rgba(236, 72, 153, 0.2), inset 0 0 40px rgba(96, 165, 250, 0.1); }
+          100% { opacity: 0; box-shadow: 0 0 20px 40px rgba(251, 191, 36, 0), inset 0 0 0 rgba(167, 139, 250, 0); }
+        }
+        @keyframes fx-rainbow-shimmer {
+          0% { background: radial-gradient(circle, rgba(251,191,36,0.5) 0%, rgba(96,165,250,0.2) 33%, rgba(167,139,250,0.15) 66%, transparent 100%); }
+          25% { background: radial-gradient(circle, rgba(96,165,250,0.5) 0%, rgba(167,139,250,0.2) 33%, rgba(236,72,153,0.15) 66%, transparent 100%); }
+          50% { background: radial-gradient(circle, rgba(167,139,250,0.5) 0%, rgba(236,72,153,0.2) 33%, rgba(244,63,94,0.15) 66%, transparent 100%); }
+          75% { background: radial-gradient(circle, rgba(34,211,153,0.5) 0%, rgba(251,191,36,0.2) 33%, rgba(96,165,250,0.15) 66%, transparent 100%); }
+          100% { background: radial-gradient(circle, rgba(251,191,36,0.5) 0%, rgba(96,165,250,0.2) 33%, rgba(167,139,250,0.15) 66%, transparent 100%); }
+        }
         @keyframes lb-gold-sweep {
           from { width: 0%; background: linear-gradient(90deg, transparent, #fbbf24, transparent); }
           to { width: 100%; background: transparent; }
@@ -143,8 +181,27 @@ export const FelixColorDemo = () => {
         }
       `}</style>
 
-      {/* Felix 3D model — stays visible */}
-      <div className="relative mx-auto flex h-[320px] w-full max-w-[460px] items-center justify-center">
+      {/* Felix 3D model with Ascension effects */}
+      <div
+        ref={felixContainerRef}
+        className="relative mx-auto flex h-[320px] w-full max-w-[460px] items-center justify-center"
+        style={
+          praise
+            ? {
+                animation: "fx-scale-pulse 0.8s ease-out, fx-aurora-glow 1.2s ease-out forwards",
+              }
+            : undefined
+        }
+      >
+        {/* Aurora Shimmer Overlay */}
+        {praise && (
+          <div
+            className="pointer-events-none absolute inset-0 rounded-3xl"
+            style={{ animation: "fx-rainbow-shimmer 1.2s ease-out forwards" }}
+          />
+        )}
+
+        {/* Felix stays visible */}
         {inView && (
           <PetLive
             ref={felixRef}
@@ -155,21 +212,21 @@ export const FelixColorDemo = () => {
           />
         )}
 
-        {/* Praise text overlay (stays on top) */}
+        {/* Praise text overlay (stays on top, LineBlast style) */}
         {praise && praise.big && (
           <div
             key={`praise-${praise.key}`}
-            className="pointer-events-none absolute inset-0 flex items-center justify-center"
+            className="pointer-events-none absolute inset-0 flex items-center justify-center z-20"
             style={{ animation: "lb-praise-in 1s ease-out forwards" }}
           >
-            <div className="text-center">
+            <div className="text-center drop-shadow-lg">
               <div className="text-5xl font-black text-amber-300">{praise.big}</div>
               {praise.sub && <div className="text-sm font-bold text-amber-200 mt-2">{praise.sub}</div>}
             </div>
           </div>
         )}
 
-        {/* Edge glow */}
+        {/* Aurora Glow Edge */}
         {glowKey > 0 && (
           <div
             key={`glow-${glowKey}`}
@@ -197,7 +254,7 @@ export const FelixColorDemo = () => {
         {/* Gold sweep on complete */}
         {pct === 100 && (
           <div
-            className="absolute left-0 right-0 h-1 bg-gradient-to-r from-transparent via-amber-400 to-transparent"
+            className="absolute left-0 right-0 h-1"
             style={{ animation: "lb-gold-sweep 0.6s ease-out forwards", top: "100px" }}
           />
         )}
@@ -229,7 +286,7 @@ export const FelixColorDemo = () => {
 
         <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
           Click a <span className="font-semibold text-red-400">red word</span> to save it, click again as it's
-          reviewed. When the sentence turns green, Felix celebrates!
+          reviewed. When the sentence turns green, Felix reaches ascension!
         </p>
 
         {pct === 100 && (
