@@ -3,6 +3,8 @@ import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, Loader2, Download, Maximize, Minimize, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SubtitleOverlay } from "@/components/SubtitleOverlay";
+import { GapFillChallenge } from "@/components/GapFillChallenge";
+import { loadDeckIndex, normalizeToken, SavedWordLite } from "@/lib/vocab";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
@@ -293,6 +295,19 @@ const Watch = () => {
   const [showLearningBreak, setShowLearningBreak] = useState(false);
   const sessionSavedRef = useRef<QuizWord[]>([]);
   const breakTriggeredRef = useRef(false);
+
+  // ── In-video gap challenge ────────────────────────────────────────────────
+  // When a line is all green except ONE orange (learning) word that is due for
+  // review, pause playback and ask the learner to drag the missing word back
+  // in. Gated so it stays a treat: due words only, one line at most every
+  // CHALLENGE_COOLDOWN_MS, and never the same line twice.
+  const CHALLENGE_COOLDOWN_MS = 120000;
+  const [challengeDeck, setChallengeDeck] = useState<Map<string, SavedWordLite>>(new Map());
+  const [challenge, setChallenge] = useState<{
+    words: string[]; gapIndex: number; answer: string; distractors: string[]; translation?: string;
+  } | null>(null);
+  const lastChallengeAtRef = useRef(0);
+  const challengedLinesRef = useRef<Set<string>>(new Set());
 
   const maybeTriggerLearningBreak = useCallback((entry: QuizWord) => {
     if (!entry.word || !entry.translation) return;
@@ -845,6 +860,73 @@ const Watch = () => {
 
   const currentSubtitle = subtitles.find((s) => currentTime >= s.start && currentTime < s.end);
 
+  // Load the deck used to evaluate challenge-worthy lines (same language the
+  // words are saved under, matching the subtitle colouring).
+  const challengeLang = learningLanguage || film?.language || "fr";
+  useEffect(() => {
+    let alive = true;
+    loadDeckIndex(user?.id ?? null, challengeLang).then((m) => { if (alive) setChallengeDeck(m); });
+    return () => { alive = false; };
+  }, [user, challengeLang]);
+
+  // Detect a qualifying line and fire the challenge.
+  useEffect(() => {
+    if (challenge || !currentSubtitle?.primary || challengeDeck.size === 0) return;
+    if (Date.now() - lastChallengeAtRef.current < CHALLENGE_COOLDOWN_MS) return;
+
+    const line = currentSubtitle.primary;
+    if (challengedLinesRef.current.has(line)) return;
+
+    const raw = line.split(/\s+/).filter(Boolean);
+    if (raw.length < 3 || raw.length > 14) return;
+
+    // Exactly one orange word, everything else green.
+    let gapIndex = -1;
+    for (let i = 0; i < raw.length; i++) {
+      const st = challengeDeck.get(normalizeToken(raw[i]))?.state;
+      if (st === "orange") {
+        if (gapIndex !== -1) return;   // more than one orange → not a clean gap
+        gapIndex = i;
+      } else if (st !== "green") {
+        return;                         // an unsaved or red word → line isn't ready
+      }
+    }
+    if (gapIndex === -1) return;
+
+    // Gate on "due for review" so this stays occasional.
+    const entry = challengeDeck.get(normalizeToken(raw[gapIndex]));
+    const due = entry?.next_review;
+    if (!due || new Date(due) > new Date()) return;
+
+    // Plausible distractors: other learning/known words from the same deck.
+    const answerKey = normalizeToken(raw[gapIndex]);
+    const pool = Array.from(challengeDeck.values())
+      .filter((w) => normalizeToken(w.word) !== answerKey && w.word.length > 2)
+      .map((w) => w.word);
+    const distractors: string[] = [];
+    while (distractors.length < 3 && pool.length) {
+      const pick = pool.splice(Math.floor(Math.random() * pool.length), 1)[0];
+      if (!distractors.includes(pick)) distractors.push(pick);
+    }
+    if (distractors.length < 2) return;
+
+    challengedLinesRef.current.add(line);
+    lastChallengeAtRef.current = Date.now();
+    try { playerRef.current?.pauseVideo?.(); } catch { /* noop */ }
+    setChallenge({
+      words: raw,
+      gapIndex,
+      answer: raw[gapIndex],
+      distractors,
+      translation: currentSubtitle.secondary,
+    });
+  }, [currentSubtitle, challengeDeck, challenge]);
+
+  const resumeFromChallenge = useCallback(() => {
+    setChallenge(null);
+    try { playerRef.current?.playVideo?.(); } catch { /* noop */ }
+  }, []);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -1101,6 +1183,25 @@ const Watch = () => {
           onMarkKnown={markWordKnown}
                 nativeLanguage={nativeLanguage}
                 contentLanguage={learningLanguage || film.language || "fr"}
+              />
+            </div>
+          )}
+
+          {/* In-video gap challenge — playback is paused while this is up. */}
+          {challenge && (
+            <div className="absolute inset-0 z-[10000] flex items-center justify-center bg-black/75 px-4 backdrop-blur-sm">
+              <GapFillChallenge
+                words={challenge.words}
+                gapIndex={challenge.gapIndex}
+                distractors={challenge.distractors}
+                tier="orange"
+                translation={challenge.translation}
+                onComplete={() => {
+                  // Correct recall promotes the word to known, then playback resumes.
+                  void markWordKnown({ text: challenge.answer });
+                  resumeFromChallenge();
+                }}
+                onSkip={resumeFromChallenge}
               />
             </div>
           )}

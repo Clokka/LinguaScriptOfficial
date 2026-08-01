@@ -449,6 +449,44 @@ export type Database = {
         }
         Relationships: []
       }
+      linguascript_reviews: {
+        Row: {
+          correct: boolean
+          created_at: string | null
+          id: string
+          mode: string
+          timestamp: string | null
+          user_id: string
+          word_id: string
+        }
+        Insert: {
+          correct: boolean
+          created_at?: string | null
+          id?: string
+          mode: string
+          timestamp?: string | null
+          user_id: string
+          word_id: string
+        }
+        Update: {
+          correct?: boolean
+          created_at?: string | null
+          id?: string
+          mode?: string
+          timestamp?: string | null
+          user_id?: string
+          word_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "linguascript_reviews_word_id_fkey"
+            columns: ["word_id"]
+            isOneToOne: false
+            referencedRelation: "saved_words"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       linguascripts: {
         Row: {
           attempts: number | null
@@ -684,7 +722,10 @@ export type Database = {
       }
       saved_words: {
         Row: {
+          appearance_count: number | null
           context: string | null
+          context_phrase: string | null
+          context_translation: string | null
           created_at: string
           ease_factor: number
           film_id: string | null
@@ -693,7 +734,10 @@ export type Database = {
           ipa: string
           is_phrase: boolean
           language: string
+          last_correct_at: string | null
+          last_reviewed_at: string | null
           next_review: string
+          next_review_at: string | null
           pronunciation: string
           review_count: number
           state: string
@@ -704,7 +748,10 @@ export type Database = {
           word: string
         }
         Insert: {
+          appearance_count?: number | null
           context?: string | null
+          context_phrase?: string | null
+          context_translation?: string | null
           created_at?: string
           ease_factor?: number
           film_id?: string | null
@@ -713,7 +760,10 @@ export type Database = {
           ipa?: string
           is_phrase?: boolean
           language?: string
+          last_correct_at?: string | null
+          last_reviewed_at?: string | null
           next_review?: string
+          next_review_at?: string | null
           pronunciation?: string
           review_count?: number
           state?: string
@@ -724,7 +774,10 @@ export type Database = {
           word: string
         }
         Update: {
+          appearance_count?: number | null
           context?: string | null
+          context_phrase?: string | null
+          context_translation?: string | null
           created_at?: string
           ease_factor?: number
           film_id?: string | null
@@ -733,7 +786,10 @@ export type Database = {
           ipa?: string
           is_phrase?: boolean
           language?: string
+          last_correct_at?: string | null
+          last_reviewed_at?: string | null
           next_review?: string
+          next_review_at?: string | null
           pronunciation?: string
           review_count?: number
           state?: string

@@ -47,6 +47,11 @@ import { PersonalizedRails } from "@/components/PersonalizedRails";
 import { HomeCatalogRows } from "@/components/HomeCatalogRows";
 import { ContinueWatchingRail } from "@/components/ContinueWatchingRail";
 import { DiscoverCatalog } from "@/components/DiscoverCatalog";
+import { useLinguaScriptStatus } from "@/hooks/useLinguaScriptStatus";
+import { LinguaScriptsPendingAlert } from "@/components/LinguaScriptsPendingAlert";
+import { LinguaScriptsCompleteCard } from "@/components/LinguaScriptsCompleteCard";
+import { FlashcardsDueAlert } from "@/components/FlashcardsDueAlert";
+import { LinguaScriptSessionFlow } from "@/components/LinguaScriptSessionFlow";
 
 const INTERESTS_BY_ID: Record<string, Interest> = Object.fromEntries(
   INTERESTS.map((i) => [i.id, i]),
@@ -101,9 +106,11 @@ const Browse = () => {
   const { learningLanguage, setLearningLanguage } = useLanguage();
   const { toast } = useToast();
   const tour = useTour();
+  const { status: linguaScriptStatus, loading: statusLoading, refetch: refetchStatus } = useLinguaScriptStatus();
 
   const initialTab: TabKey = location.pathname.startsWith("/discover") ? "discover" : "home";
   const [activeTab, setActiveTab] = useState<TabKey>(initialTab);
+  const [showLinguaScriptSession, setShowLinguaScriptSession] = useState(false);
   useEffect(() => {
     if (location.pathname.startsWith("/discover")) setActiveTab("discover");
   }, [location.pathname]);
@@ -508,7 +515,65 @@ const Browse = () => {
         </header>
 
         <div className="px-6 py-6">
-          {activeTab === "home" && (
+          {/* Show LinguaScript session if active */}
+          {showLinguaScriptSession && linguaScriptStatus?.linguascriptsDueIds ? (
+            <LinguaScriptSessionFlow
+              wordIds={linguaScriptStatus.linguascriptsDueIds}
+              onClose={() => {
+                setShowLinguaScriptSession(false);
+                refetchStatus();
+              }}
+              onSessionComplete={() => {
+                setShowLinguaScriptSession(false);
+                refetchStatus();
+              }}
+            />
+          ) : activeTab === "home" && !statusLoading && linguaScriptStatus ? (
+            <div>
+              {/* LinguaScripts Alerts - Top Priority */}
+              {linguaScriptStatus.state === "linguascripts-pending" && (
+                <LinguaScriptsPendingAlert
+                  count={linguaScriptStatus.linguascriptsPending}
+                  estimatedTime={Math.ceil(linguaScriptStatus.linguascriptsPending * 1)}
+                  onStart={() => setShowLinguaScriptSession(true)}
+                />
+              )}
+
+              {linguaScriptStatus.state === "linguascripts-complete" && (
+                <LinguaScriptsCompleteCard
+                  wordsReviewedToday={0}
+                  newWordsCaptured={0}
+                  onContinueWatching={() => {
+                    setActiveTab("discover");
+                  }}
+                  onDiscover={() => navigate("/watch/new")}
+                />
+              )}
+
+              {linguaScriptStatus.state === "flashcards-due" && (
+                <FlashcardsDueAlert
+                  count={linguaScriptStatus.flashcardsDue}
+                  nextReviewTime={linguaScriptStatus.nextFlashcardReviewTime}
+                />
+              )}
+
+              {/* Regular home content */}
+              <HomeTab
+                lessons={lessons}
+                loading={loadingLessons}
+                pasteUrl={pasteUrl}
+                setPasteUrl={setPasteUrl}
+                creating={creating}
+                createLesson={createLesson}
+                deleteLesson={deleteLesson}
+                navigate={navigate}
+                discoverFilms={discoverFilms}
+                catalogRows={catalogRows}
+                interests={interests}
+                onWatchYoutube={importYoutubeId}
+              />
+            </div>
+          ) : activeTab === "home" ? (
             <HomeTab
               lessons={lessons}
               loading={loadingLessons}
@@ -523,7 +588,7 @@ const Browse = () => {
               interests={interests}
               onWatchYoutube={importYoutubeId}
             />
-          )}
+          ) : null}
           {activeTab === "discover" && (
             <DiscoverCatalog defaultLanguage={learningLanguage} />
           )}
