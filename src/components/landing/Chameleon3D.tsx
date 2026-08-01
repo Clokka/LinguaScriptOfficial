@@ -6,18 +6,27 @@ import { ChameleonMascot, type ChameleonTier } from "@/components/ChameleonMasco
 import { DECK } from "@/lib/deck-colors";
 
 /**
- * The Quirky-Series chameleon, rendered in real 3D.
+ * The chameleon, in real 3D — the same rigged model /landingpage2 uses.
  *
- * Built directly on three (already a project dependency, used by the pet
- * system) rather than <model-viewer>. model-viewer is only available here via
- * a CDN <script> in index.html, so any blocked or slow CDN silently killed the
- * 3D; and the npm build of it can't be installed because model-viewer@3 wants
- * three@^0.163 and @4 wants ^0.183, while the pet system pins ^0.169.
+ * Model choice matters here. The raw upload in brand/models is a 20 MB static
+ * sculpt: untextured (baseColorFactor 0.5 grey, zero images) and with zero
+ * animation clips. Gecko_Animations.glb is the one the pet system already
+ * ships: 218 KB, properly textured, and rigged with 18 clips. Better model,
+ * 3× smaller.
  *
- * Loads the 678 KB optimised GLB, frames it automatically, spins it slowly,
- * and lets the pointer swing it. Falls back to the flat mascot if WebGL is
- * unavailable or the model fails to load.
+ * Built directly on three (already a dependency) rather than <model-viewer>,
+ * which is only available via a CDN <script> in index.html — any blocked or
+ * slow CDN killed the 3D silently. The npm build isn't installable either:
+ * model-viewer@3 wants three@^0.163 and @4 wants ^0.183, while the pet system
+ * pins ^0.169.
+ *
+ * Falls back to the flat mascot only if WebGL is genuinely unavailable or the
+ * model fails to load.
  */
+const MODEL = "/pets/Gecko_Animations.glb";
+const IDLE = "Idle_A";
+/** Played on click, if present. */
+const POKE = "Clicked";
 export const Chameleon3D = ({
   tier = "green",
   size = 360,
@@ -93,12 +102,12 @@ export const Chameleon3D = ({
     const mixerRef: { current: THREE.AnimationMixer | null } = { current: null };
     const clock = new THREE.Clock();
 
-    // The optimised GLB declares EXT_meshopt_compression as *required*, so the
-    // loader cannot read a single mesh without this decoder registered.
+    // setMeshoptDecoder is harmless for this model and keeps the loader able to
+    // read meshopt-compressed GLBs if one is ever swapped in.
     const gltfLoader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
 
     gltfLoader.load(
-      "/brand/chameleon.glb",
+      MODEL,
       (gltf) => {
         if (disposed) return;
         const model = gltf.scene;
@@ -111,25 +120,42 @@ export const Chameleon3D = ({
         model.scale.setScalar(scale);
         model.position.sub(centre.multiplyScalar(scale));
 
-        // The source model ships untextured (baseColorFactor 0.5 grey, zero
-        // images), so we paint it the deck colour. That's the right result
-        // anyway — the chameleon's colour IS the learner's state.
-        const skin = new THREE.MeshStandardMaterial({
-          color: new THREE.Color(DECK[tier]),
-          roughness: 0.45,
-          metalness: 0.05,
-        });
+        // This model IS textured, so we keep its map and multiply a deck tint
+        // over it rather than replacing the material — detail survives, and the
+        // chameleon still wears the learner's state.
+        const tint = new THREE.Color(DECK[tier]);
         model.traverse((o) => {
           const mesh = o as THREE.Mesh;
-          if (mesh.isMesh) mesh.material = skin;
+          if (!mesh.isMesh) return;
+          const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+          mats.forEach((m) => {
+            const std = m as THREE.MeshStandardMaterial;
+            if (std.color) std.color.lerp(tint, 0.65);
+          });
         });
 
         pivot.add(model);
 
         if (gltf.animations?.length) {
           const mixer = new THREE.AnimationMixer(model);
-          mixer.clipAction(gltf.animations[0]).play();
+          const pick = (name: string) =>
+            gltf.animations.find((c) => c.name === name) ?? null;
+          const idle = pick(IDLE) ?? gltf.animations[0];
+          mixer.clipAction(idle).play();
           mixerRef.current = mixer;
+
+          // Poke it — plays the click clip once, then settles back to idle.
+          const poke = pick(POKE);
+          if (poke) {
+            renderer.domElement.addEventListener("pointerdown", () => {
+              const a = mixer.clipAction(poke);
+              a.reset();
+              a.setLoop(THREE.LoopOnce, 1);
+              a.clampWhenFinished = true;
+              a.play();
+              window.setTimeout(() => a.fadeOut(0.35), poke.duration * 1000);
+            });
+          }
         }
       },
       undefined,
