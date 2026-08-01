@@ -4,15 +4,15 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
 import { ChameleonMascot, type ChameleonTier } from "@/components/ChameleonMascot";
 import { DECK } from "@/lib/deck-colors";
+import { getPetById } from "@/lib/pets";
 
 /**
  * The chameleon, in real 3D — the same rigged model /landingpage2 uses.
  *
  * Model choice matters here. The raw upload in brand/models is a 20 MB static
  * sculpt: untextured (baseColorFactor 0.5 grey, zero images) and with zero
- * animation clips. Gecko_Animations.glb is the one the pet system already
- * ships: 218 KB, properly textured, and rigged with 18 clips. Better model,
- * 3× smaller.
+ * animation clips. Felix (/pets/Chameleon_Animations.glb) is what the pet system
+ * ships: 227 KB, properly textured, and rigged with 18 clips.
  *
  * Built directly on three (already a dependency) rather than <model-viewer>,
  * which is only available via a CDN <script> in index.html — any blocked or
@@ -23,10 +23,12 @@ import { DECK } from "@/lib/deck-colors";
  * Falls back to the flat mascot only if WebGL is genuinely unavailable or the
  * model fails to load.
  */
-const MODEL = "/pets/Gecko_Animations.glb";
+/** Felix — the chameleon pet. Sourced from the registry so the path can't drift. */
+const MODEL = getPetById("felix")?.glbFile ?? "/pets/Chameleon_Animations.glb";
 const IDLE = "Idle_A";
 /** Played on click, if present. */
 const POKE = "Clicked";
+
 export const Chameleon3D = ({
   tier = "green",
   size = 360,
