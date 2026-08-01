@@ -43,10 +43,6 @@ export default function LinguaScriptsPage() {
   const language = langCtx?.languageContext || "fr";
   const interests = user?.user_metadata?.interests || [];
   const cefLevel = user?.user_metadata?.cef_level || "B1";
-
-  const language = langCtx?.languageContext || "fr";
-  const interests = user?.user_metadata?.interests || [];
-  const cefLevel = user?.user_metadata?.cef_level || "B1";
   const nativeLanguage = user?.user_metadata?.native_language || "en";
 
   // Load user's saved words and generate LinguaScripts
