@@ -114,7 +114,8 @@ export function XpProvider({ children }: { children: ReactNode }) {
   );
 
   const { level, current, nextLevelXP } = levelFromXP(xp);
-  const levelProgress = nextLevelXP > 0 ? current / nextLevelXP : 0;
+  const levelProgress =
+    nextLevelXP > 0 ? Math.min(1, Math.max(0, current / nextLevelXP)) : 0;
 
   return (
     <XpContext.Provider
