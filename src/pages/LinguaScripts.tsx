@@ -5,11 +5,22 @@ import { LanguageContext } from "@/contexts/LanguageContext";
 import { TodaysMission } from "@/components/TodaysMission";
 import { LinguaScriptExercise } from "@/components/LinguaScriptExercise";
 import { LineBlastEffect } from "@/components/LineBlastEffect";
-import { ArrowLeft, Zap, BookOpen, Mic, Award } from "lucide-react";
+import { ArrowLeft, Zap, BookOpen, Mic, Award, Loader2 } from "lucide-react";
 import { type LinguaScript } from "@/lib/linguascripts";
+import {
+  loadUserSavedWords,
+  generatePersonalizedLinguaScript,
+  createLinguaScriptSessionFromWord,
+  type SavedWord,
+} from "@/lib/linguascripts";
 
-type ViewMode = "mission" | "exercise";
+type ViewMode = "mission" | "exercise" | "loading";
 type ExerciseMode = "gap-fill" | "mcq" | "speaking";
+
+interface WordWithScript extends SavedWord {
+  linguaScript?: LinguaScript;
+  loading?: boolean;
+}
 
 export default function LinguaScriptsPage() {
   const navigate = useNavigate();
@@ -21,6 +32,12 @@ export default function LinguaScriptsPage() {
   const [showBlast, setShowBlast] = useState(false);
   const [lastXP, setLastXP] = useState(0);
   const [lastCombo, setLastCombo] = useState(1);
+  const [greenWords, setGreenWords] = useState<WordWithScript[]>([]);
+  const [orangeWords, setOrangeWords] = useState<WordWithScript[]>([]);
+  const [redWords, setRedWords] = useState<WordWithScript[]>([]);
+  const [generatedScripts, setGeneratedScripts] = useState<Map<string, LinguaScript>>(
+    new Map()
+  );
 
   useEffect(() => {
     const getUser = async () => {
@@ -33,6 +50,71 @@ export default function LinguaScriptsPage() {
 
   const language = langCtx?.languageContext || "fr";
   const interests = user?.user_metadata?.interests || [];
+  const cefLevel = user?.user_metadata?.cef_level || "B1";
+
+  // Load user's saved words and generate LinguaScripts
+  useEffect(() => {
+    if (!user) return;
+
+    const loadAndGenerateScripts = async () => {
+      const words = await loadUserSavedWords(user.id, language);
+
+      // Process GREEN words first (confidence building)
+      setGreenWords(words.green.map((w) => ({ ...w, state: "green" as const })));
+      setOrangeWords(
+        words.orange.map((w) => ({ ...w, state: "orange" as const }))
+      );
+      setRedWords(words.red.map((w) => ({ ...w, state: "red" as const })));
+
+      // Generate LinguaScripts for each word group
+      generateScriptsForWords(
+        words.green.map((w) => ({ ...w, state: "green" as const })),
+        "green"
+      );
+    };
+
+    loadAndGenerateScripts();
+  }, [user, language]);
+
+  const generateScriptsForWords = async (
+    words: WordWithScript[],
+    state: "green" | "orange" | "red"
+  ) => {
+    for (const word of words) {
+      try {
+        const result = await generatePersonalizedLinguaScript({
+          word: word.word,
+          translation: word.translation,
+          interests,
+          cefLevel,
+          language,
+          wordState: state,
+          nativeLanguage: user?.user_metadata?.native_language || "en",
+        });
+
+        if (result) {
+          const script = await createLinguaScriptSessionFromWord(
+            user.id,
+            word.word,
+            word.translation,
+            result.sentence,
+            result.englishTranslation,
+            state,
+            interests,
+            language
+          );
+
+          if (script) {
+            setGeneratedScripts((prev) =>
+              new Map(prev).set(`${word.word}-${state}`, script)
+            );
+          }
+        }
+      } catch (err) {
+        console.error(`Failed to generate script for ${word.word}:`, err);
+      }
+    }
+  };
 
   function handleStartExercise(script: LinguaScript) {
     setSelectedScript(script);
@@ -106,6 +188,48 @@ export default function LinguaScriptsPage() {
                 />
               </div>
             </div>
+
+            {/* Personalized LinguaScripts from Saved Words */}
+            {(generatedScripts.size > 0 || greenWords.length > 0) && (
+              <div className="space-y-6">
+                {/* GREEN Words (Confidence Building) */}
+                {generatedScripts.size > 0 && (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <h2 className="text-2xl font-black text-emerald-400">
+                        🟢 Boost Confidence (Green Words)
+                      </h2>
+                      <p className="text-sm text-slate-400">Master these words you already know</p>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {Array.from(generatedScripts.values())
+                        .filter((s) => greenWords.some((w) => w.word === s.target_word))
+                        .slice(0, 4)
+                        .map((script) => (
+                          <div
+                            key={script.id}
+                            onClick={() => handleStartExercise(script)}
+                            className="group relative cursor-pointer bg-gradient-to-br from-emerald-900/20 to-emerald-900/5 border border-emerald-500/30 rounded-xl p-6 hover:border-emerald-400 transition-all hover:scale-105"
+                          >
+                            <div className="mb-3">
+                              <span className="inline-block px-2 py-1 bg-emerald-500/20 rounded text-xs font-bold text-emerald-400">
+                                REVIEW
+                              </span>
+                            </div>
+                            <p className="font-bold text-lg mb-2">{script.target_word}</p>
+                            <p className="text-sm text-slate-400 mb-4 italic">
+                              "{script.sentence}"
+                            </p>
+                            <div className="text-xs text-emerald-400 font-semibold uppercase tracking-wider">
+                              → Start Practice
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
 
             {/* Features Grid */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

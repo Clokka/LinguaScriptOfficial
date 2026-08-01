@@ -321,3 +321,133 @@ export async function createLinguaScriptFromSavedWord(
   if (error) throw error;
   return data;
 }
+
+/** ===== NEW: Personalized LinguaScripts from Saved Words ===== */
+
+export interface SavedWord {
+  word: string;
+  translation: string;
+  state: "red" | "orange" | "green";
+  created_at: string;
+}
+
+/**
+ * Load user's recent saved words, grouped by SRS state (GREEN, ORANGE, RED)
+ * GREEN first (for confidence building), then ORANGE, then RED (challenging)
+ */
+export async function loadUserSavedWords(userId: string | null, language: string) {
+  if (!userId) return { green: [], orange: [], red: [] };
+
+  const { data, error } = await supabase
+    .from("vocab_deck")
+    .select("word, translation, state, created_at")
+    .eq("user_id", userId)
+    .eq("language", language)
+    .order("created_at", { ascending: false })
+    .limit(100);
+
+  if (error || !data) return { green: [], orange: [], red: [] };
+
+  const green = (data as any[])
+    .filter((w) => w.state === "green")
+    .slice(0, 8);
+  const orange = (data as any[])
+    .filter((w) => w.state === "orange")
+    .slice(0, 8);
+  const red = (data as any[])
+    .filter((w) => w.state === "red")
+    .slice(0, 8);
+
+  return { green, orange, red };
+}
+
+/**
+ * Generate personalized LinguaScript sentence from a saved word
+ * Uses Claude to create interest-aware, level-appropriate context
+ */
+export async function generatePersonalizedLinguaScript(params: {
+  word: string;
+  translation: string;
+  interests: string[];
+  cefLevel: string;
+  language: string;
+  wordState: "red" | "orange" | "green";
+  nativeLanguage: string;
+}): Promise<{ sentence: string; englishTranslation: string } | null> {
+  try {
+    const { data, error } = await supabase.functions.invoke(
+      "generate-personalized-linguascript",
+      {
+        body: params,
+      }
+    );
+
+    if (error || !data?.sentence) {
+      console.error("Failed to generate personalized LinguaScript:", error);
+      return null;
+    }
+
+    return {
+      sentence: data.sentence,
+      englishTranslation: data.englishTranslation || data.sentence,
+    };
+  } catch (err) {
+    console.error("Personalized LinguaScript generation error:", err);
+    return null;
+  }
+}
+
+/**
+ * Get next review date based on SRS state (1-3-5-7 day schedule)
+ */
+export function getNextReviewDate(wordState: "red" | "orange" | "green"): Date {
+  const now = new Date();
+  let daysUntilReview = 1; // RED → review in 1 day
+  if (wordState === "orange") daysUntilReview = 3; // ORANGE → review in 3 days
+  if (wordState === "green") daysUntilReview = 7; // GREEN → review in 7 days (maintenance)
+
+  const nextReview = new Date(now.getTime() + daysUntilReview * 24 * 60 * 60 * 1000);
+  return nextReview;
+}
+
+/**
+ * Create a LinguaScript session from a saved word
+ */
+export async function createLinguaScriptSessionFromWord(
+  userId: string,
+  word: string,
+  translation: string,
+  sentence: string,
+  englishTranslation: string,
+  wordState: "red" | "orange" | "green",
+  interests: string[],
+  language: string
+): Promise<LinguaScript | null> {
+  const nextReview = getNextReviewDate(wordState);
+
+  const { data, error } = await supabase
+    .from("linguascripts")
+    .insert({
+      user_id: userId,
+      language,
+      target_word: word,
+      sentence,
+      translation: englishTranslation,
+      interest: interests[0] || "general",
+      gap_position: sentence.indexOf(word),
+      status: "pending",
+      attempts: 0,
+      scheduled_to_srs: true,
+      combo_multiplier: 1,
+      next_review_at: nextReview.toISOString(),
+    } as any)
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Failed to create LinguaScript session:", error);
+    return null;
+  }
+
+  return data as LinguaScript;
+}
