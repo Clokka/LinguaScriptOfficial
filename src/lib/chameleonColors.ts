@@ -1,5 +1,5 @@
 /**
- * Felix color progression based on comprehension %
+ * Chameleon color progression based on comprehension %
  * Red (0%) → Orange (50%) → Green (100%) → Gold/Aurora (hyper at 100%)
  */
 

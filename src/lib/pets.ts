@@ -27,10 +27,10 @@ export const PETS: PetMeta[] = [
     rarity: "common",
   },
   {
-    id: "felix",
-    name: "Felix",
+    id: "chameleon",
+    name: "Chameleon",
     emoji: "🦎",
-    description: "Lucky Felix changes color as you learn — red, orange, then green.",
+    description: "Your chameleon changes colour as you learn — red, orange, then green.",
     glbFile: "/pets/Chameleon_Animations.glb",
     unlock: { type: "free" },
     rarity: "common",

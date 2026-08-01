@@ -42,7 +42,7 @@ interface PetLiveProps {
   size: number;
   idleClip?: string;
   tint?: MascotTint;
-  /** Comprehension percentage (0–100) to drive Felix's color changes. */
+  /** Comprehension percentage (0–100) to drive Chameleon's color changes. */
   comprehensionPercent?: number;
   onReady?: () => void;
 }
@@ -125,7 +125,7 @@ export const PetLive = forwardRef<PetLiveHandle, PetLiveProps>(
     };
 
     useEffect(() => {
-      // If comprehensionPercent is provided, calculate hue-rotate for Felix's color change
+      // If comprehensionPercent is provided, calculate hue-rotate for Chameleon's color change
       let effectiveTint = tint;
       if (comprehensionPercent !== undefined) {
         // 0% = red (hue -100), 100% = green (hue ~18)

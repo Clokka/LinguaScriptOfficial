@@ -8,7 +8,7 @@ import { PetLive, PetLiveHandle } from "@/components/pets/PetLive";
 import { cn } from "@/lib/utils";
 
 // A deliberate ladder: free → streak → videos → legendary.
-const SHOWCASE_IDS = ["felix", "muskrat", "pudu", "inkfish"] as const;
+const SHOWCASE_IDS = ["chameleon", "muskrat", "pudu", "inkfish"] as const;
 
 const HOVER_CLIPS = ["Bounce", "Spin", "Jump", "Roll"];
 
@@ -64,7 +64,7 @@ const PetCard = ({ petId, index, comprehensionPercent }: PetCardProps) => {
               ref={liveRef}
               glbFile={pet.glbFile}
               size={180}
-              comprehensionPercent={petId === "felix" ? comprehensionPercent : undefined}
+              comprehensionPercent={petId === "chameleon" ? comprehensionPercent : undefined}
               onReady={() => setReady(true)}
             />
           </div>

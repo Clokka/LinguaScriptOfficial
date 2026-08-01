@@ -3,7 +3,6 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
 import { ChameleonMascot, type ChameleonTier } from "@/components/ChameleonMascot";
-import { DECK } from "@/lib/deck-colors";
 import { getPetById } from "@/lib/pets";
 
 /**
@@ -11,8 +10,8 @@ import { getPetById } from "@/lib/pets";
  *
  * Model choice matters here. The raw upload in brand/models is a 20 MB static
  * sculpt: untextured (baseColorFactor 0.5 grey, zero images) and with zero
- * animation clips. Felix (/pets/Chameleon_Animations.glb) is what the pet system
- * ships: 227 KB, properly textured, and rigged with 18 clips.
+ * animation clips. The chameleon pet (/pets/Chameleon_Animations.glb) is what
+ * the pet system ships: 227 KB, properly textured, and rigged with 18 clips.
  *
  * Built directly on three (already a dependency) rather than <model-viewer>,
  * which is only available via a CDN <script> in index.html — any blocked or
@@ -23,11 +22,25 @@ import { getPetById } from "@/lib/pets";
  * Falls back to the flat mascot only if WebGL is genuinely unavailable or the
  * model fails to load.
  */
-/** Felix — the chameleon pet. Sourced from the registry so the path can't drift. */
-const MODEL = getPetById("felix")?.glbFile ?? "/pets/Chameleon_Animations.glb";
+/** The chameleon pet. Sourced from the registry so the path can't drift. */
+const MODEL = getPetById("chameleon")?.glbFile ?? "/pets/Chameleon_Animations.glb";
 const IDLE = "Idle_A";
 /** Played on click, if present. */
 const POKE = "Clicked";
+
+/**
+ * Tier colour is applied as a hue rotation rather than by repainting the
+ * meshes: the model ships textured (white eye, darker flank stripes) and
+ * overwriting its material flattens all of that away. Hue rotation leaves
+ * greys and whites untouched because they carry no saturation, so the eye
+ * stays white while the body shifts red → orange → green.
+ * Matches the mapping PetLive uses for the same model.
+ */
+const TIER_HUE: Record<ChameleonTier, number> = {
+  red: -130,
+  orange: -95,
+  green: 0,
+};
 
 export const Chameleon3D = ({
   tier = "green",
@@ -59,6 +72,7 @@ export const Chameleon3D = ({
     renderer.setSize(size, size);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.domElement.style.cursor = "grab";
+    renderer.domElement.style.filter = `hue-rotate(${TIER_HUE[tier]}deg)`;
     mount.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
@@ -118,28 +132,19 @@ export const Chameleon3D = ({
         const box = new THREE.Box3().setFromObject(model);
         const sizeV = box.getSize(new THREE.Vector3());
         const centre = box.getCenter(new THREE.Vector3());
-        const scale = 2 / Math.max(sizeV.x, sizeV.y, sizeV.z);
+        // 1.6 rather than 2: this chameleon is long (nose-to-curled-tail), so
+        // filling the frame edge-to-edge clipped the tail as the model spun.
+        const scale = 1.6 / Math.max(sizeV.x, sizeV.y, sizeV.z);
         model.scale.setScalar(scale);
         model.position.sub(centre.multiplyScalar(scale));
 
-        // This model IS textured, so we keep its map and multiply a deck tint
-        // over it rather than replacing the material — detail survives, and the
-        // chameleon still wears the learner's state.
-        const tint = new THREE.Color(DECK[tier]);
-        model.traverse((o) => {
-          const mesh = o as THREE.Mesh;
-          if (!mesh.isMesh) return;
-          const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-          mats.forEach((m) => {
-            const std = m as THREE.MeshStandardMaterial;
-            if (std.color) std.color.lerp(tint, 0.65);
-          });
-        });
-
+        // Materials are left exactly as authored — see TIER_HUE above.
         pivot.add(model);
 
         if (gltf.animations?.length) {
           const mixer = new THREE.AnimationMixer(model);
+          // The pet rig ships 18 clips and clip 0 is "Attack"; idle is the
+          // right resting state for a landing-page mascot.
           const pick = (name: string) =>
             gltf.animations.find((c) => c.name === name) ?? null;
           const idle = pick(IDLE) ?? gltf.animations[0];
