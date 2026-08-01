@@ -3,7 +3,6 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
 import { ChameleonMascot, type ChameleonTier } from "@/components/ChameleonMascot";
-import { DECK } from "@/lib/deck-colors";
 
 /**
  * The Quirky-Series chameleon, rendered in real 3D.
@@ -14,10 +13,25 @@ import { DECK } from "@/lib/deck-colors";
  * 3D; and the npm build of it can't be installed because model-viewer@3 wants
  * three@^0.163 and @4 wants ^0.183, while the pet system pins ^0.169.
  *
- * Loads the 678 KB optimised GLB, frames it automatically, spins it slowly,
- * and lets the pointer swing it. Falls back to the flat mascot if WebGL is
- * unavailable or the model fails to load.
+ * Uses the same chameleon model as the landing-page-2 demo
+ * (/pets/Chameleon_Animations.glb) so the mascot is identical everywhere.
+ * Frames it automatically, spins it slowly, and lets the pointer swing it.
+ * Falls back to the flat mascot if WebGL is unavailable or the model fails.
  */
+
+/**
+ * Tier colour is applied as a hue rotation rather than by repainting the
+ * meshes: the model ships textured (white eye, darker flank stripes) and
+ * overwriting its material flattens all of that away. Hue rotation leaves
+ * greys and whites untouched because they carry no saturation, so the eye
+ * stays white while the body shifts red → orange → green.
+ * Matches the mapping PetLive uses for the same model.
+ */
+const TIER_HUE: Record<ChameleonTier, number> = {
+  red: -130,
+  orange: -95,
+  green: 0,
+};
 export const Chameleon3D = ({
   tier = "green",
   size = 360,
@@ -48,6 +62,7 @@ export const Chameleon3D = ({
     renderer.setSize(size, size);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.domElement.style.cursor = "grab";
+    renderer.domElement.style.filter = `hue-rotate(${TIER_HUE[tier]}deg)`;
     mount.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
@@ -98,7 +113,7 @@ export const Chameleon3D = ({
     const gltfLoader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
 
     gltfLoader.load(
-      "/brand/chameleon.glb",
+      "/pets/Chameleon_Animations.glb",
       (gltf) => {
         if (disposed) return;
         const model = gltf.scene;
@@ -107,28 +122,23 @@ export const Chameleon3D = ({
         const box = new THREE.Box3().setFromObject(model);
         const sizeV = box.getSize(new THREE.Vector3());
         const centre = box.getCenter(new THREE.Vector3());
-        const scale = 2 / Math.max(sizeV.x, sizeV.y, sizeV.z);
+        // 1.6 rather than 2: this chameleon is long (nose-to-curled-tail), so
+        // filling the frame edge-to-edge clipped the tail as the model spun.
+        const scale = 1.6 / Math.max(sizeV.x, sizeV.y, sizeV.z);
         model.scale.setScalar(scale);
         model.position.sub(centre.multiplyScalar(scale));
 
-        // The source model ships untextured (baseColorFactor 0.5 grey, zero
-        // images), so we paint it the deck colour. That's the right result
-        // anyway — the chameleon's colour IS the learner's state.
-        const skin = new THREE.MeshStandardMaterial({
-          color: new THREE.Color(DECK[tier]),
-          roughness: 0.45,
-          metalness: 0.05,
-        });
-        model.traverse((o) => {
-          const mesh = o as THREE.Mesh;
-          if (mesh.isMesh) mesh.material = skin;
-        });
-
+        // Materials are left exactly as authored — see TIER_HUE above.
         pivot.add(model);
 
         if (gltf.animations?.length) {
           const mixer = new THREE.AnimationMixer(model);
-          mixer.clipAction(gltf.animations[0]).play();
+          // The pet rig ships 18 clips and clip 0 is "Attack"; idle is the
+          // right resting state for a landing-page mascot.
+          const idle =
+            THREE.AnimationClip.findByName(gltf.animations, "Idle_A") ??
+            gltf.animations[0];
+          mixer.clipAction(idle).play();
           mixerRef.current = mixer;
         }
       },

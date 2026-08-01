@@ -48,7 +48,7 @@ import MieoFrames from "./pages/MieoFrames";
 import OnboardingMobile from "./pages/OnboardingMobile";
 import OAuthConsent from "./pages/OAuthConsent";
 import LinguaScripts from "./pages/LinguaScripts";
-import FelixEffectTestPage from "./pages/FelixEffectTestPage";
+import ChameleonEffectTestPage from "./pages/ChameleonEffectTestPage";
 
 const queryClient = new QueryClient();
 
@@ -97,7 +97,7 @@ const App = () => (
                 <Route path="/onboarding/mobile" element={<OnboardingMobile />} />
                 <Route path="/welcome" element={<OnboardingMobile />} />
                 <Route path="/linguascripts" element={<LinguaScripts />} />
-                <Route path="/felixeffecttestpage1" element={<FelixEffectTestPage />} />
+                <Route path="/chameleoneffecttestpage1" element={<ChameleonEffectTestPage />} />
                 <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>

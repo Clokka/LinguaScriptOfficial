@@ -1,4 +1,4 @@
-// Felix Effect Test Page — individual effect auditing
+// Chameleon Effect Test Page — individual effect auditing
 // Discrete color states (RED/ORANGE/GREEN) with emissive glow
 // Character aura effect like Smash Bros godmode or DBZ Super Saiyan
 import { useState, useRef } from "react";
@@ -28,11 +28,11 @@ interface ColorStateBoxProps {
 }
 
 const ColorStateBox = ({ title, state, comprehension }: ColorStateBoxProps) => {
-  const felixRef = useRef<PetLiveHandle>(null);
+  const chameleonRef = useRef<PetLiveHandle>(null);
   const colorConfig = COLOR_STATES[state];
 
   const handleSpin = () => {
-    felixRef.current?.play("Spin");
+    chameleonRef.current?.play("Spin");
   };
 
   return (
@@ -44,7 +44,7 @@ const ColorStateBox = ({ title, state, comprehension }: ColorStateBoxProps) => {
 
       <div className="relative h-[240px] w-full rounded-lg border border-border/40 bg-black/20 flex items-center justify-center mb-4 overflow-hidden">
         <PetLive
-          ref={felixRef}
+          ref={chameleonRef}
           glbFile="/pets/Chameleon_Animations.glb"
           size={180}
           comprehensionPercent={comprehension}
@@ -74,7 +74,7 @@ const ColorStateBox = ({ title, state, comprehension }: ColorStateBoxProps) => {
   );
 };
 
-export default function FelixEffectTestPage() {
+export default function ChameleonEffectTestPage() {
   const [comprehension, setComprehension] = useState(0);
 
   return (
@@ -82,7 +82,7 @@ export default function FelixEffectTestPage() {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-12">
-          <h1 className="text-4xl font-bold mb-2">Felix Color State Test</h1>
+          <h1 className="text-4xl font-bold mb-2">Chameleon Color State Test</h1>
           <p className="text-muted-foreground mb-6">
             Emissive glow effects for discrete RED → ORANGE → GREEN comprehension states
           </p>
@@ -136,7 +136,7 @@ export default function FelixEffectTestPage() {
           <h2 className="text-2xl font-bold mb-6">Interactive State Preview</h2>
           <div className="rounded-xl border border-border/60 bg-background/40 p-6 backdrop-blur">
             <p className="text-sm text-muted-foreground mb-4">
-              Adjust the comprehension slider above to see Felix transition between states
+              Adjust the comprehension slider above to see Chameleon transition between states
             </p>
             <div className="relative h-[320px] w-full rounded-lg border border-border/40 bg-black/20 flex items-center justify-center">
               <ColorStateBox

@@ -1,4 +1,4 @@
-// Interactive Felix color-change demo with LineBlast praise + premium Ascension effects
+// Interactive Chameleon color-change demo with LineBlast praise + premium Ascension effects
 import { useCallback, useMemo, useRef, useState } from "react";
 import { motion, useInView } from "framer-motion";
 import confetti from "canvas-confetti";
@@ -31,10 +31,10 @@ const PRAISE: [string, string][] = [
   ["UNBELIEVABLE!", ""],
 ];
 
-export const FelixColorDemo = () => {
+export const ChameleonColorDemo = () => {
   const rootRef = useRef<HTMLDivElement>(null);
-  const felixRef = useRef<PetLiveHandle>(null);
-  const felixContainerRef = useRef<HTMLDivElement>(null);
+  const chameleonRef = useRef<PetLiveHandle>(null);
+  const chameleonContainerRef = useRef<HTMLDivElement>(null);
   const inView = useInView(rootRef, { once: true, margin: "120px" });
   const [words, setWords] = useState<Word[]>(INITIAL);
   const [locked, setLocked] = useState(false);
@@ -81,7 +81,7 @@ export const FelixColorDemo = () => {
   const fireBlast = useCallback(() => {
     if (locked) return;
     setLocked(true);
-    felixRef.current?.play("Spin");
+    chameleonRef.current?.play("Spin");
 
     // Use combo level (always 1 for this demo)
     const comboLevel = 1;
@@ -181,9 +181,9 @@ export const FelixColorDemo = () => {
         }
       `}</style>
 
-      {/* Felix 3D model with Ascension effects */}
+      {/* Chameleon 3D model with Ascension effects */}
       <div
-        ref={felixContainerRef}
+        ref={chameleonContainerRef}
         className="relative mx-auto flex h-[320px] w-full max-w-[460px] items-center justify-center"
         style={
           praise
@@ -201,10 +201,10 @@ export const FelixColorDemo = () => {
           />
         )}
 
-        {/* Felix stays visible */}
+        {/* Chameleon stays visible */}
         {inView && (
           <PetLive
-            ref={felixRef}
+            ref={chameleonRef}
             glbFile="/pets/Chameleon_Animations.glb"
             size={280}
             comprehensionPercent={pct}
@@ -286,7 +286,7 @@ export const FelixColorDemo = () => {
 
         <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
           Click a <span className="font-semibold text-red-400">red word</span> to save it, click again as it's
-          reviewed. When the sentence turns green, Felix reaches ascension!
+          reviewed. When the sentence turns green, Chameleon reaches ascension!
         </p>
 
         {pct === 100 && (
