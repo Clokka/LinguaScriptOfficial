@@ -12,6 +12,7 @@ import { useTour } from "@/contexts/TourContext";
 import { useXp } from "@/contexts/XpContext";
 import { consumeReinforcementPending } from "@/lib/dailyVideo";
 import { ActiveLanguageBadge } from "@/components/ActiveLanguageBadge";
+import { LevelBadge } from "@/components/LevelBadge";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { toast } from "sonner";
 
@@ -212,6 +213,7 @@ const Flashcards = () => {
           </Button>
           <h1 className="text-lg font-bold text-foreground">Flashcards</h1>
           <div className="ml-auto flex items-center gap-2">
+            <LevelBadge />
             <Button
               variant="ghost"
               size="icon"

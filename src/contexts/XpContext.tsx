@@ -18,8 +18,10 @@ import {
   clearGuestXP,
   levelFromXP,
   persistXP,
+  syncLevelRewards,
   xpForAction,
 } from "@/lib/xp";
+import { rewardForLevel, type LevelReward } from "@/lib/levelRewards";
 
 interface RecentGain {
   amount: number;
@@ -33,8 +35,11 @@ interface XpContextValue {
   levelProgress: number; // 0..1
   current: number;
   nextLevelXP: number;
+  gems: number;
   recentGain: RecentGain | null;
   leveledUpTo: number | null;
+  /** Reward for the level just reached, for the celebration UI. */
+  levelUpReward: LevelReward | null;
   award: (action: XpAction, meta?: XpMeta) => number;
   consumeLevelUp: () => void;
 }
@@ -44,9 +49,18 @@ const XpContext = createContext<XpContextValue | undefined>(undefined);
 export function XpProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [xp, setXp] = useState<number>(0);
+  const [gems, setGems] = useState<number>(0);
   const [recentGain, setRecentGain] = useState<RecentGain | null>(null);
   const [leveledUpTo, setLeveledUpTo] = useState<number | null>(null);
   const prevLevelRef = useRef<number>(1);
+  // Mirrors `xp` synchronously so award() can compute the next total without
+  // doing side effects inside a state updater (updaters must stay pure).
+  const xpRef = useRef<number>(0);
+
+  const applyXp = useCallback((value: number) => {
+    xpRef.current = value;
+    setXp(value);
+  }, []);
 
   // Load XP on auth changes
   useEffect(() => {
@@ -55,34 +69,51 @@ export function XpProvider({ children }: { children: ReactNode }) {
       if (!user) {
         const guest = getGuestXP();
         if (alive) {
-          setXp(guest);
+          applyXp(guest);
+          setGems(0);
           prevLevelRef.current = levelFromXP(guest).level;
         }
         return;
       }
-      const { data } = await supabase
+      // `gems` arrives with the level-rewards migration. Until that migration
+      // is applied the column select would error and read back as 0 XP, so
+      // fall back to the XP-only select rather than wiping a learner's total.
+      let row = await supabase
         .from("profiles")
-        .select("xp_total")
+        .select("xp_total, gems")
         .eq("user_id", user.id)
         .maybeSingle();
-      const dbXp = ((data as any)?.xp_total as number | undefined) ?? 0;
+      if (row.error) {
+        row = await supabase
+          .from("profiles")
+          .select("xp_total")
+          .eq("user_id", user.id)
+          .maybeSingle();
+      }
+      const dbXp = ((row.data as any)?.xp_total as number | undefined) ?? 0;
+      if (alive) setGems(((row.data as any)?.gems as number | undefined) ?? 0);
+
       // Merge any guest XP earned before sign-in.
       const guest = getGuestXP();
+      let total = dbXp;
       if (guest > 0) {
-        const merged = dbXp + guest;
+        total = dbXp + guest;
         clearGuestXP();
-        if (alive) {
-          setXp(merged);
-          prevLevelRef.current = levelFromXP(merged).level;
-        }
-        const { level } = levelFromXP(merged);
-        await persistXP(user.id, merged, level, "add_word", guest, {
-          cards: 0,
-        });
-      } else if (alive) {
-        setXp(dbXp);
-        prevLevelRef.current = levelFromXP(dbXp).level;
       }
+      const { level } = levelFromXP(total);
+      if (alive) {
+        applyXp(total);
+        prevLevelRef.current = level;
+      }
+      if (guest > 0) {
+        await persistXP(user.id, total, level, "add_word", guest, { cards: 0 });
+      }
+
+      // Back-fill any level rewards never granted (including levels that were
+      // unreachable while the curve was capped). Silent: past levels are paid
+      // out but not celebrated — only new level-ups get a popup.
+      const balance = await syncLevelRewards(level);
+      if (alive && balance != null) setGems(balance);
     })();
     return () => {
       alive = false;
@@ -93,24 +124,32 @@ export function XpProvider({ children }: { children: ReactNode }) {
     (action: XpAction, meta?: XpMeta) => {
       const amount = xpForAction(action, meta);
       if (amount <= 0) return 0;
-      setXp((prev) => {
-        const next = prev + amount;
-        const { level } = levelFromXP(next);
-        if (level > prevLevelRef.current) {
-          setLeveledUpTo(level);
-          prevLevelRef.current = level;
-        }
+
+      const next = xpRef.current + amount;
+      const { level } = levelFromXP(next);
+      applyXp(next);
+
+      if (level > prevLevelRef.current) {
+        prevLevelRef.current = level;
+        setLeveledUpTo(level);
         if (user) {
-          void persistXP(user.id, next, level, action, amount, meta);
-        } else {
-          setGuestXP(next);
+          // Server grants the reward idempotently and returns the balance,
+          // so a replayed level-up can never double-pay.
+          void syncLevelRewards(level).then((balance) => {
+            if (balance != null) setGems(balance);
+          });
         }
-        return next;
-      });
+      }
+
+      if (user) {
+        void persistXP(user.id, next, level, action, amount, meta);
+      } else {
+        setGuestXP(next);
+      }
       setRecentGain({ amount, action, key: Date.now() + Math.random() });
       return amount;
     },
-    [user],
+    [user, applyXp],
   );
 
   const { level, current, nextLevelXP } = levelFromXP(xp);
@@ -125,8 +164,10 @@ export function XpProvider({ children }: { children: ReactNode }) {
         current,
         nextLevelXP,
         levelProgress,
+        gems,
         recentGain,
         leveledUpTo,
+        levelUpReward: leveledUpTo != null ? rewardForLevel(leveledUpTo) : null,
         award,
         consumeLevelUp: () => setLeveledUpTo(null),
       }}

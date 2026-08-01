@@ -52,6 +52,7 @@ import { LinguaScriptsPendingAlert } from "@/components/LinguaScriptsPendingAler
 import { LinguaScriptsCompleteCard } from "@/components/LinguaScriptsCompleteCard";
 import { FlashcardsDueAlert } from "@/components/FlashcardsDueAlert";
 import { LinguaScriptSessionFlow } from "@/components/LinguaScriptSessionFlow";
+import { LevelBadge } from "@/components/LevelBadge";
 
 const INTERESTS_BY_ID: Record<string, Interest> = Object.fromEntries(
   INTERESTS.map((i) => [i.id, i]),
@@ -502,6 +503,7 @@ const Browse = () => {
             </div>
             <div className="flex-1" />
             <div className="flex items-center gap-3">
+              <LevelBadge />
               <ActiveLanguageBadge />
               {user ? (
                 <Button variant="ghost" size="sm" onClick={() => navigate("/profile")} className="text-muted-foreground">

@@ -120,6 +120,21 @@ export function clearGuestXP() {
 }
 
 /**
+ * Grants every unclaimed level reward up to `level` and returns the new gem
+ * balance. Idempotent server-side, so replaying it cannot double-pay.
+ */
+export async function syncLevelRewards(level: number): Promise<number | null> {
+  const { data, error } = await (supabase as any).rpc("sync_level_rewards", {
+    p_level: level,
+  });
+  if (error) {
+    console.error("[xp] level reward sync failed", error);
+    return null;
+  }
+  return typeof data === "number" ? data : null;
+}
+
+/**
  * Background persistence. Never blocks UI.
  * Caller already updated optimistic state in XpContext.
  */
