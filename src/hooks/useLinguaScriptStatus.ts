@@ -31,16 +31,16 @@ export function useLinguaScriptStatus() {
     try {
       setLoading(true);
 
-      // LinguaScripts ready for review: words with appearance_count < 3
-      // MVP strategy: Show first 10 words that haven't appeared 3 times yet
+      // LinguaScripts ready for review: exercises where scheduled_for <= now and not completed
+      const now = new Date().toISOString();
       const { data: linguascripts, error: lsError } = await supabase
-        .from("saved_words")
+        .from("linguascripts")
         .select("id")
         .eq("user_id", user?.id)
         .eq("language", learningLanguage)
-        .or("appearance_count.is.null,appearance_count.lt.3")
-        .lte("created_at", new Date().toISOString())
-        .order("created_at", { ascending: true })
+        .lte("scheduled_for", now)
+        .is("completed_at", null)
+        .order("scheduled_for", { ascending: true })
         .limit(10);
 
       if (lsError) {
