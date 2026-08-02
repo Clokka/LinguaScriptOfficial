@@ -45,10 +45,6 @@ import MieoFrames from "./pages/MieoFrames";
 import OnboardingMobile from "./pages/OnboardingMobile";
 import OAuthConsent from "./pages/OAuthConsent";
 import LinguaScripts from "./pages/LinguaScripts";
-import { VersionTestIndex } from "./pages/VersionTestIndex";
-import { VersionTestFlowState } from "./pages/VersionTestFlowState";
-import { VersionTestAlgorithmVisible } from "./pages/VersionTestAlgorithmVisible";
-import { VersionTestHybrid } from "./pages/VersionTestHybrid";
 
 const queryClient = new QueryClient();
 
@@ -94,10 +90,6 @@ const App = () => (
                 <Route path="/onboarding/mobile" element={<OnboardingMobile />} />
                 <Route path="/welcome" element={<OnboardingMobile />} />
                 <Route path="/linguascripts" element={<LinguaScripts />} />
-                <Route path="/versiontest" element={<VersionTestIndex />} />
-                <Route path="/versiontest1" element={<VersionTestFlowState />} />
-                <Route path="/versiontest2" element={<VersionTestAlgorithmVisible />} />
-                <Route path="/versiontest3" element={<VersionTestHybrid />} />
                 <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
