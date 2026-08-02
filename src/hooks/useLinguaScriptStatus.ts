@@ -35,17 +35,18 @@ export function useLinguaScriptStatus() {
       const now = new Date().toISOString();
       const { data: linguascripts, error: lsError } = await supabase
         .from("linguascripts")
-        .select("id")
+        .select("id, target_word, word_state")
         .eq("user_id", user?.id)
         .eq("language", learningLanguage)
         .lte("scheduled_for", now)
         .is("completed_at", null)
+        .order("word_state", { ascending: false }) // GREEN first (confidence building)
         .order("scheduled_for", { ascending: true })
         .limit(10);
 
       if (lsError) {
         console.warn("[useLinguaScriptStatus] LinguaScripts query failed:", lsError);
-        // Gracefully degrade if columns don't exist yet
+        // Gracefully degrade if linguascripts table doesn't exist yet
       }
 
       const linguaScriptsPending = linguascripts?.length || 0;

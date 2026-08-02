@@ -52,15 +52,30 @@ export function LinguaScriptSessionFlow({
   async function loadWords() {
     try {
       setLoading(true);
+      // Load linguascripts (exercises) by ID
       const { data, error } = await supabase
-        .from("saved_words")
-        .select("*")
+        .from("linguascripts")
+        .select("id, target_word, sentence, translation, word_state")
         .eq("user_id", user?.id)
         .in("id", wordIds)
+        .order("word_state", { ascending: false }) // GREEN first
+        .order("scheduled_for", { ascending: true })
         .limit(wordIds.length);
 
       if (error) throw error;
-      setWords((data as SavedWord[]) || []);
+
+      // Convert linguascripts to SavedWord format for compatibility
+      const converted = (data || []).map((script: any) => ({
+        id: script.id,
+        word: script.target_word,
+        translation: script.translation,
+        context_phrase: script.sentence,
+        context_translation: script.translation,
+        pronunciation: "",
+        ipa: "",
+      }));
+
+      setWords(converted);
     } catch (err) {
       console.error("[LinguaScriptSessionFlow] Error loading words:", err);
       setWords([]);

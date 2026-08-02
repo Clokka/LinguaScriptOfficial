@@ -66,15 +66,7 @@ export function LinguaScriptExercise({
       }
 
       if (!data) {
-        // No exercise found, create a temporary one with sample data
-        setExercise({
-          id: `temp-${targetWord}`,
-          target_word: targetWord,
-          sentence: `______ - Learning ${targetWord}`,
-          translation: `Learn ${targetWord}`,
-          gap_options: { correct: targetWord, distractors: ["option1", "option2", "option3"] },
-          mcq_options: { correct: 0, options: [targetWord, "option1", "option2", "option3"] },
-        });
+        setError(`No exercise found for "${targetWord}". Make sure you have saved words with generated exercises.`);
       } else {
         setExercise(data);
       }
