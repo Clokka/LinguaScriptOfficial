@@ -346,7 +346,7 @@ export default function LinguaScriptsPage() {
               <>
                 <LinguaScriptExercise
                   key={selectedScript.id}
-                  targetWord={selectedScript.target_word}
+                  exerciseId={selectedScript.id}
                   language={language}
                   interests={interests}
                   mode={exerciseMode}
