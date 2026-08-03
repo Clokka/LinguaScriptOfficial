@@ -21,7 +21,7 @@ import { ProductDemoPlayer } from "@/components/ProductDemoPlayer";
 import { LineBlastDemo } from "@/components/LineBlastDemo";
 import { LandingPetShowcase } from "@/components/LandingPetShowcase";
 import { LandingChameleonDemo } from "@/components/LandingChameleonDemo";
-import { FelixColorDemo } from "@/components/FelixColorDemo";
+import { ChameleonColorDemo } from "@/components/ChameleonColorDemo";
 
 /**
  * LinguaScript Landing Page v2 — product-walkthrough style.
@@ -192,8 +192,8 @@ const LandingPage2 = () => {
         </div>
       </section>
 
-      {/* ─── Felix 3D color-changing demo ─── */}
-      <section id="felix-3d" className="relative py-20">
+      {/* ─── Chameleon 3D color-changing demo ─── */}
+      <section id="chameleon-3d" className="relative py-20">
         <div className="max-w-6xl mx-auto px-6">
           <motion.div
             initial="hidden"
@@ -203,17 +203,17 @@ const LandingPage2 = () => {
           >
             <motion.div variants={fadeUp} custom={0} className="inline-flex items-center gap-2 glass-panel rounded-full px-4 py-1.5 mb-4">
               <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-              <span className="text-xs font-semibold tracking-wide">3D Companion · Felix</span>
+              <span className="text-xs font-semibold tracking-wide">3D Companion · Chameleon</span>
             </motion.div>
             <motion.h2 variants={fadeUp} custom={1} className="text-3xl sm:text-5xl font-bold mb-4">
-              Meet <span className="text-amber-400">Felix</span> — your color-changing companion
+              Meet <span className="text-amber-400">Chameleon</span> — your color-changing companion
             </motion.h2>
             <motion.p variants={fadeUp} custom={2} className="text-muted-foreground max-w-2xl mx-auto">
-              Felix is a 3D chameleon that transforms right before your eyes. Watch his skin shift from red to green as your French comprehension climbs.
+              Chameleon is a 3D chameleon that transforms right before your eyes. Watch his skin shift from red to green as your French comprehension climbs.
             </motion.p>
           </motion.div>
 
-          <FelixColorDemo />
+          <ChameleonColorDemo />
         </div>
       </section>
 

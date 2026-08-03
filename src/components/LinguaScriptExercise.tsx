@@ -12,6 +12,7 @@ type ExerciseMode = "gap-fill" | "mcq" | "speaking";
 
 interface LinguaScriptExerciseProps {
   targetWord?: string;
+  exerciseId?: string; // Load exercise by ID instead of word lookup
   language: string;
   interests?: string[];
   mode?: ExerciseMode;
@@ -22,6 +23,7 @@ interface LinguaScriptExerciseProps {
 
 export function LinguaScriptExercise({
   targetWord = "bonjour",
+  exerciseId,
   language,
   interests = [],
   mode = "gap-fill",
@@ -43,38 +45,48 @@ export function LinguaScriptExercise({
 
   useEffect(() => {
     loadExercise();
-  }, [targetWord, language]);
+  }, [targetWord, language, exerciseId]);
 
   async function loadExercise() {
     try {
       setLoading(true);
       setError(null);
 
-      // Fetch exercise from database
-      const { data, error: fetchError } = await supabase
-        .from("linguascripts")
-        .select("*")
-        .eq("language", language)
-        .eq("target_word", targetWord)
-        .eq("status", "pending")
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .single();
+      let data, fetchError;
+
+      if (exerciseId) {
+        // Load by ID (preferred - direct fetch)
+        const result = await supabase
+          .from("linguascripts")
+          .select("*")
+          .eq("id", exerciseId)
+          .single();
+        data = result.data;
+        fetchError = result.error;
+      } else {
+        // Load by target_word (fallback for demo mode)
+        const result = await supabase
+          .from("linguascripts")
+          .select("*")
+          .eq("language", language)
+          .eq("target_word", targetWord)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .single();
+        data = result.data;
+        fetchError = result.error;
+      }
 
       if (fetchError && fetchError.code !== "PGRST116") {
         throw fetchError;
       }
 
       if (!data) {
-        // No exercise found, create a temporary one with sample data
-        setExercise({
-          id: `temp-${targetWord}`,
-          target_word: targetWord,
-          sentence: `______ - Learning ${targetWord}`,
-          translation: `Learn ${targetWord}`,
-          gap_options: { correct: targetWord, distractors: ["option1", "option2", "option3"] },
-          mcq_options: { correct: 0, options: [targetWord, "option1", "option2", "option3"] },
-        });
+        setError(
+          exerciseId
+            ? "Exercise not found. It may have been deleted."
+            : `No exercise found for "${targetWord}". Save words first to create exercises.`
+        );
       } else {
         setExercise(data);
       }

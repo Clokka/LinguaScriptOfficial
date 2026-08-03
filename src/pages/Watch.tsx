@@ -880,23 +880,25 @@ const Watch = () => {
     const raw = line.split(/\s+/).filter(Boolean);
     if (raw.length < 3 || raw.length > 14) return;
 
-    // Exactly one orange word, everything else green.
+    // Exactly one learning/orange word, everything else green.
+    // Allow ORANGE or RED words that are due for review (SRS system)
     let gapIndex = -1;
     for (let i = 0; i < raw.length; i++) {
       const st = challengeDeck.get(normalizeToken(raw[i]))?.state;
-      if (st === "orange") {
-        if (gapIndex !== -1) return;   // more than one orange → not a clean gap
+      if (st === "orange" || st === "red") {  // Updated: allow both orange AND red for SRS
+        if (gapIndex !== -1) return;   // more than one learning word → not a clean gap
         gapIndex = i;
       } else if (st !== "green") {
-        return;                         // an unsaved or red word → line isn't ready
+        return;                         // an unsaved word → line isn't ready
       }
     }
     if (gapIndex === -1) return;
 
     // Gate on "due for review" so this stays occasional.
+    // Both next_review (old system) and SRS scheduling are checked
     const entry = challengeDeck.get(normalizeToken(raw[gapIndex]));
     const due = entry?.next_review;
-    if (!due || new Date(due) > new Date()) return;
+    if (!due || new Date(due) > new Date()) return;  // Check old system timing
 
     // Plausible distractors: other learning/known words from the same deck.
     const answerKey = normalizeToken(raw[gapIndex]);

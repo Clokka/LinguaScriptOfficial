@@ -5,6 +5,7 @@ import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { YourProgressDashboard } from "@/components/YourProgressDashboard";
 import { YourProgressSection } from "@/components/YourProgressSection";
+import { LevelBadge } from "@/components/LevelBadge";
 
 export default function Progress() {
   const navigate = useNavigate();
@@ -16,6 +17,7 @@ export default function Progress() {
             <ArrowLeft className="w-4 h-4" /> Back
           </Button>
           <h1 className="text-base font-semibold text-foreground">Your Progress</h1>
+          <div className="ml-auto"><LevelBadge /></div>
         </div>
       </header>
       <main className="px-6 py-8 max-w-6xl mx-auto space-y-10">

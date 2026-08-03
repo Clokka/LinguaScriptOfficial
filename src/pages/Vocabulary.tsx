@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { ArrowLeft, Volume2, BookOpen, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { LevelBadge } from "@/components/LevelBadge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -121,6 +122,7 @@ export default function Vocabulary() {
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <h1 className="text-lg font-bold text-foreground">Your Vocabulary</h1>
+          <div className="ml-auto"><LevelBadge /></div>
         </div>
       </header>
 
