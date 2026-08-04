@@ -14,6 +14,11 @@ import { useToast } from "@/hooks/use-toast";
 import { PETS } from "@/lib/pets";
 import { ACCESSORIES } from "@/lib/accessories";
 
+// Public site origin: gift links are meant to be opened by anyone, so we
+// always emit them against the production domain regardless of whether the
+// admin is being viewed inside the Lovable dashboard preview iframe.
+const PUBLIC_ORIGIN = "https://linguascript.co.uk";
+
 interface LinkRow {
   id: string;
   token: string;
@@ -92,7 +97,7 @@ export function AdminGiftLinks() {
   };
 
   const copyLink = (token: string) => {
-    const url = `${window.location.origin}/gift?token=${token}`;
+    const url = `${PUBLIC_ORIGIN}/gift?token=${token}`;
     navigator.clipboard.writeText(url);
     setCopiedId(token);
     window.setTimeout(() => setCopiedId(null), 1500);
@@ -181,7 +186,7 @@ export function AdminGiftLinks() {
           <div className="space-y-2">
             {links.map((row) => {
               const pet = PETS.find((p) => p.id === row.pet_id);
-              const url = `${window.location.origin}/gift?token=${row.token}`;
+              const url = `${PUBLIC_ORIGIN}/gift?token=${row.token}`;
               const claimed = !!row.claimed_by;
               return (
                 <div
