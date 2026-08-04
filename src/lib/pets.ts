@@ -89,6 +89,15 @@ export const PETS: PetMeta[] = [
     unlock: { type: "achievement", name: "Polyglot" },
     rarity: "legendary",
   },
+  {
+    id: "hedgehog",
+    name: "Hedgehog",
+    emoji: "🦔",
+    description: "A shy, cheerful hedgehog who bounces alongside your progress.",
+    glbFile: "/pets/Hedgehog_Animations.glb",
+    unlock: { type: "seasonal", event: "Gifted" },
+    rarity: "legendary",
+  },
 ];
 
 export function getPetById(id: string): PetMeta | undefined {
