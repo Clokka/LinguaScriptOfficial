@@ -125,12 +125,23 @@ export const PetLive = forwardRef<PetLiveHandle, PetLiveProps>(
     };
 
     useEffect(() => {
-      // If comprehensionPercent is provided, calculate hue-rotate for Chameleon's color change
+      // If comprehensionPercent is provided, use discrete color states: RED → ORANGE → GREEN
       let effectiveTint = tint;
       if (comprehensionPercent !== undefined) {
-        // 0% = red (hue -100), 100% = green (hue ~18)
-        const hueRotate = -100 + (comprehensionPercent / 100) * 118;
-        const saturate = 1 + (comprehensionPercent / 100) * 0.25;
+        let hueRotate: number;
+        let saturate = 1.2; // Boost saturation for strong colors
+
+        if (comprehensionPercent < 33) {
+          // RED state (0-32%)
+          hueRotate = -100; // Pure red
+        } else if (comprehensionPercent < 67) {
+          // ORANGE state (33-66%)
+          hueRotate = -50; // Orange
+        } else {
+          // GREEN state (67-100%)
+          hueRotate = 18; // Pure green
+        }
+
         effectiveTint = { ...tint, hueRotate, saturate };
       }
       tintRef.current = effectiveTint;

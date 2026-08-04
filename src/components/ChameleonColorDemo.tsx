@@ -1,4 +1,4 @@
-// Interactive Chameleon color-change demo with LineBlast praise + premium Ascension effects
+// Interactive Chameleon color-change demo with LineBlast praise
 import { useCallback, useMemo, useRef, useState } from "react";
 import { motion, useInView } from "framer-motion";
 import confetti from "canvas-confetti";
@@ -39,7 +39,6 @@ export const ChameleonColorDemo = () => {
   const [words, setWords] = useState<Word[]>(INITIAL);
   const [locked, setLocked] = useState(false);
   const [praise, setPraise] = useState<{ big: string; sub: string; key: number } | null>(null);
-  const [glowKey, setGlowKey] = useState(0);
   const wasComplete = useRef(false);
 
   const weight = (w: Word) => (w.fn ? 0.25 : 1);
@@ -83,14 +82,13 @@ export const ChameleonColorDemo = () => {
     setLocked(true);
     chameleonRef.current?.play("Spin");
 
-    // Use combo level (always 1 for this demo)
-    const comboLevel = 1;
+    // Show INCREDIBLE when sentence is 100% complete
+    const comboLevel = 4; // INCREDIBLE!
     const [big, sub] = PRAISE[comboLevel];
 
     setTimeout(() => {
       setPraise({ big, sub, key: Date.now() });
       burstConfetti();
-      setGlowKey(Date.now());
     }, 200);
 
     setTimeout(() => {
@@ -128,7 +126,6 @@ export const ChameleonColorDemo = () => {
     setWords(INITIAL);
     setPraise(null);
     setLocked(false);
-    setGlowKey(0);
     wasComplete.current = false;
   };
 
@@ -148,59 +145,13 @@ export const ChameleonColorDemo = () => {
           78% { opacity: 1; transform: scale(1); }
           100% { opacity: 0; transform: scale(1.04) translateY(-14px); }
         }
-        @keyframes fx-scale-pulse {
-          0% { transform: scale(1); }
-          20% { transform: scale(1.12); }
-          40% { transform: scale(0.96); }
-          60% { transform: scale(1.06); }
-          80% { transform: scale(1); }
-          100% { transform: scale(1); }
-        }
-        @keyframes fx-aurora-glow {
-          0% { opacity: 0; box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.8), inset 0 0 0 rgba(167, 139, 250, 0.3); }
-          20% { opacity: 1; box-shadow: 0 0 40px 15px rgba(251, 191, 36, 0.5), inset 0 0 40px rgba(167, 139, 250, 0.2); }
-          50% { box-shadow: 0 0 60px 35px rgba(96, 165, 250, 0.3), inset 0 0 60px rgba(167, 139, 250, 0.15); }
-          80% { box-shadow: 0 0 40px 25px rgba(236, 72, 153, 0.2), inset 0 0 40px rgba(96, 165, 250, 0.1); }
-          100% { opacity: 0; box-shadow: 0 0 20px 40px rgba(251, 191, 36, 0), inset 0 0 0 rgba(167, 139, 250, 0); }
-        }
-        @keyframes fx-rainbow-shimmer {
-          0% { background: radial-gradient(circle, rgba(251,191,36,0.5) 0%, rgba(96,165,250,0.2) 33%, rgba(167,139,250,0.15) 66%, transparent 100%); }
-          25% { background: radial-gradient(circle, rgba(96,165,250,0.5) 0%, rgba(167,139,250,0.2) 33%, rgba(236,72,153,0.15) 66%, transparent 100%); }
-          50% { background: radial-gradient(circle, rgba(167,139,250,0.5) 0%, rgba(236,72,153,0.2) 33%, rgba(244,63,94,0.15) 66%, transparent 100%); }
-          75% { background: radial-gradient(circle, rgba(34,211,153,0.5) 0%, rgba(251,191,36,0.2) 33%, rgba(96,165,250,0.15) 66%, transparent 100%); }
-          100% { background: radial-gradient(circle, rgba(251,191,36,0.5) 0%, rgba(96,165,250,0.2) 33%, rgba(167,139,250,0.15) 66%, transparent 100%); }
-        }
-        @keyframes lb-gold-sweep {
-          from { width: 0%; background: linear-gradient(90deg, transparent, #fbbf24, transparent); }
-          to { width: 100%; background: transparent; }
-        }
-        @keyframes lb-glow {
-          0% { opacity: 0; }
-          22% { opacity: 1; }
-          100% { opacity: 0; }
-        }
       `}</style>
 
-      {/* Chameleon 3D model with Ascension effects */}
+      {/* Chameleon 3D model — clean, no fancy effects */}
       <div
         ref={chameleonContainerRef}
         className="relative mx-auto flex h-[320px] w-full max-w-[460px] items-center justify-center"
-        style={
-          praise
-            ? {
-                animation: "fx-scale-pulse 0.8s ease-out, fx-aurora-glow 1.2s ease-out forwards",
-              }
-            : undefined
-        }
       >
-        {/* Aurora Shimmer Overlay */}
-        {praise && (
-          <div
-            className="pointer-events-none absolute inset-0 rounded-3xl"
-            style={{ animation: "fx-rainbow-shimmer 1.2s ease-out forwards" }}
-          />
-        )}
-
         {/* Chameleon stays visible */}
         {inView && (
           <PetLive
@@ -212,7 +163,7 @@ export const ChameleonColorDemo = () => {
           />
         )}
 
-        {/* Praise text overlay (stays on top, LineBlast style) */}
+        {/* Praise text overlay (LineBlast style only) */}
         {praise && praise.big && (
           <div
             key={`praise-${praise.key}`}
@@ -224,15 +175,6 @@ export const ChameleonColorDemo = () => {
               {praise.sub && <div className="text-sm font-bold text-amber-200 mt-2">{praise.sub}</div>}
             </div>
           </div>
-        )}
-
-        {/* Aurora Glow Edge */}
-        {glowKey > 0 && (
-          <div
-            key={`glow-${glowKey}`}
-            className="pointer-events-none absolute inset-0 z-[35] rounded-2xl opacity-0 [box-shadow:inset_0_0_90px_rgba(52,211,153,0.55)]"
-            style={{ animation: "lb-glow 0.9s ease-out forwards" }}
-          />
         )}
       </div>
 
