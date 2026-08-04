@@ -1,8 +1,7 @@
-import "https://deno.land/x/dotenv/load.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
-const MISTRAL_API_KEY = Deno.env.get("MISTRAL_API_KEY");
-const MISTRAL_API_URL = "https://api.mistral.ai/v1/chat/completions";
+const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+const LOVABLE_API_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
 interface SentenceToEvaluate {
   word: string;
@@ -50,30 +49,33 @@ Respond with ONLY a JSON array of objects with this structure:
 
 Do NOT include markdown code blocks. Only the raw JSON array.`;
 
-  const response = await fetch(MISTRAL_API_URL, {
+  const response = await fetch(LOVABLE_API_URL, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${MISTRAL_API_KEY}`,
+      "Authorization": `Bearer ${LOVABLE_API_KEY}`,
     },
     body: JSON.stringify({
-      model: "mistral-small-latest",
+      model: "google/gemini-2.5-flash",
       messages: [
         {
           role: "user",
           content: prompt,
         },
       ],
-      max_tokens: 1024,
+      temperature: 0.3,
     }),
   });
 
   if (!response.ok) {
-    throw new Error(`Mistral API error: ${response.statusText}`);
+    const err = await response.text();
+    console.error("Lovable API error:", response.status, err);
+    throw new Error(`Evaluation API failed: ${response.status}`);
   }
 
   const data = await response.json();
-  const responseText = data.choices[0].message.content;
+  let responseText = data.choices[0].message.content;
+  responseText = responseText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
 
   // Parse JSON
   const evaluated = JSON.parse(responseText);
