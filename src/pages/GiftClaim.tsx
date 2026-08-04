@@ -349,6 +349,7 @@ export default function GiftClaim() {
           >
             3D asset credits
           </button>
+          <span className="ml-2 opacity-40">v3</span>
         </p>
       </motion.div>
     </div>
