@@ -93,8 +93,11 @@ export async function attachAccessories(
   petBox.getSize(petSize);
   const petHeight = Math.max(petSize.y, 1e-4);
   const petWidth = Math.max(petSize.x, petSize.z, petHeight);
-  const footWidth = petHeight * 0.28;
-  const headWidth = petWidth * 0.7;
+  // Deliberately generous sizes so accessories can't hide inside the pet
+  // mesh. Better too big than invisible.
+  const footWidth = petHeight * 0.42;
+  const headWidth = petWidth * 1.0;
+  console.log("[gift] attaching accessories:", accessoryIds, "petSize:", petSize);
 
   const added: THREE.Object3D[] = [];
   const metas = accessoryIds
@@ -127,24 +130,25 @@ function attachShoes(
   footWidth: number,
   added: THREE.Object3D[]
 ) {
+  const foundBones: string[] = [];
   LEG_BONE_NAMES.forEach((bone) => {
     const target = findBone(petRoot, bone);
     if (!target) return;
+    foundBones.push(bone);
     const shoe = sourceScene.clone(true);
     markAccessoryMaterials(shoe);
     centerAndScale(shoe, footWidth);
-    // Sit the shoe under the bone: after centering, the shoe's local origin
-    // is at its own centre. Push it down half its height so it visually
-    // rests below the leg.
     const shoeBox = new THREE.Box3().setFromObject(shoe);
     const shoeSize = new THREE.Vector3();
     shoeBox.getSize(shoeSize);
-    shoe.position.y -= shoeSize.y * 0.5;
-    // Back legs face the other way.
+    // Push the shoe well below the bone — leg bones are usually inside the
+    // body mesh, so we need to extend clearly outside it.
+    shoe.position.y -= shoeSize.y * 1.2;
     if (bone.startsWith("leg.B")) shoe.rotation.y = Math.PI;
     target.add(shoe);
     added.push(shoe);
   });
+  console.log("[gift] shoes attached to bones:", foundBones);
 }
 
 function attachHat(
@@ -187,12 +191,13 @@ function attachHat(
   const hat = sourceScene.clone(true);
   markAccessoryMaterials(hat);
   centerAndScale(hat, headWidth);
-  // Sit the hat brim just above the anchor point.
   const hatBox = new THREE.Box3().setFromObject(hat);
   const hatSize = new THREE.Vector3();
   hatBox.getSize(hatSize);
-  hat.position.y += hatSize.y * 0.5;
+  // Sit the hat well above the anchor so its brim clears the pet's head.
+  hat.position.y += hatSize.y * 0.8;
   hat.rotation.x = -0.15;
   anchor.add(hat);
   added.push(hat);
+  console.log("[gift] hat attached, head anchor:", anchor.position.toArray());
 }
