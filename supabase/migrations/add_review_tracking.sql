@@ -1,62 +1,40 @@
--- Add linguascript_reviews table for tracking review performance
--- This table stores data about each review attempt (gap-fill, active recall, linguascript)
+-- Create linguascript_reviews table for tracking review performance
+-- Split into separate statements for Loveable SQL editor compatibility
 
 CREATE TABLE IF NOT EXISTS linguascript_reviews (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-
-  -- Foreign keys
-  exercise_id UUID NOT NULL REFERENCES linguascripts(id) ON DELETE CASCADE,
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-
-  -- Review details
-  method_used TEXT NOT NULL CHECK (method_used IN ('gap-fill', 'active-recall', 'linguascript')),
-  performance SMALLINT NOT NULL DEFAULT 0 CHECK (performance >= 0 AND performance <= 100),
-
-  -- For active recall and linguascript: user's response
+  linguascript_id UUID NOT NULL,
+  user_id UUID NOT NULL,
+  method_used TEXT NOT NULL,
+  performance SMALLINT NOT NULL DEFAULT 0,
   user_text TEXT,
-
-  -- AI feedback (for linguascript evaluation)
   ai_feedback TEXT,
-
-  -- Timing and metadata
-  response_time_ms INTEGER, -- milliseconds
+  response_time_ms INTEGER,
   first_try_correct BOOLEAN DEFAULT false,
-  session_id TEXT, -- group reviews into sessions
-
-  -- Timestamps
+  session_id TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Indexes for fast queries
-CREATE INDEX IF NOT EXISTS idx_linguascript_reviews_exercise_id
-  ON linguascript_reviews(exercise_id);
+ALTER TABLE linguascript_reviews ADD CONSTRAINT fk_linguascript_reviews_linguascript
+  FOREIGN KEY (linguascript_id) REFERENCES linguascripts(id) ON DELETE CASCADE;
 
-CREATE INDEX IF NOT EXISTS idx_linguascript_reviews_user_id
-  ON linguascript_reviews(user_id);
+ALTER TABLE linguascript_reviews ADD CONSTRAINT fk_linguascript_reviews_user
+  FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
 
-CREATE INDEX IF NOT EXISTS idx_linguascript_reviews_created_at
-  ON linguascript_reviews(created_at);
+ALTER TABLE linguascript_reviews ADD CONSTRAINT ck_method_used
+  CHECK (method_used IN ('gap-fill', 'active-recall', 'linguascript'));
 
-CREATE INDEX IF NOT EXISTS idx_linguascript_reviews_session_id
-  ON linguascript_reviews(session_id);
+ALTER TABLE linguascript_reviews ADD CONSTRAINT ck_performance
+  CHECK (performance >= 0 AND performance <= 100);
 
--- Enable RLS
+CREATE INDEX IF NOT EXISTS idx_linguascript_reviews_linguascript_id ON linguascript_reviews(linguascript_id);
+CREATE INDEX IF NOT EXISTS idx_linguascript_reviews_user_id ON linguascript_reviews(user_id);
+CREATE INDEX IF NOT EXISTS idx_linguascript_reviews_created_at ON linguascript_reviews(created_at);
+CREATE INDEX IF NOT EXISTS idx_linguascript_reviews_session_id ON linguascript_reviews(session_id);
+
 ALTER TABLE linguascript_reviews ENABLE ROW LEVEL SECURITY;
 
--- RLS policies: users can only see their own reviews
-CREATE POLICY "Users can view their own reviews"
-  ON linguascript_reviews
-  FOR SELECT
-  USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can insert their own reviews"
-  ON linguascript_reviews
-  FOR INSERT
-  WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "Users can update their own reviews"
-  ON linguascript_reviews
-  FOR UPDATE
-  USING (auth.uid() = user_id)
-  WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can view their own reviews" ON linguascript_reviews FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert their own reviews" ON linguascript_reviews FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can update their own reviews" ON linguascript_reviews FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);

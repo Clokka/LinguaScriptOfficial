@@ -132,15 +132,18 @@ export function LinguaScriptSession({
   );
 
   const saveSentenceData = async (sentences: any[]) => {
-    // Save each sentence to linguascript_reviews
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
       const reviews = sentences.map((s) => ({
-        exercise_id: exercises.find((e) => e.target_word === s.word)?.id,
+        linguascript_id: exercises.find((e) => e.target_word === s.word)?.id,
+        user_id: user.id,
         method_used: "linguascript",
         performance: s.score,
         user_text: s.userText,
         ai_feedback: s.feedback,
-        timestamp: new Date().toISOString(),
+        session_id: `session_${Date.now()}`,
       }));
 
       await supabase.from("linguascript_reviews").insert(reviews);
