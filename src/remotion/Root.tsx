@@ -1,5 +1,6 @@
 import { Composition } from "remotion";
 import { GreenTransition } from "./GreenTransition";
+import { HedgehogGiveaway } from "./HedgehogGiveaway";
 
 /**
  * Remotion composition registry.
@@ -25,6 +26,16 @@ export const RemotionRoot = () => (
       fps={30}
       width={1080}
       height={1080}
+    />
+
+    {/* Instagram story — 9:16. */}
+    <Composition
+      id="HedgehogGiveaway"
+      component={HedgehogGiveaway}
+      durationInFrames={270}
+      fps={30}
+      width={1080}
+      height={1920}
     />
   </>
 );

@@ -11,7 +11,8 @@
     "preview": "vite preview",
     "migrate:linguascripts": "node scripts/apply-linguascripts-migration.js",
     "video": "remotion studio src/remotion/index.ts",
-    "video:render": "remotion render src/remotion/index.ts GreenTransition out/green-transition.mp4"
+    "video:render": "remotion render src/remotion/index.ts GreenTransition out/green-transition.mp4",
+    "video:hedgehog": "remotion render src/remotion/index.ts HedgehogGiveaway out/hedgehog-giveaway.mp4"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
