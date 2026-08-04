@@ -20,6 +20,7 @@ import { getIntegrations, saveIntegrations, type IntegrationKey, type Integratio
 import { AdminProGrants } from "@/components/AdminProGrants";
 import { AdminStripeFallback } from "@/components/AdminStripeFallback";
 import { AdminPaymentLinks } from "@/components/AdminPaymentLinks";
+import { AdminGiftLinks } from "@/components/AdminGiftLinks";
 
 function RowHeader({ row, onRename, onDelete }: { row: { id: string; title: string }; onRename: (id: string, title: string) => void; onDelete: (id: string) => void; }) {
   const [editing, setEditing] = useState(false);
@@ -352,6 +353,7 @@ const Admin = () => {
         <AdminProGrants />
         <AdminStripeFallback />
         <AdminPaymentLinks />
+        <AdminGiftLinks />
 
         {/* Add Film Form */}
         <form onSubmit={addFilm} className="glass-panel-strong p-6 space-y-4 mb-8">
