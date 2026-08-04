@@ -60,8 +60,10 @@ BEGIN
     RETURN json_build_object('error', 'You do not own this pet');
   END IF;
 
-  v_token := encode(gen_random_bytes(12), 'base64');
-  v_token := replace(replace(replace(v_token, '+', ''), '/', ''), '=', '');
+  -- Use the built-in gen_random_uuid() so this works even when pgcrypto
+  -- lives in the `extensions` schema (Supabase default) that our locked
+  -- search_path can't see.
+  v_token := replace(gen_random_uuid()::text, '-', '');
 
   INSERT INTO pet_gift_links (sender_id, pet_id, token, accessories)
   VALUES (v_sender_id, p_pet_id, v_token, p_accessories);
