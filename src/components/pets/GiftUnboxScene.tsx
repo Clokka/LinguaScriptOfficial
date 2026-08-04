@@ -14,7 +14,7 @@ import confetti from "canvas-confetti";
 import { attachAccessories } from "@/lib/petAccessoryLoader";
 
 const PRESENT_GLB = "/gifts/Present.glb";
-const HEDGEHOG_GLB = "/pets/Hedgehog_Animations.glb";
+const DEFAULT_PET_GLB = "/pets/Hedgehog_Animations.glb";
 const ROSE_GLB = "/gifts/Rose.glb";
 const TULIP_GLB = "/gifts/Tulip.glb";
 
@@ -23,6 +23,8 @@ export interface GiftUnboxHandle {
 }
 
 interface GiftUnboxSceneProps {
+  /** GLB path for the pet being gifted. Defaults to the hedgehog. */
+  petGlb?: string;
   accessories?: string[];
   onReady?: () => void;
   onOpenComplete?: () => void;
@@ -30,7 +32,7 @@ interface GiftUnboxSceneProps {
 }
 
 export const GiftUnboxScene = forwardRef<GiftUnboxHandle, GiftUnboxSceneProps>(
-  ({ accessories = [], onReady, onOpenComplete, size = 320 }, ref) => {
+  ({ petGlb = DEFAULT_PET_GLB, accessories = [], onReady, onOpenComplete, size = 320 }, ref) => {
     const hostRef = useRef<HTMLDivElement>(null);
     const openFnRef = useRef<() => void>(() => {});
 
@@ -165,8 +167,8 @@ export const GiftUnboxScene = forwardRef<GiftUnboxHandle, GiftUnboxSceneProps>(
         maybeReady();
       });
 
-      // --- Hedgehog ---
-      loader.load(HEDGEHOG_GLB, async (gltf) => {
+      // --- Pet (whichever pet the gift is for) ---
+      loader.load(petGlb, async (gltf) => {
         if (disposed) return;
         hedgehogModel = gltf.scene;
         normaliseAndCentre(hedgehogModel, 0.85);
@@ -378,7 +380,7 @@ export const GiftUnboxScene = forwardRef<GiftUnboxHandle, GiftUnboxSceneProps>(
         renderer.domElement.remove();
       };
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [size, accessoriesKey]);
+    }, [size, accessoriesKey, petGlb]);
 
     return (
       <div

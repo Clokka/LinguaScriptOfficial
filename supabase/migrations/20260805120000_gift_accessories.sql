@@ -34,7 +34,11 @@ CREATE POLICY "Users update own equipment" ON pet_equipment
 CREATE POLICY "Users insert own equipment" ON pet_equipment
   FOR INSERT WITH CHECK (auth.uid() = user_id);
 
--- 3. Replace create_gift_link to accept an optional accessory array
+-- 3. Replace create_gift_link to accept an optional accessory array.
+-- The previous signature is a different function to Postgres (different
+-- arg list), so drop it explicitly to avoid overload ambiguity.
+DROP FUNCTION IF EXISTS public.create_gift_link(text);
+
 CREATE OR REPLACE FUNCTION create_gift_link(p_pet_id text, p_accessories text[] DEFAULT NULL)
 RETURNS json
 LANGUAGE plpgsql
@@ -56,8 +60,10 @@ BEGIN
     RETURN json_build_object('error', 'You do not own this pet');
   END IF;
 
-  v_token := encode(gen_random_bytes(12), 'base64');
-  v_token := replace(replace(replace(v_token, '+', ''), '/', ''), '=', '');
+  -- Use the built-in gen_random_uuid() so this works even when pgcrypto
+  -- lives in the `extensions` schema (Supabase default) that our locked
+  -- search_path can't see.
+  v_token := replace(gen_random_uuid()::text, '-', '');
 
   INSERT INTO pet_gift_links (sender_id, pet_id, token, accessories)
   VALUES (v_sender_id, p_pet_id, v_token, p_accessories);
@@ -179,3 +185,7 @@ END;
 $$;
 
 GRANT EXECUTE ON FUNCTION get_gift_link_preview(text) TO anon, authenticated;
+
+-- Force PostgREST to reload its schema cache so the new function signature
+-- is visible to the app immediately.
+NOTIFY pgrst, 'reload schema';
