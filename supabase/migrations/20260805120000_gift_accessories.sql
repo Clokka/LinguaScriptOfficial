@@ -34,7 +34,11 @@ CREATE POLICY "Users update own equipment" ON pet_equipment
 CREATE POLICY "Users insert own equipment" ON pet_equipment
   FOR INSERT WITH CHECK (auth.uid() = user_id);
 
--- 3. Replace create_gift_link to accept an optional accessory array
+-- 3. Replace create_gift_link to accept an optional accessory array.
+-- The previous signature is a different function to Postgres (different
+-- arg list), so drop it explicitly to avoid overload ambiguity.
+DROP FUNCTION IF EXISTS public.create_gift_link(text);
+
 CREATE OR REPLACE FUNCTION create_gift_link(p_pet_id text, p_accessories text[] DEFAULT NULL)
 RETURNS json
 LANGUAGE plpgsql
@@ -179,3 +183,7 @@ END;
 $$;
 
 GRANT EXECUTE ON FUNCTION get_gift_link_preview(text) TO anon, authenticated;
+
+-- Force PostgREST to reload its schema cache so the new function signature
+-- is visible to the app immediately.
+NOTIFY pgrst, 'reload schema';
