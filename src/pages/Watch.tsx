@@ -24,6 +24,7 @@ import { useXp } from "@/contexts/XpContext";
 import { usePet } from "@/contexts/PetContext";
 import { recordDailyVideoWatch, setReinforcementPending } from "@/lib/dailyVideo";
 import { toast } from "sonner";
+import { generateLinguaScriptFromWord, createLinguaScriptFromSavedWord } from "@/lib/linguascripts";
 import {
   computeVideoComprehension,
   loadComprehensionRecord,
@@ -751,6 +752,41 @@ const Watch = () => {
     onWordSaved(savedTodayRef.current);
     playDing("success");
     maybeTriggerLearningBreak({ word: word.text, translation });
+
+    // Generate LinguaScript exercise for this word
+    generateLinguaScriptForWord(word.text, translation, "red", langCode);
+  };
+
+  const generateLinguaScriptForWord = async (
+    wordText: string,
+    translation: string,
+    state: "red" | "orange" | "green",
+    language: string
+  ) => {
+    try {
+      const sentence = await generateLinguaScriptFromWord({
+        word: wordText,
+        interests: [],
+        cefLevel: "B1",
+        language,
+        wordState: state,
+        nativeLanguage,
+      });
+
+      if (sentence) {
+        await createLinguaScriptFromSavedWord(
+          user!.id,
+          wordText,
+          sentence.sentence,
+          sentence.translation,
+          state,
+          language,
+          []
+        );
+      }
+    } catch (err) {
+      console.error("Failed to generate LinguaScript:", err);
+    }
   };
 
   const savePhrase = async (phrase: string) => {
@@ -811,6 +847,9 @@ const Watch = () => {
     }
     toast.success("Phrase saved to flashcards");
     playDing("success");
+
+    // Generate LinguaScript exercise for this phrase
+    generateLinguaScriptForWord(trimmed, translation, "red", langCode);
   };
 
   const markWordKnown = async (word: { text: string; translation?: string }) => {
@@ -843,6 +882,9 @@ const Watch = () => {
       return;
     }
     toast.success("Marked as known: " + word.text);
+
+    // Generate LinguaScript exercise for known words (as green)
+    generateLinguaScriptForWord(word.text, word.translation || "", "green", langCode);
   };
 
   const downloadSrt = (type: "primary" | "secondary") => {
