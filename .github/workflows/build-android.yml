@@ -1,6 +1,6 @@
 name: Build Android APK
 
-# Trigger this manually from the Actions tab.
+# Trigger manually from the Actions tab.
 # Requires repo secret: EXPO_TOKEN (from expo.dev/settings/access-tokens)
 
 on:
@@ -15,16 +15,12 @@ on:
           - preview
           - development
           - production
-      wait_for_build:
-        description: "Block workflow until build finishes (adds 10-15 min)"
-        required: true
-        default: true
-        type: boolean
 
 jobs:
   build:
     name: EAS Build (${{ github.event.inputs.profile }})
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Check out repo
         uses: actions/checkout@v4
@@ -43,8 +39,7 @@ jobs:
         working-directory: mobile
         run: npm ci --no-audit --no-fund
 
-      - name: Trigger EAS build (no wait)
-        if: ${{ github.event.inputs.wait_for_build == 'false' }}
+      - name: Trigger EAS build
         working-directory: mobile
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
@@ -53,46 +48,74 @@ jobs:
             --profile ${{ github.event.inputs.profile }} \
             --platform android \
             --non-interactive \
-            --no-wait
-
-      - name: Trigger EAS build (wait for APK)
-        if: ${{ github.event.inputs.wait_for_build == 'true' }}
-        working-directory: mobile
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: |
+            --no-wait \
+            --json \
+            --output /tmp/build.json 2>/tmp/eas.log || \
           eas build \
             --profile ${{ github.event.inputs.profile }} \
             --platform android \
             --non-interactive \
+            --no-wait \
             --json > /tmp/build.json
-          cat /tmp/build.json
-          echo ""
-          echo "═══════════════════════════════════════════════════"
-          echo "  BUILD FINISHED — download link below:"
-          echo "═══════════════════════════════════════════════════"
-          node -e "const b=JSON.parse(require('fs').readFileSync('/tmp/build.json','utf8'))[0]; console.log('APK URL:', b.artifacts.buildUrl); console.log('Build page:', 'https://expo.dev/accounts/'+b.project.ownerAccount.name+'/projects/'+b.project.slug+'/builds/'+b.id);"
 
-      - name: Post APK URL to run summary
-        if: ${{ github.event.inputs.wait_for_build == 'true' && success() }}
-        working-directory: mobile
+      - name: Post build link to run summary
         run: |
-          BUILD_URL=$(node -e "const b=JSON.parse(require('fs').readFileSync('/tmp/build.json','utf8'))[0]; process.stdout.write(b.artifacts.buildUrl);")
-          BUILD_PAGE=$(node -e "const b=JSON.parse(require('fs').readFileSync('/tmp/build.json','utf8'))[0]; process.stdout.write('https://expo.dev/accounts/'+b.project.ownerAccount.name+'/projects/'+b.project.slug+'/builds/'+b.id);")
+          echo "=== EAS output ==="
+          cat /tmp/build.json || true
+          BUILD_ID=$(node -e "
+            const raw = require('fs').readFileSync('/tmp/build.json','utf8').trim();
+            const data = JSON.parse(raw);
+            const b = Array.isArray(data) ? data[0] : data;
+            process.stdout.write(b.id);
+          " 2>/dev/null || echo "")
+
+          BUILD_URL=$(node -e "
+            const raw = require('fs').readFileSync('/tmp/build.json','utf8').trim();
+            const data = JSON.parse(raw);
+            const b = Array.isArray(data) ? data[0] : data;
+            const url = (b.artifacts && b.artifacts.buildUrl) || '';
+            process.stdout.write(url);
+          " 2>/dev/null || echo "")
+
+          OWNER=$(node -e "
+            const raw = require('fs').readFileSync('/tmp/build.json','utf8').trim();
+            const data = JSON.parse(raw);
+            const b = Array.isArray(data) ? data[0] : data;
+            const owner = (b.project && b.project.ownerAccount && b.project.ownerAccount.name) || 'rowanawesome1s-team';
+            process.stdout.write(owner);
+          " 2>/dev/null || echo "rowanawesome1s-team")
+
+          SLUG=$(node -e "
+            const raw = require('fs').readFileSync('/tmp/build.json','utf8').trim();
+            const data = JSON.parse(raw);
+            const b = Array.isArray(data) ? data[0] : data;
+            const slug = (b.project && b.project.slug) || 'linguascript-chameleon';
+            process.stdout.write(slug);
+          " 2>/dev/null || echo "linguascript-chameleon")
+
+          BUILD_PAGE="https://expo.dev/accounts/${OWNER}/projects/${SLUG}/builds/${BUILD_ID}"
+
           {
-            echo "## 🦎 LinguaScript APK ready"
+            echo "## 🦎 EAS build triggered"
             echo ""
-            echo "**Tap the download link on your phone:**"
+            echo "The build is running on Expo's servers. Check back in ~10-15 minutes."
             echo ""
-            echo "👉 [Download APK]($BUILD_URL)"
+            echo "### 📱 Watch the build + get your APK:"
             echo ""
-            echo "**Or view the full build page:** [$BUILD_PAGE]($BUILD_PAGE)"
+            echo "👉 **[Open build page on expo.dev]($BUILD_PAGE)**"
             echo ""
+            if [ -n "$BUILD_URL" ]; then
+              echo "When complete, the APK download link will appear here:"
+              echo ""
+              echo "👉 [Download APK]($BUILD_URL)"
+              echo ""
+            fi
             echo "### Install on Android"
-            echo "1. Open the download link on your phone in Chrome"
-            echo "2. Tap the APK file when downloaded"
-            echo "3. Android will ask to allow installs from unknown sources — approve"
-            echo "4. Tap Install"
+            echo "1. Open the build page link above on your phone"
+            echo "2. Wait for status to say **Finished**"
+            echo "3. Tap **Download** to get the .apk file"
+            echo "4. Open it from your Downloads — tap Install"
             echo ""
-            echo "Profile: \`${{ github.event.inputs.profile }}\`"
+            echo "**Build ID:** \`$BUILD_ID\`"
+            echo "**Profile:** \`${{ github.event.inputs.profile }}\`"
           } >> $GITHUB_STEP_SUMMARY
