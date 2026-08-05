@@ -100,6 +100,12 @@ export async function loadUserSavedWords(userId: string | null, language: string
  */
 export async function generateLinguaScriptFromWord(params: {
   word: string;
+  /**
+   * The learner's known meaning of the word. Required — the
+   * generate-personalized-linguascript edge function rejects the request with
+   * "Missing required fields" if word, translation or language is absent.
+   */
+  translation: string;
   interests: string[];
   cefLevel: string;
   language: string;
@@ -135,9 +141,57 @@ export async function generateLinguaScriptFromWord(params: {
  */
 export function getNextReviewDate(wordState: "red" | "orange" | "green"): Date {
   const now = new Date();
-  const daysMap = { red: 1, orange: 3, green: 7 };
-  const days = daysMap[wordState];
+  const daysMap: Record<string, number> = { red: 1, orange: 3, green: 7 };
+  // Fall back to the shortest interval rather than producing an Invalid Date.
+  // An unrecognised state used to yield `undefined` days -> NaN -> Invalid
+  // Date, and the caller's .toISOString() then threw inside a try/catch —
+  // silently dropping every word instead of scheduling it.
+  const days = daysMap[wordState] ?? 1;
   return new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
+}
+
+/**
+ * Build the gap-fill and multiple-choice payloads for a generated sentence.
+ *
+ * The generator (and its edge function) only return prose — sentence and
+ * translation — so the exercise shape is derived here rather than round-
+ * tripping to the model for something deterministic.
+ */
+export function buildExerciseOptions(
+  sentence: string,
+  targetWord: string,
+  distractorPool: string[],
+): {
+  gapPosition: number;
+  gapOptions: { correct: string; distractors: string[] };
+  mcqOptions: { correct: number; options: string[] };
+} {
+  const tokens = sentence.split(/\s+/);
+  const norm = (t: string) => t.toLowerCase().replace(/[.,!?;:'"«»…]/g, "");
+  const target = norm(targetWord);
+
+  let gapPosition = tokens.findIndex((t) => norm(t) === target);
+  // Fall back to a prefix match ("échappé" inside "échappé,") then to 0 so a
+  // conjugated form never produces a -1 gap.
+  if (gapPosition === -1) {
+    gapPosition = tokens.findIndex((t) => norm(t).startsWith(target.slice(0, 4)));
+  }
+  if (gapPosition === -1) gapPosition = 0;
+
+  const distractors = distractorPool
+    .filter((w) => norm(w) !== target)
+    .slice(0, 3);
+
+  const options = [targetWord, ...distractors];
+  // Deterministic shuffle would be nicer for tests; a plain sort keeps the
+  // correct answer off position 0 without needing a seed.
+  options.sort((a, b) => a.localeCompare(b));
+
+  return {
+    gapPosition,
+    gapOptions: { correct: targetWord, distractors },
+    mcqOptions: { correct: options.indexOf(targetWord), options },
+  };
 }
 
 /** ===== DATABASE: Create LinguaScript Records ===== */

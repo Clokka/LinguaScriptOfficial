@@ -1,5 +1,10 @@
 import { useState, useEffect } from "react";
-import { generateLinguaScript, createLinguaScriptFromSavedWord, type LinguaScript } from "@/lib/linguascripts";
+import {
+  generateLinguaScriptFromWord,
+  createLinguaScriptFromSavedWord,
+  buildExerciseOptions,
+  type LinguaScript,
+} from "@/lib/linguascripts";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -25,6 +30,7 @@ export function TodaysMission({ language, onStartExercise }: TodaysMissionProps)
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({ completed: 0, total: 0, xpEarned: 0 });
   const [generatingFor, setGeneratingFor] = useState<string | null>(null);
+  const [failedCount, setFailedCount] = useState(0);
 
   useEffect(() => {
     loadMission();
@@ -59,52 +65,82 @@ export function TodaysMission({ language, onStartExercise }: TodaysMissionProps)
         return;
       }
 
-      // Generate LinguaScripts for each saved word
+      // Other due words make the most convincing distractors — same language,
+      // same learner, same rough level.
+      const distractorPool = (savedWords as SavedWord[]).map((w) => w.word);
+
       const generatedScripts: LinguaScript[] = [];
+      const failures: string[] = [];
+
       for (const savedWord of savedWords as SavedWord[]) {
         try {
           setGeneratingFor(savedWord.word);
 
-          // Generate AI content
-          const generated = await generateLinguaScript(
-            savedWord.word,
+          const wordState = (["red", "orange", "green"] as const).includes(
+            savedWord.state as never,
+          )
+            ? (savedWord.state as "red" | "orange" | "green")
+            : "red";
+
+          const generated = await generateLinguaScriptFromWord({
+            word: savedWord.word,
+            translation: savedWord.translation,
+            interests: [],
+            cefLevel: "B1",
             language,
-            []
+            wordState,
+            nativeLanguage: "en",
+          });
+
+          // The generator returns null on any edge-function failure rather
+          // than throwing, so this has to be checked explicitly.
+          if (!generated?.sentence) {
+            failures.push(savedWord.word);
+            continue;
+          }
+
+          const { gapPosition, gapOptions, mcqOptions } = buildExerciseOptions(
+            generated.sentence,
+            savedWord.word,
+            distractorPool,
           );
 
-          // Create LinguaScript in database
-          const linguascriptId = await createLinguaScriptFromSavedWord(
+          const created = await createLinguaScriptFromSavedWord(
             user.id,
-            savedWord.id,
             savedWord.word,
-            generated.translation,
+            generated.sentence,
+            generated.translation || savedWord.translation,
+            wordState,
             language,
-            savedWord.context || generated.sentence,
-            generated.gapOptions,
-            generated.mcqOptions
+            [],
           );
+
+          if (!created) {
+            failures.push(savedWord.word);
+            continue;
+          }
 
           generatedScripts.push({
-            id: linguascriptId,
-            user_id: user.id,
-            language,
-            target_word: savedWord.word,
-            sentence: generated.sentence,
-            translation: generated.translation,
-            interest: "",
-            gap_position: generated.gapPosition,
-            gap_options: generated.gapOptions,
-            mcq_options: generated.mcqOptions,
-            status: "pending",
-            attempts: 0,
-            scheduled_to_srs: true,
-            combo_multiplier: 1,
-            created_at: new Date().toISOString(),
-          } as LinguaScript);
+            ...created,
+            gap_position: gapPosition,
+            gap_options: gapOptions,
+            mcq_options: mcqOptions,
+          });
         } catch (err) {
+          failures.push(savedWord.word);
           console.error(`Failed to generate exercise for "${savedWord.word}":`, err);
         }
       }
+
+      // Don't let a total failure masquerade as "nothing to review" — that
+      // ambiguity is what hid three separate bugs in this path.
+      if (failures.length) {
+        console.warn(
+          `[TodaysMission] ${failures.length}/${savedWords.length} words failed to generate:`,
+          failures,
+        );
+      }
+      setFailedCount(failures.length);
 
       setGeneratingFor(null);
       setScripts(generatedScripts);

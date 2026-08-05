@@ -79,8 +79,11 @@ export function useLinguaScriptStatus() {
       }
 
       setStatus({
+        // The local is `linguaScriptsPending` (capital S); referencing the
+        // lowercase form here threw a ReferenceError that the catch below
+        // swallowed, so the hook always fell through to its empty fallback.
+        linguascriptsPending: linguaScriptsPending,
         state: homeState,
-        linguascriptsPending,
         linguascriptsDueIds: dueIds,
         flashcardsDue,
         nextFlashcardReviewTime: flashcards?.[0]?.last_reviewed_at,
