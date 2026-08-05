@@ -1,0 +1,98 @@
+name: Build Android APK
+
+# Trigger this manually from the Actions tab.
+# Requires repo secret: EXPO_TOKEN (from expo.dev/settings/access-tokens)
+
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: "EAS build profile"
+        required: true
+        default: "preview"
+        type: choice
+        options:
+          - preview
+          - development
+          - production
+      wait_for_build:
+        description: "Block workflow until build finishes (adds 10-15 min)"
+        required: true
+        default: true
+        type: boolean
+
+jobs:
+  build:
+    name: EAS Build (${{ github.event.inputs.profile }})
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Install EAS CLI
+        run: npm install -g eas-cli@latest
+
+      - name: Install mobile deps
+        working-directory: mobile
+        run: npm ci --no-audit --no-fund
+
+      - name: Trigger EAS build (no wait)
+        if: ${{ github.event.inputs.wait_for_build == 'false' }}
+        working-directory: mobile
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          eas build \
+            --profile ${{ github.event.inputs.profile }} \
+            --platform android \
+            --non-interactive \
+            --no-wait
+
+      - name: Trigger EAS build (wait for APK)
+        if: ${{ github.event.inputs.wait_for_build == 'true' }}
+        working-directory: mobile
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          eas build \
+            --profile ${{ github.event.inputs.profile }} \
+            --platform android \
+            --non-interactive \
+            --json > /tmp/build.json
+          cat /tmp/build.json
+          echo ""
+          echo "═══════════════════════════════════════════════════"
+          echo "  BUILD FINISHED — download link below:"
+          echo "═══════════════════════════════════════════════════"
+          node -e "const b=JSON.parse(require('fs').readFileSync('/tmp/build.json','utf8'))[0]; console.log('APK URL:', b.artifacts.buildUrl); console.log('Build page:', 'https://expo.dev/accounts/'+b.project.ownerAccount.name+'/projects/'+b.project.slug+'/builds/'+b.id);"
+
+      - name: Post APK URL to run summary
+        if: ${{ github.event.inputs.wait_for_build == 'true' && success() }}
+        working-directory: mobile
+        run: |
+          BUILD_URL=$(node -e "const b=JSON.parse(require('fs').readFileSync('/tmp/build.json','utf8'))[0]; process.stdout.write(b.artifacts.buildUrl);")
+          BUILD_PAGE=$(node -e "const b=JSON.parse(require('fs').readFileSync('/tmp/build.json','utf8'))[0]; process.stdout.write('https://expo.dev/accounts/'+b.project.ownerAccount.name+'/projects/'+b.project.slug+'/builds/'+b.id);")
+          {
+            echo "## 🦎 LinguaScript APK ready"
+            echo ""
+            echo "**Tap the download link on your phone:**"
+            echo ""
+            echo "👉 [Download APK]($BUILD_URL)"
+            echo ""
+            echo "**Or view the full build page:** [$BUILD_PAGE]($BUILD_PAGE)"
+            echo ""
+            echo "### Install on Android"
+            echo "1. Open the download link on your phone in Chrome"
+            echo "2. Tap the APK file when downloaded"
+            echo "3. Android will ask to allow installs from unknown sources — approve"
+            echo "4. Tap Install"
+            echo ""
+            echo "Profile: \`${{ github.event.inputs.profile }}\`"
+          } >> $GITHUB_STEP_SUMMARY
