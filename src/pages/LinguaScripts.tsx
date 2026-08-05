@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { ArrowLeft, BookOpen, Loader2 } from "lucide-react";
+import { ArrowLeft, BookOpen, Loader2, Play } from "lucide-react";
+import { LinguaScriptSession } from "@/components/LinguaScriptSession";
 
 type WordState = "red" | "orange" | "green";
 
@@ -46,6 +47,8 @@ export default function LinguaScripts() {
   const [allExercises, setAllExercises] = useState<LinguaScript[]>([]);
   const [loading, setLoading] = useState(true);
   const [dueCount, setDueCount] = useState(0);
+  const [sessionActive, setSessionActive] = useState(false);
+  const [sessionExerciseIds, setSessionExerciseIds] = useState<string[]>([]);
 
   useEffect(() => {
     if (user && learningLanguage) {
@@ -82,6 +85,49 @@ export default function LinguaScripts() {
       setLoading(false);
     }
   }, [user, learningLanguage]);
+
+  const handleStartSession = useCallback(() => {
+    // Start session with due exercises first, then others
+    const now = new Date().toISOString();
+    const dueExercises = allExercises.filter(
+      (e) => e.scheduled_for && e.scheduled_for <= now && !e.completed_at
+    );
+    const otherExercises = allExercises.filter(
+      (e) => !e.completed_at && !dueExercises.find((d) => d.id === e.id)
+    );
+
+    const sessionIds = [...dueExercises, ...otherExercises].map((e) => e.id).slice(0, 10); // Max 10 per session
+    setSessionExerciseIds(sessionIds);
+    setSessionActive(true);
+  }, [allExercises]);
+
+  const handleSessionComplete = useCallback(
+    (data: { totalXp: number; exercises: string[] }) => {
+      // Mark exercises as completed
+      data.exercises.forEach(async (exerciseId) => {
+        await supabase
+          .from("linguascripts")
+          .update({ completed_at: new Date().toISOString() })
+          .eq("id", exerciseId);
+      });
+
+      setSessionActive(false);
+      setSessionExerciseIds([]);
+
+      // Refresh exercises
+      fetchExercises();
+    },
+    []
+  );
+
+  if (sessionActive) {
+    return (
+      <LinguaScriptSession
+        exerciseIds={sessionExerciseIds}
+        onSessionComplete={handleSessionComplete}
+      />
+    );
+  }
 
   if (!user) {
     return (
@@ -139,6 +185,17 @@ export default function LinguaScripts() {
             <div className="text-sm text-slate-400 mt-1">Completed</div>
           </div>
         </div>
+
+        {/* Start Session Button */}
+        {dueCount > 0 && (
+          <button
+            onClick={handleStartSession}
+            className="w-full bg-gradient-to-r from-amber-400 to-emerald-400 text-slate-900 font-bold py-4 rounded-lg mb-8 hover:shadow-lg transition-all flex items-center justify-center gap-2"
+          >
+            <Play className="w-5 h-5" />
+            Start Session ({dueCount} ready)
+          </button>
+        )}
 
         {/* Exercise Groups */}
         {["green", "orange", "red"].map((state) => {
