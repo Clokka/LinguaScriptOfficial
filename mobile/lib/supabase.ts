@@ -8,7 +8,14 @@ const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
 if (!url || !anonKey) {
-  console.warn('Supabase env vars missing — check mobile/.env');
+  // Loud on-device error is better than a silent crash on splash.
+  const missing = [!url && 'EXPO_PUBLIC_SUPABASE_URL', !anonKey && 'EXPO_PUBLIC_SUPABASE_ANON_KEY']
+    .filter(Boolean)
+    .join(', ');
+  throw new Error(
+    `Missing ${missing}. The APK was built without env vars. ` +
+      'Commit mobile/.env or set the vars in EAS and rebuild.',
+  );
 }
 
 const CHUNK_SIZE = 2000;
@@ -56,8 +63,8 @@ const secureStoreAdapter = {
 const storage = Platform.OS === 'web' ? AsyncStorage : secureStoreAdapter;
 
 export const supabase = createLinguaScriptClient({
-  url: url ?? '',
-  anonKey: anonKey ?? '',
+  url,
+  anonKey,
   storage,
   detectSessionInUrl: false,
 });
