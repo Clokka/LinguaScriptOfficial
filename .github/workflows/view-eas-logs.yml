@@ -16,28 +16,68 @@ jobs:
     name: eas build:view
     runs-on: ubuntu-latest
     steps:
-      - name: Install EAS CLI
-        run: npm install -g eas-cli@latest
+      - name: Check out repo
+        uses: actions/checkout@v4
+        with:
+          ref: claude/app-language-play-store-kcowrg
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install EAS CLI + jq
+        run: |
+          npm install -g eas-cli@latest
+          sudo apt-get -qq install -y jq
 
       - name: Fetch build metadata
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: |
-          eas build:view "${{ github.event.inputs.build_id }}" 2>&1 | tee /tmp/view.log
-
-      - name: Fetch full build logs
+        id: meta
+        working-directory: mobile
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
           set +e
-          BUILD_ID="${{ github.event.inputs.build_id }}"
-          # Try to download the raw log if available
-          eas build:list --json --non-interactive --limit=1 --status=errored 2>&1 | tee /tmp/list.log || true
+          eas build:view "${{ github.event.inputs.build_id }}" --json > /tmp/build.json 2>/tmp/view.err
+          VIEW_EXIT=$?
+          cat /tmp/build.json
           echo ""
-          echo "══════════════════════════════════════════════════"
-          echo "  BUILD PAGE (open in browser):"
-          echo "══════════════════════════════════════════════════"
-          echo "https://expo.dev/accounts/rowanawesome1s-team/projects/linguascript-chameleon/builds/$BUILD_ID"
+          echo "-- view stderr --"
+          cat /tmp/view.err
+          echo "view_exit=$VIEW_EXIT" >> $GITHUB_OUTPUT
+
+      - name: Extract log-file URLs
+        id: logs
+        run: |
+          set +e
+          if [ ! -s /tmp/build.json ]; then
+            echo "No build.json — cannot extract logs" | tee /tmp/logs.txt
+            exit 0
+          fi
+          # Log files live under different paths in different eas-cli versions.
+          # Try a few known ones.
+          URLS=$(jq -r '
+            (.logFiles // .artifacts.buildArtifactsUrl // [])
+            | if type == "array" then .[] else . end
+          ' /tmp/build.json 2>/dev/null)
+          if [ -z "$URLS" ]; then
+            URLS=$(jq -r 'recurse | strings | select(test("^https?://.*(\\.log|logs|xcodebuild|gradle)"; "i"))' /tmp/build.json | sort -u)
+          fi
+          if [ -z "$URLS" ]; then
+            echo "No log URLs found in build metadata."
+            echo "" > /tmp/logs.txt
+            exit 0
+          fi
+          echo "$URLS"
+          : > /tmp/logs.txt
+          for u in $URLS; do
+            echo "=========== $u ===========" >> /tmp/logs.txt
+            curl -sSL "$u" >> /tmp/logs.txt || echo "(curl failed for $u)" >> /tmp/logs.txt
+            echo "" >> /tmp/logs.txt
+          done
+          echo ""
+          echo "-- captured logs (last 400 lines) --"
+          tail -n 400 /tmp/logs.txt
 
       - name: Post everything to run summary
         if: always()
@@ -47,15 +87,15 @@ jobs:
             echo ""
             echo "**Build page:** https://expo.dev/accounts/rowanawesome1s-team/projects/linguascript-chameleon/builds/${{ github.event.inputs.build_id }}"
             echo ""
-            echo "### eas build:view"
+            echo "### Build metadata (eas build:view --json)"
+            echo ""
+            echo '```json'
+            cat /tmp/build.json 2>/dev/null || echo "(no metadata)"
+            echo '```'
+            echo ""
+            echo "### Raw log files"
             echo ""
             echo '```'
-            cat /tmp/view.log 2>/dev/null || echo "(no output)"
-            echo '```'
-            echo ""
-            echo "### recent errored builds"
-            echo ""
-            echo '```'
-            cat /tmp/list.log 2>/dev/null || echo "(no output)"
+            tail -n 400 /tmp/logs.txt 2>/dev/null || echo "(no logs captured)"
             echo '```'
           } >> $GITHUB_STEP_SUMMARY
