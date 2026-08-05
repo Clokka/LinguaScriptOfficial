@@ -1,5 +1,6 @@
 import '../global.css';
 import { useEffect } from 'react';
+import { View, Text, ActivityIndicator } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -48,6 +49,24 @@ function LinkListener() {
   return null;
 }
 
+function AppShell() {
+  const { loading } = useAuth();
+  if (loading) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#0b1215', alignItems: 'center', justifyContent: 'center' }}>
+        <Text style={{ fontSize: 72 }}>🦎</Text>
+        <ActivityIndicator color="#22c55e" size="large" style={{ marginTop: 20 }} />
+      </View>
+    );
+  }
+  return (
+    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#0b1215' } }}>
+      <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="auth" />
+    </Stack>
+  );
+}
+
 export default function RootLayout() {
   useEffect(() => {
     configureGoogleSignIn();
@@ -61,10 +80,7 @@ export default function RootLayout() {
           <StatusBar style="light" />
           <AuthGate />
           <LinkListener />
-          <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#0b1215' } }}>
-            <Stack.Screen name="(tabs)" />
-            <Stack.Screen name="auth" />
-          </Stack>
+          <AppShell />
         </AuthProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
