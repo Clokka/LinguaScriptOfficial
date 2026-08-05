@@ -95,6 +95,7 @@
     "experiments": {
       "typedRoutes": true
     },
+    "owner": "rowanawesome1s-team",
     "extra": {
       "eas": {
         "projectId": "15c4a3cd-b8c2-47c3-aaa5-1977b72f1376"
