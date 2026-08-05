@@ -31,6 +31,10 @@ jobs:
           npm install -g eas-cli@latest
           sudo apt-get -qq install -y jq
 
+      - name: Install mobile deps (eas build:view needs plugins resolved)
+        working-directory: mobile
+        run: npm ci --no-audit --no-fund
+
       - name: Fetch build metadata
         id: meta
         working-directory: mobile
