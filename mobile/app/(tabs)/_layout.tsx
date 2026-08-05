@@ -2,7 +2,7 @@ import { Tabs } from 'expo-router';
 import { Text } from 'react-native';
 
 const Icon = ({ label, color }: { label: string; color: string }) => (
-  <Text style={{ fontSize: 22, color }}>{label}</Text>
+  <Text style={{ fontSize: 20, color }}>{label}</Text>
 );
 
 export default function TabsLayout() {
@@ -17,6 +17,7 @@ export default function TabsLayout() {
           borderTopColor: '#243239',
           borderTopWidth: 1,
         },
+        tabBarLabelStyle: { fontSize: 11 },
       }}
     >
       <Tabs.Screen
@@ -24,6 +25,13 @@ export default function TabsLayout() {
         options={{
           title: 'Home',
           tabBarIcon: ({ color }) => <Icon label="🏠" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="linguascripts"
+        options={{
+          title: 'Exercises',
+          tabBarIcon: ({ color }) => <Icon label="📝" color={color} />,
         }}
       />
       <Tabs.Screen
