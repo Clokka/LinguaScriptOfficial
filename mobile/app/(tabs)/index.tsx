@@ -32,8 +32,8 @@ function ContentCard({ film, onPress }: { film: FilmRow; onPress: () => void }) 
       onPressIn={tapLight}
     >
       <View className="w-40 h-56 rounded-2xl overflow-hidden bg-ink-card border border-ink-border">
-        {film.poster_url ? (
-          <Image source={{ uri: film.poster_url }} className="w-full h-full" resizeMode="cover" />
+        {film.thumbnail_url ? (
+          <Image source={{ uri: film.thumbnail_url }} className="w-full h-full" resizeMode="cover" />
         ) : (
           <View className="w-full h-full items-center justify-center">
             <Text className="text-5xl">🎬</Text>
@@ -92,7 +92,7 @@ export default function HomeScreen() {
     if (!user) return;
     const p = await fetchProfile(supabase, user.id);
     setProfile(p);
-    const lang = p?.active_language ?? 'es';
+    const lang = p?.learning_language ?? 'es';
     const [d, cw, dc] = await Promise.all([
       fetchDiscoverRail(supabase, lang),
       fetchContinueWatching(supabase, user.id, lang),
@@ -127,7 +127,7 @@ export default function HomeScreen() {
     );
   }
 
-  const streak = profile?.current_streak ?? 0;
+  const streak = profile?.streak_count ?? 0;
   const xp = profile?.xp_total ?? 0;
 
   return (

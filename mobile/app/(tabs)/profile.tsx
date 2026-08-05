@@ -101,13 +101,13 @@ export default function ProfileScreen() {
           <Text className="text-white text-xl font-bold mt-3">
             {profile.display_name ?? profile.username ?? 'Learner'}
           </Text>
-          <Text className="text-slate-400 mt-1">{profile.email}</Text>
+          <Text className="text-slate-400 mt-1">{user?.email}</Text>
 
           <View className="flex-row mt-5 gap-6">
             <View className="items-center">
               <Text className="text-2xl">🔥</Text>
               <Text className="text-white font-semibold text-lg">
-                {profile.current_streak ?? 0}
+                {profile.streak_count ?? 0}
               </Text>
               <Text className="text-slate-500 text-xs">Streak</Text>
             </View>
@@ -121,9 +121,9 @@ export default function ProfileScreen() {
             <View className="items-center">
               <Text className="text-2xl">🏆</Text>
               <Text className="text-white font-semibold text-lg">
-                {profile.longest_streak ?? 0}
+                {profile.xp_level ?? 1}
               </Text>
-              <Text className="text-slate-500 text-xs">Best</Text>
+              <Text className="text-slate-500 text-xs">Level</Text>
             </View>
           </View>
         </View>
@@ -131,7 +131,7 @@ export default function ProfileScreen() {
         <View className="mx-4 bg-ink-card border border-ink-border rounded-2xl p-4">
           <Text className="text-white text-lg font-semibold">Learning language</Text>
           <Text className="text-slate-400 text-xs mt-1">
-            Active: {profile.active_language ?? '—'}
+            Active: {profile.learning_language ?? '—'}
           </Text>
           <ScrollView horizontal className="mt-3" showsHorizontalScrollIndicator={false}>
             {LANGUAGES.map((l) => (
@@ -142,13 +142,13 @@ export default function ProfileScreen() {
                 className="mr-2 px-3 py-2 rounded-full border"
                 style={{
                   backgroundColor:
-                    profile.active_language === l.code ? '#22c55e' : 'transparent',
-                  borderColor: profile.active_language === l.code ? '#22c55e' : '#243239',
+                    profile.learning_language === l.code ? '#22c55e' : 'transparent',
+                  borderColor: profile.learning_language === l.code ? '#22c55e' : '#243239',
                 }}
               >
                 <Text
                   style={{
-                    color: profile.active_language === l.code ? '#0b1215' : '#e2e8f0',
+                    color: profile.learning_language === l.code ? '#0b1215' : '#e2e8f0',
                     fontWeight: '600',
                   }}
                 >

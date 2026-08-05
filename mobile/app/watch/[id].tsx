@@ -18,8 +18,8 @@ export default function WatchScreen() {
       .select('id, title, youtube_id, description, cefr_level, language')
       .eq('id', id)
       .single()
-      .then(({ data }) => {
-        setFilm(data);
+      .then((result) => {
+        setFilm(result.data);
         setLoading(false);
       });
   }, [id]);

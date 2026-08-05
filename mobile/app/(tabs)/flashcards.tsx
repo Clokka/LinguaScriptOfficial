@@ -59,7 +59,7 @@ export default function FlashcardsScreen() {
     if (!user) return;
     setLoading(true);
     const p = await fetchProfile(supabase, user.id);
-    const lang = p?.active_language ?? 'es';
+    const lang = p?.learning_language ?? 'es';
     const cards = await loadDueCards(supabase, user.id, lang, 30);
     setQueue(cards);
     setI(0);

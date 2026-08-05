@@ -4,9 +4,15 @@
     "strict": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./*"],
-      "@linguascript/core": ["../packages/core/src/index.ts"],
-      "@linguascript/core/*": ["../packages/core/src/*"]
+      "@/*": [
+        "./*"
+      ],
+      "@linguascript/core": [
+        "../packages/core/src/index.ts"
+      ],
+      "@linguascript/core/*": [
+        "../packages/core/src/*"
+      ]
     }
   },
   "include": [
@@ -14,6 +20,7 @@
     "**/*.tsx",
     ".expo/types/**/*.ts",
     "expo-env.d.ts",
-    "../packages/core/src/**/*.ts"
+    "../packages/core/src/**/*.ts",
+    "nativewind-env.d.ts"
   ]
 }

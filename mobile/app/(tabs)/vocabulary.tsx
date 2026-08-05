@@ -37,7 +37,7 @@ export default function VocabularyScreen() {
     if (!user) return;
     setLoading(true);
     const p = await fetchProfile(supabase, user.id);
-    const language = p?.active_language ?? 'es';
+    const language = p?.learning_language ?? 'es';
     setLang(language);
     const idx = await loadDeckIndex(supabase, user.id, language);
     const list = Array.from(idx.values()) as Row[];
@@ -45,7 +45,9 @@ export default function VocabularyScreen() {
       .from('saved_words')
       .select('id, translation')
       .in('id', list.map((r) => r.id));
-    const trans = new Map((data ?? []).map((r: any) => [r.id, r.translation]));
+    const trans = new Map<string, string | null>(
+      (data ?? []).map((r: any) => [r.id as string, (r.translation ?? null) as string | null]),
+    );
     setRows(list.map((r) => ({ ...r, translation: trans.get(r.id) ?? null })));
     setLoading(false);
   }, [user]);
