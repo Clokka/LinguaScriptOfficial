@@ -1,0 +1,61 @@
+name: View EAS build logs
+
+# Run this to dump the logs of an existing EAS build into GitHub's UI.
+# Useful when a build failed and we need to see why.
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_id:
+        description: "EAS build ID (from the build URL, e.g. e7b80d70-27b9-457f-a2a7-4a3ef372be38)"
+        required: true
+        type: string
+
+jobs:
+  view:
+    name: eas build:view
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install EAS CLI
+        run: npm install -g eas-cli@latest
+
+      - name: Fetch build metadata
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          eas build:view "${{ github.event.inputs.build_id }}" 2>&1 | tee /tmp/view.log
+
+      - name: Fetch full build logs
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          set +e
+          BUILD_ID="${{ github.event.inputs.build_id }}"
+          # Try to download the raw log if available
+          eas build:list --json --non-interactive --limit=1 --status=errored 2>&1 | tee /tmp/list.log || true
+          echo ""
+          echo "══════════════════════════════════════════════════"
+          echo "  BUILD PAGE (open in browser):"
+          echo "══════════════════════════════════════════════════"
+          echo "https://expo.dev/accounts/rowanawesome1s-team/projects/linguascript-chameleon/builds/$BUILD_ID"
+
+      - name: Post everything to run summary
+        if: always()
+        run: |
+          {
+            echo "## 🔍 EAS build log for ${{ github.event.inputs.build_id }}"
+            echo ""
+            echo "**Build page:** https://expo.dev/accounts/rowanawesome1s-team/projects/linguascript-chameleon/builds/${{ github.event.inputs.build_id }}"
+            echo ""
+            echo "### eas build:view"
+            echo ""
+            echo '```'
+            cat /tmp/view.log 2>/dev/null || echo "(no output)"
+            echo '```'
+            echo ""
+            echo "### recent errored builds"
+            echo ""
+            echo '```'
+            cat /tmp/list.log 2>/dev/null || echo "(no output)"
+            echo '```'
+          } >> $GITHUB_STEP_SUMMARY
