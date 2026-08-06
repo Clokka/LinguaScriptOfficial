@@ -1,0 +1,7 @@
+{
+  "name": "react-native-worklets",
+  "version": "0.0.0-stub",
+  "description": "Local stub. react-native-worklets 0.5+ requires RN 0.76+; we're on RN 0.74 (Expo SDK 51). Nativewind's babel plugin references react-native-worklets/plugin at build time — this stub satisfies the require without pulling in the native module that fails the Gradle assertMinimalReactNativeVersion task.",
+  "main": "index.js",
+  "private": true
+}
