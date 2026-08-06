@@ -48,16 +48,13 @@ export default function LinguaScripts() {
         .eq("user_id", user.id)
         .eq("language", learningLanguage)
         .is("completed_at", null)
-        .order("word_state", { ascending: false })
+        .lte("scheduled_for", new Date().toISOString())
         .order("scheduled_for", { ascending: true });
 
       if (error) throw error;
 
-      const now = new Date().toISOString();
-      const due = (linguascripts || []).filter((e) => e.scheduled_for && e.scheduled_for <= now).length;
-
       setExercises((linguascripts || []) as Exercise[]);
-      setDueCount(due);
+      setDueCount((linguascripts || []).length);
     } catch (err) {
       console.error("Error loading exercises:", err);
       setExercises([]);
