@@ -1,70 +1,43 @@
+# Fix: "0 LinguaScripts Ready" on /discover
 
-# LinguaScript 2.0 — Adventure Mode
+## What's actually broken
 
-This is a large vision. To keep credits safe and avoid breaking what already works, I'll ship it in **4 phases**. Each phase is fully usable on its own — you decide after each one whether to continue.
+The hypothesis in the brief (subscription not firing) is only half the story. There are three concrete faults, and the first one alone guarantees a zero count:
 
----
+1. **The query references columns that do not exist.**
+   Both `useLinguaScriptStatus.ts` and `LinguaScripts.tsx` filter on `scheduled_for` and sort by `word_state`. The `linguascripts` table has neither column. The query errors out, `linguascripts` comes back `null`, and the count is `0` — every time, on every page. This is why the count never moves no matter how many words you save.
 
-## Phase 1 — Home Page Rewrite (the most visible change)
+2. **Realtime is not enabled on the table.**
+   `linguascripts` is not in the realtime publication, so the `postgres_changes` subscription is a no-op. Even with a working query, the count would only update on a page reload.
 
-Strip `/browse` Home down to the new journey layout:
+3. **`linguascripts` has row-level security switched off.**
+   259 rows of user exercise data are currently readable by anyone with the public API key. This needs fixing in the same pass.
 
-1. **Understanding Hero** (kept) — overall % + CEFR + "X words to next milestone"
-2. **Continue Watching** (kept, restyled) — promoted to the primary "Continue your quest" card with current understanding + transcript progress + big Continue button
-3. **Catalog Rows from Admin** — replace `Your Lessons` with rows pulled from existing `catalog_rows` / `catalog_row_films` tables (🔥 Trending, 🇫🇷 Beginner French, 🎬 Classics, 😂 Comedy, etc.). Netflix-style horizontal scrollers.
-4. **Remove** the 7-card Your Progress dashboard from Home (it stays accessible from a dedicated `/progress` sub-page so the data isn't lost).
+Secondary: the count query has `.limit(10)`, so even once fixed it would cap at 10 and understate reality.
 
-**Difficulty rating change:** every content card shows `Estimated Understanding XX%` with a label band — `Perfect Match` (70–85%), `Comfortable` (>85%), `Stretch` (40–70%), `Recommended Later` (<40%). Estimate is computed from the user's deck vs the film's subtitle tokens (we already have this code in `videoComprehension.ts`).
+## The fix
 
----
+### Database (one migration)
+- Add `scheduled_for timestamptz not null default now()` and `word_state text not null default 'red'` to `linguascripts`.
+- Backfill existing rows: `scheduled_for = created_at`, and `word_state` from the linked `saved_words.state` where a link exists.
+- Index on `(user_id, language, scheduled_for)` filtered to incomplete rows.
+- Enable RLS, add GRANTs, and add owner-only policies (select/insert/update/delete where `user_id = auth.uid()`).
+- Add `linguascripts` and `saved_words` to the realtime publication with `REPLICA IDENTITY FULL`.
 
-## Phase 2 — Transcript Mastery (the core new mechanic)
+### Hook rewrite (`useLinguaScriptStatus.ts`)
+Rebuild it simple, as the brief allows:
+- One exact `count` query for due exercises (`scheduled_for <= now`, `completed_at is null`) — no 10-row cap.
+- One small query for the first 10 due IDs, for the session.
+- Surface query errors instead of silently degrading to zero.
+- Keep the realtime subscription (now that it will actually fire), and add a refetch on window focus and on tab return so the count is correct even if a realtime frame is missed.
 
-The transcript becomes the collectible.
+### Page alignment (`LinguaScripts.tsx`)
+Use the same due definition as the hook so `/discover` and `/linguascripts` never disagree.
 
-- New column `films.transcript_mastery_pct` is **not** needed — we already track `green/orange/red/total_tokens` per video in `video_comprehension`. We'll surface a **Transcript Progress** bar (green% over total content tokens) everywhere the video appears.
-- Watch page gets a persistent "Turn the transcript green" meter.
-- When a transcript hits 100% green: full-screen **🏆 LinguaScript Complete** celebration (confetti + sound + XP + Gems + "New content unlocked"). New table `transcript_completions` to record the moment once.
-- Continue Watching cards show transcript% alongside comprehension%.
+## Success criteria
+- Save a word while watching → `/discover` shows a non-zero "LinguaScripts Ready" count without a reload.
+- The number on `/discover` equals the due number on `/linguascripts`.
+- `linguascripts` rows are only visible to their owner.
 
----
-
-## Phase 3 — Game Layer (XP / Gems / Daily Quests / Levels / Worlds)
-
-- **Gems**: new `profiles.gems` column. Awarded on transcript completion, daily quest completion, streak milestones, level ups.
-- **Daily Quests**: new `daily_quests` table (user_id, date, quest_key, target, progress, completed_at, reward_xp, reward_gems). 3 quests rolled per day from a fixed pool (watch 15min, learn 20 words, review 30 cards, +10% on one transcript, complete 1 LinguaScript). Surface as a card on Home.
-- **Level titles** (Explorer → Master) — pure cosmetic mapping on top of existing XP system; no schema change.
-- **Worlds**: new `worlds` table + `films.world_id`. Admin can assign each film to a world. Home gets a "Your Journey" strip showing which worlds are unlocked. Unlock rule: complete N transcripts in current world to unlock next. Harder worlds still browsable but flagged "Challenging".
-
----
-
-## Phase 4 — Pets & Celebrations (polish)
-
-- Pets react to milestones (Lottie/Framer animations on transcript completion, level up, daily quest sweep).
-- Gem shop for cosmetic pet items (no real-money).
-- Achievement badges on Profile.
-
----
-
-## Technical changes summary (Phase 1 only — what I'll build next if you approve)
-
-```text
-src/pages/Browse.tsx                 → remove YourProgressDashboard from Home tab
-src/components/HomeCatalogRows.tsx   → NEW: fetch catalog_rows + films, horizontal rails
-src/components/ContentCard.tsx       → NEW: shared card with estimated-understanding badge
-src/lib/videoComprehension.ts        → add estimateForFilm(userId, filmId) memoised helper
-src/pages/Progress.tsx               → NEW: move the 7-stat dashboard here
-src/components/NavBar.tsx            → add "Progress" link
-```
-
-No DB migration in Phase 1.
-
----
-
-## Questions before I start Phase 1
-
-1. **Confirm the kill list** — you're okay removing Avg Comprehension, Best Video, Videos Mastered, Gain/Watch, Hours of Input, Vocabulary Learned, Learning Rate from Home (moved to `/progress`)?
-2. **Catalog rows** — should I render every row in `catalog_rows` ordered by `position`, or only ones explicitly flagged `show_on_home`? (I can add a flag if needed.)
-3. **Scope confirmation** — start with **Phase 1 only**, then check in?
-
-Once you answer (or just say "go phase 1"), I'll ship it.
+## Not in this change
+SRS scheduling (Phase 4). Everything stays scheduled for "now"; the `scheduled_for` column is added so intervals can be layered on later without another schema change.
