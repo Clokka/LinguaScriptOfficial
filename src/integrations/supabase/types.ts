@@ -519,6 +519,7 @@ export type Database = {
           mcq_answer: number | null
           mcq_options: Json | null
           saved_word_id: string | null
+          scheduled_for: string
           scheduled_to_srs: boolean | null
           sentence: string
           speaking_answer: string | null
@@ -528,6 +529,7 @@ export type Database = {
           translation: string
           updated_at: string | null
           user_id: string
+          word_state: string
           xp_earned: number | null
         }
         Insert: {
@@ -546,6 +548,7 @@ export type Database = {
           mcq_answer?: number | null
           mcq_options?: Json | null
           saved_word_id?: string | null
+          scheduled_for?: string
           scheduled_to_srs?: boolean | null
           sentence: string
           speaking_answer?: string | null
@@ -555,6 +558,7 @@ export type Database = {
           translation: string
           updated_at?: string | null
           user_id: string
+          word_state?: string
           xp_earned?: number | null
         }
         Update: {
@@ -573,6 +577,7 @@ export type Database = {
           mcq_answer?: number | null
           mcq_options?: Json | null
           saved_word_id?: string | null
+          scheduled_for?: string
           scheduled_to_srs?: boolean | null
           sentence?: string
           speaking_answer?: string | null
@@ -582,6 +587,7 @@ export type Database = {
           translation?: string
           updated_at?: string | null
           user_id?: string
+          word_state?: string
           xp_earned?: number | null
         }
         Relationships: [

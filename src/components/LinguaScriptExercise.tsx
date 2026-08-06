@@ -127,12 +127,16 @@ export function LinguaScriptExercise({
       if (exercise.id && !exercise.id.startsWith("temp-")) {
         // Log the review for analysis (if table exists)
         try {
-          await supabase.from("linguascript_reviews").insert({
-            word_id: exercise.id,
-            correct: isCorrect,
-            timestamp: new Date().toISOString(),
-            mode: "gap-fill",
-          });
+          const { data: authData } = await supabase.auth.getUser();
+          if (authData?.user) {
+            await supabase.from("linguascript_reviews").insert({
+              linguascript_id: exercise.id,
+              user_id: authData.user.id,
+              method_used: "gap-fill",
+              performance: isCorrect ? 1 : 0,
+              first_try_correct: isCorrect,
+            });
+          }
         } catch (err: any) {
           // Gracefully handle if table doesn't exist yet
           if (!err.message?.includes("relation") && !err.message?.includes("undefined")) {
@@ -192,12 +196,16 @@ export function LinguaScriptExercise({
       if (exercise.id && !exercise.id.startsWith("temp-")) {
         // Log the review for analysis (if table exists)
         try {
-          await supabase.from("linguascript_reviews").insert({
-            word_id: exercise.id,
-            correct: isCorrect,
-            timestamp: new Date().toISOString(),
-            mode: "mcq",
-          });
+          const { data: authData } = await supabase.auth.getUser();
+          if (authData?.user) {
+            await supabase.from("linguascript_reviews").insert({
+              linguascript_id: exercise.id,
+              user_id: authData.user.id,
+              method_used: "mcq",
+              performance: isCorrect ? 1 : 0,
+              first_try_correct: isCorrect,
+            });
+          }
         } catch (err: any) {
           // Gracefully handle if table doesn't exist yet
           if (!err.message?.includes("relation") && !err.message?.includes("undefined")) {

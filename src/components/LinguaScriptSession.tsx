@@ -49,7 +49,7 @@ export function LinguaScriptSession({
           .in("id", exerciseIds);
 
         if (error) throw error;
-        setExercises(data || []);
+        setExercises((data || []) as unknown as Exercise[]);
       } catch (err) {
         console.error("Error loading exercises:", err);
       } finally {
@@ -228,7 +228,7 @@ export function LinguaScriptSession({
                 exercises[2]?.target_word || "test",
                 "test",
               ]}
-              tier={exercises[0].word_state}
+              tier={exercises[0].word_state === "green" ? "orange" : exercises[0].word_state}
               translation={exercises[0].translation}
               onComplete={handleGapFillComplete}
               onSkip={handleSkip}

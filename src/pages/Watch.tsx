@@ -764,7 +764,7 @@ const Watch = () => {
       attempts: 0,
       combo_multiplier: 1,
       scheduled_for: new Date().toISOString(),
-    } as any).catch(err => console.error("Failed to create LinguaScript:", err));
+    } as any).then(({ error }) => { if (error) console.error("Failed to create LinguaScript:", error); });
   };
 
   const savePhrase = async (phrase: string) => {
@@ -838,7 +838,7 @@ const Watch = () => {
       attempts: 0,
       combo_multiplier: 1,
       scheduled_for: new Date().toISOString(),
-    } as any).catch(err => console.error("Failed to create LinguaScript for phrase:", err));
+    } as any).then(({ error }) => { if (error) console.error("Failed to create LinguaScript for phrase:", error); });
   };
 
   const markWordKnown = async (word: { text: string; translation?: string }) => {
@@ -884,7 +884,7 @@ const Watch = () => {
       attempts: 0,
       combo_multiplier: 1,
       scheduled_for: new Date().toISOString(),
-    } as any).catch(err => console.error("Failed to create LinguaScript for known word:", err));
+    } as any).then(({ error }) => { if (error) console.error("Failed to create LinguaScript for known word:", error); });
   };
 
   const downloadSrt = (type: "primary" | "secondary") => {
