@@ -1,6 +1,6 @@
 import '../global.css';
-import { useEffect } from 'react';
-import { View, Text, ActivityIndicator } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { View, Text, ActivityIndicator, Animated } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -10,6 +10,7 @@ import { AuthProvider, useAuth } from '@/lib/auth-context';
 import { configureGoogleSignIn } from '@/native/google-signin';
 import { ensureAndroidChannels } from '@/native/notifications';
 import { handleDeepLink } from '@/native/deep-links';
+import { DECK, UI } from '@/lib/deck-colors';
 import * as Linking from 'expo-linking';
 
 function AuthGate() {
@@ -49,18 +50,61 @@ function LinkListener() {
   return null;
 }
 
+/**
+ * Welcome / loading screen.
+ *
+ * Shows the real chameleon — a render of the same GLB the pet system and
+ * /landingpage4 use (public/pets/Chameleon_Animations.glb), captured to a
+ * transparent PNG rather than shipped as a live model: rendering GLB in React
+ * Native needs expo-gl + expo-three, which are native modules and would mean
+ * another round of EAS build risk for a screen that shows for ~1 second.
+ *
+ * It breathes gently so the screen doesn't read as frozen while auth resolves.
+ */
+function WelcomeSplash() {
+  const float = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(float, { toValue: 1, duration: 1600, useNativeDriver: true }),
+        Animated.timing(float, { toValue: 0, duration: 1600, useNativeDriver: true }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [float]);
+
+  const translateY = float.interpolate({ inputRange: [0, 1], outputRange: [0, -12] });
+
+  return (
+    <View
+      style={{
+        flex: 1,
+        backgroundColor: UI.bg,
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <Animated.Image
+        source={require('../assets/images/chameleon-3d.png')}
+        style={{ width: 220, height: 220, transform: [{ translateY }] }}
+        resizeMode="contain"
+      />
+      <Text style={{ fontSize: 26, fontWeight: '800', letterSpacing: -0.5, marginTop: 14 }}>
+        <Text style={{ color: UI.text }}>Lingua</Text>
+        <Text style={{ color: DECK.green }}>Script</Text>
+      </Text>
+      <ActivityIndicator color={DECK.green} size="large" style={{ marginTop: 28 }} />
+    </View>
+  );
+}
+
 function AppShell() {
   const { loading } = useAuth();
-  if (loading) {
-    return (
-      <View style={{ flex: 1, backgroundColor: '#0b1215', alignItems: 'center', justifyContent: 'center' }}>
-        <Text style={{ fontSize: 72 }}>🦎</Text>
-        <ActivityIndicator color="#22c55e" size="large" style={{ marginTop: 20 }} />
-      </View>
-    );
-  }
+  if (loading) return <WelcomeSplash />;
   return (
-    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#0b1215' } }}>
+    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: UI.bg } }}>
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="auth" />
     </Stack>

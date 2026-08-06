@@ -20,7 +20,9 @@ jobs:
   build:
     name: EAS Build (${{ github.event.inputs.profile }})
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # Was 10, which was fine when the job only queued the build. It now waits
+    # for EAS to finish, so it needs headroom for the poll step below.
+    timeout-minutes: 60
     steps:
       - name: Check out repo
         uses: actions/checkout@v4
@@ -94,6 +96,8 @@ jobs:
           " 2>/dev/null || echo "linguascript-chameleon")
 
           BUILD_PAGE="https://expo.dev/accounts/${OWNER}/projects/${SLUG}/builds/${BUILD_ID}"
+          echo "BUILD_ID=$BUILD_ID" >> $GITHUB_ENV
+          echo "BUILD_PAGE=$BUILD_PAGE" >> $GITHUB_ENV
 
           {
             echo "## 🦎 EAS build triggered"
@@ -119,3 +123,51 @@ jobs:
             echo "**Build ID:** \`$BUILD_ID\`"
             echo "**Profile:** \`${{ github.event.inputs.profile }}\`"
           } >> $GITHUB_STEP_SUMMARY
+
+      # --no-wait above keeps the trigger fast, but on its own it made this job
+      # report success the moment the build was QUEUED — a green tick that said
+      # nothing about whether an APK existed. Poll until EAS reaches a terminal
+      # state so the job's conclusion is actually meaningful.
+      - name: Wait for the EAS build to finish
+        if: env.BUILD_ID != ''
+        working-directory: mobile
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        timeout-minutes: 45
+        run: |
+          echo "Polling EAS build $BUILD_ID …"
+          while true; do
+            eas build:view "$BUILD_ID" --json > /tmp/status.json 2>/dev/null || true
+            STATUS=$(node -e "
+              try {
+                const b = JSON.parse(require('fs').readFileSync('/tmp/status.json','utf8'));
+                process.stdout.write(String(b.status || '').toUpperCase());
+              } catch (e) { process.stdout.write('UNKNOWN'); }
+            ")
+            echo "  status: ${STATUS:-UNKNOWN}"
+            case "$STATUS" in
+              FINISHED)
+                APK=$(node -e "
+                  const b = JSON.parse(require('fs').readFileSync('/tmp/status.json','utf8'));
+                  process.stdout.write((b.artifacts && b.artifacts.buildUrl) || '');
+                ")
+                {
+                  echo ""
+                  echo "### ✅ Build finished"
+                  [ -n "$APK" ] && echo "👉 **[Download the APK]($APK)**"
+                } >> $GITHUB_STEP_SUMMARY
+                echo "APK: ${APK:-<none>}"
+                exit 0
+                ;;
+              ERRORED|CANCELED)
+                {
+                  echo ""
+                  echo "### ❌ Build $STATUS"
+                  echo "See the [build logs]($BUILD_PAGE)."
+                } >> $GITHUB_STEP_SUMMARY
+                echo "::error::EAS build $STATUS — see $BUILD_PAGE"
+                exit 1
+                ;;
+            esac
+            sleep 30
+          done
