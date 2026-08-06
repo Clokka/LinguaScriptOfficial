@@ -35,12 +35,6 @@ export default function LinguaScripts() {
   const [sessionActive, setSessionActive] = useState(false);
   const [sessionExerciseIds, setSessionExerciseIds] = useState<string[]>([]);
 
-  useEffect(() => {
-    if (user && learningLanguage) {
-      loadExercises();
-    }
-  }, [user, learningLanguage]);
-
   const loadExercises = useCallback(async () => {
     if (!user || !learningLanguage) return;
 
@@ -72,6 +66,38 @@ export default function LinguaScripts() {
       setLoading(false);
     }
   }, [user, learningLanguage]);
+
+  // Initial load
+  useEffect(() => {
+    if (user && learningLanguage) {
+      loadExercises();
+    }
+  }, [user, learningLanguage, loadExercises]);
+
+  // Subscribe to real-time changes on linguascripts table
+  useEffect(() => {
+    if (!user || !learningLanguage) return;
+
+    const channel = supabase
+      .channel(`linguascripts-${user.id}-${learningLanguage}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "linguascripts",
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          loadExercises();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, learningLanguage, loadExercises]);
 
   const handleStartSession = useCallback(() => {
     if (exercises.length === 0) return;

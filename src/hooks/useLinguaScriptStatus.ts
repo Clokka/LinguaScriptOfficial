@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -19,15 +19,7 @@ export function useLinguaScriptStatus() {
   const [status, setStatus] = useState<LinguaScriptStatusData | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (!user || !learningLanguage) {
-      setLoading(false);
-      return;
-    }
-    loadStatus();
-  }, [user, learningLanguage]);
-
-  async function loadStatus() {
+  const loadStatus = useCallback(async () => {
     try {
       setLoading(true);
 
@@ -100,7 +92,41 @@ export function useLinguaScriptStatus() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [user, learningLanguage]);
+
+  // Initial load
+  useEffect(() => {
+    if (!user || !learningLanguage) {
+      setLoading(false);
+      return;
+    }
+    loadStatus();
+  }, [user, learningLanguage, loadStatus]);
+
+  // Subscribe to real-time changes
+  useEffect(() => {
+    if (!user || !learningLanguage) return;
+
+    const channel = supabase
+      .channel(`linguascript-status-${user.id}-${learningLanguage}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "linguascripts",
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          loadStatus();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, learningLanguage, loadStatus]);
 
   return { status, loading, refetch: loadStatus };
 }

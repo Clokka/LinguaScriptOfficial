@@ -752,21 +752,18 @@ const Watch = () => {
     playDing("success");
     maybeTriggerLearningBreak({ word: word.text, translation });
 
-    // Create LinguaScript record immediately (don't wait for AI generation)
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-
+    // Create LinguaScript record immediately (scheduled for now, not tomorrow)
     supabase.from("linguascripts").insert({
       user_id: user.id,
       language: langCode,
       target_word: word.text,
-      sentence: context || word.text,  // Use context as sentence
+      sentence: context || word.text,
       translation: translation,
       word_state: "red",
       status: "pending",
       attempts: 0,
       combo_multiplier: 1,
-      scheduled_for: tomorrow.toISOString(),
+      scheduled_for: new Date().toISOString(),
     } as any).catch(err => console.error("Failed to create LinguaScript:", err));
   };
 
@@ -829,10 +826,7 @@ const Watch = () => {
     toast.success("Phrase saved to flashcards");
     playDing("success");
 
-    // Create LinguaScript record for phrase
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-
+    // Create LinguaScript record for phrase (scheduled for now, not tomorrow)
     supabase.from("linguascripts").insert({
       user_id: user.id,
       language: langCode,
@@ -843,7 +837,7 @@ const Watch = () => {
       status: "pending",
       attempts: 0,
       combo_multiplier: 1,
-      scheduled_for: tomorrow.toISOString(),
+      scheduled_for: new Date().toISOString(),
     } as any).catch(err => console.error("Failed to create LinguaScript for phrase:", err));
   };
 
@@ -878,10 +872,7 @@ const Watch = () => {
     }
     toast.success("Marked as known: " + word.text);
 
-    // Create LinguaScript record for known word
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 7); // Green words reviewed in 7 days
-
+    // Create LinguaScript record for known word (scheduled for now, not 7 days from now)
     supabase.from("linguascripts").insert({
       user_id: user.id,
       language: langCode,
@@ -892,7 +883,7 @@ const Watch = () => {
       status: "pending",
       attempts: 0,
       combo_multiplier: 1,
-      scheduled_for: tomorrow.toISOString(),
+      scheduled_for: new Date().toISOString(),
     } as any).catch(err => console.error("Failed to create LinguaScript for known word:", err));
   };
 
