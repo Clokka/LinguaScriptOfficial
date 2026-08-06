@@ -24,7 +24,6 @@ import { useXp } from "@/contexts/XpContext";
 import { usePet } from "@/contexts/PetContext";
 import { recordDailyVideoWatch, setReinforcementPending } from "@/lib/dailyVideo";
 import { toast } from "sonner";
-import { generateLinguaScriptFromWord, createLinguaScriptFromSavedWord } from "@/lib/linguascripts";
 import {
   computeVideoComprehension,
   loadComprehensionRecord,
@@ -753,40 +752,22 @@ const Watch = () => {
     playDing("success");
     maybeTriggerLearningBreak({ word: word.text, translation });
 
-    // Generate LinguaScript exercise for this word
-    generateLinguaScriptForWord(word.text, translation, "red", langCode);
-  };
+    // Create LinguaScript record immediately (don't wait for AI generation)
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
 
-  const generateLinguaScriptForWord = async (
-    wordText: string,
-    translation: string,
-    state: "red" | "orange" | "green",
-    language: string
-  ) => {
-    try {
-      const sentence = await generateLinguaScriptFromWord({
-        word: wordText,
-        interests: [],
-        cefLevel: "B1",
-        language,
-        wordState: state,
-        nativeLanguage,
-      });
-
-      if (sentence) {
-        await createLinguaScriptFromSavedWord(
-          user!.id,
-          wordText,
-          sentence.sentence,
-          sentence.translation,
-          state,
-          language,
-          []
-        );
-      }
-    } catch (err) {
-      console.error("Failed to generate LinguaScript:", err);
-    }
+    supabase.from("linguascripts").insert({
+      user_id: user.id,
+      language: langCode,
+      target_word: word.text,
+      sentence: context || word.text,  // Use context as sentence
+      translation: translation,
+      word_state: "red",
+      status: "pending",
+      attempts: 0,
+      combo_multiplier: 1,
+      scheduled_for: tomorrow.toISOString(),
+    } as any).catch(err => console.error("Failed to create LinguaScript:", err));
   };
 
   const savePhrase = async (phrase: string) => {
@@ -848,8 +829,22 @@ const Watch = () => {
     toast.success("Phrase saved to flashcards");
     playDing("success");
 
-    // Generate LinguaScript exercise for this phrase
-    generateLinguaScriptForWord(trimmed, translation, "red", langCode);
+    // Create LinguaScript record for phrase
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    supabase.from("linguascripts").insert({
+      user_id: user.id,
+      language: langCode,
+      target_word: trimmed,
+      sentence: context || trimmed,
+      translation: translation,
+      word_state: "red",
+      status: "pending",
+      attempts: 0,
+      combo_multiplier: 1,
+      scheduled_for: tomorrow.toISOString(),
+    } as any).catch(err => console.error("Failed to create LinguaScript for phrase:", err));
   };
 
   const markWordKnown = async (word: { text: string; translation?: string }) => {
@@ -883,8 +878,22 @@ const Watch = () => {
     }
     toast.success("Marked as known: " + word.text);
 
-    // Generate LinguaScript exercise for known words (as green)
-    generateLinguaScriptForWord(word.text, word.translation || "", "green", langCode);
+    // Create LinguaScript record for known word
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 7); // Green words reviewed in 7 days
+
+    supabase.from("linguascripts").insert({
+      user_id: user.id,
+      language: langCode,
+      target_word: word.text,
+      sentence: currentSubtitle?.primary || word.text,
+      translation: word.translation || "",
+      word_state: "green",
+      status: "pending",
+      attempts: 0,
+      combo_multiplier: 1,
+      scheduled_for: tomorrow.toISOString(),
+    } as any).catch(err => console.error("Failed to create LinguaScript for known word:", err));
   };
 
   const downloadSrt = (type: "primary" | "secondary") => {
