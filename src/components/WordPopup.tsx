@@ -1,4 +1,4 @@
-import { X, Volume2, BookmarkPlus, CheckCircle2 } from "lucide-react";
+import { X, Volume2, BookmarkPlus, CheckCircle2, Loader2 } from "lucide-react";
 import { Button } from "./ui/button";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -15,12 +15,13 @@ interface WordPopupProps {
   word: Word;
   position: { x: number; y: number };
   language?: string;
+  translating?: boolean;
   onClose: () => void;
   onSave: () => void;
   onMarkKnown?: () => void;
 }
 
-export const WordPopup = ({ word, position, language, onClose, onSave, onMarkKnown }: WordPopupProps) => {
+export const WordPopup = ({ word, position, language, translating, onClose, onSave, onMarkKnown }: WordPopupProps) => {
   const { speak } = useLanguage();
   const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
   return (
@@ -91,6 +92,7 @@ export const WordPopup = ({ word, position, language, onClose, onSave, onMarkKno
                 variant="glass"
                 className="w-full border border-emerald-500/40 text-emerald-300 hover:text-emerald-200"
                 onClick={onMarkKnown}
+                disabled={translating}
               >
                 <CheckCircle2 className="w-4 h-4" />
                 I already know this — mark as known
@@ -101,9 +103,14 @@ export const WordPopup = ({ word, position, language, onClose, onSave, onMarkKno
               variant="success"
               className="w-full"
               onClick={onSave}
+              disabled={translating}
             >
-              <BookmarkPlus className="w-4 h-4" />
-              Save to Flashcards
+              {translating ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <BookmarkPlus className="w-4 h-4" />
+              )}
+              {translating ? "Translating…" : "Save to Flashcards"}
             </Button>
           </div>
         </div>

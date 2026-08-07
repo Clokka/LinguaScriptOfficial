@@ -60,7 +60,7 @@ export const SubtitleOverlay = ({
 }: SubtitleOverlayProps) => {
   const [selectedWord, setSelectedWord] = useState<Word | null>(null);
   const [popupPosition, setPopupPosition] = useState({ x: 0, y: 0 });
-  const [, setTranslating] = useState(false);
+  const [translating, setTranslating] = useState(false);
   const { languageContext } = useLanguage();
   // The deck — and every word interaction below — is scoped to the
   // language actually on screen. Prefer the explicit `contentLanguage`
@@ -260,6 +260,7 @@ export const SubtitleOverlay = ({
           word={selectedWord}
           position={popupPosition}
           language={effectiveLang}
+          translating={translating}
           onClose={() => setSelectedWord(null)}
           onSave={() => {
             // Check BEFORE the optimistic update (while the word is still white).
