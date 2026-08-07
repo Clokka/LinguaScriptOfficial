@@ -23,9 +23,16 @@ function AuthGate() {
   useEffect(() => {
     if (loading) return;
     if (!navState?.key) return; // navigator not ready yet
-    const inAuth = segments[0] === 'auth';
-    if (!session && !inAuth) router.replace('/auth');
-    else if (session && inAuth) router.replace('/(tabs)');
+    const inAuth       = segments[0] === 'auth';
+    const inOnboarding = segments[0] === 'onboarding';
+    if (!session && !inAuth) {
+      router.replace('/auth');
+    } else if (session && inAuth) {
+      // Just signed in → onboarding checks language and self-redirects to tabs if set.
+      router.replace('/onboarding');
+    } else if (!session && inOnboarding) {
+      router.replace('/auth');
+    }
   }, [session, loading, segments, navState?.key]);
 
   return null;
@@ -65,6 +72,7 @@ export default function RootLayout() {
           <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#0b1215' } }}>
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="auth" />
+            <Stack.Screen name="onboarding" />
           </Stack>
           <AuthGate />
           <LinkListener />

@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -15,7 +15,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '@/lib/supabase';
 import { signInWithGoogle } from '@/native/google-signin';
-import { tapLight, tapMedium, success as hapticSuccess, error as hapticError } from '@/native/haptics';
+import {
+  tapLight,
+  tapMedium,
+  success as hapticSuccess,
+  error as hapticError,
+} from '@/native/haptics';
 
 const { width: W } = Dimensions.get('window');
 
@@ -28,12 +33,12 @@ const SLIDES = [
   {
     emoji: '💾',
     title: 'Tap any word.\nSave it instantly.',
-    body: 'Touch a subtitle word to get the translation, pronunciation and IPA — then save it to your deck with one tap.',
+    body: 'Touch a subtitle word to get the translation, pronunciation and IPA — then save it with one tap.',
   },
   {
     emoji: '📝',
     title: 'AI exercises built\nfrom your saved words',
-    body: 'LinguaScript turns your saved vocabulary into personalised gap-fill exercises so nothing is forgotten.',
+    body: 'LinguaScript turns your vocabulary into personalised gap-fill exercises so nothing is forgotten.',
   },
   {
     emoji: '🔥',
@@ -42,53 +47,76 @@ const SLIDES = [
   },
 ];
 
+type Screen = 'slides' | 'signin' | 'verify';
+
 export default function AuthScreen() {
   const [slide, setSlide] = useState(0);
-  const [showSignIn, setShowSignIn] = useState(false);
+  const [screen, setScreen] = useState<Screen>('slides');
   const scrollRef = useRef<ScrollView>(null);
 
-  const [email, setEmail] = useState('');
-  const [sending, setSending] = useState(false);
-  const [sent, setSent] = useState(false);
+  const [email, setEmail]         = useState('');
+  const [sending, setSending]     = useState(false);
+  const [otp, setOtp]             = useState('');
+  const [verifying, setVerifying] = useState(false);
   const [googleBusy, setGoogleBusy] = useState(false);
 
+  // ── Slide helpers ──────────────────────────────────────────────────
   const goToSlide = (i: number) => {
     scrollRef.current?.scrollTo({ x: i * W, animated: true });
     setSlide(i);
   };
 
   const handleScroll = (e: { nativeEvent: { contentOffset: { x: number } } }) => {
-    const i = Math.round(e.nativeEvent.contentOffset.x / W);
-    setSlide(i);
+    setSlide(Math.round(e.nativeEvent.contentOffset.x / W));
   };
 
   const handleNext = () => {
     tapLight();
-    if (slide < SLIDES.length - 1) {
-      goToSlide(slide + 1);
-    } else {
-      setShowSignIn(true);
-    }
+    if (slide < SLIDES.length - 1) goToSlide(slide + 1);
+    else setScreen('signin');
   };
 
-  const sendMagicLink = async () => {
-    if (!email.trim()) return;
+  // ── Email OTP ──────────────────────────────────────────────────────
+  const sendOtp = async () => {
+    const trimmed = email.trim().toLowerCase();
+    if (!trimmed) return;
     setSending(true);
     tapMedium();
     const { error } = await supabase.auth.signInWithOtp({
-      email: email.trim(),
-      options: { emailRedirectTo: 'linguascript://auth-callback' },
+      email: trimmed,
+      options: { shouldCreateUser: true },
     });
     setSending(false);
     if (error) {
       hapticError();
-      Alert.alert('Could not send link', error.message);
+      Alert.alert('Could not send code', error.message);
       return;
     }
     hapticSuccess();
-    setSent(true);
+    setScreen('verify');
   };
 
+  const verifyOtp = async () => {
+    const code = otp.trim();
+    if (code.length !== 6) return;
+    setVerifying(true);
+    tapMedium();
+    const { error } = await supabase.auth.verifyOtp({
+      email: email.trim().toLowerCase(),
+      token: code,
+      type: 'email',
+    });
+    setVerifying(false);
+    if (error) {
+      hapticError();
+      Alert.alert('Incorrect code', 'Check the 6-digit code we sent and try again.');
+      return;
+    }
+    hapticSuccess();
+    // auth-context listener catches the new session → AuthGate → /onboarding
+  };
+
+  // ── Google OAuth ───────────────────────────────────────────────────
   const handleGoogle = async () => {
     setGoogleBusy(true);
     tapMedium();
@@ -102,77 +130,115 @@ export default function AuthScreen() {
     }
   };
 
-  // ── Sign-in screen ──────────────────────────────────────────────
-  if (showSignIn) {
+  // ── Screen: 6-digit verify ─────────────────────────────────────────
+  if (screen === 'verify') {
     return (
       <SafeAreaView style={s.root}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={s.signInInner}
+          style={s.inner}
         >
-          <Pressable onPress={() => setShowSignIn(false)} style={{ alignSelf: 'flex-start', marginBottom: 24 }}>
-            <Text style={{ color: '#22c55e', fontSize: 15 }}>← Back</Text>
+          <Pressable onPress={() => { setScreen('signin'); setOtp(''); }} style={s.back}>
+            <Text style={s.backText}>← Back</Text>
           </Pressable>
 
-          <Text style={s.signInEmoji}>🦎</Text>
-          <Text style={s.signInTitle}>LinguaScript</Text>
-          <Text style={s.signInSub}>Turn the language green.</Text>
+          <Text style={s.bigEmoji}>✉️</Text>
+          <Text style={s.pageTitle}>Check your email</Text>
+          <Text style={s.pageSub}>
+            We sent a 6-digit sign-in code to{'\n'}
+            <Text style={{ color: '#22c55e' }}>{email}</Text>
+          </Text>
 
-          {sent ? (
-            <View style={s.sentCard}>
-              <Text style={s.sentTitle}>Check your email ✉️</Text>
-              <Text style={s.sentBody}>
-                We sent a magic link to {email}.{'\n'}Tap it on this device to sign in.
-              </Text>
-              <Pressable onPress={() => setSent(false)} style={{ marginTop: 16 }}>
-                <Text style={{ color: '#22c55e', fontSize: 14 }}>Use a different email</Text>
-              </Pressable>
-            </View>
-          ) : (
-            <>
-              {/* Google */}
-              <Pressable onPress={handleGoogle} disabled={googleBusy} style={s.googleBtn}>
-                {googleBusy ? (
-                  <ActivityIndicator color="#0b1215" />
-                ) : (
-                  <>
-                    <Text style={{ fontSize: 18, marginRight: 10 }}>G</Text>
-                    <Text style={s.googleBtnText}>Continue with Google</Text>
-                  </>
-                )}
-              </Pressable>
+          <TextInput
+            value={otp}
+            onChangeText={(t) => setOtp(t.replace(/\D/g, '').slice(0, 6))}
+            keyboardType="number-pad"
+            maxLength={6}
+            placeholder="000000"
+            placeholderTextColor="#334155"
+            style={s.otpInput}
+            autoFocus
+            returnKeyType="go"
+            onSubmitEditing={verifyOtp}
+          />
 
-              <View style={s.dividerRow}>
-                <View style={s.dividerLine} />
-                <Text style={s.dividerText}>or</Text>
-                <View style={s.dividerLine} />
-              </View>
+          <Pressable
+            onPress={verifyOtp}
+            disabled={otp.length !== 6 || verifying}
+            style={[s.primaryBtn, (otp.length !== 6 || verifying) && { opacity: 0.45 }]}
+          >
+            {verifying
+              ? <ActivityIndicator color="#0b1215" />
+              : <Text style={s.primaryBtnText}>Verify code →</Text>
+            }
+          </Pressable>
 
-              <TextInput
-                value={email}
-                onChangeText={setEmail}
-                placeholder="you@example.com"
-                placeholderTextColor="#475569"
-                autoCapitalize="none"
-                keyboardType="email-address"
-                autoComplete="email"
-                returnKeyType="send"
-                onSubmitEditing={sendMagicLink}
-                style={s.emailInput}
-              />
-              <Pressable
-                onPress={sendMagicLink}
-                disabled={sending || !email.trim()}
-                style={[s.magicBtn, (sending || !email.trim()) && { opacity: 0.45 }]}
-              >
-                {sending ? (
-                  <ActivityIndicator color="#0b1215" />
-                ) : (
-                  <Text style={s.magicBtnText}>Send magic link →</Text>
-                )}
-              </Pressable>
-            </>
-          )}
+          <Pressable onPress={() => { setScreen('signin'); setOtp(''); }} style={{ marginTop: 24 }}>
+            <Text style={s.linkText}>Resend or use a different email</Text>
+          </Pressable>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    );
+  }
+
+  // ── Screen: sign-in ────────────────────────────────────────────────
+  if (screen === 'signin') {
+    return (
+      <SafeAreaView style={s.root}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={s.inner}
+        >
+          <Pressable onPress={() => setScreen('slides')} style={s.back}>
+            <Text style={s.backText}>← Back</Text>
+          </Pressable>
+
+          <Text style={s.bigEmoji}>🦎</Text>
+          <Text style={s.pageTitle}>LinguaScript</Text>
+          <Text style={s.pageSub}>Turn the language green.</Text>
+
+          {/* Google */}
+          <Pressable onPress={handleGoogle} disabled={googleBusy} style={s.googleBtn}>
+            {googleBusy
+              ? <ActivityIndicator color="#0b1215" />
+              : (
+                <>
+                  <Text style={{ fontSize: 20, marginRight: 10 }}>G</Text>
+                  <Text style={s.googleBtnText}>Continue with Google</Text>
+                </>
+              )
+            }
+          </Pressable>
+
+          <View style={s.dividerRow}>
+            <View style={s.dividerLine} />
+            <Text style={s.dividerText}>or sign in with email</Text>
+            <View style={s.dividerLine} />
+          </View>
+
+          <TextInput
+            value={email}
+            onChangeText={setEmail}
+            placeholder="you@example.com"
+            placeholderTextColor="#475569"
+            autoCapitalize="none"
+            keyboardType="email-address"
+            autoComplete="email"
+            returnKeyType="send"
+            onSubmitEditing={sendOtp}
+            style={s.emailInput}
+          />
+
+          <Pressable
+            onPress={sendOtp}
+            disabled={sending || !email.trim()}
+            style={[s.primaryBtn, (sending || !email.trim()) && { opacity: 0.45 }]}
+          >
+            {sending
+              ? <ActivityIndicator color="#0b1215" />
+              : <Text style={s.primaryBtnText}>Send sign-in code →</Text>
+            }
+          </Pressable>
 
           <Text style={s.legal}>By continuing you agree to our privacy policy.</Text>
         </KeyboardAvoidingView>
@@ -180,15 +246,13 @@ export default function AuthScreen() {
     );
   }
 
-  // ── Onboarding slides ───────────────────────────────────────────
+  // ── Screen: onboarding slides ──────────────────────────────────────
   return (
     <SafeAreaView style={s.root}>
-      {/* Skip */}
-      <Pressable onPress={() => setShowSignIn(true)} style={s.skipBtn}>
+      <Pressable onPress={() => setScreen('signin')} style={s.skipBtn}>
         <Text style={s.skipText}>Skip</Text>
       </Pressable>
 
-      {/* Slides */}
       <ScrollView
         ref={scrollRef}
         horizontal
@@ -207,14 +271,16 @@ export default function AuthScreen() {
         ))}
       </ScrollView>
 
-      {/* Dots */}
       <View style={s.dotsRow}>
         {SLIDES.map((_, i) => (
-          <Pressable key={i} onPress={() => goToSlide(i)} style={[s.dot, slide === i && s.dotActive]} />
+          <Pressable
+            key={i}
+            onPress={() => goToSlide(i)}
+            style={[s.dot, slide === i && s.dotActive]}
+          />
         ))}
       </View>
 
-      {/* CTA */}
       <View style={s.ctaArea}>
         <Pressable onPress={handleNext} style={s.ctaBtn}>
           <Text style={s.ctaBtnText}>
@@ -227,84 +293,66 @@ export default function AuthScreen() {
 }
 
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#0b1215' },
-
-  // Onboarding
-  skipBtn: { position: 'absolute', top: 56, right: 20, zIndex: 10, padding: 8 },
-  skipText: { color: '#64748b', fontSize: 14 },
-  slide: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 40,
-    paddingBottom: 60,
-  },
-  slideEmoji: { fontSize: 96, marginBottom: 32 },
-  slideTitle: {
-    color: '#fff',
-    fontSize: 30,
-    fontWeight: '800',
-    textAlign: 'center',
-    lineHeight: 38,
-    marginBottom: 20,
-  },
-  slideBody: {
-    color: '#94a3b8',
-    fontSize: 17,
-    textAlign: 'center',
-    lineHeight: 26,
-  },
-  dotsRow: { flexDirection: 'row', justifyContent: 'center', gap: 8, marginBottom: 24 },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#243239' },
-  dotActive: { width: 24, backgroundColor: '#22c55e' },
-  ctaArea: { paddingHorizontal: 24, paddingBottom: 40 },
-  ctaBtn: {
-    backgroundColor: '#22c55e',
-    borderRadius: 18,
-    paddingVertical: 18,
-    alignItems: 'center',
-  },
-  ctaBtnText: { color: '#0b1215', fontSize: 17, fontWeight: '800' },
-
-  // Sign-in
-  signInInner: {
+  root:  { flex: 1, backgroundColor: '#0b1215' },
+  inner: {
     flex: 1, paddingHorizontal: 28, paddingTop: 16, paddingBottom: 24,
     justifyContent: 'center',
   },
-  signInEmoji: { fontSize: 72, textAlign: 'center', marginBottom: 12 },
-  signInTitle: {
-    color: '#fff', fontSize: 34, fontWeight: '800', textAlign: 'center',
-  },
-  signInSub: { color: '#64748b', fontSize: 16, textAlign: 'center', marginTop: 6, marginBottom: 40 },
 
-  sentCard: {
-    backgroundColor: '#131f26', borderWidth: 1, borderColor: '#243239',
-    borderRadius: 20, padding: 24,
+  back:     { alignSelf: 'flex-start', marginBottom: 24 },
+  backText: { color: '#22c55e', fontSize: 15 },
+
+  bigEmoji:  { fontSize: 72, textAlign: 'center', marginBottom: 12 },
+  pageTitle: { color: '#fff', fontSize: 34, fontWeight: '800', textAlign: 'center' },
+  pageSub:   { color: '#64748b', fontSize: 16, textAlign: 'center', marginTop: 6, marginBottom: 32, lineHeight: 24 },
+
+  otpInput: {
+    backgroundColor: '#111c22', borderWidth: 2, borderColor: '#22c55e66',
+    borderRadius: 20, paddingHorizontal: 24, paddingVertical: 18,
+    color: '#fff', fontSize: 40, fontWeight: '800', textAlign: 'center',
+    letterSpacing: 12, marginBottom: 16,
   },
-  sentTitle: { color: '#fff', fontSize: 18, fontWeight: '700' },
-  sentBody: { color: '#94a3b8', marginTop: 8, lineHeight: 22 },
 
   googleBtn: {
     backgroundColor: '#fff', borderRadius: 16,
     paddingVertical: 16, flexDirection: 'row',
-    alignItems: 'center', justifyContent: 'center',
+    alignItems: 'center', justifyContent: 'center', marginBottom: 4,
   },
   googleBtnText: { color: '#0b1215', fontWeight: '700', fontSize: 16 },
 
-  dividerRow: { flexDirection: 'row', alignItems: 'center', marginVertical: 20 },
+  dividerRow:  { flexDirection: 'row', alignItems: 'center', marginVertical: 20 },
   dividerLine: { flex: 1, height: 1, backgroundColor: '#1e2d35' },
-  dividerText: { color: '#475569', marginHorizontal: 14, fontSize: 14 },
+  dividerText: { color: '#475569', marginHorizontal: 12, fontSize: 12 },
 
   emailInput: {
-    backgroundColor: '#131f26', borderWidth: 1.5, borderColor: '#243239',
+    backgroundColor: '#111c22', borderWidth: 1.5, borderColor: '#243239',
     borderRadius: 16, paddingHorizontal: 18, paddingVertical: 16,
     color: '#fff', fontSize: 16, marginBottom: 12,
   },
-  magicBtn: {
-    backgroundColor: '#22c55e', borderRadius: 16,
-    paddingVertical: 16, alignItems: 'center',
-  },
-  magicBtnText: { color: '#0b1215', fontWeight: '700', fontSize: 16 },
 
-  legal: { color: '#334155', fontSize: 12, textAlign: 'center', marginTop: 28 },
+  primaryBtn:     { backgroundColor: '#22c55e', borderRadius: 16, paddingVertical: 16, alignItems: 'center' },
+  primaryBtnText: { color: '#0b1215', fontWeight: '700', fontSize: 16 },
+
+  linkText: { color: '#22c55e', fontSize: 14, textAlign: 'center' },
+  legal:    { color: '#334155', fontSize: 12, textAlign: 'center', marginTop: 28 },
+
+  skipBtn:  { position: 'absolute', top: 56, right: 20, zIndex: 10, padding: 8 },
+  skipText: { color: '#64748b', fontSize: 14 },
+
+  slide: {
+    flex: 1, alignItems: 'center', justifyContent: 'center',
+    paddingHorizontal: 40, paddingBottom: 60,
+  },
+  slideEmoji: { fontSize: 96, marginBottom: 32 },
+  slideTitle: {
+    color: '#fff', fontSize: 30, fontWeight: '800',
+    textAlign: 'center', lineHeight: 38, marginBottom: 20,
+  },
+  slideBody:  { color: '#94a3b8', fontSize: 17, textAlign: 'center', lineHeight: 26 },
+  dotsRow:    { flexDirection: 'row', justifyContent: 'center', gap: 8, marginBottom: 24 },
+  dot:        { width: 8, height: 8, borderRadius: 4, backgroundColor: '#243239' },
+  dotActive:  { width: 24, backgroundColor: '#22c55e' },
+  ctaArea:    { paddingHorizontal: 24, paddingBottom: 40 },
+  ctaBtn:     { backgroundColor: '#22c55e', borderRadius: 18, paddingVertical: 18, alignItems: 'center' },
+  ctaBtnText: { color: '#0b1215', fontSize: 17, fontWeight: '800' },
 });

@@ -1,45 +1,45 @@
-import {
-  GoogleSignin,
-  statusCodes,
-} from '@react-native-google-signin/google-signin';
+import * as WebBrowser from 'expo-web-browser';
+import * as Linking from 'expo-linking';
 import { supabase } from '@/lib/supabase';
 
-let configured = false;
+WebBrowser.maybeCompleteAuthSession();
 
+// configureGoogleSignIn is called from _layout.tsx; keep the export signature.
 export function configureGoogleSignIn(): void {
-  if (configured) return;
-  const webClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
-  if (!webClientId) {
-    console.warn('EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID missing — Google Sign-In disabled');
-    return;
-  }
-  GoogleSignin.configure({
-    webClientId,
-    offlineAccess: false,
-  });
-  configured = true;
+  // Uses expo-web-browser OAuth — no native SDK config needed.
 }
 
 export async function signInWithGoogle(): Promise<
   { ok: true } | { ok: false; error: string }
 > {
-  configureGoogleSignIn();
   try {
-    await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-    const user = await GoogleSignin.signIn();
-    const idToken =
-      (user as any).idToken ?? (user as any).data?.idToken;
-    if (!idToken) return { ok: false, error: 'No ID token returned by Google' };
-    const { error } = await supabase.auth.signInWithIdToken({
+    const redirectTo = Linking.createURL('auth-callback');
+
+    const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      token: idToken,
+      options: { redirectTo, skipBrowserRedirect: true },
     });
-    if (error) return { ok: false, error: error.message };
-    return { ok: true };
-  } catch (e: any) {
-    if (e?.code === statusCodes.SIGN_IN_CANCELLED) {
+
+    if (error || !data.url) {
+      return { ok: false, error: error?.message ?? 'Could not start Google sign-in' };
+    }
+
+    const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
+
+    if (result.type === 'cancel' || result.type === 'dismiss') {
       return { ok: false, error: 'cancelled' };
     }
+
+    if (result.type !== 'success') {
+      return { ok: false, error: 'Sign-in window closed unexpectedly' };
+    }
+
+    // PKCE: exchange the code in the redirect URL for a session
+    const { error: sessionError } = await supabase.auth.exchangeCodeForSession(result.url);
+    if (sessionError) return { ok: false, error: sessionError.message };
+
+    return { ok: true };
+  } catch (e: any) {
     return { ok: false, error: e?.message ?? 'Google sign-in failed' };
   }
 }

@@ -17,7 +17,7 @@ export default function TabsLayout() {
           borderTopColor: '#243239',
           borderTopWidth: 1,
         },
-        tabBarLabelStyle: { fontSize: 11 },
+        tabBarLabelStyle: { fontSize: 10 },
       }}
     >
       <Tabs.Screen
@@ -25,6 +25,13 @@ export default function TabsLayout() {
         options={{
           title: 'Home',
           tabBarIcon: ({ color }) => <Icon label="🏠" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="discover"
+        options={{
+          title: 'Discover',
+          tabBarIcon: ({ color }) => <Icon label="🔍" color={color} />,
         }}
       />
       <Tabs.Screen
