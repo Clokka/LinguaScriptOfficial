@@ -29,6 +29,14 @@ async function supadataFetch(url: string): Promise<Response> {
     console.log(`Supadata ${res.status}: ${lastBody.slice(0, 200)}`);
     if (res.status !== 429) break; // only retry rate limits
   }
+  // Surface a human-readable message when Supadata returns structured JSON.
+  try {
+    const parsed = JSON.parse(lastBody);
+    const detail = parsed.details || parsed.message;
+    if (detail) throw new Error(detail);
+  } catch (e: any) {
+    if (e.message && e.message !== lastBody) throw e;
+  }
   throw new Error(`Supadata ${lastStatus}: ${lastBody.slice(0, 200)}`);
 }
 

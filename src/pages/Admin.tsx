@@ -264,7 +264,7 @@ const Admin = () => {
     // Auto-generate YouTube thumbnail if not provided
     let thumb = thumbnailUrl || null;
     if (!thumb) {
-      const ytMatch = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?.*v=|embed\/|v\/))([^&?\s]+)/);
+      const ytMatch = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?.*v=|embed\/|v\/|shorts\/|live\/))([^&?\s]+)/);
       if (ytMatch) {
         thumb = `https://img.youtube.com/vi/${ytMatch[1]}/hqdefault.jpg`;
       }
