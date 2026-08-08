@@ -11,6 +11,7 @@ import { supabase } from '@/lib/supabase';
 WebBrowser.maybeCompleteAuthSession();
 
 const WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? '';
+const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL ?? 'https://ffephracinqeylfhqkiz.supabase.co';
 
 export function configureGoogleSignIn(): void {
   if (!WEB_CLIENT_ID) {
@@ -22,6 +23,31 @@ export function configureGoogleSignIn(): void {
     offlineAccess: true,
     forceCodeForRefreshToken: true,
   });
+}
+
+// Exchange a Google ID token for a Supabase session via our edge function.
+// This bypasses the need to configure Google as an OAuth provider in Supabase.
+async function signInWithGoogleIdToken(idToken: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/google-auth`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id_token: idToken }),
+    });
+    const data = await res.json();
+    if (!res.ok) return { ok: false, error: data.error ?? 'Google auth failed' };
+
+    const { error: verifyError } = await supabase.auth.verifyOtp({
+      email: data.email,
+      token: data.token_hash,
+      type: 'magiclink',
+    });
+
+    if (verifyError) return { ok: false, error: verifyError.message };
+    return { ok: true };
+  } catch (e: any) {
+    return { ok: false, error: e?.message ?? 'Google auth request failed' };
+  }
 }
 
 // Native sign-in using @react-native-google-signin (shows the system sheet in-app).
@@ -44,13 +70,7 @@ export async function signInWithGoogle(): Promise<
         return { ok: false, error: 'Google did not return an ID token' };
       }
 
-      const { error } = await supabase.auth.signInWithIdToken({
-        provider: 'google',
-        token: idToken,
-      });
-
-      if (error) return { ok: false, error: error.message };
-      return { ok: true };
+      return signInWithGoogleIdToken(idToken);
     } catch (e: any) {
       if (isErrorWithCode(e)) {
         if (

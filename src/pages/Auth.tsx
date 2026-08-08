@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -6,6 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Layers, Mail, Lock, User } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+
+const GOOGLE_CLIENT_ID =
+  "83696703346-d088shcldb678oec73jmh3o5lqjru132.apps.googleusercontent.com";
 
 function GoogleIcon() {
   return (
@@ -18,6 +21,20 @@ function GoogleIcon() {
   );
 }
 
+declare global {
+  interface Window {
+    google?: {
+      accounts: {
+        id: {
+          initialize: (config: object) => void;
+          prompt: () => void;
+          disableAutoSelect: () => void;
+        };
+      };
+    };
+  }
+}
+
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
@@ -27,23 +44,65 @@ const Auth = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const inviteToken = searchParams.get("invite");
-  const next = searchParams.get("next") || (inviteToken ? "/discover" : "/discover");
+  const next = searchParams.get("next") || "/discover";
   const { toast } = useToast();
 
   const [googleLoading, setGoogleLoading] = useState(false);
 
-  const handleGoogleSignIn = async () => {
-    setGoogleLoading(true);
-    const redirectTo = window.location.origin + (inviteToken ? `/auth?invite=${inviteToken}` : next);
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo },
-    });
-    if (error) {
-      toast({ title: "Google sign-in failed", description: error.message, variant: "destructive" });
-      setGoogleLoading(false);
+  // Load the Google Identity Services script once
+  useEffect(() => {
+    if (document.getElementById("google-gsi-script")) return;
+    const script = document.createElement("script");
+    script.id = "google-gsi-script";
+    script.src = "https://accounts.google.com/gsi/client";
+    script.async = true;
+    script.defer = true;
+    document.head.appendChild(script);
+  }, []);
+
+  const handleGoogleSignIn = () => {
+    if (!window.google) {
+      toast({ title: "Google not ready", description: "Please try again in a moment.", variant: "destructive" });
+      return;
     }
-    // On success the browser is redirected — no need to setLoading(false)
+    setGoogleLoading(true);
+
+    window.google.accounts.id.initialize({
+      client_id: GOOGLE_CLIENT_ID,
+      callback: async (response: { credential: string }) => {
+        try {
+          const res = await fetch(
+            `${import.meta.env.VITE_SUPABASE_URL ?? "https://ffephracinqeylfhqkiz.supabase.co"}/functions/v1/google-auth`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ id_token: response.credential }),
+            }
+          );
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error ?? "Google auth failed");
+
+          const { error: verifyError } = await supabase.auth.verifyOtp({
+            email: data.email,
+            token: data.token_hash,
+            type: "magiclink",
+          });
+
+          if (verifyError) throw new Error(verifyError.message);
+
+          await acceptInviteIfAny();
+          navigate(next);
+        } catch (e: any) {
+          toast({ title: "Google sign-in failed", description: e.message, variant: "destructive" });
+        } finally {
+          setGoogleLoading(false);
+        }
+      },
+      auto_select: false,
+      cancel_on_tap_outside: true,
+    });
+
+    window.google.accounts.id.prompt();
   };
 
   const acceptInviteIfAny = async () => {
