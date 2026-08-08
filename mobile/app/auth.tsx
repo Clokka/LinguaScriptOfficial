@@ -50,17 +50,23 @@ const SLIDES = [
 type Screen = 'slides' | 'signin' | 'verify';
 
 export default function AuthScreen() {
-  const [slide, setSlide] = useState(0);
-  const [screen, setScreen] = useState<Screen>('slides');
-  const scrollRef = useRef<ScrollView>(null);
+  const [slide, setSlide]           = useState(0);
+  const [screen, setScreen]         = useState<Screen>('slides');
+  const [isSignUp, setIsSignUp]     = useState(false);
+  const scrollRef                   = useRef<ScrollView>(null);
 
-  const [email, setEmail]         = useState('');
-  const [sending, setSending]     = useState(false);
-  const [otp, setOtp]             = useState('');
-  const [verifying, setVerifying] = useState(false);
-  const [googleBusy, setGoogleBusy] = useState(false);
+  // Form fields
+  const [displayName, setDisplayName] = useState('');
+  const [email, setEmail]             = useState('');
+  const [password, setPassword]       = useState('');
+  const [loading, setLoading]         = useState(false);
+  const [googleBusy, setGoogleBusy]   = useState(false);
 
-  // ── Slide helpers ──────────────────────────────────────────────────
+  // OTP code verify (fallback path from "forgot password")
+  const [otp, setOtp]                 = useState('');
+  const [verifying, setVerifying]     = useState(false);
+
+  // ── Slide navigation ───────────────────────────────────────────────
   const goToSlide = (i: number) => {
     scrollRef.current?.scrollTo({ x: i * W, animated: true });
     setSlide(i);
@@ -76,19 +82,66 @@ export default function AuthScreen() {
     else setScreen('signin');
   };
 
-  // ── Email OTP ──────────────────────────────────────────────────────
-  const sendOtp = async () => {
-    const trimmed = email.trim().toLowerCase();
-    if (!trimmed) return;
-    setSending(true);
+  // ── Email + password ───────────────────────────────────────────────
+  const handleSubmit = async () => {
+    const emailTrim = email.trim().toLowerCase();
+    const pass      = password.trim();
+    if (!emailTrim || !pass) return;
+
+    setLoading(true);
     tapMedium();
+
+    if (isSignUp) {
+      const { error } = await supabase.auth.signUp({
+        email: emailTrim,
+        password: pass,
+        options: {
+          data: { display_name: displayName.trim() || undefined },
+          emailRedirectTo: 'linguascript://auth-callback',
+        },
+      });
+      setLoading(false);
+      if (error) {
+        hapticError();
+        Alert.alert('Sign-up failed', error.message);
+      } else {
+        hapticSuccess();
+        Alert.alert(
+          'Account created!',
+          'Check your email to confirm your account, then sign in.',
+          [{ text: 'OK', onPress: () => { setIsSignUp(false); setPassword(''); } }],
+        );
+      }
+    } else {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: emailTrim,
+        password: pass,
+      });
+      setLoading(false);
+      if (error) {
+        hapticError();
+        Alert.alert('Sign-in failed', error.message);
+      } else {
+        hapticSuccess();
+        // auth-context → AuthGate → /onboarding
+      }
+    }
+  };
+
+  // ── Forgot password / OTP sign-in ─────────────────────────────────
+  const sendOtp = async () => {
+    const emailTrim = email.trim().toLowerCase();
+    if (!emailTrim) {
+      Alert.alert('Enter your email first');
+      return;
+    }
+    setLoading(true);
     const { error } = await supabase.auth.signInWithOtp({
-      email: trimmed,
-      options: { shouldCreateUser: true },
+      email: emailTrim,
+      options: { shouldCreateUser: false },
     });
-    setSending(false);
+    setLoading(false);
     if (error) {
-      hapticError();
       Alert.alert('Could not send code', error.message);
       return;
     }
@@ -100,7 +153,6 @@ export default function AuthScreen() {
     const code = otp.trim();
     if (code.length !== 6) return;
     setVerifying(true);
-    tapMedium();
     const { error } = await supabase.auth.verifyOtp({
       email: email.trim().toLowerCase(),
       token: code,
@@ -109,14 +161,13 @@ export default function AuthScreen() {
     setVerifying(false);
     if (error) {
       hapticError();
-      Alert.alert('Incorrect code', 'Check the 6-digit code we sent and try again.');
-      return;
+      Alert.alert('Incorrect code', 'Check the 6-digit code and try again.');
+    } else {
+      hapticSuccess();
     }
-    hapticSuccess();
-    // auth-context listener catches the new session → AuthGate → /onboarding
   };
 
-  // ── Google OAuth ───────────────────────────────────────────────────
+  // ── Google ─────────────────────────────────────────────────────────
   const handleGoogle = async () => {
     setGoogleBusy(true);
     tapMedium();
@@ -130,25 +181,20 @@ export default function AuthScreen() {
     }
   };
 
-  // ── Screen: 6-digit verify ─────────────────────────────────────────
+  // ── Screen: OTP verify ─────────────────────────────────────────────
   if (screen === 'verify') {
     return (
       <SafeAreaView style={s.root}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={s.inner}
-        >
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.inner}>
           <Pressable onPress={() => { setScreen('signin'); setOtp(''); }} style={s.back}>
             <Text style={s.backText}>← Back</Text>
           </Pressable>
-
           <Text style={s.bigEmoji}>✉️</Text>
           <Text style={s.pageTitle}>Check your email</Text>
           <Text style={s.pageSub}>
             We sent a 6-digit sign-in code to{'\n'}
             <Text style={{ color: '#22c55e' }}>{email}</Text>
           </Text>
-
           <TextInput
             value={otp}
             onChangeText={(t) => setOtp(t.replace(/\D/g, '').slice(0, 6))}
@@ -161,7 +207,6 @@ export default function AuthScreen() {
             returnKeyType="go"
             onSubmitEditing={verifyOtp}
           />
-
           <Pressable
             onPress={verifyOtp}
             disabled={otp.length !== 6 || verifying}
@@ -172,30 +217,26 @@ export default function AuthScreen() {
               : <Text style={s.primaryBtnText}>Verify code →</Text>
             }
           </Pressable>
-
           <Pressable onPress={() => { setScreen('signin'); setOtp(''); }} style={{ marginTop: 24 }}>
-            <Text style={s.linkText}>Resend or use a different email</Text>
+            <Text style={s.linkText}>Use a different email</Text>
           </Pressable>
         </KeyboardAvoidingView>
       </SafeAreaView>
     );
   }
 
-  // ── Screen: sign-in ────────────────────────────────────────────────
+  // ── Screen: sign in / sign up ──────────────────────────────────────
   if (screen === 'signin') {
     return (
       <SafeAreaView style={s.root}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={s.inner}
-        >
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.inner}>
           <Pressable onPress={() => setScreen('slides')} style={s.back}>
             <Text style={s.backText}>← Back</Text>
           </Pressable>
 
           <Text style={s.bigEmoji}>🦎</Text>
           <Text style={s.pageTitle}>LinguaScript</Text>
-          <Text style={s.pageSub}>Turn the language green.</Text>
+          <Text style={s.pageSub}>{isSignUp ? 'Create your account' : 'Sign in to continue learning'}</Text>
 
           {/* Google */}
           <Pressable onPress={handleGoogle} disabled={googleBusy} style={s.googleBtn}>
@@ -212,32 +253,72 @@ export default function AuthScreen() {
 
           <View style={s.dividerRow}>
             <View style={s.dividerLine} />
-            <Text style={s.dividerText}>or sign in with email</Text>
+            <Text style={s.dividerText}>or use email</Text>
             <View style={s.dividerLine} />
           </View>
+
+          {/* Display name (sign-up only) */}
+          {isSignUp && (
+            <TextInput
+              value={displayName}
+              onChangeText={setDisplayName}
+              placeholder="Your name"
+              placeholderTextColor="#475569"
+              autoCapitalize="words"
+              style={s.input}
+            />
+          )}
 
           <TextInput
             value={email}
             onChangeText={setEmail}
-            placeholder="you@example.com"
+            placeholder="Email address"
             placeholderTextColor="#475569"
             autoCapitalize="none"
             keyboardType="email-address"
             autoComplete="email"
-            returnKeyType="send"
-            onSubmitEditing={sendOtp}
-            style={s.emailInput}
+            style={s.input}
+          />
+
+          <TextInput
+            value={password}
+            onChangeText={setPassword}
+            placeholder="Password"
+            placeholderTextColor="#475569"
+            secureTextEntry
+            autoComplete={isSignUp ? 'new-password' : 'current-password'}
+            returnKeyType="go"
+            onSubmitEditing={handleSubmit}
+            style={s.input}
           />
 
           <Pressable
-            onPress={sendOtp}
-            disabled={sending || !email.trim()}
-            style={[s.primaryBtn, (sending || !email.trim()) && { opacity: 0.45 }]}
+            onPress={handleSubmit}
+            disabled={loading || !email.trim() || !password.trim()}
+            style={[s.primaryBtn, (loading || !email.trim() || !password.trim()) && { opacity: 0.45 }]}
           >
-            {sending
+            {loading
               ? <ActivityIndicator color="#0b1215" />
-              : <Text style={s.primaryBtnText}>Send sign-in code →</Text>
+              : <Text style={s.primaryBtnText}>{isSignUp ? 'Create account →' : 'Sign in →'}</Text>
             }
+          </Pressable>
+
+          {!isSignUp && (
+            <Pressable onPress={sendOtp} disabled={loading} style={{ marginTop: 16, alignItems: 'center' }}>
+              <Text style={s.linkText}>Forgot password? Sign in with email code</Text>
+            </Pressable>
+          )}
+
+          <Pressable
+            onPress={() => { setIsSignUp((v) => !v); setPassword(''); }}
+            style={{ marginTop: 20, alignItems: 'center' }}
+          >
+            <Text style={{ color: '#64748b', fontSize: 14 }}>
+              {isSignUp ? 'Already have an account? ' : "Don't have an account? "}
+              <Text style={{ color: '#22c55e', fontWeight: '700' }}>
+                {isSignUp ? 'Sign in' : 'Sign up'}
+              </Text>
+            </Text>
           </Pressable>
 
           <Text style={s.legal}>By continuing you agree to our privacy policy.</Text>
@@ -273,11 +354,7 @@ export default function AuthScreen() {
 
       <View style={s.dotsRow}>
         {SLIDES.map((_, i) => (
-          <Pressable
-            key={i}
-            onPress={() => goToSlide(i)}
-            style={[s.dot, slide === i && s.dotActive]}
-          />
+          <Pressable key={i} onPress={() => goToSlide(i)} style={[s.dot, slide === i && s.dotActive]} />
         ))}
       </View>
 
@@ -294,17 +371,31 @@ export default function AuthScreen() {
 
 const s = StyleSheet.create({
   root:  { flex: 1, backgroundColor: '#0b1215' },
-  inner: {
-    flex: 1, paddingHorizontal: 28, paddingTop: 16, paddingBottom: 24,
-    justifyContent: 'center',
-  },
+  inner: { flex: 1, paddingHorizontal: 28, paddingTop: 16, paddingBottom: 24, justifyContent: 'center' },
 
   back:     { alignSelf: 'flex-start', marginBottom: 24 },
   backText: { color: '#22c55e', fontSize: 15 },
 
-  bigEmoji:  { fontSize: 72, textAlign: 'center', marginBottom: 12 },
-  pageTitle: { color: '#fff', fontSize: 34, fontWeight: '800', textAlign: 'center' },
-  pageSub:   { color: '#64748b', fontSize: 16, textAlign: 'center', marginTop: 6, marginBottom: 32, lineHeight: 24 },
+  bigEmoji:  { fontSize: 64, textAlign: 'center', marginBottom: 10 },
+  pageTitle: { color: '#fff', fontSize: 30, fontWeight: '800', textAlign: 'center' },
+  pageSub:   { color: '#64748b', fontSize: 14, textAlign: 'center', marginTop: 4, marginBottom: 28, lineHeight: 20 },
+
+  googleBtn: {
+    backgroundColor: '#fff', borderRadius: 16,
+    paddingVertical: 15, flexDirection: 'row',
+    alignItems: 'center', justifyContent: 'center', marginBottom: 4,
+  },
+  googleBtnText: { color: '#0b1215', fontWeight: '700', fontSize: 16 },
+
+  dividerRow:  { flexDirection: 'row', alignItems: 'center', marginVertical: 18 },
+  dividerLine: { flex: 1, height: 1, backgroundColor: '#1e2d35' },
+  dividerText: { color: '#475569', marginHorizontal: 12, fontSize: 12 },
+
+  input: {
+    backgroundColor: '#111c22', borderWidth: 1.5, borderColor: '#243239',
+    borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14,
+    color: '#fff', fontSize: 15, marginBottom: 10,
+  },
 
   otpInput: {
     backgroundColor: '#111c22', borderWidth: 2, borderColor: '#22c55e66',
@@ -313,41 +404,18 @@ const s = StyleSheet.create({
     letterSpacing: 12, marginBottom: 16,
   },
 
-  googleBtn: {
-    backgroundColor: '#fff', borderRadius: 16,
-    paddingVertical: 16, flexDirection: 'row',
-    alignItems: 'center', justifyContent: 'center', marginBottom: 4,
-  },
-  googleBtnText: { color: '#0b1215', fontWeight: '700', fontSize: 16 },
-
-  dividerRow:  { flexDirection: 'row', alignItems: 'center', marginVertical: 20 },
-  dividerLine: { flex: 1, height: 1, backgroundColor: '#1e2d35' },
-  dividerText: { color: '#475569', marginHorizontal: 12, fontSize: 12 },
-
-  emailInput: {
-    backgroundColor: '#111c22', borderWidth: 1.5, borderColor: '#243239',
-    borderRadius: 16, paddingHorizontal: 18, paddingVertical: 16,
-    color: '#fff', fontSize: 16, marginBottom: 12,
-  },
-
-  primaryBtn:     { backgroundColor: '#22c55e', borderRadius: 16, paddingVertical: 16, alignItems: 'center' },
+  primaryBtn:     { backgroundColor: '#22c55e', borderRadius: 14, paddingVertical: 15, alignItems: 'center' },
   primaryBtnText: { color: '#0b1215', fontWeight: '700', fontSize: 16 },
 
-  linkText: { color: '#22c55e', fontSize: 14, textAlign: 'center' },
-  legal:    { color: '#334155', fontSize: 12, textAlign: 'center', marginTop: 28 },
+  linkText: { color: '#22c55e', fontSize: 13, textAlign: 'center' },
+  legal:    { color: '#334155', fontSize: 11, textAlign: 'center', marginTop: 24 },
 
   skipBtn:  { position: 'absolute', top: 56, right: 20, zIndex: 10, padding: 8 },
   skipText: { color: '#64748b', fontSize: 14 },
 
-  slide: {
-    flex: 1, alignItems: 'center', justifyContent: 'center',
-    paddingHorizontal: 40, paddingBottom: 60,
-  },
+  slide: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40, paddingBottom: 60 },
   slideEmoji: { fontSize: 96, marginBottom: 32 },
-  slideTitle: {
-    color: '#fff', fontSize: 30, fontWeight: '800',
-    textAlign: 'center', lineHeight: 38, marginBottom: 20,
-  },
+  slideTitle: { color: '#fff', fontSize: 30, fontWeight: '800', textAlign: 'center', lineHeight: 38, marginBottom: 20 },
   slideBody:  { color: '#94a3b8', fontSize: 17, textAlign: 'center', lineHeight: 26 },
   dotsRow:    { flexDirection: 'row', justifyContent: 'center', gap: 8, marginBottom: 24 },
   dot:        { width: 8, height: 8, borderRadius: 4, backgroundColor: '#243239' },

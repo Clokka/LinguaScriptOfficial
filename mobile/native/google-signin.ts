@@ -1,43 +1,94 @@
+import {
+  GoogleSignin,
+  isSuccessResponse,
+  isErrorWithCode,
+  statusCodes,
+} from '@react-native-google-signin/google-signin';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 import { supabase } from '@/lib/supabase';
 
 WebBrowser.maybeCompleteAuthSession();
 
-// configureGoogleSignIn is called from _layout.tsx; keep the export signature.
+const WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? '';
+
 export function configureGoogleSignIn(): void {
-  // Uses expo-web-browser OAuth — no native SDK config needed.
+  if (!WEB_CLIENT_ID) {
+    console.warn('[GoogleSignIn] EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID is not set — Google Sign-In unavailable');
+    return;
+  }
+  GoogleSignin.configure({
+    webClientId: WEB_CLIENT_ID,
+    offlineAccess: true,
+    forceCodeForRefreshToken: true,
+  });
 }
 
+// Native sign-in using @react-native-google-signin (shows the system sheet in-app).
+// Falls back to expo-web-browser OAuth only when the Web Client ID is not configured.
 export async function signInWithGoogle(): Promise<
   { ok: true } | { ok: false; error: string }
 > {
+  // ── Native path (preferred) ───────────────────────────────────────
+  if (WEB_CLIENT_ID) {
+    try {
+      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+      const response = await GoogleSignin.signIn();
+
+      if (!isSuccessResponse(response)) {
+        return { ok: false, error: 'cancelled' };
+      }
+
+      const idToken = response.data.idToken;
+      if (!idToken) {
+        return { ok: false, error: 'Google did not return an ID token' };
+      }
+
+      const { error } = await supabase.auth.signInWithIdToken({
+        provider: 'google',
+        token: idToken,
+      });
+
+      if (error) return { ok: false, error: error.message };
+      return { ok: true };
+    } catch (e: any) {
+      if (isErrorWithCode(e)) {
+        if (
+          e.code === statusCodes.SIGN_IN_CANCELLED ||
+          e.code === statusCodes.SIGN_IN_REQUIRED
+        ) {
+          return { ok: false, error: 'cancelled' };
+        }
+        if (e.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+          return { ok: false, error: 'Google Play Services not available on this device' };
+        }
+        if (e.code === statusCodes.IN_PROGRESS) {
+          return { ok: false, error: 'cancelled' };
+        }
+      }
+      return { ok: false, error: e?.message ?? 'Google sign-in failed' };
+    }
+  }
+
+  // ── WebBrowser fallback (when client ID not set) ──────────────────
   try {
     const redirectTo = Linking.createURL('auth-callback');
-
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo, skipBrowserRedirect: true },
     });
-
     if (error || !data.url) {
       return { ok: false, error: error?.message ?? 'Could not start Google sign-in' };
     }
-
     const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
-
     if (result.type === 'cancel' || result.type === 'dismiss') {
       return { ok: false, error: 'cancelled' };
     }
-
     if (result.type !== 'success') {
-      return { ok: false, error: 'Sign-in window closed unexpectedly' };
+      return { ok: false, error: 'Sign-in window closed' };
     }
-
-    // PKCE: exchange the code in the redirect URL for a session
     const { error: sessionError } = await supabase.auth.exchangeCodeForSession(result.url);
     if (sessionError) return { ok: false, error: sessionError.message };
-
     return { ok: true };
   } catch (e: any) {
     return { ok: false, error: e?.message ?? 'Google sign-in failed' };
