@@ -1,0 +1,14 @@
+node_modules/
+.expo/
+.expo-shared/
+dist/
+web-build/
+*.log
+.env.local
+# .env intentionally committed — only holds EXPO_PUBLIC_* values, which are
+# baked into the JS bundle anyway (Supabase anon key is public by design,
+# protected by RLS). Never commit secrets to .env.
+
+play-service-account.json
+android/
+ios/
