@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
@@ -7,26 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Layers, Mail, Lock, User } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-
-const GOOGLE_CLIENT_ID =
-  "83696703346-d088shcldb678oec73jmh3o5lqjru132.apps.googleusercontent.com";
-const SUPABASE_URL =
-  (import.meta as any).env?.VITE_SUPABASE_URL ??
-  "https://ffephracinqeylfhqkiz.supabase.co";
-
-declare global {
-  interface Window {
-    google?: {
-      accounts: {
-        id: {
-          initialize: (cfg: object) => void;
-          renderButton: (el: HTMLElement, opts: object) => void;
-          disableAutoSelect: () => void;
-        };
-      };
-    };
-  }
-}
 
 function GoogleIcon() {
   return (
@@ -39,6 +19,7 @@ function GoogleIcon() {
   );
 }
 
+
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
@@ -46,7 +27,6 @@ const Auth = () => {
   const [displayName, setDisplayName] = useState("");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-  const [gisReady, setGisReady] = useState(false);
 
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -54,89 +34,9 @@ const Auth = () => {
   const next = searchParams.get("next") || "/discover";
   const { toast } = useToast();
 
-  // GIS appends its iframe into this div — must start EMPTY
-  const googleBtnRef = useRef<HTMLDivElement>(null);
-  // Stable ref so the GIS callback always sees fresh state
-  const ctxRef = useRef({ inviteToken, next, navigate, toast });
-  ctxRef.current = { inviteToken, next, navigate, toast };
-
-  useEffect(() => {
-    const handleCredential = async (response: { credential: string }) => {
-      setGoogleLoading(true);
-      const { inviteToken, next, navigate, toast } = ctxRef.current;
-      try {
-        const res = await fetch(`${SUPABASE_URL}/functions/v1/google-auth`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id_token: response.credential }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error ?? "Google auth failed");
-
-        const { error: verifyErr } = await supabase.auth.verifyOtp({
-          email: data.email,
-          token: data.token_hash,
-          type: "magiclink",
-        });
-        if (verifyErr) throw new Error(verifyErr.message);
-
-        if (inviteToken) {
-          const { error: inviteErr } = await supabase.rpc("accept_school_invite", { _token: inviteToken });
-          if (!inviteErr) toast({ title: "Joined your school", description: "Welcome to the class!" });
-        }
-        navigate(next);
-      } catch (e: any) {
-        toast({ title: "Google sign-in failed", description: e.message, variant: "destructive" });
-        setGoogleLoading(false);
-      }
-    };
-
-    const doRender = () => {
-      const el = googleBtnRef.current;
-      if (!window.google?.accounts?.id || !el) return;
-
-      window.google.accounts.id.initialize({
-        client_id: GOOGLE_CLIENT_ID,
-        callback: handleCredential,
-        auto_select: false,
-      });
-
-      // Width must be a number; read the real layout width (el is always in the DOM)
-      const w = el.getBoundingClientRect().width || 400;
-      window.google.accounts.id.renderButton(el, {
-        theme: "outline",
-        size: "large",
-        width: Math.min(Math.floor(w), 400),
-        text: "continue_with",
-        shape: "rectangular",
-        logo_alignment: "left",
-      });
-
-      setGisReady(true);
-    };
-
-    if (window.google?.accounts?.id) { doRender(); return; }
-
-    const SCRIPT_ID = "gsi-client";
-    if (!document.getElementById(SCRIPT_ID)) {
-      const s = document.createElement("script");
-      s.id = SCRIPT_ID;
-      s.src = "https://accounts.google.com/gsi/client";
-      s.async = true;
-      s.onload = doRender;
-      document.head.appendChild(s);
-    } else {
-      const iv = setInterval(() => {
-        if (window.google?.accounts?.id) { clearInterval(iv); doRender(); }
-      }, 50);
-      return () => clearInterval(iv);
-    }
-  }, []);
-
-  // Fallback path when the Google Identity Services iframe can't render
-  // (blocked script, in-app browser, embedded preview). Uses Lovable's
-  // managed OAuth broker instead.
+  // Google sign-in via Lovable's managed OAuth broker.
   const handleGoogleFallback = async () => {
+
     setGoogleLoading(true);
     try {
       const result = await lovable.auth.signInWithOAuth("google", {
@@ -221,40 +121,19 @@ const Auth = () => {
 
           {/* Google Sign-In */}
           <div className="relative w-full min-h-[44px]">
-            {/* Fallback button — clickable, used until (or instead of) the GIS iframe */}
-            {!gisReady && (
-              <Button
-                type="button"
-                variant="outline"
-                size="lg"
-                className="w-full bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
-                onClick={handleGoogleFallback}
-                disabled={googleLoading}
-              >
-                <GoogleIcon />
-                Continue with Google
-              </Button>
-            )}
-
-            {/* Loading overlay during sign-in */}
-            {googleLoading && (
-              <div className="absolute inset-0 flex items-center justify-center bg-white/80 rounded-md z-20">
-                <span className="text-sm text-gray-600">Signing in…</span>
-              </div>
-            )}
-
-            {/*
-              GIS appends its iframe into this div.
-              It must be EMPTY (no children) and always in the DOM.
-              We keep it at 0 height before ready so it doesn't
-              appear as a duplicate element below the placeholder.
-            */}
-            <div
-              ref={googleBtnRef}
-              className="flex justify-center overflow-hidden"
-              style={{ height: gisReady ? "auto" : 0 }}
-            />
+            <Button
+              type="button"
+              variant="outline"
+              size="lg"
+              className="w-full bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+              onClick={handleGoogleFallback}
+              disabled={googleLoading}
+            >
+              <GoogleIcon />
+              {googleLoading ? "Signing in…" : "Continue with Google"}
+            </Button>
           </div>
+
 
           <div className="flex items-center gap-3">
             <div className="flex-1 h-px bg-border" />
