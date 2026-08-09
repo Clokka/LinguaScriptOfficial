@@ -121,40 +121,19 @@ const Auth = () => {
 
           {/* Google Sign-In */}
           <div className="relative w-full min-h-[44px]">
-            {/* Fallback button — clickable, used until (or instead of) the GIS iframe */}
-            {!gisReady && (
-              <Button
-                type="button"
-                variant="outline"
-                size="lg"
-                className="w-full bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
-                onClick={handleGoogleFallback}
-                disabled={googleLoading}
-              >
-                <GoogleIcon />
-                Continue with Google
-              </Button>
-            )}
-
-            {/* Loading overlay during sign-in */}
-            {googleLoading && (
-              <div className="absolute inset-0 flex items-center justify-center bg-white/80 rounded-md z-20">
-                <span className="text-sm text-gray-600">Signing in…</span>
-              </div>
-            )}
-
-            {/*
-              GIS appends its iframe into this div.
-              It must be EMPTY (no children) and always in the DOM.
-              We keep it at 0 height before ready so it doesn't
-              appear as a duplicate element below the placeholder.
-            */}
-            <div
-              ref={googleBtnRef}
-              className="flex justify-center overflow-hidden"
-              style={{ height: gisReady ? "auto" : 0 }}
-            />
+            <Button
+              type="button"
+              variant="outline"
+              size="lg"
+              className="w-full bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+              onClick={handleGoogleFallback}
+              disabled={googleLoading}
+            >
+              <GoogleIcon />
+              {googleLoading ? "Signing in…" : "Continue with Google"}
+            </Button>
           </div>
+
 
           <div className="flex items-center gap-3">
             <div className="flex-1 h-px bg-border" />
