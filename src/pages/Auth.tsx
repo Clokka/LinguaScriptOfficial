@@ -27,7 +27,6 @@ const Auth = () => {
   const [displayName, setDisplayName] = useState("");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-  const [gisReady, setGisReady] = useState(false);
 
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -35,89 +34,9 @@ const Auth = () => {
   const next = searchParams.get("next") || "/discover";
   const { toast } = useToast();
 
-  // GIS appends its iframe into this div — must start EMPTY
-  const googleBtnRef = useRef<HTMLDivElement>(null);
-  // Stable ref so the GIS callback always sees fresh state
-  const ctxRef = useRef({ inviteToken, next, navigate, toast });
-  ctxRef.current = { inviteToken, next, navigate, toast };
-
-  useEffect(() => {
-    const handleCredential = async (response: { credential: string }) => {
-      setGoogleLoading(true);
-      const { inviteToken, next, navigate, toast } = ctxRef.current;
-      try {
-        const res = await fetch(`${SUPABASE_URL}/functions/v1/google-auth`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id_token: response.credential }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error ?? "Google auth failed");
-
-        const { error: verifyErr } = await supabase.auth.verifyOtp({
-          email: data.email,
-          token: data.token_hash,
-          type: "magiclink",
-        });
-        if (verifyErr) throw new Error(verifyErr.message);
-
-        if (inviteToken) {
-          const { error: inviteErr } = await supabase.rpc("accept_school_invite", { _token: inviteToken });
-          if (!inviteErr) toast({ title: "Joined your school", description: "Welcome to the class!" });
-        }
-        navigate(next);
-      } catch (e: any) {
-        toast({ title: "Google sign-in failed", description: e.message, variant: "destructive" });
-        setGoogleLoading(false);
-      }
-    };
-
-    const doRender = () => {
-      const el = googleBtnRef.current;
-      if (!window.google?.accounts?.id || !el) return;
-
-      window.google.accounts.id.initialize({
-        client_id: GOOGLE_CLIENT_ID,
-        callback: handleCredential,
-        auto_select: false,
-      });
-
-      // Width must be a number; read the real layout width (el is always in the DOM)
-      const w = el.getBoundingClientRect().width || 400;
-      window.google.accounts.id.renderButton(el, {
-        theme: "outline",
-        size: "large",
-        width: Math.min(Math.floor(w), 400),
-        text: "continue_with",
-        shape: "rectangular",
-        logo_alignment: "left",
-      });
-
-      setGisReady(true);
-    };
-
-    if (window.google?.accounts?.id) { doRender(); return; }
-
-    const SCRIPT_ID = "gsi-client";
-    if (!document.getElementById(SCRIPT_ID)) {
-      const s = document.createElement("script");
-      s.id = SCRIPT_ID;
-      s.src = "https://accounts.google.com/gsi/client";
-      s.async = true;
-      s.onload = doRender;
-      document.head.appendChild(s);
-    } else {
-      const iv = setInterval(() => {
-        if (window.google?.accounts?.id) { clearInterval(iv); doRender(); }
-      }, 50);
-      return () => clearInterval(iv);
-    }
-  }, []);
-
-  // Fallback path when the Google Identity Services iframe can't render
-  // (blocked script, in-app browser, embedded preview). Uses Lovable's
-  // managed OAuth broker instead.
+  // Google sign-in via Lovable's managed OAuth broker.
   const handleGoogleFallback = async () => {
+
     setGoogleLoading(true);
     try {
       const result = await lovable.auth.signInWithOAuth("google", {
