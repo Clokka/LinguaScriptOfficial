@@ -213,8 +213,8 @@ export const GiftUnboxScene = forwardRef<GiftUnboxHandle, GiftUnboxSceneProps>(
         });
       };
 
-      // --- Flowers (rose + tulip) ---
-      loader.load(ROSE_GLB, (gltf) => {
+      // --- Flowers (rose + tulip) — optional ---
+      if (showFlowers) loader.load(ROSE_GLB, (gltf) => {
         if (disposed) return;
         roseModel = gltf.scene;
         normaliseAndCentre(roseModel, 0.55);
