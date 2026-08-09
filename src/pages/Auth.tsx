@@ -132,6 +132,32 @@ const Auth = () => {
     }
   }, []);
 
+  // Fallback path when the Google Identity Services iframe can't render
+  // (blocked script, in-app browser, embedded preview). Uses Lovable's
+  // managed OAuth broker instead.
+  const handleGoogleFallback = async () => {
+    setGoogleLoading(true);
+    try {
+      const result = await lovable.auth.signInWithOAuth("google", {
+        redirect_uri: window.location.origin,
+      });
+      if (result.error) throw new Error(String(result.error));
+      if (result.redirected) return;
+      if (inviteToken) {
+        await supabase.rpc("accept_school_invite", { _token: inviteToken });
+      }
+      navigate(next);
+    } catch (e) {
+      toast({
+        title: "Google sign-in failed",
+        description: e instanceof Error ? e.message : "Please try again",
+        variant: "destructive",
+      });
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
   const acceptInviteIfAny = async () => {
     if (!inviteToken) return;
     const { error } = await supabase.rpc("accept_school_invite", { _token: inviteToken });
