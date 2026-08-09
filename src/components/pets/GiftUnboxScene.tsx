@@ -26,13 +26,15 @@ interface GiftUnboxSceneProps {
   /** GLB path for the pet being gifted. Defaults to the hedgehog. */
   petGlb?: string;
   accessories?: string[];
+  /** Show the rose + tulip alongside the pet. Off by default. */
+  showFlowers?: boolean;
   onReady?: () => void;
   onOpenComplete?: () => void;
   size?: number;
 }
 
 export const GiftUnboxScene = forwardRef<GiftUnboxHandle, GiftUnboxSceneProps>(
-  ({ petGlb = DEFAULT_PET_GLB, accessories = [], onReady, onOpenComplete, size = 320 }, ref) => {
+  ({ petGlb = DEFAULT_PET_GLB, accessories = [], showFlowers = false, onReady, onOpenComplete, size = 320 }, ref) => {
     const hostRef = useRef<HTMLDivElement>(null);
     const openFnRef = useRef<() => void>(() => {});
 
