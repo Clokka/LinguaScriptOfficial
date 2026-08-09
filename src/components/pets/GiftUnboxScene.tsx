@@ -382,7 +382,7 @@ export const GiftUnboxScene = forwardRef<GiftUnboxHandle, GiftUnboxSceneProps>(
         renderer.domElement.remove();
       };
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [size, accessoriesKey, petGlb]);
+    }, [size, accessoriesKey, petGlb, showFlowers]);
 
     return (
       <div
