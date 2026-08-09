@@ -95,6 +95,8 @@ const App = () => (
                 <Route path="/teacher" element={<Teacher />} />
                 <Route path="/progress" element={<Progress />} />
                 <Route path="/gift" element={<GiftClaim />} />
+                <Route path="/pro-gift" element={<ProGiftClaim />} />
+                <Route path="/thechameleonmethod" element={<ChameleonMethod />} />
                 <Route path="/credits" element={<Credits />} />
                 <Route path="/mieoframes" element={<MieoFrames />} />
                 <Route path="/onboarding/mobile" element={<OnboardingMobile />} />
