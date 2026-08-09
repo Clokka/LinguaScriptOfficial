@@ -194,14 +194,15 @@ const Auth = () => {
 
           {/* Google Sign-In */}
           <div className="relative w-full min-h-[44px]">
-            {/* Placeholder — visible until GIS iframe has rendered */}
+            {/* Fallback button — clickable, used until (or instead of) the GIS iframe */}
             {!gisReady && (
               <Button
                 type="button"
                 variant="outline"
                 size="lg"
-                className="w-full bg-white text-gray-500 border-gray-300 cursor-wait"
-                disabled
+                className="w-full bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                onClick={handleGoogleFallback}
+                disabled={googleLoading}
               >
                 <GoogleIcon />
                 Continue with Google
