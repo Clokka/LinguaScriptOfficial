@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
@@ -7,26 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Layers, Mail, Lock, User } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-
-const GOOGLE_CLIENT_ID =
-  "83696703346-d088shcldb678oec73jmh3o5lqjru132.apps.googleusercontent.com";
-const SUPABASE_URL =
-  (import.meta as any).env?.VITE_SUPABASE_URL ??
-  "https://ffephracinqeylfhqkiz.supabase.co";
-
-declare global {
-  interface Window {
-    google?: {
-      accounts: {
-        id: {
-          initialize: (cfg: object) => void;
-          renderButton: (el: HTMLElement, opts: object) => void;
-          disableAutoSelect: () => void;
-        };
-      };
-    };
-  }
-}
 
 function GoogleIcon() {
   return (
@@ -38,6 +18,7 @@ function GoogleIcon() {
     </svg>
   );
 }
+
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
