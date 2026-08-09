@@ -714,6 +714,45 @@ export type Database = {
         }
         Relationships: []
       }
+      pro_gift_links: {
+        Row: {
+          claimed_at: string | null
+          claimed_by: string | null
+          created_at: string
+          created_by: string | null
+          days: number | null
+          expires_at: string
+          id: string
+          note: string | null
+          token: string
+          updated_at: string
+        }
+        Insert: {
+          claimed_at?: string | null
+          claimed_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          days?: number | null
+          expires_at?: string
+          id?: string
+          note?: string | null
+          token: string
+          updated_at?: string
+        }
+        Update: {
+          claimed_at?: string | null
+          claimed_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          days?: number | null
+          expires_at?: string
+          id?: string
+          note?: string | null
+          token?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           active_pet: string | null
@@ -1605,6 +1644,7 @@ export type Database = {
         Returns: number
       }
       claim_gift_link: { Args: { p_token: string }; Returns: Json }
+      claim_pro_gift_link: { Args: { _token: string }; Returns: Json }
       create_daily_linguascript: {
         Args: {
           p_gap_options: Json
@@ -1635,6 +1675,10 @@ export type Database = {
           p_word: string
         }
         Returns: string
+      }
+      create_pro_gift_link: {
+        Args: { _days?: number; _note?: string }
+        Returns: Json
       }
       create_school: { Args: { _name: string; _slug: string }; Returns: string }
       delete_email: {
@@ -1762,6 +1806,7 @@ export type Database = {
           slug: string
         }[]
       }
+      preview_pro_gift_link: { Args: { _token: string }; Returns: Json }
       read_email_batch: {
         Args: { batch_size: number; queue_name: string; vt: number }
         Returns: {
