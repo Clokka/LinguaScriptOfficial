@@ -49,6 +49,8 @@ import OnboardingMobile from "./pages/OnboardingMobile";
 import OAuthConsent from "./pages/OAuthConsent";
 import LinguaScripts from "./pages/LinguaScripts";
 import Credits from "./pages/Credits";
+import ChameleonMethod from "./pages/ChameleonMethod";
+import ProGiftClaim from "./pages/ProGiftClaim";
 
 const queryClient = new QueryClient();
 
