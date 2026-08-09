@@ -351,6 +351,8 @@ const Admin = () => {
         <p className="text-muted-foreground mb-8">Add films and upload subtitle tracks, or let fetched YouTube captions auto-save here per film.</p>
 
         <AdminProGrants />
+
+        <AdminProGiftLinks />
         <AdminStripeFallback />
         <AdminPaymentLinks />
         <AdminGiftLinks />
