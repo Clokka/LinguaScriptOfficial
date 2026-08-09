@@ -49,6 +49,8 @@ import OnboardingMobile from "./pages/OnboardingMobile";
 import OAuthConsent from "./pages/OAuthConsent";
 import LinguaScripts from "./pages/LinguaScripts";
 import Credits from "./pages/Credits";
+import ChameleonMethod from "./pages/ChameleonMethod";
+import ProGiftClaim from "./pages/ProGiftClaim";
 
 const queryClient = new QueryClient();
 
@@ -93,6 +95,8 @@ const App = () => (
                 <Route path="/teacher" element={<Teacher />} />
                 <Route path="/progress" element={<Progress />} />
                 <Route path="/gift" element={<GiftClaim />} />
+                <Route path="/pro-gift" element={<ProGiftClaim />} />
+                <Route path="/thechameleonmethod" element={<ChameleonMethod />} />
                 <Route path="/credits" element={<Credits />} />
                 <Route path="/mieoframes" element={<MieoFrames />} />
                 <Route path="/onboarding/mobile" element={<OnboardingMobile />} />

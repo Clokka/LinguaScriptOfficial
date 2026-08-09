@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { lovable } from "@/integrations/lovable/index";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -132,6 +133,32 @@ const Auth = () => {
     }
   }, []);
 
+  // Fallback path when the Google Identity Services iframe can't render
+  // (blocked script, in-app browser, embedded preview). Uses Lovable's
+  // managed OAuth broker instead.
+  const handleGoogleFallback = async () => {
+    setGoogleLoading(true);
+    try {
+      const result = await lovable.auth.signInWithOAuth("google", {
+        redirect_uri: window.location.origin,
+      });
+      if (result.error) throw new Error(String(result.error));
+      if (result.redirected) return;
+      if (inviteToken) {
+        await supabase.rpc("accept_school_invite", { _token: inviteToken });
+      }
+      navigate(next);
+    } catch (e) {
+      toast({
+        title: "Google sign-in failed",
+        description: e instanceof Error ? e.message : "Please try again",
+        variant: "destructive",
+      });
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
   const acceptInviteIfAny = async () => {
     if (!inviteToken) return;
     const { error } = await supabase.rpc("accept_school_invite", { _token: inviteToken });
@@ -194,14 +221,15 @@ const Auth = () => {
 
           {/* Google Sign-In */}
           <div className="relative w-full min-h-[44px]">
-            {/* Placeholder — visible until GIS iframe has rendered */}
+            {/* Fallback button — clickable, used until (or instead of) the GIS iframe */}
             {!gisReady && (
               <Button
                 type="button"
                 variant="outline"
                 size="lg"
-                className="w-full bg-white text-gray-500 border-gray-300 cursor-wait"
-                disabled
+                className="w-full bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                onClick={handleGoogleFallback}
+                disabled={googleLoading}
               >
                 <GoogleIcon />
                 Continue with Google

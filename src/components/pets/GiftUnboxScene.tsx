@@ -26,13 +26,15 @@ interface GiftUnboxSceneProps {
   /** GLB path for the pet being gifted. Defaults to the hedgehog. */
   petGlb?: string;
   accessories?: string[];
+  /** Show the rose + tulip alongside the pet. Off by default. */
+  showFlowers?: boolean;
   onReady?: () => void;
   onOpenComplete?: () => void;
   size?: number;
 }
 
 export const GiftUnboxScene = forwardRef<GiftUnboxHandle, GiftUnboxSceneProps>(
-  ({ petGlb = DEFAULT_PET_GLB, accessories = [], onReady, onOpenComplete, size = 320 }, ref) => {
+  ({ petGlb = DEFAULT_PET_GLB, accessories = [], showFlowers = false, onReady, onOpenComplete, size = 320 }, ref) => {
     const hostRef = useRef<HTMLDivElement>(null);
     const openFnRef = useRef<() => void>(() => {});
 
@@ -211,8 +213,8 @@ export const GiftUnboxScene = forwardRef<GiftUnboxHandle, GiftUnboxSceneProps>(
         });
       };
 
-      // --- Flowers (rose + tulip) ---
-      loader.load(ROSE_GLB, (gltf) => {
+      // --- Flowers (rose + tulip) — optional ---
+      if (showFlowers) loader.load(ROSE_GLB, (gltf) => {
         if (disposed) return;
         roseModel = gltf.scene;
         normaliseAndCentre(roseModel, 0.55);
@@ -223,7 +225,7 @@ export const GiftUnboxScene = forwardRef<GiftUnboxHandle, GiftUnboxSceneProps>(
         scene.add(roseModel);
       });
 
-      loader.load(TULIP_GLB, (gltf) => {
+      if (showFlowers) loader.load(TULIP_GLB, (gltf) => {
         if (disposed) return;
         tulipModel = gltf.scene;
         normaliseAndCentre(tulipModel, 0.7);
@@ -335,8 +337,8 @@ export const GiftUnboxScene = forwardRef<GiftUnboxHandle, GiftUnboxSceneProps>(
           });
         }, 900);
 
-        // Flowers fade in
-        window.setTimeout(() => {
+        // Flowers fade in (only when the gift includes them)
+        if (showFlowers) window.setTimeout(() => {
           if (disposed) return;
           [roseModel, tulipModel].forEach((flower, i) => {
             if (!flower) return;
@@ -380,7 +382,7 @@ export const GiftUnboxScene = forwardRef<GiftUnboxHandle, GiftUnboxSceneProps>(
         renderer.domElement.remove();
       };
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [size, accessoriesKey, petGlb]);
+    }, [size, accessoriesKey, petGlb, showFlowers]);
 
     return (
       <div
