@@ -403,11 +403,17 @@ const Watch = () => {
 
   // Load film
   useEffect(() => {
-    if (!id) return;
-    supabase.from("films").select("*").eq("id", id).single().then(({ data }) => {
-      if (data) setFilm(data);
-      setLoading(false);
-    });
+    if (!id) { setLoading(false); return; }
+    supabase
+      .from("films")
+      .select("*")
+      .eq("id", id)
+      .single()
+      .then(({ data }) => {
+        if (data) setFilm(data);
+      })
+      .catch(() => {/* non-fatal */})
+      .finally(() => setLoading(false));
   }, [id]);
 
   // Load native language from profile

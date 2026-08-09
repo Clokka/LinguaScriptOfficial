@@ -55,13 +55,17 @@ export function DiscoverCatalog({ defaultLanguage }: { defaultLanguage: string }
   useEffect(() => {
     let alive = true;
     (async () => {
-      const { data } = await supabase
-        .from("films")
-        .select("*")
-        .eq("is_public", true)
-        .order("created_at", { ascending: false });
-      if (!alive) return;
-      setFilms((data as any[]) || []);
+      try {
+        const { data } = await supabase
+          .from("films")
+          .select("*")
+          .eq("is_public", true)
+          .order("created_at", { ascending: false });
+        if (!alive) return;
+        setFilms((data as any[]) || []);
+      } catch {
+        if (alive) setFilms([]);
+      }
     })();
     return () => { alive = false; };
   }, []);

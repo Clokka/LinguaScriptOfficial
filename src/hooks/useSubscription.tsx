@@ -30,20 +30,25 @@ export function useSubscription(): ProStatus {
 
   const refresh = useCallback(async () => {
     setLoading(true);
-    configureRevenueCat(user?.id ?? null);
+    try {
+      configureRevenueCat(user?.id ?? null);
 
-    const profilePromise = user
-      ? supabase
-          .from("profiles")
-          .select("is_pro, pro_source, pro_expires_at")
-          .eq("user_id", user.id)
-          .maybeSingle()
-      : Promise.resolve({ data: null } as any);
+      const profilePromise = user
+        ? supabase
+            .from("profiles")
+            .select("is_pro, pro_source, pro_expires_at")
+            .eq("user_id", user.id)
+            .maybeSingle()
+        : Promise.resolve({ data: null } as any);
 
-    const [{ data: prof }, info] = await Promise.all([profilePromise, getCustomerInfo()]);
-    setProfileRow((prof as any) ?? null);
-    setCustomerInfo(info);
-    setLoading(false);
+      const [{ data: prof }, info] = await Promise.all([profilePromise, getCustomerInfo()]);
+      setProfileRow((prof as any) ?? null);
+      setCustomerInfo(info);
+    } catch {
+      // Non-fatal: leave existing state, just clear the spinner.
+    } finally {
+      setLoading(false);
+    }
   }, [user?.id]);
 
   useEffect(() => {

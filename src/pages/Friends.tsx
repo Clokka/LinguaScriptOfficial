@@ -81,36 +81,40 @@ const Friends = () => {
   const refresh = useCallback(async () => {
     if (!user) return;
     setLoading(true);
-    const [{ data: profile }, friendsRes, globalRes, pendingRes, inboxRes, unreadRes] = await Promise.all([
-      supabase.from("profiles")
-        .select("username, friend_code, show_on_global_leaderboard")
-        .eq("user_id", user.id)
-        .maybeSingle() as any,
-      (supabase.rpc as any)("get_friends_leaderboard"),
-      (supabase.rpc as any)("get_global_leaderboard"),
-      supabase.from("friendships")
-        .select("user_id, status")
-        .eq("friend_id", user.id)
-        .eq("status", "pending") as any,
-      supabase.from("friend_messages")
-        .select("id, sender_id, recipient_id, body, created_at, read_at")
-        .or(`sender_id.eq.${user.id},recipient_id.eq.${user.id}`)
-        .order("created_at", { ascending: true })
-        .limit(500) as any,
-      (supabase.rpc as any)("get_unread_message_count"),
+    try {
+      const [{ data: profile }, friendsRes, globalRes, pendingRes, inboxRes, unreadRes] = await Promise.all([
+        supabase.from("profiles")
+          .select("username, friend_code, show_on_global_leaderboard")
+          .eq("user_id", user.id)
+          .maybeSingle() as any,
+        (supabase.rpc as any)("get_friends_leaderboard"),
+        (supabase.rpc as any)("get_global_leaderboard"),
+        supabase.from("friendships")
+          .select("user_id, status")
+          .eq("friend_id", user.id)
+          .eq("status", "pending") as any,
+        supabase.from("friend_messages")
+          .select("id, sender_id, recipient_id, body, created_at, read_at")
+          .or(`sender_id.eq.${user.id},recipient_id.eq.${user.id}`)
+          .order("created_at", { ascending: true })
+          .limit(500) as any,
+        (supabase.rpc as any)("get_unread_message_count"),
+      ]);
 
-    ]);
-
-    if (profile) {
-      setMe(profile);
-      setUsernameInput(profile.username ?? "");
+      if (profile) {
+        setMe(profile);
+        setUsernameInput(profile.username ?? "");
+      }
+      if (friendsRes?.data) setFriends(friendsRes.data as LeaderRow[]);
+      if (globalRes?.data) setGlobal(globalRes.data as LeaderRow[]);
+      setPending(((pendingRes?.data ?? []) as any[]).map((r) => ({ user_id: r.user_id })));
+      setInbox((inboxRes?.data ?? []) as ChatMsg[]);
+      if (typeof unreadRes?.data === "number") setUnread(unreadRes.data);
+    } catch {
+      // Non-fatal: show empty state rather than infinite spinner.
+    } finally {
+      setLoading(false);
     }
-    if (friendsRes?.data) setFriends(friendsRes.data as LeaderRow[]);
-    if (globalRes?.data) setGlobal(globalRes.data as LeaderRow[]);
-    setPending(((pendingRes?.data ?? []) as any[]).map((r) => ({ user_id: r.user_id })));
-    setInbox((inboxRes?.data ?? []) as ChatMsg[]);
-    if (typeof unreadRes?.data === "number") setUnread(unreadRes.data);
-    setLoading(false);
   }, [user]);
 
   useEffect(() => { if (user) refresh(); }, [user, refresh]);
