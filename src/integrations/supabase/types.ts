@@ -451,38 +451,53 @@ export type Database = {
       }
       linguascript_reviews: {
         Row: {
-          correct: boolean
+          ai_feedback: string | null
           created_at: string | null
+          first_try_correct: boolean | null
           id: string
-          mode: string
-          timestamp: string | null
+          linguascript_id: string
+          method_used: string
+          performance: number
+          response_time_ms: number | null
+          session_id: string | null
+          updated_at: string | null
           user_id: string
-          word_id: string
+          user_text: string | null
         }
         Insert: {
-          correct: boolean
+          ai_feedback?: string | null
           created_at?: string | null
+          first_try_correct?: boolean | null
           id?: string
-          mode: string
-          timestamp?: string | null
+          linguascript_id: string
+          method_used: string
+          performance?: number
+          response_time_ms?: number | null
+          session_id?: string | null
+          updated_at?: string | null
           user_id: string
-          word_id: string
+          user_text?: string | null
         }
         Update: {
-          correct?: boolean
+          ai_feedback?: string | null
           created_at?: string | null
+          first_try_correct?: boolean | null
           id?: string
-          mode?: string
-          timestamp?: string | null
+          linguascript_id?: string
+          method_used?: string
+          performance?: number
+          response_time_ms?: number | null
+          session_id?: string | null
+          updated_at?: string | null
           user_id?: string
-          word_id?: string
+          user_text?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "linguascript_reviews_word_id_fkey"
-            columns: ["word_id"]
+            foreignKeyName: "linguascript_reviews_linguascript_id_fkey"
+            columns: ["linguascript_id"]
             isOneToOne: false
-            referencedRelation: "saved_words"
+            referencedRelation: "linguascripts"
             referencedColumns: ["id"]
           },
         ]
@@ -504,6 +519,7 @@ export type Database = {
           mcq_answer: number | null
           mcq_options: Json | null
           saved_word_id: string | null
+          scheduled_for: string
           scheduled_to_srs: boolean | null
           sentence: string
           speaking_answer: string | null
@@ -513,6 +529,7 @@ export type Database = {
           translation: string
           updated_at: string | null
           user_id: string
+          word_state: string
           xp_earned: number | null
         }
         Insert: {
@@ -531,6 +548,7 @@ export type Database = {
           mcq_answer?: number | null
           mcq_options?: Json | null
           saved_word_id?: string | null
+          scheduled_for?: string
           scheduled_to_srs?: boolean | null
           sentence: string
           speaking_answer?: string | null
@@ -540,6 +558,7 @@ export type Database = {
           translation: string
           updated_at?: string | null
           user_id: string
+          word_state?: string
           xp_earned?: number | null
         }
         Update: {
@@ -558,6 +577,7 @@ export type Database = {
           mcq_answer?: number | null
           mcq_options?: Json | null
           saved_word_id?: string | null
+          scheduled_for?: string
           scheduled_to_srs?: boolean | null
           sentence?: string
           speaking_answer?: string | null
@@ -567,6 +587,7 @@ export type Database = {
           translation?: string
           updated_at?: string | null
           user_id?: string
+          word_state?: string
           xp_earned?: number | null
         }
         Relationships: [
@@ -579,8 +600,162 @@ export type Database = {
           },
         ]
       }
+      pet_collection: {
+        Row: {
+          gifted_from: string | null
+          id: string
+          pet_id: string
+          unlocked_at: string | null
+          user_id: string
+        }
+        Insert: {
+          gifted_from?: string | null
+          id?: string
+          pet_id: string
+          unlocked_at?: string | null
+          user_id: string
+        }
+        Update: {
+          gifted_from?: string | null
+          id?: string
+          pet_id?: string
+          unlocked_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      pet_equipment: {
+        Row: {
+          accessory_id: string
+          created_at: string | null
+          equipped: boolean
+          id: string
+          pet_id: string
+          slot: string
+          user_id: string
+        }
+        Insert: {
+          accessory_id: string
+          created_at?: string | null
+          equipped?: boolean
+          id?: string
+          pet_id: string
+          slot: string
+          user_id: string
+        }
+        Update: {
+          accessory_id?: string
+          created_at?: string | null
+          equipped?: boolean
+          id?: string
+          pet_id?: string
+          slot?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      pet_gift_links: {
+        Row: {
+          accessories: string[] | null
+          claimed_at: string | null
+          claimed_by: string | null
+          created_at: string | null
+          expires_at: string | null
+          id: string
+          pet_id: string
+          sender_id: string | null
+          token: string
+        }
+        Insert: {
+          accessories?: string[] | null
+          claimed_at?: string | null
+          claimed_by?: string | null
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          pet_id: string
+          sender_id?: string | null
+          token?: string
+        }
+        Update: {
+          accessories?: string[] | null
+          claimed_at?: string | null
+          claimed_by?: string | null
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          pet_id?: string
+          sender_id?: string | null
+          token?: string
+        }
+        Relationships: []
+      }
+      pet_gifts: {
+        Row: {
+          id: string
+          pet_id: string
+          recipient_id: string
+          sender_id: string | null
+          sent_at: string | null
+        }
+        Insert: {
+          id?: string
+          pet_id: string
+          recipient_id: string
+          sender_id?: string | null
+          sent_at?: string | null
+        }
+        Update: {
+          id?: string
+          pet_id?: string
+          recipient_id?: string
+          sender_id?: string | null
+          sent_at?: string | null
+        }
+        Relationships: []
+      }
+      pro_gift_links: {
+        Row: {
+          claimed_at: string | null
+          claimed_by: string | null
+          created_at: string
+          created_by: string | null
+          days: number | null
+          expires_at: string
+          id: string
+          note: string | null
+          token: string
+          updated_at: string
+        }
+        Insert: {
+          claimed_at?: string | null
+          claimed_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          days?: number | null
+          expires_at?: string
+          id?: string
+          note?: string | null
+          token: string
+          updated_at?: string
+        }
+        Update: {
+          claimed_at?: string | null
+          claimed_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          days?: number | null
+          expires_at?: string
+          id?: string
+          note?: string | null
+          token?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
+          active_pet: string | null
           avatar_url: string | null
           cef_level: string | null
           created_at: string
@@ -627,6 +802,7 @@ export type Database = {
           xp_total: number
         }
         Insert: {
+          active_pet?: string | null
           avatar_url?: string | null
           cef_level?: string | null
           created_at?: string
@@ -673,6 +849,7 @@ export type Database = {
           xp_total?: number
         }
         Update: {
+          active_pet?: string | null
           avatar_url?: string | null
           cef_level?: string | null
           created_at?: string
@@ -1466,6 +1643,8 @@ export type Database = {
         Args: { _emails: string[]; _school_id: string }
         Returns: number
       }
+      claim_gift_link: { Args: { p_token: string }; Returns: Json }
+      claim_pro_gift_link: { Args: { _token: string }; Returns: Json }
       create_daily_linguascript: {
         Args: {
           p_gap_options: Json
@@ -1480,6 +1659,10 @@ export type Database = {
         }
         Returns: string
       }
+      create_gift_link: {
+        Args: { p_accessories?: string[]; p_pet_id: string }
+        Returns: Json
+      }
       create_linguascript_from_saved_word: {
         Args: {
           p_context: string
@@ -1492,6 +1675,10 @@ export type Database = {
           p_word: string
         }
         Returns: string
+      }
+      create_pro_gift_link: {
+        Args: { _days?: number; _note?: string }
+        Returns: Json
       }
       create_school: { Args: { _name: string; _slug: string }; Returns: string }
       delete_email: {
@@ -1545,6 +1732,7 @@ export type Database = {
           xp_total: number
         }[]
       }
+      get_gift_link_preview: { Args: { p_token: string }; Returns: Json }
       get_global_leaderboard: {
         Args: never
         Returns: {
@@ -1570,6 +1758,10 @@ export type Database = {
           translation: string
           word: string
         }[]
+      }
+      gift_pet: {
+        Args: { p_pet_id: string; p_recipient_username: string }
+        Returns: Json
       }
       has_role: {
         Args: {
@@ -1614,6 +1806,7 @@ export type Database = {
           slug: string
         }[]
       }
+      preview_pro_gift_link: { Args: { _token: string }; Returns: Json }
       read_email_batch: {
         Args: { batch_size: number; queue_name: string; vt: number }
         Returns: {

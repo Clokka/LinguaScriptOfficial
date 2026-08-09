@@ -18,6 +18,7 @@ import { Pencil } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { getIntegrations, saveIntegrations, type IntegrationKey, type IntegrationConfig } from "@/lib/integrations";
 import { AdminProGrants } from "@/components/AdminProGrants";
+import { AdminProGiftLinks } from "@/components/AdminProGiftLinks";
 import { AdminStripeFallback } from "@/components/AdminStripeFallback";
 import { AdminPaymentLinks } from "@/components/AdminPaymentLinks";
 import { AdminGiftLinks } from "@/components/AdminGiftLinks";
@@ -264,7 +265,7 @@ const Admin = () => {
     // Auto-generate YouTube thumbnail if not provided
     let thumb = thumbnailUrl || null;
     if (!thumb) {
-      const ytMatch = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?.*v=|embed\/|v\/))([^&?\s]+)/);
+      const ytMatch = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?.*v=|embed\/|v\/|shorts\/|live\/))([^&?\s]+)/);
       if (ytMatch) {
         thumb = `https://img.youtube.com/vi/${ytMatch[1]}/hqdefault.jpg`;
       }
@@ -351,6 +352,8 @@ const Admin = () => {
         <p className="text-muted-foreground mb-8">Add films and upload subtitle tracks, or let fetched YouTube captions auto-save here per film.</p>
 
         <AdminProGrants />
+
+        <AdminProGiftLinks />
         <AdminStripeFallback />
         <AdminPaymentLinks />
         <AdminGiftLinks />

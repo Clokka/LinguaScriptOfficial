@@ -24,7 +24,6 @@ import { useXp } from "@/contexts/XpContext";
 import { usePet } from "@/contexts/PetContext";
 import { recordDailyVideoWatch, setReinforcementPending } from "@/lib/dailyVideo";
 import { toast } from "sonner";
-import { generateLinguaScriptFromWord, createLinguaScriptFromSavedWord } from "@/lib/linguascripts";
 import {
   computeVideoComprehension,
   loadComprehensionRecord,
@@ -61,7 +60,7 @@ interface DisplaySubtitle {
 }
 
 function getYouTubeId(url: string): string | null {
-  const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?.*v=|embed\/|v\/))([^&?\s]+)/);
+  const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?.*v=|embed\/|v\/|shorts\/|live\/))([^&?\s]+)/);
   return match ? match[1] : null;
 }
 
@@ -753,40 +752,19 @@ const Watch = () => {
     playDing("success");
     maybeTriggerLearningBreak({ word: word.text, translation });
 
-    // Generate LinguaScript exercise for this word
-    generateLinguaScriptForWord(word.text, translation, "red", langCode);
-  };
-
-  const generateLinguaScriptForWord = async (
-    wordText: string,
-    translation: string,
-    state: "red" | "orange" | "green",
-    language: string
-  ) => {
-    try {
-      const sentence = await generateLinguaScriptFromWord({
-        word: wordText,
-        interests: [],
-        cefLevel: "B1",
-        language,
-        wordState: state,
-        nativeLanguage,
-      });
-
-      if (sentence) {
-        await createLinguaScriptFromSavedWord(
-          user!.id,
-          wordText,
-          sentence.sentence,
-          sentence.translation,
-          state,
-          language,
-          []
-        );
-      }
-    } catch (err) {
-      console.error("Failed to generate LinguaScript:", err);
-    }
+    // Create LinguaScript record immediately (scheduled for now, not tomorrow)
+    supabase.from("linguascripts").insert({
+      user_id: user.id,
+      language: langCode,
+      target_word: word.text,
+      sentence: context || word.text,
+      translation: translation,
+      word_state: "red",
+      status: "pending",
+      attempts: 0,
+      combo_multiplier: 1,
+      scheduled_for: new Date().toISOString(),
+    } as any).then(({ error }) => { if (error) console.error("Failed to create LinguaScript:", error); });
   };
 
   const savePhrase = async (phrase: string) => {
@@ -848,8 +826,19 @@ const Watch = () => {
     toast.success("Phrase saved to flashcards");
     playDing("success");
 
-    // Generate LinguaScript exercise for this phrase
-    generateLinguaScriptForWord(trimmed, translation, "red", langCode);
+    // Create LinguaScript record for phrase (scheduled for now, not tomorrow)
+    supabase.from("linguascripts").insert({
+      user_id: user.id,
+      language: langCode,
+      target_word: trimmed,
+      sentence: context || trimmed,
+      translation: translation,
+      word_state: "red",
+      status: "pending",
+      attempts: 0,
+      combo_multiplier: 1,
+      scheduled_for: new Date().toISOString(),
+    } as any).then(({ error }) => { if (error) console.error("Failed to create LinguaScript for phrase:", error); });
   };
 
   const markWordKnown = async (word: { text: string; translation?: string }) => {
@@ -883,8 +872,19 @@ const Watch = () => {
     }
     toast.success("Marked as known: " + word.text);
 
-    // Generate LinguaScript exercise for known words (as green)
-    generateLinguaScriptForWord(word.text, word.translation || "", "green", langCode);
+    // Create LinguaScript record for known word (scheduled for now, not 7 days from now)
+    supabase.from("linguascripts").insert({
+      user_id: user.id,
+      language: langCode,
+      target_word: word.text,
+      sentence: currentSubtitle?.primary || word.text,
+      translation: word.translation || "",
+      word_state: "green",
+      status: "pending",
+      attempts: 0,
+      combo_multiplier: 1,
+      scheduled_for: new Date().toISOString(),
+    } as any).then(({ error }) => { if (error) console.error("Failed to create LinguaScript for known word:", error); });
   };
 
   const downloadSrt = (type: "primary" | "secondary") => {

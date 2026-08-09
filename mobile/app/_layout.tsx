@@ -1,7 +1,7 @@
 import '../global.css';
 import { useEffect, useRef } from 'react';
-import { View, Text, ActivityIndicator, Animated } from 'react-native';
-import { Stack, useRouter, useSegments } from 'expo-router';
+import { View, Text, ActivityIndicator, Animated, StyleSheet } from 'react-native';
+import { Stack, useRouter, useSegments, useRootNavigationState } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -17,32 +17,41 @@ function AuthGate() {
   const { session, loading } = useAuth();
   const segments = useSegments();
   const router = useRouter();
+  // Wait until the navigator tree is fully mounted before redirecting.
+  // Without this check router.replace fires into an uninitialized navigator
+  // and silently fails — leaving the user on a blank screen forever.
+  const navState = useRootNavigationState();
 
   useEffect(() => {
     if (loading) return;
-    const first = segments[0];
-    const inAuth = first === 'auth';
-    if (!session && !inAuth) router.replace('/auth');
-    else if (session && inAuth) router.replace('/(tabs)');
-  }, [session, loading, segments]);
+    if (!navState?.key) return; // navigator not ready yet
+    const inAuth       = segments[0] === 'auth';
+    const inOnboarding = segments[0] === 'onboarding';
+    if (!session && !inAuth) {
+      router.replace('/auth');
+    } else if (session && inAuth) {
+      // Just signed in → onboarding checks language and self-redirects to tabs if set.
+      router.replace('/onboarding');
+    } else if (!session && inOnboarding) {
+      router.replace('/auth');
+    }
+  }, [session, loading, segments, navState?.key]);
 
   return null;
 }
 
 function LinkListener() {
   useEffect(() => {
-    Linking.getInitialURL().then((url) => {
-      if (url) handleDeepLink(url);
-    });
+    Linking.getInitialURL().then((url) => { if (url) handleDeepLink(url); });
     const sub = Linking.addEventListener('url', ({ url }) => handleDeepLink(url));
     return () => sub.remove();
   }, []);
 
   useEffect(() => {
     const sub = Notifications.addNotificationResponseReceivedListener((resp) => {
-      const data = resp.notification.request.content.data as any;
+      const data = resp.notification.request.content.data as Record<string, unknown>;
       if (data?.kind === 'flashcards-due') {
-        // handled by router in specific screens
+        // Deep-link handled inside the review tab
       }
     });
     return () => sub.remove();
@@ -100,14 +109,20 @@ function WelcomeSplash() {
   );
 }
 
-function AppShell() {
+/**
+ * Draws the splash *over* the navigator rather than instead of it.
+ *
+ * The Stack now mounts unconditionally so it exists when AuthGate first fires
+ * — gating it behind `loading` is what left users on a blank screen forever.
+ * Overlaying keeps that fix intact while still showing the chameleon.
+ */
+function SplashOverlay() {
   const { loading } = useAuth();
-  if (loading) return <WelcomeSplash />;
+  if (!loading) return null;
   return (
-    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: UI.bg } }}>
-      <Stack.Screen name="(tabs)" />
-      <Stack.Screen name="auth" />
-    </Stack>
+    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+      <WelcomeSplash />
+    </View>
   );
 }
 
@@ -122,9 +137,15 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <AuthProvider>
           <StatusBar style="light" />
+          {/* Stack always renders so the navigator exists when AuthGate first fires */}
+          <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: UI.bg } }}>
+            <Stack.Screen name="(tabs)" />
+            <Stack.Screen name="auth" />
+            <Stack.Screen name="onboarding" />
+          </Stack>
+          <SplashOverlay />
           <AuthGate />
           <LinkListener />
-          <AppShell />
         </AuthProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

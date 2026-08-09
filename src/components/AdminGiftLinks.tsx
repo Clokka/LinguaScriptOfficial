@@ -136,10 +136,10 @@ export function AdminGiftLinks() {
 
           <div>
             <label className="text-xs text-muted-foreground mb-1 block">
-              Accessories (optional)
+              Extras (optional)
             </label>
             <div className="flex flex-wrap gap-2">
-              {ACCESSORIES.map((a) => (
+              {[...ACCESSORIES, { id: "flowers", name: "Flowers", emoji: "💐" }].map((a) => (
                 <label
                   key={a.id}
                   className="flex items-center gap-2 px-3 py-2 rounded-md bg-secondary/40 border border-border cursor-pointer text-sm text-foreground"
@@ -154,6 +154,9 @@ export function AdminGiftLinks() {
                 </label>
               ))}
             </div>
+            <p className="text-[10px] text-muted-foreground mt-1">
+              Flowers only appear in the unboxing scene if you tick them here.
+            </p>
           </div>
         </div>
 

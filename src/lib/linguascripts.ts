@@ -237,7 +237,7 @@ export async function createLinguaScriptFromSavedWord(
       return null;
     }
 
-    return data as LinguaScript;
+    return data as unknown as LinguaScript;
   } catch (err) {
     console.error("Error creating LinguaScript:", err);
     return null;
@@ -274,7 +274,7 @@ export async function getUpcomingLinguaScripts(
       return [];
     }
 
-    return (data || []) as LinguaScript[];
+    return (data || []) as unknown as LinguaScript[];
   } catch (err) {
     console.error("Failed to get LinguaScripts:", err);
     return [];
@@ -302,7 +302,7 @@ export async function getAllUserLinguaScripts(
       return [];
     }
 
-    return (data || []) as LinguaScript[];
+    return (data || []) as unknown as LinguaScript[];
   } catch (err) {
     console.error("Failed to get all LinguaScripts:", err);
     return [];
