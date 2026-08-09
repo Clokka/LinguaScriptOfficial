@@ -337,8 +337,8 @@ export const GiftUnboxScene = forwardRef<GiftUnboxHandle, GiftUnboxSceneProps>(
           });
         }, 900);
 
-        // Flowers fade in
-        window.setTimeout(() => {
+        // Flowers fade in (only when the gift includes them)
+        if (showFlowers) window.setTimeout(() => {
           if (disposed) return;
           [roseModel, tulipModel].forEach((flower, i) => {
             if (!flower) return;
