@@ -225,7 +225,7 @@ export const GiftUnboxScene = forwardRef<GiftUnboxHandle, GiftUnboxSceneProps>(
         scene.add(roseModel);
       });
 
-      loader.load(TULIP_GLB, (gltf) => {
+      if (showFlowers) loader.load(TULIP_GLB, (gltf) => {
         if (disposed) return;
         tulipModel = gltf.scene;
         normaliseAndCentre(tulipModel, 0.7);
