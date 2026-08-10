@@ -661,6 +661,7 @@ const AVAILABLE_LEARNING_LANGS = [
   { code: "it", label: "Italian", flag: "🇮🇹" },
   { code: "pt", label: "Portuguese", flag: "🇵🇹" },
   { code: "ja", label: "Japanese", flag: "🇯🇵" },
+  { code: "en", label: "English", flag: "🇬🇧" },
 ];
 
 const LearningLanguageSelect = ({
