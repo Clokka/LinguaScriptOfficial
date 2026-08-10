@@ -42,10 +42,43 @@ const Auth = () => {
       const result = await lovable.auth.signInWithOAuth("google", {
         redirect_uri: window.location.origin,
       });
-      if (result.error) throw new Error(String(result.error));
+      // A redirect means the browser is navigating away — nothing failed.
       if (result.redirected) return;
+
+      // Only surface a genuine, human-readable failure. The broker can return
+      // empty/benign objects (or a user-cancelled popup) which must not show
+      // a red error while sign-in is actually working.
+      const rawError = (result as { error?: unknown }).error;
+      const message =
+        rawError instanceof Error
+          ? rawError.message
+          : typeof rawError === "string"
+          ? rawError
+          : typeof rawError === "object" && rawError !== null
+          ? String((rawError as { message?: unknown }).message ?? "")
+          : "";
+      const benign = /cancel|closed|abort|popup/i.test(message);
+      if (message && !benign) throw new Error(message);
+      if (!message && rawError) return; // opaque, non-actionable — stay silent
+
       if (inviteToken) {
         await supabase.rpc("accept_school_invite", { _token: inviteToken });
+      }
+
+      // Brand-new Google users have no completed profile yet — send them
+      // through onboarding instead of straight into the app.
+      const { data: session } = await supabase.auth.getSession();
+      const uid = session.session?.user?.id;
+      if (uid) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("onboarded")
+          .eq("user_id", uid)
+          .maybeSingle();
+        if (!(profile as { onboarded?: boolean } | null)?.onboarded) {
+          navigate("/onboarding");
+          return;
+        }
       }
       navigate(next);
     } catch (e) {
@@ -58,6 +91,7 @@ const Auth = () => {
       setGoogleLoading(false);
     }
   };
+
 
   const acceptInviteIfAny = async () => {
     if (!inviteToken) return;
