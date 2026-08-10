@@ -62,7 +62,7 @@ export default function OnboardingScreen() {
         </Text>
 
         <View style={s.grid}>
-          {LANGUAGES.filter((l) => l.code !== 'en').map((l) => {
+          {LANGUAGES.map((l) => {
             const active = selected === l.code;
             return (
               <Pressable

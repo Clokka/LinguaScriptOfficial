@@ -135,7 +135,7 @@ export default function DiscoverScreen() {
       <FlatList
         horizontal
         showsHorizontalScrollIndicator={false}
-        data={LANGUAGES.filter((l) => l.code !== 'en')}
+        data={LANGUAGES}
         keyExtractor={(l) => l.code}
         contentContainerStyle={s.chipsRow}
         renderItem={({ item }) => {
