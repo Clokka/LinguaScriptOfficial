@@ -42,14 +42,7 @@
           "imageWidth": 200
         }
       ],
-      [
-        "expo-notifications",
-        {
-          "icon": "./assets/icon.png",
-          "color": "#22c55e",
-          "defaultChannel": "default"
-        }
-      ]
+      "expo-notifications"
     ],
     "experiments": {
       "typedRoutes": true
