@@ -2,9 +2,8 @@ name: Build Android APK
 
 # Trigger this manually from the Actions tab.
 # Required repo secrets:
-#   EXPO_TOKEN          — from expo.dev/settings/access-tokens
-#   SUPABASE_URL        — your Supabase project URL (https://xxx.supabase.co)
-#   SUPABASE_ANON_KEY   — your Supabase anon/public key
+#   EXPO_TOKEN   — from expo.dev/settings/access-tokens
+# Supabase credentials are baked into eas.json — no additional secrets needed.
 
 on:
   workflow_dispatch:
@@ -45,14 +44,6 @@ jobs:
       - name: Install mobile deps
         working-directory: mobile
         run: npm ci --no-audit --no-fund --legacy-peer-deps
-
-      - name: Write .env for EAS build
-        working-directory: mobile
-        run: |
-          cat > .env << 'EOF'
-          EXPO_PUBLIC_SUPABASE_URL=${{ secrets.SUPABASE_URL }}
-          EXPO_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
-          EOF
 
       - name: Trigger EAS build (no wait)
         if: ${{ github.event.inputs.wait_for_build == 'false' }}
