@@ -1,7 +1,8 @@
 {
   "expo": {
     "name": "LinguaScript",
-    "slug": "linguascript",
+    "slug": "linguascript-chameleon",
+    "owner": "rowanawesome1s-team",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -47,7 +48,7 @@
     },
     "extra": {
       "eas": {
-        "projectId": "linguascript-mobile"
+        "projectId": "15c4a3cd-b8c2-47c3-aaa5-1977b72f1376"
       }
     }
   }
