@@ -2,8 +2,10 @@ import { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -20,9 +22,6 @@ WebBrowser.maybeCompleteAuthSession();
 
 const REDIRECT_URL = Linking.createURL('auth-callback');
 
-// After a successful auth event, check if the user completed onboarding and
-// route them to the correct screen. New users go to /onboarding; returning
-// users go straight to /(tabs).
 async function routeAfterAuth(userId: string, router: ReturnType<typeof useRouter>) {
   try {
     const { data } = await supabase
@@ -36,8 +35,6 @@ async function routeAfterAuth(userId: string, router: ReturnType<typeof useRoute
   }
 }
 
-// Race an async operation against a timeout. Rejects with a timeout error
-// after `ms` milliseconds so loading states can never stay stuck forever.
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return Promise.race([
     promise,
@@ -55,10 +52,6 @@ export default function AuthScreen() {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
 
-  // ── Google OAuth ─────────────────────────────────────────────────────────
-  // Opens an in-app browser sheet (Chrome Custom Tab / SFSafariViewController).
-  // The user never leaves the app; the sheet closes when Google redirects back
-  // to the linguascript:// deep link scheme.
   const signInWithGoogle = async () => {
     setGoogleLoading(true);
     try {
@@ -103,7 +96,6 @@ export default function AuthScreen() {
     }
   };
 
-  // ── Email / password ─────────────────────────────────────────────────────
   const handleEmailAuth = async () => {
     if (!email.trim() || !password.trim()) {
       Alert.alert('Missing fields', 'Please enter your email and password.');
@@ -137,93 +129,124 @@ export default function AuthScreen() {
     }
   };
 
+  const handleForgotPassword = async () => {
+    if (!email.trim()) {
+      Alert.alert('Enter your email', 'Type your email address above, then tap this link.');
+      return;
+    }
+    try {
+      const { error } = await withTimeout(
+        supabase.auth.signInWithOtp({ email: email.trim() }),
+        15000,
+      );
+      if (error) throw error;
+      Alert.alert('Check your email', 'We sent you a magic sign-in link. Tap it to log in instantly.');
+    } catch (err: any) {
+      Alert.alert('Error', err.message ?? 'Could not send sign-in link.');
+    }
+  };
+
   const busy = loading || googleLoading;
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.inner}>
-        {/* Logo */}
-        <View style={styles.logoWrap}>
-          <Text style={styles.logoEmoji}>🦎</Text>
-          <Text style={styles.logoText}>LinguaScript</Text>
-          <Text style={styles.tagline}>Learn a language through content you love.</Text>
-        </View>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.flex}>
+        <ScrollView contentContainerStyle={styles.inner} keyboardShouldPersistTaps="handled">
+          {/* Logo */}
+          <View style={styles.logoWrap}>
+            <Image
+              source={require('../assets/icon.png')}
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
+            <Text style={styles.logoText}>LinguaScript</Text>
+            <Text style={styles.tagline}>Sign in to continue learning</Text>
+          </View>
 
-        {/* Google sign-in — primary CTA */}
-        <TouchableOpacity
-          style={[styles.googleBtn, busy && styles.btnDisabled]}
-          onPress={signInWithGoogle}
-          disabled={busy}
-        >
-          {googleLoading ? (
-            <ActivityIndicator color="#1f2937" />
-          ) : (
-            <>
-              <View style={styles.gMark}>
-                <Text style={styles.gMarkText}>G</Text>
-              </View>
-              <Text style={styles.googleBtnText}>Continue with Google</Text>
-            </>
-          )}
-        </TouchableOpacity>
-
-        {/* Divider */}
-        <View style={styles.divider}>
-          <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>or</Text>
-          <View style={styles.dividerLine} />
-        </View>
-
-        {/* Sign in / Sign up toggle */}
-        <View style={styles.toggle}>
-          {(['sign_in', 'sign_up'] as const).map((m) => (
-            <TouchableOpacity
-              key={m}
-              style={[styles.toggleBtn, mode === m && styles.toggleBtnActive]}
-              onPress={() => setMode(m)}
-            >
-              <Text style={[styles.toggleText, mode === m && styles.toggleTextActive]}>
-                {m === 'sign_in' ? 'Sign in' : 'Create account'}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        <View style={styles.form}>
-          <TextInput
-            style={styles.input}
-            placeholder="Email"
-            placeholderTextColor="#6b7280"
-            value={email}
-            onChangeText={setEmail}
-            autoCapitalize="none"
-            autoCorrect={false}
-            keyboardType="email-address"
-            textContentType="emailAddress"
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Password"
-            placeholderTextColor="#6b7280"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            textContentType={mode === 'sign_up' ? 'newPassword' : 'password'}
-          />
+          {/* Google sign-in */}
           <TouchableOpacity
-            style={[styles.submitBtn, busy && styles.btnDisabled]}
-            onPress={handleEmailAuth}
+            style={[styles.googleBtn, busy && styles.btnDisabled]}
+            onPress={signInWithGoogle}
             disabled={busy}
           >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
+            {googleLoading ? (
+              <ActivityIndicator color="#1f2937" />
             ) : (
-              <Text style={styles.submitText}>
-                {mode === 'sign_in' ? 'Sign in' : 'Create account'}
-              </Text>
+              <>
+                <View style={styles.gMark}>
+                  <Text style={styles.gMarkText}>G</Text>
+                </View>
+                <Text style={styles.googleBtnText}>Continue with Google</Text>
+              </>
             )}
           </TouchableOpacity>
-        </View>
+
+          {/* Divider */}
+          <View style={styles.divider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>or</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          {/* Email + password form */}
+          <View style={styles.form}>
+            <TextInput
+              style={styles.input}
+              placeholder="Email"
+              placeholderTextColor="#6b7280"
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="email-address"
+              textContentType="emailAddress"
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Password"
+              placeholderTextColor="#6b7280"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              textContentType={mode === 'sign_up' ? 'newPassword' : 'password'}
+            />
+
+            <TouchableOpacity
+              style={[styles.submitBtn, busy && styles.btnDisabled]}
+              onPress={handleEmailAuth}
+              disabled={busy}
+            >
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.submitText}>
+                  {mode === 'sign_in' ? 'Sign in  ›' : 'Create account  ›'}
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
+
+          {/* Forgot password */}
+          {mode === 'sign_in' && (
+            <TouchableOpacity onPress={handleForgotPassword} style={styles.linkRow}>
+              <Text style={styles.linkText}>Forgot password? Sign in with email code</Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Toggle sign in / sign up */}
+          <TouchableOpacity
+            onPress={() => setMode(mode === 'sign_in' ? 'sign_up' : 'sign_in')}
+            style={styles.linkRow}
+          >
+            <Text style={styles.mutedText}>
+              {mode === 'sign_in' ? "Don't have an account? " : 'Already have an account? '}
+              <Text style={styles.linkText}>{mode === 'sign_in' ? 'Sign up' : 'Sign in'}</Text>
+            </Text>
+          </TouchableOpacity>
+
+          {/* Privacy */}
+          <Text style={styles.privacy}>By continuing you agree to our privacy policy.</Text>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -231,12 +254,13 @@ export default function AuthScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0a0a0f' },
-  inner: { flex: 1, paddingHorizontal: 24, justifyContent: 'center' },
+  flex: { flex: 1 },
+  inner: { flexGrow: 1, paddingHorizontal: 24, paddingTop: 24, paddingBottom: 32, justifyContent: 'center' },
 
-  logoWrap: { alignItems: 'center', marginBottom: 36 },
-  logoEmoji: { fontSize: 52, marginBottom: 8 },
+  logoWrap: { alignItems: 'center', marginBottom: 40 },
+  logoImage: { width: 96, height: 96, marginBottom: 14 },
   logoText: { fontSize: 30, fontWeight: '800', color: '#f0fdf4', letterSpacing: -0.5 },
-  tagline: { fontSize: 14, color: '#6b7280', marginTop: 6, textAlign: 'center' },
+  tagline: { fontSize: 15, color: '#9ca3af', marginTop: 6, textAlign: 'center' },
 
   googleBtn: {
     flexDirection: 'row',
@@ -264,19 +288,7 @@ const styles = StyleSheet.create({
   dividerLine: { flex: 1, height: 1, backgroundColor: '#1f2937' },
   dividerText: { color: '#6b7280', fontSize: 13 },
 
-  toggle: {
-    flexDirection: 'row',
-    backgroundColor: '#111827',
-    borderRadius: 12,
-    padding: 4,
-    marginBottom: 16,
-  },
-  toggleBtn: { flex: 1, paddingVertical: 10, borderRadius: 9, alignItems: 'center' },
-  toggleBtnActive: { backgroundColor: '#22c55e' },
-  toggleText: { fontSize: 14, fontWeight: '600', color: '#6b7280' },
-  toggleTextActive: { color: '#fff' },
-
-  form: { gap: 12 },
+  form: { gap: 12, marginBottom: 16 },
   input: {
     backgroundColor: '#111827',
     borderWidth: 1,
@@ -295,4 +307,9 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   submitText: { color: '#fff', fontWeight: '700', fontSize: 16 },
+
+  linkRow: { alignItems: 'center', paddingVertical: 8 },
+  linkText: { color: '#22c55e', fontSize: 14, fontWeight: '600' },
+  mutedText: { color: '#9ca3af', fontSize: 14, textAlign: 'center' },
+  privacy: { color: '#4b5563', fontSize: 12, textAlign: 'center', marginTop: 16 },
 });
