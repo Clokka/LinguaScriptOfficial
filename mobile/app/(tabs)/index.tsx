@@ -3,7 +3,6 @@ import {
   ActivityIndicator,
   BackHandler,
   StyleSheet,
-  Text,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -16,21 +15,20 @@ import { registerForPushNotifications } from '../../lib/notifications';
 
 const BASE_URL = 'https://linguascript.co.uk';
 const HOME_URL = `${BASE_URL}/discover`;
+const SESSION_KEY = 'sb-ffephracinqeylfhqkiz-auth-token';
 
-// Inject Supabase session into the website's localStorage so the user is
-// automatically signed in on the web side without a second login prompt.
-function buildSessionScript(accessToken: string, refreshToken: string, userId: string): string {
-  const sessionKey = `sb-ffephracinqeylfhqkiz-auth-token`;
-  const session = JSON.stringify({
-    access_token: accessToken,
-    refresh_token: refreshToken,
-    token_type: 'bearer',
-    user: { id: userId },
-  });
+// Runs BEFORE the page scripts load so the website's Supabase client
+// finds the session in localStorage during its own initialization.
+// We pass the full session object (not a stripped version) so expires_at
+// and the complete user record are present and Supabase accepts it.
+function buildPreloadScript(fullSession: object): string {
+  // JSON.stringify(sessionJson) produces a safe quoted string literal
+  // that can be embedded directly inside the JS without encoding issues.
+  const sessionJson = JSON.stringify(fullSession);
   return `
     (function() {
       try {
-        localStorage.setItem('${sessionKey}', JSON.stringify(${JSON.stringify(session)}));
+        localStorage.setItem(${JSON.stringify(SESSION_KEY)}, ${JSON.stringify(sessionJson)});
       } catch(e) {}
     })();
     true;
@@ -41,19 +39,19 @@ export default function WebAppScreen() {
   const { user } = useAuth();
   const webViewRef = useRef<WebView>(null);
   const [canGoBack, setCanGoBack] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [sessionScript, setSessionScript] = useState<string>('true;');
+  const [preloadScript, setPreloadScript] = useState<string>('true;');
 
   useEffect(() => {
     registerForPushNotifications();
   }, []);
 
+  // Fetch the full native session and build the preload script once we have a user.
   useEffect(() => {
     if (!user) return;
     supabase.auth.getSession().then(({ data }) => {
-      const s = data?.session;
-      if (s?.access_token && s?.refresh_token) {
-        setSessionScript(buildSessionScript(s.access_token, s.refresh_token, user.id));
+      const session = data?.session;
+      if (session) {
+        setPreloadScript(buildPreloadScript(session));
       }
     });
   }, [user]);
@@ -79,28 +77,26 @@ export default function WebAppScreen() {
         ref={webViewRef}
         source={{ uri: HOME_URL }}
         style={styles.webview}
-        injectedJavaScript={sessionScript}
+        // BEFORE content loads — so Supabase client finds session on init
+        injectedJavaScriptBeforeContentLoaded={preloadScript}
         onNavigationStateChange={onNavChange}
-        onLoadStart={() => setLoading(true)}
-        onLoadEnd={() => setLoading(false)}
         javaScriptEnabled
         domStorageEnabled
         thirdPartyCookiesEnabled
         allowsBackForwardNavigationGestures
         pullToRefreshEnabled
+        startInLoadingState
         renderLoading={() => (
           <View style={styles.loadingOverlay}>
             <ActivityIndicator size="large" color="#22c55e" />
           </View>
         )}
-        startInLoadingState
-        onShouldStartLoadWithRequest={(req) => {
-          // Keep navigation inside linguascript.co.uk; open external links in system browser
-          return req.url.startsWith(BASE_URL) || req.url.startsWith('about:');
-        }}
+        // Allow all navigation within the WebView (same as APK's linkOpenMode: internal).
+        // The website handles YouTube embeds, Google auth redirects, etc. internally.
+        onShouldStartLoadWithRequest={() => true}
       />
 
-      {/* Slim bottom bar — only shows when there's history to go back in */}
+      {/* Slim nav bar — back, refresh, home — appears only when user has navigated away */}
       {canGoBack && (
         <View style={styles.bottomBar}>
           <TouchableOpacity style={styles.navBtn} onPress={() => webViewRef.current?.goBack()}>
