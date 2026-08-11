@@ -1,23 +1,43 @@
 import { Tabs, useRouter } from 'expo-router';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
+import { supabase } from '../../lib/supabase';
 
 export default function TabsLayout() {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const [onboardingChecked, setOnboardingChecked] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
       router.replace('/auth');
+      return;
+    }
+    if (!loading && user) {
+      // Check onboarding completion so users who bypass auth.tsx still land
+      // on onboarding if they haven't finished it.
+      supabase
+        .from('profiles')
+        .select('onboarded')
+        .eq('user_id', user.id)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (!data?.onboarded) {
+            router.replace('/onboarding');
+          } else {
+            setOnboardingChecked(true);
+          }
+        })
+        .catch(() => setOnboardingChecked(true)); // on error, allow into tabs
     }
   }, [user, loading]);
 
   // While auth is initializing, show a centered spinner — the splash screen
   // has already been dismissed so we need something visible.  This spinner
   // resolves in at most 5 seconds (see AuthContext timeout).
-  if (loading) {
+  if (loading || (user && !onboardingChecked)) {
     return (
       <View style={{ flex: 1, backgroundColor: '#0a0a0f', justifyContent: 'center', alignItems: 'center' }}>
         <ActivityIndicator size="large" color="#22c55e" />

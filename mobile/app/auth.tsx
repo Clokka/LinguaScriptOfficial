@@ -16,13 +16,36 @@ import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 import { supabase } from '../lib/supabase';
 
-// Required so the in-app browser can hand tokens back on iOS.
 WebBrowser.maybeCompleteAuthSession();
 
-// The redirect URL must also be added in your Supabase Dashboard →
-// Auth → URL Configuration → Redirect URLs:
-//   linguascript://auth-callback
 const REDIRECT_URL = Linking.createURL('auth-callback');
+
+// After a successful auth event, check if the user completed onboarding and
+// route them to the correct screen. New users go to /onboarding; returning
+// users go straight to /(tabs).
+async function routeAfterAuth(userId: string, router: ReturnType<typeof useRouter>) {
+  try {
+    const { data } = await supabase
+      .from('profiles')
+      .select('onboarded')
+      .eq('user_id', userId)
+      .maybeSingle();
+    router.replace(data?.onboarded ? '/(tabs)' : '/onboarding');
+  } catch {
+    router.replace('/onboarding');
+  }
+}
+
+// Race an async operation against a timeout. Rejects with a timeout error
+// after `ms` milliseconds so loading states can never stay stuck forever.
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error('Request timed out. Check your connection and try again.')), ms),
+    ),
+  ]);
+}
 
 export default function AuthScreen() {
   const router = useRouter();
@@ -33,46 +56,48 @@ export default function AuthScreen() {
   const [googleLoading, setGoogleLoading] = useState(false);
 
   // ── Google OAuth ─────────────────────────────────────────────────────────
-  // Uses expo-web-browser's openAuthSessionAsync, which shows an in-app
-  // browser sheet (Chrome Custom Tab on Android, SFSafariViewController on iOS).
-  // The sheet closes automatically once Google redirects back to our scheme,
-  // so the user never leaves the app.
+  // Opens an in-app browser sheet (Chrome Custom Tab / SFSafariViewController).
+  // The user never leaves the app; the sheet closes when Google redirects back
+  // to the linguascript:// deep link scheme.
   const signInWithGoogle = async () => {
     setGoogleLoading(true);
     try {
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: REDIRECT_URL,
-          // Tell Supabase not to open the browser itself; we handle it below.
-          skipBrowserRedirect: true,
-        },
-      });
+      const { data, error } = await withTimeout(
+        supabase.auth.signInWithOAuth({
+          provider: 'google',
+          options: {
+            redirectTo: REDIRECT_URL,
+            skipBrowserRedirect: true,
+          },
+        }),
+        10000,
+      );
 
       if (error || !data.url) {
         Alert.alert('Google sign-in failed', error?.message ?? 'Could not start sign-in.');
         return;
       }
 
-      // Open the Google consent page in an in-app browser sheet.
       const result = await WebBrowser.openAuthSessionAsync(data.url, REDIRECT_URL, {
         showInRecents: false,
       });
 
-      if (result.type !== 'success' || !result.url) {
-        // User cancelled or something went wrong — nothing to do.
-        return;
-      }
+      if (result.type !== 'success' || !result.url) return;
 
-      // Supabase uses the PKCE flow: the callback URL contains ?code=...
-      // exchangeCodeForSession takes the full URL and handles the rest.
-      const { error: sessionError } = await supabase.auth.exchangeCodeForSession(result.url);
+      const { error: sessionError, data: sessionData } = await withTimeout(
+        supabase.auth.exchangeCodeForSession(result.url),
+        15000,
+      );
       if (sessionError) {
         Alert.alert('Sign-in error', sessionError.message);
         return;
       }
 
-      router.replace('/(tabs)');
+      if (sessionData.user) {
+        await routeAfterAuth(sessionData.user.id, router);
+      }
+    } catch (err: any) {
+      Alert.alert('Sign-in failed', err.message ?? 'Something went wrong. Please try again.');
     } finally {
       setGoogleLoading(false);
     }
@@ -87,11 +112,17 @@ export default function AuthScreen() {
     setLoading(true);
     try {
       if (mode === 'sign_in') {
-        const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+        const { error, data } = await withTimeout(
+          supabase.auth.signInWithPassword({ email: email.trim(), password }),
+          15000,
+        );
         if (error) throw error;
-        router.replace('/(tabs)');
+        if (data.user) await routeAfterAuth(data.user.id, router);
       } else {
-        const { error } = await supabase.auth.signUp({ email: email.trim(), password });
+        const { error } = await withTimeout(
+          supabase.auth.signUp({ email: email.trim(), password }),
+          15000,
+        );
         if (error) throw error;
         Alert.alert(
           'Check your email',
@@ -128,7 +159,6 @@ export default function AuthScreen() {
             <ActivityIndicator color="#1f2937" />
           ) : (
             <>
-              {/* Simple "G" mark — no external image dependency */}
               <View style={styles.gMark}>
                 <Text style={styles.gMarkText}>G</Text>
               </View>
@@ -144,7 +174,7 @@ export default function AuthScreen() {
           <View style={styles.dividerLine} />
         </View>
 
-        {/* Email / password tab toggle */}
+        {/* Sign in / Sign up toggle */}
         <View style={styles.toggle}>
           {(['sign_in', 'sign_up'] as const).map((m) => (
             <TouchableOpacity
@@ -226,25 +256,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  gMarkText: {
-    color: '#fff',
-    fontSize: 13,
-    fontWeight: '800',
-    lineHeight: 16,
-  },
-  googleBtnText: {
-    color: '#1f2937',
-    fontWeight: '700',
-    fontSize: 15,
-  },
+  gMarkText: { color: '#fff', fontSize: 13, fontWeight: '800', lineHeight: 16 },
+  googleBtnText: { color: '#1f2937', fontWeight: '700', fontSize: 15 },
   btnDisabled: { opacity: 0.5 },
 
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 20,
-  },
+  divider: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 20 },
   dividerLine: { flex: 1, height: 1, backgroundColor: '#1f2937' },
   dividerText: { color: '#6b7280', fontSize: 13 },
 
