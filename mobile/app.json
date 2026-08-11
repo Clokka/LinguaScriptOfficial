@@ -41,8 +41,7 @@
           "image": "./assets/splash.png",
           "imageWidth": 200
         }
-      ],
-      "expo-notifications"
+      ]
     ],
     "experiments": {
       "typedRoutes": true
