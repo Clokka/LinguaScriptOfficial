@@ -16,8 +16,6 @@ export default function TabsLayout() {
       return;
     }
     if (!loading && user) {
-      // Check onboarding completion so users who bypass auth.tsx still land
-      // on onboarding if they haven't finished it.
       supabase
         .from('profiles')
         .select('onboarded')
@@ -30,13 +28,10 @@ export default function TabsLayout() {
             setOnboardingChecked(true);
           }
         })
-        .catch(() => setOnboardingChecked(true)); // on error, allow into tabs
+        .catch(() => setOnboardingChecked(true));
     }
   }, [user, loading]);
 
-  // While auth is initializing, show a centered spinner — the splash screen
-  // has already been dismissed so we need something visible.  This spinner
-  // resolves in at most 5 seconds (see AuthContext timeout).
   if (loading || (user && !onboardingChecked)) {
     return (
       <View style={{ flex: 1, backgroundColor: '#0a0a0f', justifyContent: 'center', alignItems: 'center' }}>
@@ -67,28 +62,22 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Home',
+          title: 'Discover',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="home" size={size} color={color} />
+            <Ionicons name="compass" size={size} color={color} />
           ),
         }}
       />
       <Tabs.Screen
         name="review"
         options={{
-          title: 'Review',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="albums" size={size} color={color} />
-          ),
+          href: null,
         }}
       />
       <Tabs.Screen
         name="vocab"
         options={{
-          title: 'Vocab',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="library" size={size} color={color} />
-          ),
+          href: null,
         }}
       />
       <Tabs.Screen

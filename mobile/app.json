@@ -24,7 +24,7 @@
         "backgroundColor": "#0a0a0f"
       },
       "package": "com.linguascript.app",
-      "permissions": ["INTERNET"]
+      "permissions": ["INTERNET", "VIBRATE", "RECEIVE_BOOT_COMPLETED"]
     },
     "web": {
       "bundler": "metro",
@@ -40,6 +40,14 @@
           "backgroundColor": "#0a0a0f",
           "image": "./assets/splash.png",
           "imageWidth": 200
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#22c55e",
+          "defaultChannel": "default"
         }
       ]
     ],
