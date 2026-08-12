@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
   View,
   Text,
@@ -8,14 +8,10 @@ import {
   Platform,
   Alert,
   ActivityIndicator,
-  ScrollView,
-  Animated,
   StyleSheet,
-  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '@/lib/supabase';
-import { signInWithGoogle } from '@/native/google-signin';
 import {
   tapLight,
   tapMedium,
@@ -25,59 +21,31 @@ import {
 
 type Screen = 'welcome' | 'email' | 'verify';
 
-function FloatingChameleon({ size = 200 }: { size?: number }) {
-  const float = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(float, { toValue: 1, duration: 1800, useNativeDriver: true }),
-        Animated.timing(float, { toValue: 0, duration: 1800, useNativeDriver: true }),
-      ]),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [float]);
-
-  const translateY = float.interpolate({ inputRange: [0, 1], outputRange: [0, -14] });
-
-  return (
-    <Animated.Image
-      source={require('../assets/images/chameleon-3d.png')}
-      style={{ width: size, height: size, transform: [{ translateY }] }}
-      resizeMode="contain"
-    />
-  );
-}
-
 export default function AuthScreen() {
-  const [screen, setScreen] = useState<Screen>('welcome');
-  const [isSignUp, setIsSignUp] = useState(false);
-
+  const [screen, setScreen]       = useState<Screen>('welcome');
+  const [isSignUp, setIsSignUp]   = useState(false);
+  const [email, setEmail]         = useState('');
+  const [password, setPassword]   = useState('');
   const [displayName, setDisplayName] = useState('');
-  const [email, setEmail]             = useState('');
-  const [password, setPassword]       = useState('');
-  const [loading, setLoading]         = useState(false);
-  const [googleBusy, setGoogleBusy]   = useState(false);
-
-  const [otp, setOtp]         = useState('');
+  const [loading, setLoading]     = useState(false);
+  const [otp, setOtp]             = useState('');
   const [verifying, setVerifying] = useState(false);
 
-  // ── Google ─────────────────────────────────────────────────────────────
-  const handleGoogle = async () => {
-    setGoogleBusy(true);
-    tapMedium();
-    const result = await signInWithGoogle();
-    setGoogleBusy(false);
-    if (!result.ok && result.error !== 'cancelled') {
-      hapticError();
-      Alert.alert('Google sign-in failed', result.error ?? 'Unknown error');
-    } else if (result.ok) {
-      hapticSuccess();
+  // ── Skip / anonymous ───────────────────────────────────────────────────
+  const handleSkip = async () => {
+    tapLight();
+    setLoading(true);
+    const { error } = await supabase.auth.signInAnonymously();
+    setLoading(false);
+    if (error) {
+      Alert.alert(
+        'Could not skip',
+        'Enable "Allow anonymous sign-ins" in your Supabase dashboard → Authentication → Sign In → Anonymous.',
+      );
     }
   };
 
-  // ── Email ──────────────────────────────────────────────────────────────
+  // ── Email submit ───────────────────────────────────────────────────────
   const handleSubmit = async () => {
     const emailTrim = email.trim().toLowerCase();
     const pass      = password.trim();
@@ -94,38 +62,27 @@ export default function AuthScreen() {
         },
       });
       setLoading(false);
-      if (error) {
-        hapticError();
-        Alert.alert('Sign-up failed', error.message);
-      } else {
+      if (error) { hapticError(); Alert.alert('Sign-up failed', error.message); }
+      else {
         hapticSuccess();
-        Alert.alert(
-          'Account created!',
-          'Check your email to confirm your account, then sign in.',
-          [{ text: 'OK', onPress: () => { setIsSignUp(false); setPassword(''); } }],
-        );
+        Alert.alert('Account created!', 'Check your email to confirm, then sign in.', [
+          { text: 'OK', onPress: () => { setIsSignUp(false); setPassword(''); } },
+        ]);
       }
     } else {
       const { error } = await supabase.auth.signInWithPassword({ email: emailTrim, password: pass });
       setLoading(false);
-      if (error) {
-        hapticError();
-        Alert.alert('Sign-in failed', error.message);
-      } else {
-        hapticSuccess();
-      }
+      if (error) { hapticError(); Alert.alert('Sign-in failed', error.message); }
+      else hapticSuccess();
     }
   };
 
-  // ── Magic link / forgot password ───────────────────────────────────────
+  // ── Magic link ─────────────────────────────────────────────────────────
   const sendOtp = async () => {
     const emailTrim = email.trim().toLowerCase();
     if (!emailTrim) { Alert.alert('Enter your email first'); return; }
     setLoading(true);
-    const { error } = await supabase.auth.signInWithOtp({
-      email: emailTrim,
-      options: { shouldCreateUser: false },
-    });
+    const { error } = await supabase.auth.signInWithOtp({ email: emailTrim, options: { shouldCreateUser: false } });
     setLoading(false);
     if (error) { Alert.alert('Could not send code', error.message); return; }
     hapticSuccess();
@@ -136,21 +93,13 @@ export default function AuthScreen() {
     const code = otp.trim();
     if (code.length !== 6) return;
     setVerifying(true);
-    const { error } = await supabase.auth.verifyOtp({
-      email: email.trim().toLowerCase(),
-      token: code,
-      type: 'email',
-    });
+    const { error } = await supabase.auth.verifyOtp({ email: email.trim().toLowerCase(), token: code, type: 'email' });
     setVerifying(false);
-    if (error) {
-      hapticError();
-      Alert.alert('Incorrect code', 'Check the 6-digit code and try again.');
-    } else {
-      hapticSuccess();
-    }
+    if (error) { hapticError(); Alert.alert('Incorrect code', 'Check the 6-digit code and try again.'); }
+    else hapticSuccess();
   };
 
-  // ── OTP verify screen ──────────────────────────────────────────────────
+  // ── OTP verify ─────────────────────────────────────────────────────────
   if (screen === 'verify') {
     return (
       <SafeAreaView style={s.root}>
@@ -161,8 +110,7 @@ export default function AuthScreen() {
           <Text style={s.bigEmoji}>✉️</Text>
           <Text style={s.pageTitle}>Check your email</Text>
           <Text style={s.pageSub}>
-            We sent a 6-digit code to{'\n'}
-            <Text style={{ color: '#22c55e' }}>{email}</Text>
+            6-digit code sent to{'\n'}<Text style={{ color: '#22c55e' }}>{email}</Text>
           </Text>
           <TextInput
             value={otp}
@@ -181,17 +129,14 @@ export default function AuthScreen() {
             disabled={otp.length !== 6 || verifying}
             style={[s.primaryBtn, (otp.length !== 6 || verifying) && { opacity: 0.45 }]}
           >
-            {verifying
-              ? <ActivityIndicator color="#0b1215" />
-              : <Text style={s.primaryBtnText}>Verify code →</Text>
-            }
+            {verifying ? <ActivityIndicator color="#0b1215" /> : <Text style={s.primaryBtnText}>Verify →</Text>}
           </Pressable>
         </KeyboardAvoidingView>
       </SafeAreaView>
     );
   }
 
-  // ── Email sign-in / sign-up screen ─────────────────────────────────────
+  // ── Email form ─────────────────────────────────────────────────────────
   if (screen === 'email') {
     return (
       <SafeAreaView style={s.root}>
@@ -199,43 +144,27 @@ export default function AuthScreen() {
           <Pressable onPress={() => setScreen('welcome')} style={s.back}>
             <Text style={s.backText}>← Back</Text>
           </Pressable>
-
-          <View style={{ alignItems: 'center', marginBottom: 28 }}>
-            <FloatingChameleon size={110} />
-            <Text style={s.pageTitle}>LinguaScript</Text>
-            <Text style={s.pageSub}>{isSignUp ? 'Create your account' : 'Sign in to continue'}</Text>
-          </View>
+          <Text style={s.bigEmoji}>🦎</Text>
+          <Text style={s.pageTitle}>LinguaScript</Text>
+          <Text style={s.pageSub}>{isSignUp ? 'Create your account' : 'Sign in to continue'}</Text>
 
           {isSignUp && (
             <TextInput
-              value={displayName}
-              onChangeText={setDisplayName}
-              placeholder="Your name"
-              placeholderTextColor="#475569"
-              autoCapitalize="words"
-              style={s.input}
+              value={displayName} onChangeText={setDisplayName}
+              placeholder="Your name" placeholderTextColor="#475569"
+              autoCapitalize="words" style={s.input}
             />
           )}
           <TextInput
-            value={email}
-            onChangeText={setEmail}
-            placeholder="Email address"
-            placeholderTextColor="#475569"
-            autoCapitalize="none"
-            keyboardType="email-address"
-            autoComplete="email"
-            style={s.input}
+            value={email} onChangeText={setEmail}
+            placeholder="Email address" placeholderTextColor="#475569"
+            autoCapitalize="none" keyboardType="email-address" autoComplete="email" style={s.input}
           />
           <TextInput
-            value={password}
-            onChangeText={setPassword}
-            placeholder="Password"
-            placeholderTextColor="#475569"
-            secureTextEntry
-            autoComplete={isSignUp ? 'new-password' : 'current-password'}
-            returnKeyType="go"
-            onSubmitEditing={handleSubmit}
-            style={s.input}
+            value={password} onChangeText={setPassword}
+            placeholder="Password" placeholderTextColor="#475569"
+            secureTextEntry autoComplete={isSignUp ? 'new-password' : 'current-password'}
+            returnKeyType="go" onSubmitEditing={handleSubmit} style={s.input}
           />
 
           <Pressable
@@ -243,10 +172,7 @@ export default function AuthScreen() {
             disabled={loading || !email.trim() || !password.trim()}
             style={[s.primaryBtn, (loading || !email.trim() || !password.trim()) && { opacity: 0.45 }]}
           >
-            {loading
-              ? <ActivityIndicator color="#0b1215" />
-              : <Text style={s.primaryBtnText}>{isSignUp ? 'Create account →' : 'Sign in →'}</Text>
-            }
+            {loading ? <ActivityIndicator color="#0b1215" /> : <Text style={s.primaryBtnText}>{isSignUp ? 'Create account →' : 'Sign in →'}</Text>}
           </Pressable>
 
           {!isSignUp && (
@@ -254,67 +180,46 @@ export default function AuthScreen() {
               <Text style={s.linkText}>Forgot password? Sign in with email code</Text>
             </Pressable>
           )}
-
-          <Pressable
-            onPress={() => { setIsSignUp((v) => !v); setPassword(''); }}
-            style={{ marginTop: 20, alignItems: 'center' }}
-          >
+          <Pressable onPress={() => { setIsSignUp((v) => !v); setPassword(''); }} style={{ marginTop: 20, alignItems: 'center' }}>
             <Text style={{ color: '#64748b', fontSize: 14 }}>
               {isSignUp ? 'Already have an account? ' : "Don't have an account? "}
-              <Text style={{ color: '#22c55e', fontWeight: '700' }}>
-                {isSignUp ? 'Sign in' : 'Sign up'}
-              </Text>
+              <Text style={{ color: '#22c55e', fontWeight: '700' }}>{isSignUp ? 'Sign in' : 'Sign up'}</Text>
             </Text>
           </Pressable>
-
           <Text style={s.legal}>By continuing you agree to our privacy policy.</Text>
         </KeyboardAvoidingView>
       </SafeAreaView>
     );
   }
 
-  // ── Welcome screen (default) ───────────────────────────────────────────
+  // ── Welcome ────────────────────────────────────────────────────────────
   return (
     <SafeAreaView style={s.root}>
-      <ScrollView
-        contentContainerStyle={s.welcomeContainer}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={{ alignItems: 'center', flex: 1, justifyContent: 'center', paddingTop: 40 }}>
-          <FloatingChameleon size={220} />
-          <Text style={s.brand}>
-            <Text style={{ color: '#f1f5f9' }}>Lingua</Text>
-            <Text style={{ color: '#22c55e' }}>Script</Text>
-          </Text>
-          <Text style={s.brandSub}>Learn through videos you actually love</Text>
-        </View>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.inner}>
+        <Text style={s.bigEmoji}>🦎</Text>
+        <Text style={s.pageTitle}>LinguaScript</Text>
+        <Text style={s.pageSub}>Learn through videos you actually love</Text>
 
-        <View style={s.welcomeActions}>
-          {/* Google */}
-          <Pressable onPress={handleGoogle} disabled={googleBusy} style={s.googleBtn}>
-            {googleBusy
-              ? <ActivityIndicator color="#0b1215" />
-              : (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                  <Text style={{ fontSize: 20, lineHeight: 24 }}>G</Text>
-                  <Text style={s.googleBtnText}>Continue with Google</Text>
-                </View>
-              )
-            }
+        <View style={{ gap: 12, marginTop: 32 }}>
+          <Pressable onPress={() => { tapLight(); setScreen('email'); }} style={s.primaryBtn}>
+            <Text style={s.primaryBtnText}>Sign in with email</Text>
           </Pressable>
 
-          {/* Email */}
-          <Pressable
-            onPress={() => { tapLight(); setScreen('email'); }}
-            style={s.emailBtn}
-          >
-            <Text style={s.emailBtnText}>Continue with email</Text>
+          <Pressable onPress={() => { tapLight(); setIsSignUp(true); setScreen('email'); }} style={s.outlineBtn}>
+            <Text style={s.outlineBtnText}>Create account</Text>
           </Pressable>
-
-          <Text style={s.legal}>By continuing you agree to our privacy policy.</Text>
         </View>
-      </ScrollView>
+
+        {/* Temporary dev bypass — remove once Google Sign-In SHA-1 is configured */}
+        <Pressable onPress={handleSkip} disabled={loading} style={{ marginTop: 40, alignItems: 'center' }}>
+          {loading
+            ? <ActivityIndicator color="#334155" size="small" />
+            : <Text style={{ color: '#334155', fontSize: 13 }}>Skip sign-in for now →</Text>
+          }
+        </Pressable>
+
+        <Text style={s.legal}>By continuing you agree to our privacy policy.</Text>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -323,30 +228,12 @@ const s = StyleSheet.create({
   root:  { flex: 1, backgroundColor: '#0b1215' },
   inner: { flex: 1, paddingHorizontal: 28, paddingTop: 16, paddingBottom: 32, justifyContent: 'center' },
 
-  welcomeContainer: { flexGrow: 1, paddingHorizontal: 24, paddingBottom: 40 },
-  welcomeActions:   { paddingTop: 32, gap: 12 },
-
-  brand:    { color: '#f1f5f9', fontSize: 36, fontWeight: '800', letterSpacing: -1, marginTop: 16 },
-  brandSub: { color: '#475569', fontSize: 16, marginTop: 8, textAlign: 'center' },
-
-  googleBtn: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    paddingVertical: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  googleBtnText: { color: '#0b1215', fontWeight: '700', fontSize: 16 },
-
-  emailBtn:     { backgroundColor: '#111c22', borderWidth: 1.5, borderColor: '#243239', borderRadius: 16, paddingVertical: 16, alignItems: 'center' },
-  emailBtnText: { color: '#94a3b8', fontWeight: '600', fontSize: 16 },
-
   back:     { alignSelf: 'flex-start', marginBottom: 24 },
   backText: { color: '#22c55e', fontSize: 15 },
 
-  bigEmoji:  { fontSize: 64, textAlign: 'center', marginBottom: 10 },
-  pageTitle: { color: '#fff', fontSize: 28, fontWeight: '800', textAlign: 'center', marginTop: 8 },
-  pageSub:   { color: '#64748b', fontSize: 14, textAlign: 'center', marginTop: 6, marginBottom: 24, lineHeight: 20 },
+  bigEmoji:  { fontSize: 72, textAlign: 'center', marginBottom: 10 },
+  pageTitle: { color: '#fff', fontSize: 30, fontWeight: '800', textAlign: 'center' },
+  pageSub:   { color: '#64748b', fontSize: 14, textAlign: 'center', marginTop: 6, lineHeight: 20 },
 
   input: {
     backgroundColor: '#111c22', borderWidth: 1.5, borderColor: '#243239',
@@ -362,6 +249,10 @@ const s = StyleSheet.create({
 
   primaryBtn:     { backgroundColor: '#22c55e', borderRadius: 14, paddingVertical: 15, alignItems: 'center' },
   primaryBtnText: { color: '#0b1215', fontWeight: '700', fontSize: 16 },
-  linkText:       { color: '#22c55e', fontSize: 13, textAlign: 'center' },
-  legal:          { color: '#334155', fontSize: 11, textAlign: 'center', marginTop: 16 },
+
+  outlineBtn:     { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: '#243239', borderRadius: 14, paddingVertical: 15, alignItems: 'center' },
+  outlineBtnText: { color: '#94a3b8', fontWeight: '600', fontSize: 16 },
+
+  linkText: { color: '#22c55e', fontSize: 13, textAlign: 'center' },
+  legal:    { color: '#334155', fontSize: 11, textAlign: 'center', marginTop: 24 },
 });
