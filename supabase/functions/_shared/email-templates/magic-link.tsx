@@ -19,26 +19,42 @@ import {
 interface MagicLinkEmailProps {
   siteName: string
   confirmationUrl: string
+  token?: string
 }
 
 export const MagicLinkEmail = ({
   siteName,
   confirmationUrl,
+  token,
 }: MagicLinkEmailProps) => (
   <Html lang="en" dir="ltr">
     <Head />
-    <Preview>Your login link for {siteName}</Preview>
+    <Preview>Your {token ? '6-digit code' : 'login link'} for {siteName}</Preview>
     <Body style={main}>
       <Container style={container}>
         <Section style={header}>
           <Img src="https://linguascript.co.uk/__l5e/assets-v1/d2255c4c-17d7-4181-94b4-54e366a951ae/linguascript-wordmark.png" alt="LinguaScript" width={180} height={54} style={{ display: 'block', margin: '0 auto' }} />
         </Section>
         <Section style={card}>
-          <Heading style={h1}>Your login link</Heading>
-          <Text style={text}>
-            Click below to log in to {siteName}. This link expires shortly for
-            your security.
-          </Text>
+          <Heading style={h1}>Your login code</Heading>
+          {token ? (
+            <>
+              <Text style={text}>
+                Enter this 6-digit code in the {siteName} app to sign in:
+              </Text>
+              <Section style={otpWrap}>
+                <Text style={otpCode}>{token}</Text>
+              </Section>
+              <Text style={text}>
+                This code expires in 10 minutes. You can also tap the button below instead.
+              </Text>
+            </>
+          ) : (
+            <Text style={text}>
+              Click below to log in to {siteName}. This link expires shortly for
+              your security.
+            </Text>
+          )}
           <Section style={buttonWrap}>
             <Button style={button} href={confirmationUrl}>
               Log In
@@ -46,7 +62,7 @@ export const MagicLinkEmail = ({
           </Section>
           <Hr style={hr} />
           <Text style={footer}>
-            If you didn't request this link, you can safely ignore this email.
+            If you didn't request this, you can safely ignore this email.
           </Text>
         </Section>
         <Img src="https://linguascript.co.uk/__l5e/assets-v1/29bea701-5f96-4bd0-a20a-edc43b4fdaf2/linguascript-mascot-green.png" alt="" width={88} height={40} style={{ display: 'block', margin: '20px auto 0' }} />
@@ -105,6 +121,18 @@ const button = {
   padding: '14px 28px',
   textDecoration: 'none',
   display: 'inline-block',
+}
+const otpWrap = { textAlign: 'center' as const, margin: '20px 0' }
+const otpCode = {
+  fontSize: '42px',
+  fontWeight: 800 as const,
+  letterSpacing: '10px',
+  color: '#22c55e',
+  background: '#f0fdf4',
+  borderRadius: '12px',
+  padding: '16px 24px',
+  display: 'inline-block',
+  margin: 0,
 }
 const hr = { border: 'none', borderTop: '1px solid #e6e8eb', margin: '24px 0 16px' }
 const footer = { fontSize: '13px', color: '#94A3B8', margin: 0, lineHeight: '1.5' }
