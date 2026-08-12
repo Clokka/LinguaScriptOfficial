@@ -27,17 +27,13 @@ function AuthGate() {
     if (!navState?.key) return; // navigator not ready yet
     const inAuth       = segments[0] === 'auth';
     const inOnboarding = segments[0] === 'onboarding';
-    // TODO: re-enable auth gate once sign-in is working
-    // if (!session && !inAuth) {
-    //   router.replace('/auth');
-    // } else if (session && inAuth) {
-    if (session && inAuth) {
-      // Just signed in → onboarding checks language and self-redirects to tabs if set.
+    // TODO: re-enable auth gate once Google sign-in SHA-1 is configured
+    if (!session && inAuth) {
+      // Bypass: skip auth, go straight into the app
+      router.replace('/(tabs)');
+    } else if (session && inAuth) {
       router.replace('/onboarding');
     }
-    // } else if (!session && inOnboarding) {
-    //   router.replace('/auth');
-    // }
   }, [session, loading, segments, navState?.key]);
 
   return null;
