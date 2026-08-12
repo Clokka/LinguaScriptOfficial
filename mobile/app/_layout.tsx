@@ -27,14 +27,17 @@ function AuthGate() {
     if (!navState?.key) return; // navigator not ready yet
     const inAuth       = segments[0] === 'auth';
     const inOnboarding = segments[0] === 'onboarding';
-    if (!session && !inAuth) {
-      router.replace('/auth');
-    } else if (session && inAuth) {
+    // TODO: re-enable auth gate once sign-in is working
+    // if (!session && !inAuth) {
+    //   router.replace('/auth');
+    // } else if (session && inAuth) {
+    if (session && inAuth) {
       // Just signed in → onboarding checks language and self-redirects to tabs if set.
       router.replace('/onboarding');
-    } else if (!session && inOnboarding) {
-      router.replace('/auth');
     }
+    // } else if (!session && inOnboarding) {
+    //   router.replace('/auth');
+    // }
   }, [session, loading, segments, navState?.key]);
 
   return null;
