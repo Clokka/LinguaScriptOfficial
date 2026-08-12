@@ -38,8 +38,7 @@ async function signInWithGoogleIdToken(idToken: string): Promise<{ ok: true } | 
     if (!res.ok) return { ok: false, error: data.error ?? 'Google auth failed' };
 
     const { error: verifyError } = await supabase.auth.verifyOtp({
-      email: data.email,
-      token: data.token_hash,
+      token_hash: data.token_hash,
       type: 'magiclink',
     });
 
