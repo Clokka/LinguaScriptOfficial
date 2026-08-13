@@ -253,7 +253,7 @@ export default function HomeScreen() {
   const [showAddModal, setShowAddModal] = useState(false);
 
   const load = useCallback(async () => {
-    if (!user) return;
+    if (!user) { setLoading(false); return; }
     const p = await fetchProfile(supabase, user.id);
     setProfile(p);
     const lang = p?.learning_language ?? 'es';

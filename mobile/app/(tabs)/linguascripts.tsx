@@ -58,7 +58,7 @@ export default function LinguaScriptsScreen() {
   }, [user]);
 
   const load = useCallback(async () => {
-    if (!user) return;
+    if (!user) { setLoading(false); return; }
     setLoading(true);
     const { data } = await supabase
       .from('linguascripts')
