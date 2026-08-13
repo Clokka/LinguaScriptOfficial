@@ -11,6 +11,8 @@ import {
   StyleSheet,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as WebBrowser from 'expo-web-browser';
+import * as Linking from 'expo-linking';
 import { supabase } from '@/lib/supabase';
 import {
   tapLight,
@@ -42,6 +44,60 @@ export default function AuthScreen() {
         'Could not skip',
         'Enable "Allow anonymous sign-ins" in your Supabase dashboard → Authentication → Sign In → Anonymous.',
       );
+    }
+  };
+
+  // ── Google Sign-In via Chrome Custom Tab ───────────────────────────────
+  const handleGoogleSignIn = async () => {
+    tapLight();
+    setLoading(true);
+    try {
+      const redirectTo = Linking.createURL('auth-callback');
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo,
+          skipBrowserRedirect: true,
+        },
+      });
+
+      if (error || !data.url) {
+        Alert.alert('Google Sign-In failed', error?.message ?? 'Could not get sign-in URL');
+        return;
+      }
+
+      const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
+
+      if (result.type === 'success') {
+        const url = result.url;
+
+        // PKCE flow: code in query params
+        const parsed = Linking.parse(url);
+        const code = parsed.queryParams?.code as string | undefined;
+        if (code) {
+          const { error: exchErr } = await supabase.auth.exchangeCodeForSession(code);
+          if (exchErr) Alert.alert('Sign-in failed', exchErr.message);
+          else hapticSuccess();
+          return;
+        }
+
+        // Implicit flow: tokens in URL fragment
+        const fragment = url.split('#')[1] ?? '';
+        const params = new URLSearchParams(fragment);
+        const accessToken = params.get('access_token');
+        const refreshToken = params.get('refresh_token');
+        if (accessToken && refreshToken) {
+          const { error: sessErr } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+          if (sessErr) Alert.alert('Sign-in failed', sessErr.message);
+          else hapticSuccess();
+        } else {
+          Alert.alert('Sign-in failed', 'No session returned. Please try again.');
+        }
+      }
+    } catch (e: any) {
+      Alert.alert('Error', e?.message ?? 'An unexpected error occurred');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -201,8 +257,19 @@ export default function AuthScreen() {
         <Text style={s.pageSub}>Learn through videos you actually love</Text>
 
         <View style={{ gap: 12, marginTop: 32 }}>
-          <Pressable onPress={() => { tapLight(); setScreen('email'); }} style={s.primaryBtn}>
-            <Text style={s.primaryBtnText}>Sign in with email</Text>
+          <Pressable
+            onPress={handleGoogleSignIn}
+            disabled={loading}
+            style={[s.googleBtn, loading && { opacity: 0.6 }]}
+          >
+            {loading
+              ? <ActivityIndicator color="#1a1a1a" size="small" />
+              : <Text style={s.googleBtnText}>🔵  Continue with Google</Text>
+            }
+          </Pressable>
+
+          <Pressable onPress={() => { tapLight(); setScreen('email'); }} style={s.outlineBtn}>
+            <Text style={s.outlineBtnText}>Sign in with email</Text>
           </Pressable>
 
           <Pressable onPress={() => { tapLight(); setIsSignUp(true); setScreen('email'); }} style={s.outlineBtn}>
@@ -210,12 +277,8 @@ export default function AuthScreen() {
           </Pressable>
         </View>
 
-        {/* Temporary dev bypass — remove once Google Sign-In SHA-1 is configured */}
-        <Pressable onPress={handleSkip} disabled={loading} style={{ marginTop: 40, alignItems: 'center' }}>
-          {loading
-            ? <ActivityIndicator color="#334155" size="small" />
-            : <Text style={{ color: '#334155', fontSize: 13 }}>Skip sign-in for now →</Text>
-          }
+        <Pressable onPress={handleSkip} disabled={loading} style={{ marginTop: 32, alignItems: 'center' }}>
+          <Text style={{ color: '#334155', fontSize: 13 }}>Skip sign-in for now →</Text>
         </Pressable>
 
         <Text style={s.legal}>By continuing you agree to our privacy policy.</Text>
@@ -246,6 +309,9 @@ const s = StyleSheet.create({
     color: '#fff', fontSize: 40, fontWeight: '800', textAlign: 'center',
     letterSpacing: 12, marginBottom: 16,
   },
+
+  googleBtn:     { backgroundColor: '#fff', borderRadius: 14, paddingVertical: 15, alignItems: 'center' },
+  googleBtnText: { color: '#1a1a1a', fontWeight: '700', fontSize: 16 },
 
   primaryBtn:     { backgroundColor: '#22c55e', borderRadius: 14, paddingVertical: 15, alignItems: 'center' },
   primaryBtnText: { color: '#0b1215', fontWeight: '700', fontSize: 16 },

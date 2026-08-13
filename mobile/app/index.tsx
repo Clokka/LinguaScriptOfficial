@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet, Platform } from 'react-native';
 import { WebView } from 'react-native-webview';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import { registerForPushAsync } from '@/native/notifications';
 import { supabase } from '@/lib/supabase';
 
 const APP_URL = 'https://linguascript.co.uk';
+const ONBOARDING_URL = 'https://linguascript.co.uk/onboarding';
 
 // After the website loads, pull the Supabase session from localStorage
 // so the app can register the push token against the real user account.
@@ -29,6 +31,26 @@ export default function AppScreen() {
   const webRef = useRef<WebView>(null);
   const [registered, setRegistered] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
+  const [startUrl, setStartUrl] = useState<string | null>(null);
+
+  // Determine start URL — onboarding for first-time users, home for returning
+  useEffect(() => {
+    async function resolveStartUrl() {
+      const { data } = await supabase.auth.getSession();
+      const uid = data.session?.user?.id;
+      if (!uid) { setStartUrl(APP_URL); return; }
+
+      const key = `onboarded:${uid}`;
+      const seen = await AsyncStorage.getItem(key);
+      if (!seen) {
+        await AsyncStorage.setItem(key, '1');
+        setStartUrl(ONBOARDING_URL);
+      } else {
+        setStartUrl(APP_URL);
+      }
+    }
+    resolveStartUrl();
+  }, []);
 
   // Register push token once we have a userId
   useEffect(() => {
@@ -61,11 +83,19 @@ export default function AppScreen() {
     return () => sub.subscription.unsubscribe();
   }, []);
 
+  if (!startUrl) {
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator color="#22c55e" size="large" />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.root}>
       <WebView
         ref={webRef}
-        source={{ uri: APP_URL }}
+        source={{ uri: startUrl }}
         style={styles.webview}
         javaScriptEnabled
         domStorageEnabled
