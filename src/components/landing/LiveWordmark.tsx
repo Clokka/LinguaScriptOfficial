@@ -28,8 +28,10 @@ gsap.registerPlugin(ScrollTrigger);
  * scroll, never per pointermove; all per-letter writes go through gsap.quickTo
  * (one reused tween each) rather than allocating a tween per event.
  *
- * Degradation: reduced-motion gets a static green lockup; coarse pointers get
- * the sweep and breathing but no pointer field, tilt or burst.
+ * Degradation: reduced-motion gets a static green lockup. Touch gets the full
+ * field on drag (with a tighter radius, since a fingertip covers more of a
+ * small screen than a cursor does) and resets on pointerup/cancel, because
+ * touch never fires pointerleave.
  */
 const LINGUA = "Lingua".split("");
 const SCRIPT = "Script".split("");
@@ -91,7 +93,13 @@ export const LiveWordmark = ({ className }: { className?: string }) => {
         } as gsap.TweenVars,
       );
 
-      if (!fine) return;
+      // Touch gets the field too. pointermove fires on a touch drag, so the
+      // same code path works — it just requires a finger down, which is
+      // exactly "drag across it". Previously this returned early for anything
+      // that wasn't a fine pointer, so on mobile the mark only breathed.
+      // `fine` now only decides how far the effect reaches: a fingertip
+      // covers more of a small screen than a cursor does.
+      const radius = fine ? RADIUS : RADIUS * 0.6;
 
       // Cache geometry — measuring 12 rects per pointermove is the classic
       // layout-thrash trap.
@@ -121,7 +129,7 @@ export const LiveWordmark = ({ className }: { className?: string }) => {
           if (!r) return;
           const dx = e.clientX - (r.left + r.width / 2);
           const dy = e.clientY - (r.top + r.height / 2);
-          const pull = gsap.utils.clamp(0, 1, 1 - Math.hypot(dx, dy) / RADIUS);
+          const pull = gsap.utils.clamp(0, 1, 1 - Math.hypot(dx, dy) / radius);
 
           yTo[i](-30 * pull);
           sTo[i](1 + 0.22 * pull);
@@ -168,12 +176,18 @@ export const LiveWordmark = ({ className }: { className?: string }) => {
       el.addEventListener("pointermove", onMove);
       el.addEventListener("pointerleave", onLeave);
       el.addEventListener("pointerdown", onDown);
+      // Touch never fires pointerleave, so the letters would stay displaced
+      // after a drag without these.
+      el.addEventListener("pointerup", onLeave);
+      el.addEventListener("pointercancel", onLeave);
       return () => {
         window.removeEventListener("resize", measure);
         window.removeEventListener("scroll", measure);
         el.removeEventListener("pointermove", onMove);
         el.removeEventListener("pointerleave", onLeave);
         el.removeEventListener("pointerdown", onDown);
+        el.removeEventListener("pointerup", onLeave);
+        el.removeEventListener("pointercancel", onLeave);
       };
     }, el);
 
@@ -203,7 +217,7 @@ export const LiveWordmark = ({ className }: { className?: string }) => {
       aria-label="LinguaScript"
       data-cursor="hot"
       className={cn("select-none", className)}
-      style={{ perspective: "900px" }}
+      style={{ perspective: "900px", touchAction: "pan-y" }}
     >
       <style>{`
         .ls-wm-deck {

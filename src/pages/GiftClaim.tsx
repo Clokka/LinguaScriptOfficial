@@ -170,7 +170,8 @@ export default function GiftClaim() {
               <GiftUnboxScene
                 ref={sceneRef}
                 petGlb={pet.glbFile}
-                accessories={preview.accessories}
+                accessories={preview.accessories.filter((a) => a !== "flowers")}
+                showFlowers={preview.accessories.includes("flowers")}
                 onReady={() => setSceneReady(true)}
                 onOpenComplete={() => setStatus("opened")}
               />
