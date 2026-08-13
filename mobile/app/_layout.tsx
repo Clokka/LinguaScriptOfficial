@@ -1,6 +1,6 @@
 import '../global.css';
 import { useEffect, useState } from 'react';
-import { View } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -57,15 +57,14 @@ export default function RootLayout() {
     }
   }, [session, segments]);
 
-  if (session === undefined) {
-    return <View style={{ flex: 1, backgroundColor: '#0b1215' }} />;
-  }
-
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <StatusBar style="light" />
         <Stack screenOptions={{ headerShown: false }} />
+        {session === undefined && (
+          <View style={[StyleSheet.absoluteFillObject, { backgroundColor: '#0b1215' }]} pointerEvents="none" />
+        )}
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
