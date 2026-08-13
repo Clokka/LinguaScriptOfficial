@@ -11,8 +11,7 @@ import { ensureAndroidChannels } from '@/native/notifications';
 import { supabase } from '@/lib/supabase';
 import type { Session } from '@supabase/supabase-js';
 
-// Required for expo-web-browser OAuth on Android to complete the auth session
-WebBrowser.maybeCompleteAuthSession();
+try { WebBrowser.maybeCompleteAuthSession(); } catch (_) {}
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -34,15 +33,22 @@ export default function RootLayout() {
   }, []);
 
   useEffect(() => {
+    // Safety net — if Supabase never responds, go to auth after 4 seconds
+    const timeout = setTimeout(() => setSession(null), 4000);
+
     supabase.auth.getSession().then(({ data }) => {
+      clearTimeout(timeout);
       setSession(data.session ?? null);
+    }).catch(() => {
+      clearTimeout(timeout);
+      setSession(null);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
       setSession(newSession);
     });
 
-    return () => subscription.unsubscribe();
+    return () => { clearTimeout(timeout); subscription.unsubscribe(); };
   }, []);
 
   useEffect(() => {
