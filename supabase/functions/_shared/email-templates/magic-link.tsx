@@ -22,44 +22,52 @@ interface MagicLinkEmailProps {
   token?: string
 }
 
+// A short numeric-only token is a 6-digit OTP code; anything else is a hash used for a magic link.
+function isOtpCode(token?: string): boolean {
+  return !!token && /^\d{6}$/.test(token.trim())
+}
+
 export const MagicLinkEmail = ({
   siteName,
   confirmationUrl,
   token,
-}: MagicLinkEmailProps) => (
+}: MagicLinkEmailProps) => {
+  const showOtp = isOtpCode(token)
+  return (
   <Html lang="en" dir="ltr">
     <Head />
-    <Preview>Your {token ? '6-digit code' : 'login link'} for {siteName}</Preview>
+    <Preview>{showOtp ? `Your 6-digit code for ${siteName}` : `Sign in to ${siteName}`}</Preview>
     <Body style={main}>
       <Container style={container}>
         <Section style={header}>
           <Img src="https://linguascript.co.uk/__l5e/assets-v1/d2255c4c-17d7-4181-94b4-54e366a951ae/linguascript-wordmark.png" alt="LinguaScript" width={180} height={54} style={{ display: 'block', margin: '0 auto' }} />
         </Section>
         <Section style={card}>
-          <Heading style={h1}>Your login code</Heading>
-          {token ? (
+          <Heading style={h1}>{showOtp ? 'Your login code' : 'Sign in to LinguaScript'}</Heading>
+          {showOtp ? (
             <>
               <Text style={text}>
                 Enter this 6-digit code in the {siteName} app to sign in:
               </Text>
               <Section style={otpWrap}>
-                <Text style={otpCode}>{token}</Text>
+                <Text style={otpCode}>{token!.trim()}</Text>
               </Section>
               <Text style={text}>
-                This code expires in 10 minutes. You can also tap the button below instead.
+                This code expires in 10 minutes. Do not share it with anyone.
               </Text>
             </>
           ) : (
-            <Text style={text}>
-              Click below to log in to {siteName}. This link expires shortly for
-              your security.
-            </Text>
+            <>
+              <Text style={text}>
+                Tap the button below to sign in to {siteName}. This link expires shortly for your security.
+              </Text>
+              <Section style={buttonWrap}>
+                <Button style={button} href={confirmationUrl}>
+                  Sign In →
+                </Button>
+              </Section>
+            </>
           )}
-          <Section style={buttonWrap}>
-            <Button style={button} href={confirmationUrl}>
-              Log In
-            </Button>
-          </Section>
           <Hr style={hr} />
           <Text style={footer}>
             If you didn't request this, you can safely ignore this email.
@@ -70,7 +78,8 @@ export const MagicLinkEmail = ({
       </Container>
     </Body>
   </Html>
-)
+  )
+}
 
 export default MagicLinkEmail
 

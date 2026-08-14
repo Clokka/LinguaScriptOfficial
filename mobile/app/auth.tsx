@@ -12,7 +12,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
-import * as Linking from 'expo-linking';
 import { supabase } from '@/lib/supabase';
 import {
   tapLight,
@@ -52,7 +51,7 @@ export default function AuthScreen() {
     tapLight();
     setLoading(true);
     try {
-      const redirectTo = Linking.createURL('auth-callback');
+      const redirectTo = 'linguascript://auth-callback';
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -72,8 +71,10 @@ export default function AuthScreen() {
         const url = result.url;
 
         // PKCE flow: code in query params
-        const parsed = Linking.parse(url);
-        const code = parsed.queryParams?.code as string | undefined;
+        // Use URL constructor; replace custom scheme so it parses correctly
+        const parseable = url.replace(/^[a-z][a-z0-9+.-]*:\/\//i, 'https://x/');
+        const parsed = new URL(parseable);
+        const code = parsed.searchParams.get('code') ?? undefined;
         if (code) {
           const { error: exchErr } = await supabase.auth.exchangeCodeForSession(code);
           if (exchErr) Alert.alert('Sign-in failed', exchErr.message);
