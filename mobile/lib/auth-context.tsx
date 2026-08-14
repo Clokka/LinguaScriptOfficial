@@ -23,17 +23,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const fallback = setTimeout(() => setLoading(false), 5000);
 
-    supabase.auth.getSession().then(async (result) => {
+    supabase.auth.getSession().then((result) => {
       clearTimeout(fallback);
-      if (result.data.session) {
-        setSession(result.data.session);
-        setLoading(false);
-      } else {
-        // No session — sign in anonymously so all screens can load data
-        const { data } = await supabase.auth.signInAnonymously();
-        setSession(data.session);
-        setLoading(false);
-      }
+      setSession(result.data.session ?? null);
+      setLoading(false);
     });
 
     const { data: sub } = supabase.auth.onAuthStateChange(
