@@ -12,7 +12,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
-import * as Linking from 'expo-linking';
 import { supabase } from '@/lib/supabase';
 import {
   tapLight,
@@ -52,13 +51,10 @@ export default function AuthScreen() {
     tapLight();
     setLoading(true);
     try {
-      const redirectTo = Linking.createURL('auth-callback');
+      const redirectTo = 'linguascript://auth-callback';
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
-        options: {
-          redirectTo,
-          skipBrowserRedirect: true,
-        },
+        options: { redirectTo, skipBrowserRedirect: true },
       });
 
       if (error || !data.url) {
@@ -68,30 +64,43 @@ export default function AuthScreen() {
 
       const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
 
+      // 'success' — Custom Tab captured the redirect URL directly
       if (result.type === 'success') {
         const url = result.url;
-
-        // PKCE flow: code in query params
-        const parsed = Linking.parse(url);
-        const code = parsed.queryParams?.code as string | undefined;
+        const parseable = url.replace(/^[a-z][a-z0-9+.-]*:\/\//i, 'https://x/');
+        const parsed = new URL(parseable);
+        const code = parsed.searchParams.get('code');
         if (code) {
           const { error: exchErr } = await supabase.auth.exchangeCodeForSession(code);
           if (exchErr) Alert.alert('Sign-in failed', exchErr.message);
           else hapticSuccess();
           return;
         }
-
-        // Implicit flow: tokens in URL fragment
         const fragment = url.split('#')[1] ?? '';
         const params = new URLSearchParams(fragment);
-        const accessToken = params.get('access_token');
-        const refreshToken = params.get('refresh_token');
-        if (accessToken && refreshToken) {
-          const { error: sessErr } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+        const access_token = params.get('access_token');
+        const refresh_token = params.get('refresh_token');
+        if (access_token && refresh_token) {
+          const { error: sessErr } = await supabase.auth.setSession({ access_token: access_token, refresh_token: refresh_token });
           if (sessErr) Alert.alert('Sign-in failed', sessErr.message);
           else hapticSuccess();
         } else {
           Alert.alert('Sign-in failed', 'No session returned. Please try again.');
+        }
+        return;
+      }
+
+      // 'cancel' / 'dismiss' — On some Android devices the Custom Tab closes
+      // without returning a URL even though the deep link was handled by the
+      // global Linking listener in _layout.tsx. Wait briefly then check.
+      if (result.type === 'cancel' || result.type === 'dismiss') {
+        await new Promise((r) => setTimeout(r, 800));
+        const { data: sessData } = await supabase.auth.getSession();
+        if (!sessData.session) {
+          // Session not yet established — the Linking listener may still fire.
+          // Don't show an error; just silently release the loading state.
+        } else {
+          hapticSuccess();
         }
       }
     } catch (e: any) {
@@ -138,7 +147,15 @@ export default function AuthScreen() {
     const emailTrim = email.trim().toLowerCase();
     if (!emailTrim) { Alert.alert('Enter your email first'); return; }
     setLoading(true);
-    const { error } = await supabase.auth.signInWithOtp({ email: emailTrim, options: { shouldCreateUser: false } });
+    const { error } = await supabase.auth.signInWithOtp({
+      email: emailTrim,
+      options: {
+        shouldCreateUser: false,
+        // If Supabase sends a magic link instead of OTP, point it back to the
+        // app — the global Linking listener in _layout.tsx completes sign-in.
+        emailRedirectTo: 'linguascript://auth-callback',
+      },
+    });
     setLoading(false);
     if (error) { Alert.alert('Could not send code', error.message); return; }
     hapticSuccess();
