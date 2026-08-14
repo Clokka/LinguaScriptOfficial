@@ -1,5 +1,5 @@
 import '../global.css';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -7,6 +7,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as Notifications from 'expo-notifications';
 import * as WebBrowser from 'expo-web-browser';
+import * as Linking from 'expo-linking';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ensureAndroidChannels } from '@/native/notifications';
 import { supabase } from '@/lib/supabase';
@@ -24,6 +25,40 @@ Notifications.setNotificationHandler({
   }),
 });
 
+// Handle linguascript://auth-callback URLs — called both on cold start and
+// while the app is foregrounded (e.g. from Chrome Custom Tab or email link).
+async function handleAuthUrl(url: string) {
+  if (!url.includes('auth-callback')) return;
+
+  // Normalise: swap custom scheme so URL is parseable by the URL constructor
+  const parseable = url.replace(/^[a-z][a-z0-9+.-]*:\/\//i, 'https://x/');
+  const parsed = new URL(parseable);
+
+  // PKCE (Google OAuth): code in query params
+  const code = parsed.searchParams.get('code');
+  if (code) {
+    await supabase.auth.exchangeCodeForSession(code);
+    return;
+  }
+
+  // Email magic-link: token_hash + type in query params
+  const tokenHash = parsed.searchParams.get('token_hash');
+  const type = parsed.searchParams.get('type') as 'email' | 'signup' | 'recovery' | null;
+  if (tokenHash && type) {
+    await supabase.auth.verifyOtp({ token_hash: tokenHash, type });
+    return;
+  }
+
+  // Implicit (rare): tokens in URL fragment
+  const fragment = url.split('#')[1] ?? '';
+  const params = new URLSearchParams(fragment);
+  const access_token = params.get('access_token');
+  const refresh_token = params.get('refresh_token');
+  if (access_token && refresh_token) {
+    await supabase.auth.setSession({ access_token, refresh_token });
+  }
+}
+
 export default function RootLayout() {
   const [session, setSession] = useState<Session | null | undefined>(undefined);
   const [ready, setReady] = useState(false);
@@ -34,8 +69,19 @@ export default function RootLayout() {
     ensureAndroidChannels();
   }, []);
 
+  // Global deep-link listener — catches auth callbacks from Chrome Custom Tab
+  // and email magic-links even when the Custom Tab doesn't close cleanly.
   useEffect(() => {
-    // Safety net — if Supabase never responds, go to auth after 4 seconds
+    // Handle the URL the app was opened with (cold start from deep link)
+    Linking.getInitialURL().then((url) => {
+      if (url) handleAuthUrl(url);
+    });
+
+    const sub = Linking.addEventListener('url', ({ url }) => handleAuthUrl(url));
+    return () => sub.remove();
+  }, []);
+
+  useEffect(() => {
     const timeout = setTimeout(() => { setSession(null); setReady(true); }, 4000);
 
     supabase.auth.getSession().then(({ data }) => {
@@ -62,19 +108,13 @@ export default function RootLayout() {
     const inTour = segments[0] === 'tour';
 
     if (session) {
-      // Logged in — go to app
       if (inAuth || inTour) router.replace('/');
       return;
     }
 
-    // Not logged in — show tour first, then auth
     if (!inTour && !inAuth) {
       AsyncStorage.getItem('tour_seen').then((seen) => {
-        if (seen) {
-          router.replace('/auth');
-        } else {
-          router.replace('/tour');
-        }
+        router.replace(seen ? '/auth' : '/tour');
       });
     }
   }, [ready, session, segments]);
