@@ -9,7 +9,19 @@ export type XpAction =
   | "review_card"
   | "session_end"
   | "video_watch"
-  | "reinforcement";
+  | "reinforcement"
+  | "line_blast";
+
+/**
+ * XP for one completed line, before the combo multiplier.
+ *
+ * The Line Blast displays "+45 XP (15 x 3)" and the learner is meant to chase
+ * that multiplier, so the grant has to be the number on screen — award this
+ * once per combo step. It lives here rather than in the UI layer because the
+ * XP system is the authority on what an action is worth; lineBlast.ts
+ * re-exports it as BASE_XP so the label and the grant cannot drift.
+ */
+export const LINE_BLAST_XP = 15;
 
 export interface XpMeta {
   correct?: boolean;
@@ -83,6 +95,8 @@ export function xpForAction(action: XpAction, meta: XpMeta = {}): number {
       return 10;
     case "reinforcement":
       return 5;
+    case "line_blast":
+      return LINE_BLAST_XP;
     case "session_end": {
       const n = meta.cards ?? 0;
       if (n >= 10) return 25;

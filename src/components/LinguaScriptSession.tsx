@@ -1,11 +1,20 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { GapFillChallenge } from "@/components/GapFillChallenge";
 import { ActiveRecallReview } from "@/components/ActiveRecallReview";
 import { LinguaScriptCreation } from "@/components/LinguaScriptCreation";
-import { LineBlastEffect } from "@/components/LineBlastEffect";
+import { LineBlastOverlay } from "@/components/LineBlastOverlay";
 import { Loader2, ArrowRight } from "lucide-react";
-import { useComboTracker } from "@/hooks/useComboTracker";
+import {
+  COMBO_CAP,
+  PRAISE,
+  floatXpText,
+  confettiCountForCombo,
+  prefersReducedMotion,
+  makeConfettiBurst,
+  type ConfettiBurst,
+} from "@/lib/lineBlast";
+import { useXp } from "@/contexts/XpContext";
 
 interface Exercise {
   id: string;
@@ -35,9 +44,69 @@ export function LinguaScriptSession({
   const [stage, setStage] = useState<SessionStage>({ type: "gap-fill", exerciseIds });
   const [stageIndex, setStageIndex] = useState(0);
   const [sessionXp, setSessionXp] = useState(0);
-  const [showBlast, setShowBlast] = useState(false);
-  const [lastXp, setLastXp] = useState(0);
-  const { combo } = useComboTracker();
+  const { award } = useXp();
+
+  // The blast state mirrors the player and the landing demo exactly.
+  //
+  // This used to read `combo` from useComboTracker without ever calling
+  // recordCorrect, so it was pinned at 1 forever: the session could only say
+  // "LINE COMPLETE!" and never climbed to UNBELIEVABLE. The tracker also holds
+  // local state, so this component's combo and LinguaScriptExercise's were two
+  // unrelated streaks. A ref owned here is the whole streak for the session.
+  const comboRef = useRef(0);
+  const [praise, setPraise] = useState<
+    { big: string; sub: string; combo: number; key: number } | null
+  >(null);
+  const [floatXp, setFloatXp] = useState<{ text: string; key: number } | null>(null);
+  const [glowKey, setGlowKey] = useState(0);
+  const blastCanvasRef = useRef<HTMLCanvasElement>(null);
+  const confettiRef = useRef<ConfettiBurst | null>(null);
+  const blastTimersRef = useRef<number[]>([]);
+
+  useEffect(
+    () => () => {
+      blastTimersRef.current.forEach(clearTimeout);
+      confettiRef.current?.reset();
+    },
+    [],
+  );
+
+  /**
+   * Fire the celebration for one completed stage and grant the XP it shows.
+   *
+   * Completing a LinguaScript is the biggest thing a learner does, so it feeds
+   * the same combo ladder as a completed subtitle line — three stages in a row
+   * lands on AMAZING and pays 15 x 3.
+   */
+  const blastStage = useCallback(() => {
+    const reduced = prefersReducedMotion();
+    comboRef.current = Math.min(comboRef.current + 1, COMBO_CAP);
+    const combo = comboRef.current;
+
+    const [big, sub] = PRAISE[combo];
+    setPraise({ big, sub, combo, key: Date.now() });
+    setFloatXp({ text: floatXpText(combo), key: Date.now() });
+
+    // One grant per combo step, so the label and the balance agree.
+    let gained = 0;
+    for (let i = 0; i < combo; i++) gained += award("line_blast");
+    setSessionXp((prev) => prev + gained);
+
+    if (combo >= 2 && !reduced) {
+      if (!confettiRef.current) {
+        confettiRef.current = makeConfettiBurst(blastCanvasRef.current);
+      }
+      confettiRef.current.fire(confettiCountForCombo(combo));
+      setGlowKey(Date.now());
+    }
+
+    blastTimersRef.current.push(
+      window.setTimeout(() => {
+        setPraise(null);
+        setFloatXp(null);
+      }, reduced ? 1500 : 2100),
+    );
+  }, [award]);
 
   // Load exercises
   useEffect(() => {
@@ -96,31 +165,30 @@ export function LinguaScriptSession({
   const stages = generateStages();
 
   const handleGapFillComplete = useCallback(() => {
-    // Move to next stage after gap-fill completes
+    // Gap-fill is the warm-up stage, and clearing it starts the streak.
+    blastStage();
     setStageIndex((prev) => prev + 1);
-  }, []);
+  }, [blastStage]);
 
   const handleActiveRecallComplete = useCallback(
     (data: { correct: boolean; xpEarned: number }) => {
       if (data.xpEarned > 0) {
         setSessionXp((prev) => prev + data.xpEarned);
-        setLastXp(data.xpEarned);
-        setShowBlast(true);
-        setTimeout(() => setShowBlast(false), 1200);
+        blastStage();
+      } else {
+        // A missed stage breaks the streak, exactly as a passed-over line does
+        // in the player. Without this the combo would only ever climb.
+        comboRef.current = 0;
       }
-      // Move to next stage
       setStageIndex((prev) => prev + 1);
     },
-    []
+    [blastStage]
   );
 
   const handleLinguaScriptComplete = useCallback(
     (data: { sentences: any[]; totalXp: number }) => {
-      const totalXp = data.totalXp;
-      setSessionXp((prev) => prev + totalXp);
-      setLastXp(totalXp);
-      setShowBlast(true);
-      setTimeout(() => setShowBlast(false), 1200);
+      setSessionXp((prev) => prev + data.totalXp);
+      blastStage();
 
       // Save performance data
       saveSentenceData(data.sentences);
@@ -128,7 +196,7 @@ export function LinguaScriptSession({
       // Move to complete
       setStageIndex((prev) => prev + 1);
     },
-    []
+    [blastStage]
   );
 
   const saveSentenceData = async (sentences: any[]) => {
@@ -160,7 +228,7 @@ export function LinguaScriptSession({
   }, [sessionXp, exerciseIds, onSessionComplete]);
 
   const handleSkip = useCallback(() => {
-    // Skip to next stage
+    comboRef.current = 0;
     setStageIndex((prev) => Math.min(prev + 1, stages.length - 1));
   }, [stages.length]);
 
@@ -281,12 +349,17 @@ export function LinguaScriptSession({
         )}
       </div>
 
-      {/* Line Blast Effect */}
-      <LineBlastEffect
-        show={showBlast}
-        xpGained={lastXp}
-        combo={combo}
-        onComplete={() => setShowBlast(false)}
+      {/* The celebration, from the same component the landing demo uses. */}
+      <canvas
+        ref={blastCanvasRef}
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-0 z-40 h-full w-full"
+      />
+      <LineBlastOverlay
+        praise={praise}
+        floatXp={floatXp}
+        glowKey={glowKey}
+        placement="screen"
       />
     </div>
   );

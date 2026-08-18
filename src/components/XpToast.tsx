@@ -31,6 +31,7 @@ const LABELS: Record<XpAction, string> = {
   session_end: "Session bonus",
   video_watch: "Video watched",
   reinforcement: "Reinforcement",
+  line_blast: "Line complete",
 };
 
 const prefersReducedMotion = () =>

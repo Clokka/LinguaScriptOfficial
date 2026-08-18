@@ -1,4 +1,5 @@
 import confetti from "canvas-confetti";
+import { LINE_BLAST_XP } from "@/lib/xp";
 
 /**
  * The Line Blast — shared between the /landingpage4 demo and the real player.
@@ -15,8 +16,13 @@ import confetti from "canvas-confetti";
  * layer, and a confetti canvas.
  */
 
-/** XP for a completed line, before the combo multiplier. */
-export const BASE_XP = 15;
+/**
+ * XP for a completed line, before the combo multiplier.
+ *
+ * Re-exported from the XP system rather than defined here, so the number in
+ * the "+45 XP (15 x 3)" label is by construction the number actually granted.
+ */
+export const BASE_XP = LINE_BLAST_XP;
 
 /** Combo stops climbing here; PRAISE is indexed by combo so they must match. */
 export const COMBO_CAP = 5;

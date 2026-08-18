@@ -23,6 +23,7 @@ import {
   type GoldCandidate,
 } from "@/lib/goldenReveal";
 import { playClaimChime } from "@/lib/chime";
+import { LineBlastOverlay } from "@/components/LineBlastOverlay";
 import { GoldenDust, type DustAnchor } from "./GoldenDust";
 import {
   COMBO_CAP,
@@ -191,7 +192,8 @@ export const SubtitleOverlay = ({
   /** Lines already blasted, so a re-render can't fire the same one twice. */
   const blastedLinesRef = useRef<Set<string>>(new Set());
 
-  const [praise, setPraise] = useState<{ big: string; sub: string; key: number } | null>(null);
+  const [praise, setPraise] = useState<{ big: string; sub: string; combo: number; key: number } | null>(null);
+  const [glowKey, setGlowKey] = useState(0);
   const [floatXp, setFloatXp] = useState<{ text: string; key: number } | null>(null);
 
   const maybeBlastLine = () => {
@@ -208,18 +210,21 @@ export const SubtitleOverlay = ({
       if (!reduced) scatterClones(stageRef.current, lineRef.current, fxRef.current);
 
       const [big, sub] = PRAISE[combo];
-      setPraise({ big, sub, key: Date.now() });
+      setPraise({ big, sub, combo, key: Date.now() });
       setFloatXp({ text: floatXpText(combo), key: Date.now() });
 
-      // Real XP, unlike the demo: one session_end grant per completed line,
-      // scaled by the combo the same way the demo displays it.
-      for (let i = 0; i < combo; i++) award("session_end", { cards: 10 });
+      // The grant is the number on screen. This used to award session_end
+      // (25 XP) per combo step while the label said 15, so a x3 combo showed
+      // "+45 XP" and quietly paid 75 — the multiplier the learner is chasing
+      // has to be the one they actually get.
+      for (let i = 0; i < combo; i++) award("line_blast");
 
       if (combo >= 2 && !reduced) {
         if (!confettiRef.current) {
           confettiRef.current = makeConfettiBurst(blastCanvasRef.current);
         }
         confettiRef.current.fire(confettiCountForCombo(combo));
+        setGlowKey(Date.now());
       }
     }, reduced ? 0 : 220);
 
@@ -456,30 +461,15 @@ export const SubtitleOverlay = ({
           className="pointer-events-none absolute inset-0 h-full w-full"
         />
 
-        {praise && (
-          <div
-            key={praise.key}
-            className="pointer-events-none absolute inset-x-0 -top-16 flex flex-col items-center"
-          >
-            <span className="text-3xl font-extrabold tracking-tight text-amber-300 drop-shadow-[0_0_18px_rgba(251,191,36,0.7)]">
-              {praise.big}
-            </span>
-            {praise.sub && (
-              <span className="mt-0.5 text-sm font-semibold text-amber-200/80">{praise.sub}</span>
-            )}
-          </div>
-        )}
-
-        {floatXp && (
-          <div
-            key={floatXp.key}
-            className="pointer-events-none absolute inset-x-0 -top-6 flex justify-center"
-          >
-            <span className="text-lg font-extrabold text-emerald-300 drop-shadow-[0_0_12px_rgba(52,211,153,0.6)]">
-              {floatXp.text}
-            </span>
-          </div>
-        )}
+        {/* The same celebration the landing demo shows, from the same
+            component — previously this was a static div with no animation,
+            no combo scaling and no glow. */}
+        <LineBlastOverlay
+          praise={praise}
+          floatXp={floatXp}
+          glowKey={glowKey}
+          placement="inline"
+        />
       </div>
 
       {/* One canvas for every gold word on screen — see GoldenDust. */}

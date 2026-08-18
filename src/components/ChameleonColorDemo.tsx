@@ -2,6 +2,7 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { motion, useInView } from "framer-motion";
 import confetti from "canvas-confetti";
+import { PRAISE } from "@/lib/lineBlast";
 import { cn } from "@/lib/utils";
 import { PetLive, PetLiveHandle } from "@/components/pets/PetLive";
 
@@ -21,15 +22,9 @@ const INITIAL: Word[] = [
   { t: "toi", state: "red" },
 ];
 
-// Same praise ladder as LineBlastDemo
-const PRAISE: [string, string][] = [
-  ["", ""],
-  ["LINE COMPLETE!", ""],
-  ["GREAT!", ""],
-  ["AMAZING!", ""],
-  ["INCREDIBLE!", ""],
-  ["UNBELIEVABLE!", ""],
-];
+// The praise ladder is shared, not copied — this file used to hold its own
+// array with the combo subtitles stripped, which is how "AMAZING!" here and
+// "AMAZING! / combo x3" everywhere else quietly became different features.
 
 export const ChameleonColorDemo = () => {
   const rootRef = useRef<HTMLDivElement>(null);

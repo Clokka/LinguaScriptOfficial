@@ -17,6 +17,7 @@ import {
   makeConfettiBurst,
   type ConfettiBurst,
 } from "@/lib/lineBlast";
+import { LineBlastOverlay } from "@/components/LineBlastOverlay";
 import { cn } from "@/lib/utils";
 
 // Mirrors the weighted scoring in src/lib/understanding.ts
@@ -75,7 +76,7 @@ export const LineBlastDemo = ({ className }: { className?: string }) => {
   const [locked, setLocked] = useState(false);
   const [combo, setCombo] = useState(0);
   const [xpShown, setXpShown] = useState(0);
-  const [praise, setPraise] = useState<{ big: string; sub: string; size: number; key: number } | null>(null);
+  const [praise, setPraise] = useState<{ big: string; sub: string; combo: number; key: number } | null>(null);
   const [floatXp, setFloatXp] = useState<{ text: string; key: number } | null>(null);
   const [glowKey, setGlowKey] = useState(0);
   const [entering, setEntering] = useState(true);
@@ -158,7 +159,7 @@ export const LineBlastDemo = ({ className }: { className?: string }) => {
       later(() => {
         if (!reduced) scatterClones();
         const [big, sub] = PRAISE[comboNow];
-        setPraise({ big, sub, size: comboNow, key: Date.now() });
+        setPraise({ big, sub, combo: comboNow, key: Date.now() });
         setFloatXp({ text: floatXpText(comboNow), key: Date.now() });
         xpRef.current += gained;
         countUpXp(xpRef.current);
@@ -196,24 +197,10 @@ export const LineBlastDemo = ({ className }: { className?: string }) => {
 
   return (
     <div className={cn("select-none", className)}>
-      {/* Component-scoped keyframes for the celebration moments */}
+      {/* The praise / XP / glow keyframes now live in LineBlastOverlay, which
+          every surface shares. Only the demo's own line-entry animation is
+          local to this component. */}
       <style>{`
-        @keyframes lb-praise-in {
-          0% { opacity: 0; transform: scale(0.4); }
-          12% { opacity: 1; transform: scale(1.12); }
-          20% { transform: scale(1); }
-          78% { opacity: 1; transform: scale(1); }
-          100% { opacity: 0; transform: scale(1.04) translateY(-14px); }
-        }
-        @keyframes lb-xp-rise {
-          0% { opacity: 0; transform: translate(-50%, 10px); }
-          18% { opacity: 1; }
-          75% { opacity: 1; }
-          100% { opacity: 0; transform: translate(-50%, -48px); }
-        }
-        @keyframes lb-glow {
-          0% { opacity: 0; } 22% { opacity: 1; } 100% { opacity: 0; }
-        }
         @keyframes lb-line-in {
           from { opacity: 0; transform: translateY(14px); }
           to { opacity: 1; transform: translateY(0); }
@@ -252,15 +239,6 @@ export const LineBlastDemo = ({ className }: { className?: string }) => {
             <span className="ml-1 text-[10px] font-bold text-white/50">XP</span>
           </div>
         </div>
-
-        {/* Edge glow on big combos */}
-        {glowKey > 0 && (
-          <div
-            key={`glow-${glowKey}`}
-            className="pointer-events-none absolute inset-0 z-[35] rounded-2xl opacity-0 [box-shadow:inset_0_0_90px_rgba(52,211,153,0.55)]"
-            style={{ animation: "lb-glow 0.9s ease-out forwards" }}
-          />
-        )}
 
         {/* Subtitle panel */}
         <div className="absolute inset-x-0 bottom-[8%] z-20 flex justify-center px-[4%]">
@@ -313,37 +291,14 @@ export const LineBlastDemo = ({ className }: { className?: string }) => {
         <div ref={fxRef} className="pointer-events-none absolute inset-0 z-40" />
         <canvas ref={canvasRef} className="pointer-events-none absolute inset-0 z-[45] h-full w-full" />
 
-        {/* Praise */}
-        {praise && praise.big && (
-          <div
-            key={`praise-${praise.key}`}
-            className="pointer-events-none absolute inset-x-0 top-[28%] z-50 flex flex-col items-center gap-1 opacity-0"
-            style={{ animation: "lb-praise-in 1.5s cubic-bezier(0.16,1,0.3,1) forwards" }}
-          >
-            <div
-              className="text-center font-black italic leading-none tracking-tight text-amber-400 [transform:skewX(-6deg)] [text-shadow:0_2px_0_rgba(0,0,0,0.35),0_0_34px_rgba(251,191,36,0.5)]"
-              style={{ fontSize: `clamp(${22 + praise.size * 4}px, ${3 + praise.size * 1.2}vw, ${36 + praise.size * 12}px)` }}
-            >
-              {praise.big}
-            </div>
-            {praise.sub && (
-              <div className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-emerald-300 [text-shadow:0_0_16px_rgba(52,211,153,0.6)]">
-                {praise.sub}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Floating +XP */}
-        {floatXp && (
-          <div
-            key={`xp-${floatXp.key}`}
-            className="pointer-events-none absolute bottom-[26%] left-1/2 z-50 text-base font-extrabold tabular-nums text-emerald-400 opacity-0 [text-shadow:0_0_14px_rgba(52,211,153,0.7)]"
-            style={{ animation: "lb-xp-rise 1.3s ease-out forwards" }}
-          >
-            {floatXp.text}
-          </div>
-        )}
+        {/* Praise, floating XP and the combo glow — shared with the player and
+            the LinguaScript session so all three stay identical. */}
+        <LineBlastOverlay
+          praise={praise}
+          floatXp={floatXp}
+          glowKey={glowKey}
+          placement="stage"
+        />
       </div>
 
       {/* Demo controls */}

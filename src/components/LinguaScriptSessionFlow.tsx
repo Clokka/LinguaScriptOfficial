@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -7,7 +7,17 @@ import { LinguaScriptExercise } from "./LinguaScriptExercise";
 import { Button } from "./ui/button";
 import { ArrowLeft, Trophy, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
-import confetti from "canvas-confetti";
+import { LineBlastOverlay } from "@/components/LineBlastOverlay";
+import {
+  COMBO_CAP,
+  PRAISE,
+  floatXpText,
+  confettiCountForCombo,
+  prefersReducedMotion,
+  makeConfettiBurst,
+  type ConfettiBurst,
+} from "@/lib/lineBlast";
+import { useXp } from "@/contexts/XpContext";
 
 interface SavedWord {
   id: string;
@@ -84,6 +94,55 @@ export function LinguaScriptSessionFlow({
     }
   }
 
+  const { award } = useXp();
+
+  // Shared Line Blast state — same ladder, wording and timings as the player
+  // and the landing demo, from src/lib/lineBlast.ts.
+  const comboRef = useRef(0);
+  const [praise, setPraise] = useState<
+    { big: string; sub: string; combo: number; key: number } | null
+  >(null);
+  const [floatXp, setFloatXp] = useState<{ text: string; key: number } | null>(null);
+  const [glowKey, setGlowKey] = useState(0);
+  const blastCanvasRef = useRef<HTMLCanvasElement>(null);
+  const confettiRef = useRef<ConfettiBurst | null>(null);
+  const blastTimersRef = useRef<number[]>([]);
+
+  useEffect(
+    () => () => {
+      blastTimersRef.current.forEach(clearTimeout);
+      confettiRef.current?.reset();
+    },
+    [],
+  );
+
+  const blastExercise = useCallback(() => {
+    const reduced = prefersReducedMotion();
+    comboRef.current = Math.min(comboRef.current + 1, COMBO_CAP);
+    const combo = comboRef.current;
+
+    const [big, sub] = PRAISE[combo];
+    setPraise({ big, sub, combo, key: Date.now() });
+    setFloatXp({ text: floatXpText(combo), key: Date.now() });
+
+    for (let i = 0; i < combo; i++) award("line_blast");
+
+    if (combo >= 2 && !reduced) {
+      if (!confettiRef.current) {
+        confettiRef.current = makeConfettiBurst(blastCanvasRef.current);
+      }
+      confettiRef.current.fire(confettiCountForCombo(combo));
+      setGlowKey(Date.now());
+    }
+
+    blastTimersRef.current.push(
+      window.setTimeout(() => {
+        setPraise(null);
+        setFloatXp(null);
+      }, reduced ? 1500 : 2100),
+    );
+  }, [award]);
+
   function handleExerciseComplete(
     result: { xp_earned: number; correct: boolean },
     word: SavedWord
@@ -98,15 +157,11 @@ export function LinguaScriptSessionFlow({
       { word: word.word, correct: result.correct, xp: result.xp_earned || 0 },
     ]);
 
-    // Confetti on last correct
-    if (result.correct && currentIndex === words.length - 1) {
-      confetti({
-        particleCount: 100,
-        spread: 70,
-        origin: { x: 0.5, y: 0.5 },
-        colors: ["#fbbf24", "#fcd34d", "#34d399", "#6ee7b7"],
-      });
-    }
+    // Every correct answer blasts and feeds the streak — not just the last
+    // one. A single burst at the end rewarded finishing; the combo rewards
+    // getting them right in a row, which is the behaviour worth building.
+    if (result.correct) blastExercise();
+    else comboRef.current = 0;
 
     if (currentIndex < words.length - 1) {
       setCurrentIndex((prev) => prev + 1);
@@ -277,6 +332,19 @@ export function LinguaScriptSessionFlow({
           />
         )}
       </div>
+
+      {/* The celebration, from the same component the landing demo uses. */}
+      <canvas
+        ref={blastCanvasRef}
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-0 z-40 h-full w-full"
+      />
+      <LineBlastOverlay
+        praise={praise}
+        floatXp={floatXp}
+        glowKey={glowKey}
+        placement="screen"
+      />
     </div>
   );
 }
