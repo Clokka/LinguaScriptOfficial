@@ -17,17 +17,36 @@ export interface XpMeta {
   videoId?: string;
 }
 
-// Hand-tuned early curve. Levels 1-10 keep these exact totals so no existing
-// account's level shifts. Past level 10 the curve continues forever (see
-// extendThresholds) — a fixed table capped heavy learners at level 10 with a
-// progress bar that ran past 100% and no level-up could ever fire again.
+// Front-loaded onboarding ramp.
+//
+// The old curve started at 100 XP for level 2. A first session — save one word
+// (20) and review three cards (30) — totalled 50, so a new learner finished
+// onboarding having never levelled up once. The single most motivating moment
+// in the product was unreachable on day one.
+//
+// These thresholds are tuned against the real action values in xpForAction:
+//   save first word            20  -> level 2   (instant, before they scroll)
+//   + three correct reviews    50  -> level 3
+//   a couple more sessions          -> level 10
+//
+// Deliberately generous to 10, then the endless curve takes over so later
+// levels still mean something. Past level 10 the table grows forever (see
+// extendThresholds) — a fixed table used to cap heavy learners at 10 with a
+// progress bar running past 100% and no level-up able to fire again.
+//
+// NOTE: lowering these means existing accounts jump several levels the next
+// time they load. That is a pleasant surprise rather than a regression, and
+// sync_level_rewards is idempotent server-side so the gems for those levels
+// are granted once, not re-granted.
 export const LEVEL_THRESHOLDS = [
-  0, 100, 250, 500, 1000, 1750, 2750, 4000, 5500, 7500,
+  0, 20, 50, 95, 160, 250, 380, 560, 820, 1200,
 ];
 
-// Endless progression past the hand-tuned curve: each level costs a little
-// more than the last, easing to a flat cost so high levels stay reachable.
-const ENDLESS_BASE_GAP = 2500;
+// Endless progression past the ramp: each level costs a little more than the
+// last, easing to a flat cost so high levels stay reachable. The base gap is
+// deliberately close to the level 9->10 step (380) so leaving the ramp feels
+// like a gear change, not a wall.
+const ENDLESS_BASE_GAP = 600;
 const ENDLESS_GROWTH = 1.08;
 const ENDLESS_MAX_GAP = 25000;
 

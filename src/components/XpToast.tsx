@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 import { usePet } from "@/contexts/PetContext";
 import {
   WORD_SAVED_DURATION_MS,
-  LEVEL_UP_DURATION_MS,
+  levelUpDurationMs,
 } from "@/components/pets/PetCelebration";
 
 const WordSavedCelebration = lazy(() =>
@@ -81,8 +81,10 @@ export const XpToast = () => {
 
   useEffect(() => {
     if (leveledUpTo == null) return;
-    triggerReaction("excited", LEVEL_UP_DURATION_MS);
-    const t = setTimeout(consumeLevelUp, LEVEL_UP_DURATION_MS);
+    // Duration follows the level: the ramp's later celebrations hold longer.
+    const ms = levelUpDurationMs(leveledUpTo);
+    triggerReaction("excited", ms);
+    const t = setTimeout(consumeLevelUp, ms);
     return () => clearTimeout(t);
   }, [leveledUpTo, consumeLevelUp, triggerReaction]);
 

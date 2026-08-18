@@ -8,6 +8,7 @@ import * as THREE from "three";
 import { GLTFLoader, GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 import confetti from "canvas-confetti";
 import { getPetById } from "@/lib/pets";
+import { celebrationForLevel } from "@/lib/levelCelebrations";
 
 const loader = new GLTFLoader();
 const gltfCache = new Map<string, Promise<GLTF>>();
@@ -176,7 +177,19 @@ function runStage(opts: {
 }
 
 export const WORD_SAVED_DURATION_MS = 2300;
-export const LEVEL_UP_DURATION_MS = 3300;
+
+/** Fixed spawn + exit either side of the per-level hold, in seconds. */
+const LEVEL_UP_FIXED_S = 0.5 + 0.3;
+
+/**
+ * How long a level-up takes, in ms — derived from that level's celebration
+ * rather than fixed, because the hold grows along the ramp (level 10 runs a
+ * full second longer than level 2). A constant here would unmount the
+ * takeover mid-animation on the bigger levels.
+ */
+export function levelUpDurationMs(level: number): number {
+  return Math.round((celebrationForLevel(level).hold + LEVEL_UP_FIXED_S) * 1000) + 200;
+}
 
 interface WordSavedCelebrationProps {
   petId: string;
@@ -253,10 +266,14 @@ export function LevelUpCelebration({ petId, level, onDone }: LevelUpCelebrationP
       onDoneRef.current?.();
       return;
     }
+    // Each level on the ramp to 10 gets its own clip and confetti weight, so
+    // nine rapid level-ups feel like nine moments rather than one on repeat.
+    const cel = celebrationForLevel(level);
+
     requestAnimationFrame(() => rootRef.current?.classList.add("opacity-100"));
     confetti({
-      particleCount: 120,
-      spread: 75,
+      particleCount: cel.particles,
+      spread: cel.spread,
       startVelocity: 42,
       origin: { y: 0.55 },
       colors: ["#7c3aed", "#a78bfa", "#fb923c", "#facc15", "#22c55e"],
@@ -265,12 +282,14 @@ export function LevelUpCelebration({ petId, level, onDone }: LevelUpCelebrationP
       host: hostRef.current,
       glbFile: pet.glbFile,
       canvasSize: 320,
-      timings: { spawn: 0.5, hold: 2.4, exit: 0.3 },
-      clips: { intro: "Spin", loop: "Bounce" },
+      timings: { spawn: 0.5, hold: cel.hold, exit: 0.3 },
+      clips: { intro: cel.intro, loop: cel.loop },
       onExit: () => rootRef.current?.classList.remove("opacity-100"),
       onDone: () => onDoneRef.current?.(),
     });
-  }, [petId]);
+    // `level` matters: consecutive level-ups reuse this component instance, so
+    // without it the second one would replay the first one's animation.
+  }, [petId, level]);
 
   return (
     <div
@@ -293,7 +312,10 @@ export function LevelUpCelebration({ petId, level, onDone }: LevelUpCelebrationP
       >
         Level {level}!
       </div>
-      <p className="mt-1.5 text-sm text-muted-foreground">Your pet is proud of you 🎉</p>
+      {/* Named moment rather than the same line nine times on the way to 10. */}
+      <p className="mt-1.5 text-sm text-muted-foreground">
+        {celebrationForLevel(level).caption}
+      </p>
     </div>
   );
 }
