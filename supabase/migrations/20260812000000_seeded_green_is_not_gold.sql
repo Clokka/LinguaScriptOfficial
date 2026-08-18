@@ -82,25 +82,23 @@ $function$;
 -- green words with green_revealed_at NULL, and would get the day-one gold flood
 -- described above the moment the Golden Reveal ships.
 --
--- Identifying a seeded row takes more care than "never reviewed". Marking a word
--- known from the player also writes green with times_correct still 0, so that
--- test alone would quietly claim the reveals a learner deliberately earned —
--- the one outcome worth avoiding here.
+-- Claim the entire pre-existing green deck, seeded or earned alike.
 --
--- The reliable signal is the timestamps. The seed writes state_changed_at with
--- the same now() that fills the created_at default, and now() is fixed for the
--- transaction, so every seeded row has the two exactly equal. Marking a word
--- known sends state_changed_at from the browser clock while created_at comes
--- from the database, so those two never coincide — they differ by network
--- latency and clock skew.
+-- Every green word that exists at this moment was promoted before the Golden
+-- Reveal did, and the learner already watched it turn green in the old UI.
+-- There is no reveal owed: the mechanic cannot retroactively grant a moment
+-- that already happened. Gold starts from the next promotion.
 --
--- The untouched counters stay as a second condition. Between the two, this can
--- only fail by leaving a seeded word gold, never by stealing an earned reveal.
+-- An earlier version of this tried to claim only the seeded rows, on the theory
+-- that seeded words have state_changed_at exactly equal to created_at while
+-- earned ones don't. It matched zero rows in production, and the reasoning was
+-- backwards: created_at is when a word was saved and state_changed_at is when
+-- it was later promoted, so they differ for every word anybody actually
+-- learned. Worse, the distinction didn't matter — on the real data the backlog
+-- was 896 words, 664 of them on a single account, and almost none of them
+-- seeded. Leaving earned words gold would have buried a new mechanic under
+-- months of accumulated history on its first frame.
 UPDATE public.saved_words
-   SET green_revealed_at = created_at
+   SET green_revealed_at = COALESCE(state_changed_at, created_at, now())
  WHERE state = 'green'
-   AND green_revealed_at IS NULL
-   AND state_changed_at = created_at
-   AND review_count = 0
-   AND times_correct = 0
-   AND last_reviewed_at IS NULL;
+   AND green_revealed_at IS NULL;
