@@ -18,6 +18,11 @@ export interface SavedWordLite {
   review_count: number;
   /** Due date for the next review — used to gate the in-video gap challenge. */
   next_review?: string | null;
+  /** When the deck state last changed — the Golden Reveal compares against it. */
+  state_changed_at?: string | null;
+  created_at?: string | null;
+  /** When the learner claimed this word's promotion to green. */
+  green_revealed_at?: string | null;
 }
 
 export const STATE_META: Record<DeckState, {
@@ -91,7 +96,7 @@ export async function loadDeckIndex(
   while (true) {
     const { data, error } = await supabase
       .from("saved_words")
-      .select("id, word, language, state, times_correct, review_count, next_review")
+      .select("id, word, language, state, times_correct, review_count, next_review, state_changed_at, created_at, green_revealed_at")
       .eq("user_id", userId)
       .eq("language", language)
       .range(from, from + pageSize - 1);

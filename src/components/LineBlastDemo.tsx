@@ -4,7 +4,19 @@
 // hardcoded lines; the in-app version is planned separately
 // (docs/plans/line-blast-completion-effects.md).
 import { useCallback, useEffect, useRef, useState } from "react";
-import confetti from "canvas-confetti";
+import {
+  BASE_XP,
+  COMBO_CAP,
+  PRAISE,
+  prefersReducedMotion,
+  xpForCombo,
+  floatXpText,
+  confettiCountForCombo,
+  goldSweep as sharedGoldSweep,
+  scatterClones as sharedScatterClones,
+  makeConfettiBurst,
+  type ConfettiBurst,
+} from "@/lib/lineBlast";
 import { cn } from "@/lib/utils";
 
 // Mirrors the weighted scoring in src/lib/understanding.ts
@@ -31,20 +43,6 @@ const LINES: DemoLine[] = [
   { text: "La musique douce remplit la petite salle", tr: "The soft music fills the little room", unknown: ["remplit", "douce"] },
 ];
 
-const PRAISE: [string, string][] = [
-  ["", ""],
-  ["LINE COMPLETE!", ""],
-  ["GREAT!", "combo ×2"],
-  ["AMAZING!", "combo ×3"],
-  ["INCREDIBLE!", "combo ×4"],
-  ["UNBELIEVABLE!", "combo ×5"],
-];
-const COMBO_CAP = 5;
-const BASE_XP = 15;
-
-const prefersReducedMotion = () =>
-  typeof window !== "undefined" &&
-  window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 interface WordState {
   text: string;
@@ -86,7 +84,7 @@ export const LineBlastDemo = ({ className }: { className?: string }) => {
   const lineRef = useRef<HTMLParagraphElement>(null);
   const fxRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const confettiRef = useRef<confetti.CreateTypes | null>(null);
+  const confettiRef = useRef<ConfettiBurst | null>(null);
   const timeoutsRef = useRef<number[]>([]);
   const xpRafRef = useRef<number>(0);
   const xpRef = useRef(0); // true XP total
@@ -138,87 +136,34 @@ export const LineBlastDemo = ({ className }: { className?: string }) => {
   }, []);
 
   const scatterClones = useCallback(() => {
-    const stage = stageRef.current;
-    const line = lineRef.current;
-    const fx = fxRef.current;
-    if (!stage || !line || !fx) return;
-    const stageBox = stage.getBoundingClientRect();
-    const fontSize = getComputedStyle(line).fontSize;
-    Array.from(line.children).forEach((span) => {
-      const b = span.getBoundingClientRect();
-      const clone = document.createElement("span");
-      clone.textContent = (span.textContent ?? "").trim();
-      clone.className = "absolute font-extrabold text-amber-400 will-change-transform";
-      clone.style.left = `${b.left - stageBox.left}px`;
-      clone.style.top = `${b.top - stageBox.top}px`;
-      clone.style.fontSize = fontSize;
-      clone.style.textShadow = "0 0 18px rgba(251,191,36,0.65)";
-      fx.appendChild(clone);
-      const angle = Math.random() * Math.PI * 2;
-      const dist = 90 + Math.random() * 190;
-      const dx = Math.cos(angle) * dist;
-      const dy = Math.sin(angle) * dist - 45; // slight upward bias
-      const rot = (Math.random() * 2 - 1) * 200;
-      clone
-        .animate(
-          [
-            { transform: "translate(0,0) rotate(0deg) scale(1)", opacity: 1 },
-            { transform: `translate(${dx}px,${dy}px) rotate(${rot}deg) scale(0.08)`, opacity: 0 },
-          ],
-          { duration: 560, easing: "cubic-bezier(0.16,1,0.3,1)", fill: "forwards" },
-        )
-        .addEventListener("finish", () => clone.remove());
-    });
+    sharedScatterClones(stageRef.current, lineRef.current, fxRef.current);
   }, []);
 
   const goldSweep = useCallback(() => {
-    const line = lineRef.current;
-    if (!line) return;
-    Array.from(line.children).forEach((span, i) => {
-      (span as HTMLElement).animate(
-        [
-          { color: "#f4f7f5" },
-          { color: "#fbbf24", textShadow: "0 0 16px rgba(251,191,36,0.8)", offset: 0.4 },
-          { color: "rgba(52,211,153,0.72)", textShadow: "none" },
-        ],
-        { duration: 460, delay: i * 30, easing: "ease-out", fill: "forwards" },
-      );
-    });
+    sharedGoldSweep(lineRef.current);
   }, []);
 
   const burstConfetti = useCallback((count: number) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
     if (!confettiRef.current) {
-      confettiRef.current = confetti.create(canvas, { resize: true, useWorker: true });
+      confettiRef.current = makeConfettiBurst(canvasRef.current);
     }
-    void confettiRef.current({
-      particleCount: count,
-      spread: 80,
-      startVelocity: 32,
-      origin: { x: 0.5, y: 0.62 },
-      colors: ["#34d399", "#fbbf24", "#6ee7b7", "#f4f7f5", "#a78bfa"],
-      disableForReducedMotion: true,
-    });
+    confettiRef.current.fire(count);
   }, []);
 
   const blast = useCallback(
     (comboNow: number) => {
       const reduced = prefersReducedMotion();
-      const gained = BASE_XP * comboNow;
+      const gained = xpForCombo(comboNow);
       if (!reduced) goldSweep();
       later(() => {
         if (!reduced) scatterClones();
         const [big, sub] = PRAISE[comboNow];
         setPraise({ big, sub, size: comboNow, key: Date.now() });
-        setFloatXp({
-          text: `+${gained} XP${comboNow > 1 ? ` (15 × ${comboNow})` : ""}`,
-          key: Date.now(),
-        });
+        setFloatXp({ text: floatXpText(comboNow), key: Date.now() });
         xpRef.current += gained;
         countUpXp(xpRef.current);
         if (comboNow >= 2 && !reduced) {
-          burstConfetti(Math.min(40 + comboNow * 30, 170));
+          burstConfetti(confettiCountForCombo(comboNow));
           setGlowKey(Date.now());
         }
       }, reduced ? 0 : 220);

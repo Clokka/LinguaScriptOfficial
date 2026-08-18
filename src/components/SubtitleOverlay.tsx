@@ -13,6 +13,28 @@ import {
 } from "@/lib/vocab";
 import { greenScoreForLine } from "@/lib/understanding";
 import { ChameleonReaction, ReactionMode } from "./ChameleonReaction";
+import { useXp } from "@/contexts/XpContext";
+import {
+  isPendingGreen,
+  revealGreenWord,
+  touchGoldWord,
+  MAX_GOLD_PER_LINE,
+  GOLD,
+  type GoldCandidate,
+} from "@/lib/goldenReveal";
+import { playClaimChime } from "@/lib/chime";
+import { GoldenDust, type DustAnchor } from "./GoldenDust";
+import {
+  COMBO_CAP,
+  PRAISE,
+  prefersReducedMotion,
+  floatXpText,
+  confettiCountForCombo,
+  goldSweep,
+  scatterClones,
+  makeConfettiBurst,
+  type ConfettiBurst,
+} from "@/lib/lineBlast";
 
 interface Word {
   id: string;
@@ -68,6 +90,7 @@ export const SubtitleOverlay = ({
   // caller hasn't tagged the content yet.
   const effectiveLang = contentLanguage || languageContext;
   const { user } = useAuth();
+  const { award } = useXp();
   const [deck, setDeck] = useState<Map<string, SavedWordLite>>(new Map());
 
   useEffect(() => {
@@ -80,6 +103,162 @@ export const SubtitleOverlay = ({
 
   const stateForToken = (text: string): DeckState | undefined => {
     return deck.get(normalizeToken(text))?.state;
+  };
+
+  // ── Golden Reveal ────────────────────────────────────────────────────────
+  // A word promoted to green renders GOLD until the learner witnesses it and
+  // claims it. See src/lib/goldenReveal.ts for the state rule.
+
+  /** Words claimed during this line, so they flip to green without a refetch. */
+  const [justClaimed, setJustClaimed] = useState<Set<string>>(new Set());
+  const [dustAnchors, setDustAnchors] = useState<DustAnchor[]>([]);
+  const wordElsRef = useRef<Map<string, HTMLElement>>(new Map());
+  /**
+   * Lines already counted toward the decay threshold. Without this, every
+   * React re-render would call touch_gold_word again and push a word past
+   * GOLD_DECAY_APPEARANCES within a second — auto-claiming it before it was
+   * ever seen.
+   */
+  const seenLineKeysRef = useRef<Set<string>>(new Set());
+
+  /**
+   * Which tokens on this line are gold, capped at MAX_GOLD_PER_LINE.
+   *
+   * The cap is what keeps gold feeling rare: a learner returning after a few
+   * days of reviews could otherwise face a whole line of it at once. Words
+   * over the cap render plain green.
+   */
+  const goldTokens = useMemo(() => {
+    const out = new Set<string>();
+    for (const raw of primaryText.split(" ")) {
+      const token = normalizeToken(raw);
+      if (!token || out.has(token) || justClaimed.has(token)) continue;
+      if (isPendingGreen(deck.get(token) as GoldCandidate | undefined)) {
+        out.add(token);
+        if (out.size >= MAX_GOLD_PER_LINE) break;
+      }
+    }
+    return out;
+  }, [primaryText, deck, justClaimed]);
+
+  // Count one appearance per line, once, and let the RPC auto-claim past the
+  // threshold so an ignored word stops glittering forever.
+  useEffect(() => {
+    if (!user || goldTokens.size === 0) return;
+    for (const token of goldTokens) {
+      const key = `${primaryText}::${token}`;
+      if (seenLineKeysRef.current.has(key)) continue;
+      seenLineKeysRef.current.add(key);
+      const word = deck.get(token);
+      if (word?.id) void touchGoldWord(word.id);
+    }
+  }, [goldTokens, primaryText, deck, user]);
+
+  // Feed the shared dust canvas the on-screen position of each gold word.
+  useEffect(() => {
+    if (goldTokens.size === 0) {
+      setDustAnchors([]);
+      return;
+    }
+    const measure = () => {
+      const next: DustAnchor[] = [];
+      for (const token of goldTokens) {
+        const el = wordElsRef.current.get(token);
+        if (el) next.push({ key: token, rect: el.getBoundingClientRect() });
+      }
+      setDustAnchors(next);
+    };
+    measure();
+    // Subtitles move with the player chrome; re-measure rather than drift.
+    const id = window.setInterval(measure, 500);
+    window.addEventListener("resize", measure);
+    return () => {
+      window.clearInterval(id);
+      window.removeEventListener("resize", measure);
+    };
+  }, [goldTokens, primaryText]);
+
+  // ── Line Blast ───────────────────────────────────────────────────────────
+  // Identical to /landingpage4 by construction: every constant, timing and
+  // string comes from src/lib/lineBlast.ts, which the demo also imports.
+
+  const stageRef = useRef<HTMLDivElement>(null);
+  const lineRef = useRef<HTMLParagraphElement>(null);
+  const fxRef = useRef<HTMLDivElement>(null);
+  const blastCanvasRef = useRef<HTMLCanvasElement>(null);
+  const confettiRef = useRef<ConfettiBurst | null>(null);
+  const comboRef = useRef(0);
+  /** Lines already blasted, so a re-render can't fire the same one twice. */
+  const blastedLinesRef = useRef<Set<string>>(new Set());
+
+  const [praise, setPraise] = useState<{ big: string; sub: string; key: number } | null>(null);
+  const [floatXp, setFloatXp] = useState<{ text: string; key: number } | null>(null);
+
+  const maybeBlastLine = () => {
+    if (blastedLinesRef.current.has(primaryText)) return;
+    blastedLinesRef.current.add(primaryText);
+
+    const reduced = prefersReducedMotion();
+    comboRef.current = Math.min(comboRef.current + 1, COMBO_CAP);
+    const combo = comboRef.current;
+
+    if (!reduced) goldSweep(lineRef.current);
+
+    window.setTimeout(() => {
+      if (!reduced) scatterClones(stageRef.current, lineRef.current, fxRef.current);
+
+      const [big, sub] = PRAISE[combo];
+      setPraise({ big, sub, key: Date.now() });
+      setFloatXp({ text: floatXpText(combo), key: Date.now() });
+
+      // Real XP, unlike the demo: one session_end grant per completed line,
+      // scaled by the combo the same way the demo displays it.
+      for (let i = 0; i < combo; i++) award("session_end", { cards: 10 });
+
+      if (combo >= 2 && !reduced) {
+        if (!confettiRef.current) {
+          confettiRef.current = makeConfettiBurst(blastCanvasRef.current);
+        }
+        confettiRef.current.fire(confettiCountForCombo(combo));
+      }
+    }, reduced ? 0 : 220);
+
+    window.setTimeout(() => {
+      setPraise(null);
+      setFloatXp(null);
+    }, reduced ? 1500 : 2100);
+  };
+
+  // A new line breaks the combo unless it completes too — same rule as the demo.
+  useEffect(() => {
+    if (!blastedLinesRef.current.has(primaryText)) comboRef.current = 0;
+    confettiRef.current?.reset();
+  }, [primaryText]);
+
+  /** Claim a gold word: chime, settle to green, award XP, maybe blast. */
+  const claimGoldWord = async (token: string) => {
+    const word = deck.get(token);
+    if (!word?.id) return;
+
+    // Optimistic — the gold should die under the finger, not after a round trip.
+    setJustClaimed((prev) => new Set(prev).add(token));
+
+    const { revealed, awardedXp } = await revealGreenWord(word.id);
+    // `revealed: false` means it was already claimed elsewhere; staying silent
+    // is what stops a double-tap paying twice.
+    if (!revealed) return;
+
+    playClaimChime();
+    if (awardedXp > 0) award("reinforcement");
+
+    // A claim can be the thing that completes the line. Recompute against the
+    // whole line rather than just the gold set — the line only blasts when
+    // every word is green, not merely when the gold is gone.
+    const remainingGold = [...goldTokens].filter((t) => t !== token);
+    if (remainingGold.length === 0) {
+      const score = greenScoreForLine(primaryText, effectiveLang, deck);
+      if (score.pct >= 100) maybeBlastLine();
+    }
   };
 
   const handleWordClick = async (word: Word, event: React.MouseEvent) => {
@@ -130,7 +309,6 @@ export const SubtitleOverlay = ({
     [primaryText, effectiveLang, deck],
   );
 
-  const lineRef = useRef<HTMLParagraphElement>(null);
   const [reaction, setReaction] = useState<ReactionMode | null>(null);
 
   // Is every word in the line green EXCEPT the given one, which is in `expect`?
@@ -157,22 +335,10 @@ export const SubtitleOverlay = ({
   // word in the line is already green and the word being saved is still white.
   const wouldCompleteLine = (savedText: string): boolean => isLastNonGreen(savedText, undefined);
 
-  // Gold sweep — the /demo effect: a yellow shimmer runs left→right through the
-  // line's words, then each settles back to its real deck colour.
-  const goldSweep = () => {
-    const line = lineRef.current;
-    if (!line || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
-    line.querySelectorAll<HTMLElement>(".subtitle-word").forEach((span, i) => {
-      span.animate(
-        [
-          {},
-          { color: "#fbbf24", textShadow: "0 0 16px rgba(251,191,36,0.85)", offset: 0.45 },
-          {},
-        ],
-        { duration: 520, delay: i * 30, easing: "ease-out" },
-      );
-    });
-  };
+  // The former local gold sweep lived here. It only did the shimmer — no
+  // scatter, praise, XP label or confetti — so completing a line in the player
+  // felt like a fraction of the same moment on /landingpage4. Both call sites
+  // now run maybeBlastLine(), which is the landing page effect exactly.
 
   const renderWords = () => {
     const textWords = primaryText.split(" ");
@@ -181,22 +347,48 @@ export const SubtitleOverlay = ({
         (w) => w.text.toLowerCase() === text.toLowerCase().replace(/[.,!?]/g, "")
       );
       const deckState = stateForToken(text);
+      const token = normalizeToken(text);
+      // A green word the learner hasn't witnessed yet renders GOLD, not green
+      // — the promotion is a reward to be claimed, not a status to be shown.
+      const isGold = goldTokens.has(token);
       // Saved words render in their exact deck colour (red/orange/green);
       // unknown words stay bright white to draw the eye.
-      const deckColor = deckState ? DECK_COLORS[deckState] : undefined;
+      const deckColor = isGold
+        ? GOLD.core
+        : deckState
+          ? DECK_COLORS[deckState]
+          : undefined;
       return (
         <span
           key={index}
+          ref={(el) => {
+            if (isGold && el) wordElsRef.current.set(token, el);
+            else if (!isGold) wordElsRef.current.delete(token);
+          }}
           data-tour={wordData ? "subtitle-word" : undefined}
           className={cn(
-            "subtitle-word inline-flex items-baseline",
+            "subtitle-word inline-flex items-baseline transition-colors duration-500",
             // Only real words are interactive; everything else stays
             // click-through so the video controls underneath remain reachable.
-            wordData && "cursor-pointer pointer-events-auto rounded hover:bg-white/10",
+            (wordData || isGold) && "cursor-pointer pointer-events-auto rounded hover:bg-white/10",
             deckColor ? "font-semibold" : "text-white font-medium",
           )}
-          style={deckColor ? { color: deckColor } : undefined}
+          style={
+            deckColor
+              ? {
+                  color: deckColor,
+                  // The glow is what sells "claimable" before the dust loads.
+                  textShadow: isGold ? `0 0 14px ${GOLD.glow}` : undefined,
+                }
+              : undefined
+          }
           onClick={(e) => {
+            // Claiming takes precedence over the translation popup: on a gold
+            // word the tap means "this one's mine", not "what does it mean".
+            if (isGold) {
+              void claimGoldWord(token);
+              return;
+            }
             if (wordData) handleWordClick(wordData, e);
           }}
         >
@@ -214,6 +406,7 @@ export const SubtitleOverlay = ({
           Legibility comes from a strong text shadow, Netflix / Language Reactor
           style, instead of a solid panel that blocks the seek bar. */}
       <div
+        ref={stageRef}
         className={cn(
           "px-6 py-2 text-center max-w-4xl mx-auto relative pointer-events-none",
           className
@@ -252,7 +445,45 @@ export const SubtitleOverlay = ({
             {secondaryText}
           </p>
         )}
+
+        {/* Blast layers. The FX layer holds the scattering word clones and the
+            canvas holds the confetti, both scoped to this overlay so the
+            effect stays inside the player rather than over the whole page. */}
+        <div ref={fxRef} className="pointer-events-none absolute inset-0 overflow-visible" />
+        <canvas
+          ref={blastCanvasRef}
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 h-full w-full"
+        />
+
+        {praise && (
+          <div
+            key={praise.key}
+            className="pointer-events-none absolute inset-x-0 -top-16 flex flex-col items-center"
+          >
+            <span className="text-3xl font-extrabold tracking-tight text-amber-300 drop-shadow-[0_0_18px_rgba(251,191,36,0.7)]">
+              {praise.big}
+            </span>
+            {praise.sub && (
+              <span className="mt-0.5 text-sm font-semibold text-amber-200/80">{praise.sub}</span>
+            )}
+          </div>
+        )}
+
+        {floatXp && (
+          <div
+            key={floatXp.key}
+            className="pointer-events-none absolute inset-x-0 -top-6 flex justify-center"
+          >
+            <span className="text-lg font-extrabold text-emerald-300 drop-shadow-[0_0_12px_rgba(52,211,153,0.6)]">
+              {floatXp.text}
+            </span>
+          </div>
+        )}
       </div>
+
+      {/* One canvas for every gold word on screen — see GoldenDust. */}
+      {dustAnchors.length > 0 && <GoldenDust anchors={dustAnchors} />}
 
 
       {selectedWord && (
@@ -289,7 +520,7 @@ export const SubtitleOverlay = ({
             // freshly-coloured words — and send in the RED chameleon: a
             // full-green line just gained a brand-new word.
             if (sweep) {
-              setTimeout(goldSweep, 40);
+              setTimeout(maybeBlastLine, 40);
               setReaction("red");
             }
           }}
@@ -322,7 +553,7 @@ export const SubtitleOverlay = ({
                     // send in the chameleon (orange → green when the last word
                     // was still in the learning deck).
                     if (anyFinish) {
-                      setTimeout(goldSweep, 40);
+                      setTimeout(maybeBlastLine, 40);
                       setReaction("orange-to-green");
                     }
                   }
