@@ -29,11 +29,8 @@ import {
   PRAISE,
   prefersReducedMotion,
   floatXpText,
-  confettiCountForCombo,
   goldSweep,
   scatterClones,
-  makeConfettiBurst,
-  type ConfettiBurst,
 } from "@/lib/lineBlast";
 
 interface Word {
@@ -185,13 +182,12 @@ export const SubtitleOverlay = ({
   const stageRef = useRef<HTMLDivElement>(null);
   const lineRef = useRef<HTMLParagraphElement>(null);
   const fxRef = useRef<HTMLDivElement>(null);
-  const blastCanvasRef = useRef<HTMLCanvasElement>(null);
-  const confettiRef = useRef<ConfettiBurst | null>(null);
   const comboRef = useRef(0);
   /** Lines already blasted, so a re-render can't fire the same one twice. */
   const blastedLinesRef = useRef<Set<string>>(new Set());
 
-  const [praise, setPraise] = useState<{ big: string; sub: string; key: number } | null>(null);
+  const [praise, setPraise] = useState<{ big: string; sub: string; size: number; key: number } | null>(null);
+  const [glowKey, setGlowKey] = useState(0);
   const [floatXp, setFloatXp] = useState<{ text: string; key: number } | null>(null);
 
   const maybeBlastLine = () => {
@@ -208,7 +204,7 @@ export const SubtitleOverlay = ({
       if (!reduced) scatterClones(stageRef.current, lineRef.current, fxRef.current);
 
       const [big, sub] = PRAISE[combo];
-      setPraise({ big, sub, key: Date.now() });
+      setPraise({ big, sub, size: combo, key: Date.now() });
       setFloatXp({ text: floatXpText(combo), key: Date.now() });
 
       // Real XP, unlike the demo: one session_end grant per completed line,
@@ -216,10 +212,7 @@ export const SubtitleOverlay = ({
       for (let i = 0; i < combo; i++) award("session_end", { cards: 10 });
 
       if (combo >= 2 && !reduced) {
-        if (!confettiRef.current) {
-          confettiRef.current = makeConfettiBurst(blastCanvasRef.current);
-        }
-        confettiRef.current.fire(confettiCountForCombo(combo));
+        setGlowKey(Date.now());
       }
     }, reduced ? 0 : 220);
 
@@ -232,7 +225,6 @@ export const SubtitleOverlay = ({
   // A new line breaks the combo unless it completes too — same rule as the demo.
   useEffect(() => {
     if (!blastedLinesRef.current.has(primaryText)) comboRef.current = 0;
-    confettiRef.current?.reset();
   }, [primaryText]);
 
   /** Claim a gold word: chime, settle to green, award XP, maybe blast. */
@@ -401,6 +393,27 @@ export const SubtitleOverlay = ({
 
   return (
     <>
+      <style>{`
+        @keyframes lb-praise-in {
+          0%   { opacity: 0; transform: scale(0.4); }
+          12%  { opacity: 1; transform: scale(1.12); }
+          20%  { transform: scale(1); }
+          78%  { opacity: 1; transform: scale(1); }
+          100% { opacity: 0; transform: scale(1.04) translateY(-14px); }
+        }
+        @keyframes lb-xp-rise {
+          0%   { opacity: 0; transform: translate(-50%, 10px); }
+          18%  { opacity: 1; }
+          75%  { opacity: 1; }
+          100% { opacity: 0; transform: translate(-50%, -48px); }
+        }
+        @keyframes lb-glow {
+          0%   { opacity: 0; }
+          22%  { opacity: 1; }
+          100% { opacity: 0; }
+        }
+      `}</style>
+
       {/* No box: the layer is click-through (pointer-events-none) so the video
           controls underneath stay reachable — only the words re-enable clicks.
           Legibility comes from a strong text shadow, Netflix / Language Reactor
@@ -446,38 +459,45 @@ export const SubtitleOverlay = ({
           </p>
         )}
 
-        {/* Blast layers. The FX layer holds the scattering word clones and the
-            canvas holds the confetti, both scoped to this overlay so the
-            effect stays inside the player rather than over the whole page. */}
+        {/* Blast layers — the FX div holds scattering word clones. */}
         <div ref={fxRef} className="pointer-events-none absolute inset-0 overflow-visible" />
-        <canvas
-          ref={blastCanvasRef}
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 h-full w-full"
-        />
 
-        {praise && (
+        {/* Edge glow on combos ≥2, matching the demo. */}
+        {glowKey > 0 && (
           <div
-            key={praise.key}
-            className="pointer-events-none absolute inset-x-0 -top-16 flex flex-col items-center"
+            key={`glow-${glowKey}`}
+            className="pointer-events-none absolute inset-0 z-[35] rounded-2xl opacity-0 [box-shadow:inset_0_0_90px_rgba(52,211,153,0.55)]"
+            style={{ animation: "lb-glow 0.9s ease-out forwards" }}
+          />
+        )}
+
+        {praise && praise.big && (
+          <div
+            key={`praise-${praise.key}`}
+            className="pointer-events-none absolute inset-x-0 -top-20 z-50 flex flex-col items-center gap-1 opacity-0"
+            style={{ animation: "lb-praise-in 1.5s cubic-bezier(0.16,1,0.3,1) forwards" }}
           >
-            <span className="text-3xl font-extrabold tracking-tight text-amber-300 drop-shadow-[0_0_18px_rgba(251,191,36,0.7)]">
+            <div
+              className="text-center font-black italic leading-none tracking-tight text-amber-400 [transform:skewX(-6deg)] [text-shadow:0_2px_0_rgba(0,0,0,0.35),0_0_34px_rgba(251,191,36,0.5)]"
+              style={{ fontSize: `clamp(${22 + praise.size * 4}px, ${3 + praise.size * 1.2}vw, ${36 + praise.size * 12}px)` }}
+            >
               {praise.big}
-            </span>
+            </div>
             {praise.sub && (
-              <span className="mt-0.5 text-sm font-semibold text-amber-200/80">{praise.sub}</span>
+              <div className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-emerald-300 [text-shadow:0_0_16px_rgba(52,211,153,0.6)]">
+                {praise.sub}
+              </div>
             )}
           </div>
         )}
 
         {floatXp && (
           <div
-            key={floatXp.key}
-            className="pointer-events-none absolute inset-x-0 -top-6 flex justify-center"
+            key={`xp-${floatXp.key}`}
+            className="pointer-events-none absolute -bottom-6 left-1/2 z-50 text-base font-extrabold tabular-nums text-emerald-400 opacity-0 [text-shadow:0_0_14px_rgba(52,211,153,0.7)]"
+            style={{ animation: "lb-xp-rise 1.3s ease-out forwards" }}
           >
-            <span className="text-lg font-extrabold text-emerald-300 drop-shadow-[0_0_12px_rgba(52,211,153,0.6)]">
-              {floatXp.text}
-            </span>
+            {floatXp.text}
           </div>
         )}
       </div>

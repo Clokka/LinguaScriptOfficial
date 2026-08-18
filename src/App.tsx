@@ -20,6 +20,7 @@ import LandingPage3 from "./pages/LandingPage3";
 import LandingPage4 from "./pages/LandingPage4";
 import GapDemo from "./pages/GapDemo";
 import Demo from "./pages/Demo";
+import Demo2 from "./pages/Demo2";
 import Browse from "./pages/Browse";
 import Browse1 from "./pages/Browse1";
 const Browse2 = lazy(() => import("./pages/Browse2"));
@@ -72,6 +73,7 @@ const App = () => (
                 <Route path="/landingpage4" element={<LandingPage4 />} />
                 <Route path="/gap-demo" element={<GapDemo />} />
                 <Route path="/demo" element={<Demo />} />
+                <Route path="/demo2" element={<Demo2 />} />
                 <Route path="/browse" element={<Navigate to="/discover" replace />} />
                 <Route path="/browse1" element={<Navigate to="/discover" replace />} />
                 <Route path="/browse2" element={<Navigate to="/discover" replace />} />

@@ -19,6 +19,7 @@ interface PetContextValue {
 export const PetContext = createContext<PetContextValue | null>(null);
 
 const FREE_PET_IDS = PETS.filter((p) => p.unlock.type === "free").map((p) => p.id);
+const DEFAULT_PET = "chameleon";
 
 // How long "perfect" lasts in total (3 chained animations × 3s each)
 const PERFECT_DURATION = 9000;
@@ -37,14 +38,14 @@ export function PetProvider({ children }: { children: ReactNode }) {
       if (stored) {
         try {
           const data = JSON.parse(stored);
-          setActivePetState(data.activePet ?? FREE_PET_IDS[0]);
+          setActivePetState(data.activePet ?? DEFAULT_PET);
           setPetCollection(data.collection ?? FREE_PET_IDS);
         } catch {
-          setActivePetState(FREE_PET_IDS[0]);
+          setActivePetState(DEFAULT_PET);
           setPetCollection(FREE_PET_IDS);
         }
       } else {
-        setActivePetState(FREE_PET_IDS[0]);
+        setActivePetState(DEFAULT_PET);
         setPetCollection(FREE_PET_IDS);
       }
       return;
@@ -78,7 +79,7 @@ export function PetProvider({ children }: { children: ReactNode }) {
       }
 
       setPetCollection(ownedIds);
-      setActivePetState(currentActivePet ?? ownedIds[0] ?? null);
+      setActivePetState(currentActivePet ?? (ownedIds.includes(DEFAULT_PET) ? DEFAULT_PET : ownedIds[0]) ?? null);
       if (currentActivePet || ownedIds.length > 0) {
         setIsCompanionVisible(true);
       }

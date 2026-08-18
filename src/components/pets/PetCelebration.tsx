@@ -3,12 +3,13 @@
 // elastic scale, loops Bounce, XP chip slides up, despawns after ~2.2s.
 // Level up: centered takeover — dim/blur backdrop, golden glow, pet plays
 // Spin then loops Bounce, confetti burst, gradient level title.
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { GLTFLoader, GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 import confetti from "canvas-confetti";
 import { getPetById } from "@/lib/pets";
 import { celebrationForLevel } from "@/lib/levelCelebrations";
+import { ChameleonMascot, type ChameleonTier } from "@/components/ChameleonMascot";
 
 const loader = new GLTFLoader();
 const gltfCache = new Map<string, Promise<GLTF>>();
@@ -259,15 +260,10 @@ export function LevelUpCelebration({ petId, level, onDone }: LevelUpCelebrationP
   const rootRef = useRef<HTMLDivElement>(null);
   const onDoneRef = useRef(onDone);
   onDoneRef.current = onDone;
+  // Chameleon cycles red → orange → green during the celebration.
+  const [chamTier, setChamTier] = useState<ChameleonTier>("red");
 
   useEffect(() => {
-    const pet = getPetById(petId);
-    if (!pet || !hostRef.current) {
-      onDoneRef.current?.();
-      return;
-    }
-    // Each level on the ramp to 10 gets its own clip and confetti weight, so
-    // nine rapid level-ups feel like nine moments rather than one on repeat.
     const cel = celebrationForLevel(level);
 
     requestAnimationFrame(() => rootRef.current?.classList.add("opacity-100"));
@@ -278,6 +274,22 @@ export function LevelUpCelebration({ petId, level, onDone }: LevelUpCelebrationP
       origin: { y: 0.55 },
       colors: ["#7c3aed", "#a78bfa", "#fb923c", "#facc15", "#22c55e"],
     });
+
+    if (petId === "chameleon") {
+      // Cycle through the three deck colours so the mascot shows the full
+      // red → orange → green journey in one celebration.
+      setChamTier("red");
+      const t1 = setTimeout(() => setChamTier("orange"), 600);
+      const t2 = setTimeout(() => setChamTier("green"), 1200);
+      const ms = levelUpDurationMs(level);
+      const tFade = setTimeout(() => rootRef.current?.classList.remove("opacity-100"), ms - 300);
+      const tDone = setTimeout(() => onDoneRef.current?.(), ms);
+      return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(tFade); clearTimeout(tDone); };
+    }
+
+    // 3D model for all other pets.
+    const pet = getPetById(petId);
+    if (!pet || !hostRef.current) { onDoneRef.current?.(); return; }
     return runStage({
       host: hostRef.current,
       glbFile: pet.glbFile,
@@ -304,7 +316,16 @@ export function LevelUpCelebration({ petId, level, onDone }: LevelUpCelebrationP
               "radial-gradient(circle, hsl(48 96% 53% / 0.28), hsl(27 96% 61% / 0.12) 55%, transparent 72%)",
           }}
         />
-        <div ref={hostRef} className="relative h-[320px] w-[320px]" />
+        {petId === "chameleon" ? (
+          <ChameleonMascot
+            tier={chamTier}
+            party
+            className="relative h-[320px] w-[320px]"
+            style={{ padding: "15%" }}
+          />
+        ) : (
+          <div ref={hostRef} className="relative h-[320px] w-[320px]" />
+        )}
       </div>
       <div
         className="bg-gradient-to-br from-orange-400 to-yellow-400 bg-clip-text text-4xl font-extrabold tracking-tight text-transparent"
