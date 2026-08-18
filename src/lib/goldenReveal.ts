@@ -42,6 +42,10 @@ export interface GoldCandidate {
   state: string;
   state_changed_at?: string | null;
   created_at?: string | null;
+  /**
+   * `undefined` and `null` mean different things here and the distinction is
+   * load-bearing — see `isPendingGreen`.
+   */
   green_revealed_at?: string | null;
 }
 
@@ -50,10 +54,18 @@ export interface GoldCandidate {
  *
  * Compares against `state_changed_at` rather than a boolean flag so a word
  * that drops back to orange and is re-promoted re-arms the gold.
+ *
+ * The `undefined` case is the safety catch: the deck loader omits
+ * `green_revealed_at` entirely when the Golden Reveal migration hasn't run, and
+ * without this check every green word in the database would light up gold at
+ * once — each one clicking through to an RPC that doesn't exist, so the gold
+ * would never burn off. Absent column means no gold; `null` means a real,
+ * unclaimed promotion.
  */
 export function isPendingGreen(word: GoldCandidate | undefined | null): boolean {
   if (!word || word.state !== "green") return false;
-  if (!word.green_revealed_at) return true;
+  if (word.green_revealed_at === undefined) return false;
+  if (word.green_revealed_at === null) return true;
 
   const promoted = word.state_changed_at ?? word.created_at;
   if (!promoted) return false;

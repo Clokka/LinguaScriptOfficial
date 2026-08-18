@@ -21,8 +21,15 @@ export interface SavedWordLite {
   /** When the deck state last changed — the Golden Reveal compares against it. */
   state_changed_at?: string | null;
   created_at?: string | null;
-  /** When the learner claimed this word's promotion to green. */
+  /**
+   * When the learner claimed this word's promotion to green.
+   *
+   * Absent (not null) when the Golden Reveal migration hasn't run — see
+   * `isPendingGreen`, which relies on that distinction.
+   */
   green_revealed_at?: string | null;
+  /** Lines this word has appeared in while gold, for the auto-reveal decay. */
+  gold_seen_count?: number | null;
 }
 
 export const STATE_META: Record<DeckState, {
@@ -71,6 +78,33 @@ export function normalizeToken(raw: string): string {
     .trim();
 }
 
+/**
+ * Columns every deck read needs. If one of these is missing the app is broken
+ * anyway, so there is no point degrading — let the error surface.
+ */
+const DECK_BASE_COLUMNS =
+  "id, word, language, state, times_correct, review_count, next_review, state_changed_at, created_at";
+
+/**
+ * Columns the Golden Reveal adds. These live behind a migration, so a database
+ * that hasn't run it yet must still serve colours.
+ */
+const DECK_GOLD_COLUMNS = "green_revealed_at, gold_seen_count";
+
+/**
+ * Whether the Golden Reveal columns exist in this database.
+ *
+ * PostgREST rejects the *entire* query when a selected column is missing — one
+ * unknown name and every word loses its deck state, so the whole red/orange/
+ * green system goes dark. Rather than couple subtitle colouring to a migration
+ * having been applied, we probe once and remember the answer: gold lights up on
+ * its own the first time the deck is read after the migration lands, and until
+ * then the three real decks are unaffected.
+ *
+ * `null` = not yet probed.
+ */
+let goldColumnsAvailable: boolean | null = null;
+
 /** Load saved words for a user (or guest) keyed by normalised word + language. */
 export async function loadDeckIndex(
   userId: string | null,
@@ -93,13 +127,34 @@ export async function loadDeckIndex(
   }
   const pageSize = 1000;
   let from = 0;
-  while (true) {
-    const { data, error } = await supabase
+
+  const fetchPage = (withGold: boolean) =>
+    supabase
       .from("saved_words")
-      .select("id, word, language, state, times_correct, review_count, next_review, state_changed_at, created_at, green_revealed_at")
+      .select(withGold ? `${DECK_BASE_COLUMNS}, ${DECK_GOLD_COLUMNS}` : DECK_BASE_COLUMNS)
       .eq("user_id", userId)
       .eq("language", language)
       .range(from, from + pageSize - 1);
+
+  while (true) {
+    const wantGold = goldColumnsAvailable !== false;
+    let { data, error } = await fetchPage(wantGold);
+
+    if (error && wantGold) {
+      // Most likely the Golden Reveal migration hasn't run here. Drop the gold
+      // columns and retry — colours matter more than the reward layer.
+      console.warn("[loadDeckIndex] retrying without Golden Reveal columns", error);
+      const fallback = await fetchPage(false);
+      // Only latch when the retry *succeeds*: the same query minus two columns
+      // coming back clean is good evidence the schema is behind, whereas a
+      // network blip would have taken both attempts down and must not
+      // permanently disable gold for the session.
+      if (!fallback.error) goldColumnsAvailable = false;
+      ({ data, error } = fallback);
+    } else if (!error && wantGold) {
+      goldColumnsAvailable = true;
+    }
+
     if (error) {
       console.error("loadDeckIndex", error);
       return m;
