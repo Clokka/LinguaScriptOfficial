@@ -55,6 +55,11 @@ export interface GoldCandidate {
  * Compares against `state_changed_at` rather than a boolean flag so a word
  * that drops back to orange and is re-promoted re-arms the gold.
  *
+ * Words seeded into the green deck by the learner's CEFR level are stamped as
+ * revealed at insert time (see `seed_known_vocabulary`), so they never arrive
+ * gold — gold is for a word the learner earned, not one the system assumed
+ * they knew. They still re-arm normally if demoted and later re-earned.
+ *
  * The `undefined` case is the safety catch: the deck loader omits
  * `green_revealed_at` entirely when the Golden Reveal migration hasn't run, and
  * without this check every green word in the database would light up gold at
