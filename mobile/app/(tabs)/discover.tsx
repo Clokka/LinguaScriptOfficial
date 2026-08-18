@@ -64,7 +64,7 @@ export default function DiscoverScreen() {
   const [userLang, setUserLang] = useState<string>('es');
 
   const load = useCallback(async () => {
-    if (!user) return;
+    if (!user) { setLoading(false); return; }
     setLoading(true);
 
     const p = await fetchProfile(supabase, user.id);
@@ -135,7 +135,7 @@ export default function DiscoverScreen() {
       <FlatList
         horizontal
         showsHorizontalScrollIndicator={false}
-        data={LANGUAGES.filter((l) => l.code !== 'en')}
+        data={LANGUAGES}
         keyExtractor={(l) => l.code}
         contentContainerStyle={s.chipsRow}
         renderItem={({ item }) => {

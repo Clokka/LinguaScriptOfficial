@@ -21,12 +21,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Force loading=false after 5 s so AuthGate always fires even if Supabase is slow.
     const fallback = setTimeout(() => setLoading(false), 5000);
 
     supabase.auth.getSession().then((result) => {
       clearTimeout(fallback);
-      setSession(result.data.session);
+      setSession(result.data.session ?? null);
       setLoading(false);
     });
 

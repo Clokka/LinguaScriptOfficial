@@ -44,6 +44,11 @@
           "data": [{ "mimeType": "text/plain" }]
         },
         {
+          "action": "VIEW",
+          "category": ["BROWSABLE", "DEFAULT"],
+          "data": [{ "scheme": "linguascript" }]
+        },
+        {
           "autoVerify": true,
           "action": "VIEW",
           "category": ["BROWSABLE", "DEFAULT"],

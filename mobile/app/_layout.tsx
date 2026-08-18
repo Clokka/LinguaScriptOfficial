@@ -1,151 +1,141 @@
 import '../global.css';
-import { useEffect, useRef } from 'react';
-import { View, Text, ActivityIndicator, Animated, StyleSheet } from 'react-native';
-import { Stack, useRouter, useSegments, useRootNavigationState } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { View, StyleSheet } from 'react-native';
+import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as Notifications from 'expo-notifications';
-import { AuthProvider, useAuth } from '@/lib/auth-context';
-import { configureGoogleSignIn } from '@/native/google-signin';
-import { ensureAndroidChannels } from '@/native/notifications';
-import { handleDeepLink } from '@/native/deep-links';
-import { DECK, UI } from '@/lib/deck-colors';
+import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { ensureAndroidChannels, registerForPushAsync } from '@/native/notifications';
+import { supabase } from '@/lib/supabase';
+import { AuthProvider } from '@/lib/auth-context';
+import type { Session } from '@supabase/supabase-js';
 
-function AuthGate() {
-  const { session, loading } = useAuth();
-  const segments = useSegments();
-  const router = useRouter();
-  // Wait until the navigator tree is fully mounted before redirecting.
-  // Without this check router.replace fires into an uninitialized navigator
-  // and silently fails — leaving the user on a blank screen forever.
-  const navState = useRootNavigationState();
+try { WebBrowser.maybeCompleteAuthSession(); } catch (_) {}
 
-  useEffect(() => {
-    if (loading) return;
-    if (!navState?.key) return; // navigator not ready yet
-    const inAuth       = segments[0] === 'auth';
-    const inOnboarding = segments[0] === 'onboarding';
-    if (!session && !inAuth) {
-      router.replace('/auth');
-    } else if (session && inAuth) {
-      // Just signed in → onboarding checks language and self-redirects to tabs if set.
-      router.replace('/onboarding');
-    } else if (!session && inOnboarding) {
-      router.replace('/auth');
-    }
-  }, [session, loading, segments, navState?.key]);
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
 
-  return null;
-}
+// Handle linguascript://auth-callback URLs — called both on cold start and
+// while the app is foregrounded (e.g. from Chrome Custom Tab or email link).
+async function handleAuthUrl(url: string) {
+  if (!url.includes('auth-callback')) return;
 
-function LinkListener() {
-  useEffect(() => {
-    Linking.getInitialURL().then((url) => { if (url) handleDeepLink(url); });
-    const sub = Linking.addEventListener('url', ({ url }) => handleDeepLink(url));
-    return () => sub.remove();
-  }, []);
+  // Normalise: swap custom scheme so URL is parseable by the URL constructor
+  const parseable = url.replace(/^[a-z][a-z0-9+.-]*:\/\//i, 'https://x/');
+  const parsed = new URL(parseable);
 
-  useEffect(() => {
-    const sub = Notifications.addNotificationResponseReceivedListener((resp) => {
-      const data = resp.notification.request.content.data as Record<string, unknown>;
-      if (data?.kind === 'flashcards-due') {
-        // Deep-link handled inside the review tab
-      }
-    });
-    return () => sub.remove();
-  }, []);
-  return null;
-}
+  // PKCE (Google OAuth): code in query params
+  const code = parsed.searchParams.get('code');
+  if (code) {
+    await supabase.auth.exchangeCodeForSession(code);
+    return;
+  }
 
-/**
- * Welcome / loading screen.
- *
- * Shows the real chameleon — a render of the same GLB the pet system and
- * /landingpage4 use (public/pets/Chameleon_Animations.glb), captured to a
- * transparent PNG rather than shipped as a live model: rendering GLB in React
- * Native needs expo-gl + expo-three, which are native modules and would mean
- * another round of EAS build risk for a screen that shows for ~1 second.
- *
- * It breathes gently so the screen doesn't read as frozen while auth resolves.
- */
-function WelcomeSplash() {
-  const float = useRef(new Animated.Value(0)).current;
+  // Email magic-link: token_hash + type in query params
+  const tokenHash = parsed.searchParams.get('token_hash');
+  const type = parsed.searchParams.get('type') as 'email' | 'signup' | 'recovery' | null;
+  if (tokenHash && type) {
+    await supabase.auth.verifyOtp({ token_hash: tokenHash, type });
+    return;
+  }
 
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(float, { toValue: 1, duration: 1600, useNativeDriver: true }),
-        Animated.timing(float, { toValue: 0, duration: 1600, useNativeDriver: true }),
-      ]),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [float]);
-
-  const translateY = float.interpolate({ inputRange: [0, 1], outputRange: [0, -12] });
-
-  return (
-    <View
-      style={{
-        flex: 1,
-        backgroundColor: UI.bg,
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
-      <Animated.Image
-        source={require('../assets/images/chameleon-3d.png')}
-        style={{ width: 220, height: 220, transform: [{ translateY }] }}
-        resizeMode="contain"
-      />
-      <Text style={{ fontSize: 26, fontWeight: '800', letterSpacing: -0.5, marginTop: 14 }}>
-        <Text style={{ color: UI.text }}>Lingua</Text>
-        <Text style={{ color: DECK.green }}>Script</Text>
-      </Text>
-      <ActivityIndicator color={DECK.green} size="large" style={{ marginTop: 28 }} />
-    </View>
-  );
-}
-
-/**
- * Draws the splash *over* the navigator rather than instead of it.
- *
- * The Stack now mounts unconditionally so it exists when AuthGate first fires
- * — gating it behind `loading` is what left users on a blank screen forever.
- * Overlaying keeps that fix intact while still showing the chameleon.
- */
-function SplashOverlay() {
-  const { loading } = useAuth();
-  if (!loading) return null;
-  return (
-    <View style={StyleSheet.absoluteFill} pointerEvents="none">
-      <WelcomeSplash />
-    </View>
-  );
+  // Implicit (rare): tokens in URL fragment
+  const fragment = url.split('#')[1] ?? '';
+  const params = new URLSearchParams(fragment);
+  const access_token = params.get('access_token');
+  const refresh_token = params.get('refresh_token');
+  if (access_token && refresh_token) {
+    await supabase.auth.setSession({ access_token, refresh_token });
+  }
 }
 
 export default function RootLayout() {
+  const [session, setSession] = useState<Session | null | undefined>(undefined);
+  const [ready, setReady] = useState(false);
+  const router = useRouter();
+  const segments = useSegments();
+
   useEffect(() => {
-    configureGoogleSignIn();
     ensureAndroidChannels();
   }, []);
+
+  // Global deep-link listener — catches auth callbacks from Chrome Custom Tab
+  // and email magic-links even when the Custom Tab doesn't close cleanly.
+  useEffect(() => {
+    // Handle the URL the app was opened with (cold start from deep link)
+    Linking.getInitialURL().then((url) => {
+      if (url) handleAuthUrl(url);
+    });
+
+    const sub = Linking.addEventListener('url', ({ url }) => handleAuthUrl(url));
+    return () => sub.remove();
+  }, []);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => { setSession(null); setReady(true); }, 4000);
+
+    supabase.auth.getSession().then(({ data }) => {
+      clearTimeout(timeout);
+      setSession(data.session ?? null);
+      setReady(true);
+    }).catch(() => {
+      clearTimeout(timeout);
+      setSession(null);
+      setReady(true);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      setSession(newSession);
+    });
+
+    return () => { clearTimeout(timeout); subscription.unsubscribe(); };
+  }, []);
+
+  // Register push token once a real (non-anonymous) session is available
+  useEffect(() => {
+    if (session?.user && !session.user.is_anonymous) {
+      registerForPushAsync(session.user.id);
+    }
+  }, [session?.user?.id]);
+
+  useEffect(() => {
+    if (!ready || session === undefined) return;
+
+    const inAuth = segments[0] === 'auth';
+    const inTour = segments[0] === 'tour';
+
+    if (session) {
+      if (inAuth || inTour) router.replace('/onboarding');
+      return;
+    }
+
+    if (!inTour && !inAuth) {
+      AsyncStorage.getItem('tour_seen').then((seen) => {
+        router.replace(seen ? '/auth' : '/tour');
+      });
+    }
+  }, [ready, session, segments]);
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <AuthProvider>
           <StatusBar style="light" />
-          {/* Stack always renders so the navigator exists when AuthGate first fires */}
-          <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: UI.bg } }}>
-            <Stack.Screen name="(tabs)" />
-            <Stack.Screen name="auth" />
-            <Stack.Screen name="onboarding" />
-          </Stack>
-          <SplashOverlay />
-          <AuthGate />
-          <LinkListener />
+          <Stack screenOptions={{ headerShown: false }} />
+          {session === undefined && (
+            <View style={[StyleSheet.absoluteFillObject, { backgroundColor: '#0b1215' }]} pointerEvents="none" />
+          )}
         </AuthProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

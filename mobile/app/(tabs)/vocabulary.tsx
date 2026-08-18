@@ -43,7 +43,7 @@ export default function VocabularyScreen() {
   const [lang, setLang] = useState<string>('es');
 
   const load = useCallback(async () => {
-    if (!user) return;
+    if (!user) { setLoading(false); return; }
     setLoading(true);
     const p = await fetchProfile(supabase, user.id);
     const language = p?.learning_language ?? 'es';

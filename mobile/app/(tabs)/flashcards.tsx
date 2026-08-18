@@ -88,7 +88,7 @@ export default function FlashcardsScreen() {
   const opa    = useSharedValue(1);
 
   const load = useCallback(async () => {
-    if (!user) return;
+    if (!user) { setLoading(false); return; }
     setLoading(true);
     const p = await fetchProfile(supabase, user.id);
     const lang = p?.learning_language ?? 'es';
