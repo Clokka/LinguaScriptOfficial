@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -8,16 +8,7 @@ import { Button } from "./ui/button";
 import { ArrowLeft, Trophy, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { LineBlastOverlay } from "@/components/LineBlastOverlay";
-import {
-  COMBO_CAP,
-  PRAISE,
-  floatXpText,
-  confettiCountForCombo,
-  prefersReducedMotion,
-  makeConfettiBurst,
-  type ConfettiBurst,
-} from "@/lib/lineBlast";
-import { useXp } from "@/contexts/XpContext";
+import { useLineBlast } from "@/hooks/useLineBlast";
 
 interface SavedWord {
   id: string;
@@ -94,54 +85,9 @@ export function LinguaScriptSessionFlow({
     }
   }
 
-  const { award } = useXp();
-
-  // Shared Line Blast state — same ladder, wording and timings as the player
-  // and the landing demo, from src/lib/lineBlast.ts.
-  const comboRef = useRef(0);
-  const [praise, setPraise] = useState<
-    { big: string; sub: string; combo: number; key: number } | null
-  >(null);
-  const [floatXp, setFloatXp] = useState<{ text: string; key: number } | null>(null);
-  const [glowKey, setGlowKey] = useState(0);
-  const blastCanvasRef = useRef<HTMLCanvasElement>(null);
-  const confettiRef = useRef<ConfettiBurst | null>(null);
-  const blastTimersRef = useRef<number[]>([]);
-
-  useEffect(
-    () => () => {
-      blastTimersRef.current.forEach(clearTimeout);
-      confettiRef.current?.reset();
-    },
-    [],
-  );
-
-  const blastExercise = useCallback(() => {
-    const reduced = prefersReducedMotion();
-    comboRef.current = Math.min(comboRef.current + 1, COMBO_CAP);
-    const combo = comboRef.current;
-
-    const [big, sub] = PRAISE[combo];
-    setPraise({ big, sub, combo, key: Date.now() });
-    setFloatXp({ text: floatXpText(combo), key: Date.now() });
-
-    for (let i = 0; i < combo; i++) award("line_blast");
-
-    if (combo >= 2 && !reduced) {
-      if (!confettiRef.current) {
-        confettiRef.current = makeConfettiBurst(blastCanvasRef.current);
-      }
-      confettiRef.current.fire(confettiCountForCombo(combo));
-      setGlowKey(Date.now());
-    }
-
-    blastTimersRef.current.push(
-      window.setTimeout(() => {
-        setPraise(null);
-        setFloatXp(null);
-      }, reduced ? 1500 : 2100),
-    );
-  }, [award]);
+  // The blast fires only when a LinguaScript's sentence is fully green — not
+  // when a single card advances. See useLineBlast.
+  const blast = useLineBlast({ language: learningLanguage });
 
   function handleExerciseComplete(
     result: { xp_earned: number; correct: boolean },
@@ -157,11 +103,18 @@ export function LinguaScriptSessionFlow({
       { word: word.word, correct: result.correct, xp: result.xp_earned || 0 },
     ]);
 
-    // Every correct answer blasts and feeds the streak — not just the last
-    // one. A single burst at the end rewarded finishing; the combo rewards
-    // getting them right in a row, which is the behaviour worth building.
-    if (result.correct) blastExercise();
-    else comboRef.current = 0;
+    // A correct answer promotes the target word; the celebration is reserved
+    // for the sentence it lives in going fully green.
+    if (result.correct) {
+      blast.markGreen(word.word);
+      if (!blast.completeLine(word.context_phrase ?? "")) {
+        // Progress, but the line still has red or orange in it. No blast, and
+        // the streak only survives while lines keep completing.
+        blast.breakCombo();
+      }
+    } else {
+      blast.breakCombo();
+    }
 
     if (currentIndex < words.length - 1) {
       setCurrentIndex((prev) => prev + 1);
@@ -335,14 +288,14 @@ export function LinguaScriptSessionFlow({
 
       {/* The celebration, from the same component the landing demo uses. */}
       <canvas
-        ref={blastCanvasRef}
+        ref={blast.canvasRef}
         aria-hidden="true"
         className="pointer-events-none fixed inset-0 z-40 h-full w-full"
       />
       <LineBlastOverlay
-        praise={praise}
-        floatXp={floatXp}
-        glowKey={glowKey}
+        praise={blast.praise}
+        floatXp={blast.floatXp}
+        glowKey={blast.glowKey}
         placement="screen"
       />
     </div>
