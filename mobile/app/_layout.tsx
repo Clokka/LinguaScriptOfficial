@@ -1,6 +1,6 @@
 import '../global.css';
-import { useEffect, useState } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { View, Text, StyleSheet, Animated, ActivityIndicator } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -13,6 +13,7 @@ import { ensureAndroidChannels, registerForPushAsync } from '@/native/notificati
 import { supabase } from '@/lib/supabase';
 import { AuthProvider } from '@/lib/auth-context';
 import type { Session } from '@supabase/supabase-js';
+import { DECK, UI } from '@/lib/deck-colors';
 
 try { WebBrowser.maybeCompleteAuthSession(); } catch (_) {}
 
@@ -58,6 +59,56 @@ async function handleAuthUrl(url: string) {
   if (access_token && refresh_token) {
     await supabase.auth.setSession({ access_token, refresh_token });
   }
+}
+
+/**
+ * Welcome screen shown while the session resolves.
+ *
+ * The chameleon is a render of public/pets/Chameleon_Animations.glb — the same
+ * model the pet system and the web landing pages use — captured to a
+ * transparent PNG. It ships as an image rather than a live model because GLB
+ * in React Native needs expo-gl + expo-three, and native modules are a poor
+ * trade for a screen that shows for about a second.
+ *
+ * Overlays the always-mounted Stack rather than replacing it, so the navigator
+ * still exists when the routing effect first fires.
+ */
+function WelcomeSplash() {
+  const float = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(float, { toValue: 1, duration: 1600, useNativeDriver: true }),
+        Animated.timing(float, { toValue: 0, duration: 1600, useNativeDriver: true }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [float]);
+
+  const translateY = float.interpolate({ inputRange: [0, 1], outputRange: [0, -12] });
+
+  return (
+    <View
+      style={[
+        StyleSheet.absoluteFillObject,
+        { backgroundColor: UI.bg, alignItems: 'center', justifyContent: 'center' },
+      ]}
+      pointerEvents="none"
+    >
+      <Animated.Image
+        source={require('../assets/images/chameleon-3d.png')}
+        style={{ width: 200, height: 200, transform: [{ translateY }] }}
+        resizeMode="contain"
+      />
+      <Text style={{ fontSize: 26, fontWeight: '800', letterSpacing: -0.5, marginTop: 12 }}>
+        <Text style={{ color: UI.text }}>Lingua</Text>
+        <Text style={{ color: DECK.green }}>Script</Text>
+      </Text>
+      <ActivityIndicator color={DECK.green} size="large" style={{ marginTop: 26 }} />
+    </View>
+  );
 }
 
 export default function RootLayout() {
@@ -133,9 +184,7 @@ export default function RootLayout() {
         <AuthProvider>
           <StatusBar style="light" />
           <Stack screenOptions={{ headerShown: false }} />
-          {session === undefined && (
-            <View style={[StyleSheet.absoluteFillObject, { backgroundColor: '#0b1215' }]} pointerEvents="none" />
-          )}
+          {session === undefined && <WelcomeSplash />}
         </AuthProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
