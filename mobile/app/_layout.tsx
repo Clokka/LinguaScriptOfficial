@@ -1,5 +1,5 @@
 import '../global.css';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -9,8 +9,9 @@ import * as Notifications from 'expo-notifications';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ensureAndroidChannels } from '@/native/notifications';
+import { ensureAndroidChannels, registerForPushAsync } from '@/native/notifications';
 import { supabase } from '@/lib/supabase';
+import { AuthProvider } from '@/lib/auth-context';
 import type { Session } from '@supabase/supabase-js';
 
 try { WebBrowser.maybeCompleteAuthSession(); } catch (_) {}
@@ -101,6 +102,13 @@ export default function RootLayout() {
     return () => { clearTimeout(timeout); subscription.unsubscribe(); };
   }, []);
 
+  // Register push token once a real (non-anonymous) session is available
+  useEffect(() => {
+    if (session?.user && !session.user.is_anonymous) {
+      registerForPushAsync(session.user.id);
+    }
+  }, [session?.user?.id]);
+
   useEffect(() => {
     if (!ready || session === undefined) return;
 
@@ -108,7 +116,7 @@ export default function RootLayout() {
     const inTour = segments[0] === 'tour';
 
     if (session) {
-      if (inAuth || inTour) router.replace('/');
+      if (inAuth || inTour) router.replace('/onboarding');
       return;
     }
 
@@ -122,11 +130,13 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <StatusBar style="light" />
-        <Stack screenOptions={{ headerShown: false }} />
-        {session === undefined && (
-          <View style={[StyleSheet.absoluteFillObject, { backgroundColor: '#0b1215' }]} pointerEvents="none" />
-        )}
+        <AuthProvider>
+          <StatusBar style="light" />
+          <Stack screenOptions={{ headerShown: false }} />
+          {session === undefined && (
+            <View style={[StyleSheet.absoluteFillObject, { backgroundColor: '#0b1215' }]} pointerEvents="none" />
+          )}
+        </AuthProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
