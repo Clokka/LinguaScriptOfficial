@@ -142,6 +142,10 @@ export const SubtitleOverlay = ({
     return out;
   }, [primaryText, deck, justClaimed]);
 
+  /** Live view of the gold set for the deferred blast guard. */
+  const goldTokensRef = useRef<Set<string>>(goldTokens);
+  goldTokensRef.current = goldTokens;
+
   // Count one appearance per line, once, and let the RPC auto-claim past the
   // threshold so an ignored word stops glittering forever.
   useEffect(() => {
@@ -194,10 +198,29 @@ export const SubtitleOverlay = ({
 
   const [praise, setPraise] = useState<{ big: string; sub: string; combo: number; key: number } | null>(null);
   const [glowKey, setGlowKey] = useState(0);
+
+  // maybeBlastLine runs on a 40ms delay so the sweep catches freshly-coloured
+  // words, which means the closure that queued it is already stale by the time
+  // it fires. Its guards read these refs instead.
+  const deckRef = useRef(deck);
+  deckRef.current = deck;
   const [floatXp, setFloatXp] = useState<{ text: string; key: number } | null>(null);
 
   const maybeBlastLine = () => {
     if (blastedLinesRef.current.has(primaryText)) return;
+
+    // A gold word is green in the deck but not yet green on screen — it is
+    // still asking to be claimed. Blasting over the top of one would celebrate
+    // a line the learner can plainly see is unfinished, and would spend the
+    // reveal they were about to collect.
+    if (goldTokensRef.current.size > 0) return;
+
+    // Defensive: every caller checks this already, but the check is what the
+    // effect *means*, so it belongs where the effect fires rather than only in
+    // the three places that happen to call it today.
+    const score = greenScoreForLine(primaryText, effectiveLang, deckRef.current);
+    if (score.totalCount === 0 || score.pct < 100) return;
+
     blastedLinesRef.current.add(primaryText);
 
     const reduced = prefersReducedMotion();
@@ -256,14 +279,11 @@ export const SubtitleOverlay = ({
     playClaimChime();
     if (awardedXp > 0) award("reinforcement");
 
-    // A claim can be the thing that completes the line. Recompute against the
-    // whole line rather than just the gold set — the line only blasts when
-    // every word is green, not merely when the gold is gone.
-    const remainingGold = [...goldTokens].filter((t) => t !== token);
-    if (remainingGold.length === 0) {
-      const score = greenScoreForLine(primaryText, effectiveLang, deck);
-      if (score.pct >= 100) maybeBlastLine();
-    }
+    // A claim can be the thing that completes the line — the last gold word
+    // burning off is exactly the moment worth celebrating. Deferred like the
+    // other call sites so maybeBlastLine's guards see the claim applied; its
+    // own checks decide whether the line is genuinely finished.
+    window.setTimeout(maybeBlastLine, 40);
   };
 
   const handleWordClick = async (word: Word, event: React.MouseEvent) => {
@@ -328,7 +348,9 @@ export const SubtitleOverlay = ({
       if (tk === targetKey) {
         if (state !== expect) return false;
         sawTarget = true;
-      } else if (state !== "green") {
+      } else if (state !== "green" || goldTokens.has(tk)) {
+        // Gold counts as unfinished: the line is not complete until the
+        // learner has claimed every shimmering word on it.
         return false;
       }
     }

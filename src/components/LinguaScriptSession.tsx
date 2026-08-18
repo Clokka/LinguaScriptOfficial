@@ -49,6 +49,11 @@ export function LinguaScriptSession({
    */
   const blast = useLineBlast({ language: learningLanguage });
 
+  // Arm every sentence up front, before any stage can change the deck.
+  useEffect(() => {
+    for (const ex of exercises) blast.armLine(ex.sentence);
+  }, [exercises, blast.ready, blast]);
+
   /** Blast any sentence in this session that just became fully green. */
   const checkSentences = useCallback(() => {
     let fired = false;

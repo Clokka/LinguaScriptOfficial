@@ -89,6 +89,14 @@ export function LinguaScriptSessionFlow({
   // when a single card advances. See useLineBlast.
   const blast = useLineBlast({ language: learningLanguage });
 
+  // Arm the sentence the moment it is presented, while it may still be
+  // incomplete. A sentence the learner already knew is never armed, so
+  // answering it correctly passes in silence.
+  const currentPhrase = words[currentIndex]?.context_phrase;
+  useEffect(() => {
+    if (currentPhrase) blast.armLine(currentPhrase);
+  }, [currentPhrase, blast.ready, blast]);
+
   function handleExerciseComplete(
     result: { xp_earned: number; correct: boolean },
     word: SavedWord

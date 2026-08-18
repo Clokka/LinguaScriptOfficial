@@ -24,10 +24,17 @@ import type { BlastFloatXp, BlastPraise } from "@/components/LineBlastOverlay";
  * the moment it is supposed to protect is the rare one where an entire
  * sentence becomes comprehensible.
  *
- * The player already enforced this via greenScoreForLine. This hook exists so
- * the LinguaScript surfaces enforce it the same way rather than inventing their
- * own trigger, which is exactly how the four drifted copies of the effect
- * happened in the first place.
+ * It is also a *transition*, not a state. A line that was already fully green
+ * when the learner met it has nothing to celebrate — they did not just make it
+ * green, they merely encountered something they already knew. Only the crossing
+ * counts, and only when the learner caused it. That is why a line must be armed
+ * while it is still incomplete before it is allowed to blast: without that,
+ * every already-known sentence would fire on sight.
+ *
+ * The player already enforced this via greenScoreForLine and its is-this-the-
+ * last-non-green check. This hook exists so the LinguaScript surfaces enforce
+ * it the same way rather than inventing their own trigger, which is exactly how
+ * the four drifted copies of the effect happened in the first place.
  */
 
 interface UseLineBlastOptions {
@@ -46,8 +53,15 @@ export interface LineBlast {
    */
   markGreen: (word: string) => void;
   /**
-   * Fire the blast if this line is now 100% green and hasn't blasted before.
-   * Returns whether it fired, so callers can branch on the big moment.
+   * Record a line's state before the learner acts on it. A line is only ever
+   * allowed to blast if it was still incomplete at this moment, so call it when
+   * the line is presented — not after an answer.
+   */
+  armLine: (text: string) => void;
+  /**
+   * Fire the blast if this line has just crossed into fully green. Returns
+   * whether it fired, so callers can branch on the big moment. Silent when the
+   * line was already complete when armed, or has blasted before.
    */
   completeLine: (text: string) => boolean;
   /** A miss or a skip ends the streak, exactly as a passed-over line does. */
@@ -72,6 +86,10 @@ export function useLineBlast({ language }: UseLineBlastOptions): LineBlast {
   const deckRef = useRef<Map<string, SavedWordLite>>(new Map());
   /** Lines already blasted, so a re-render or a revisit can't fire twice. */
   const blastedRef = useRef<Set<string>>(new Set());
+  /** Lines seen while still incomplete — the only ones eligible to blast. */
+  const armedRef = useRef<Set<string>>(new Set());
+  /** Lines seen at all, so arming is judged once and not re-judged after. */
+  const seenRef = useRef<Set<string>>(new Set());
 
   // Loaded once. Promotions during the session are applied locally through
   // markGreen — re-reading the whole deck after every answer would mean a
@@ -140,16 +158,34 @@ export function useLineBlast({ language }: UseLineBlastOptions): LineBlast {
     );
   }, [award]);
 
+  const armLine = useCallback(
+    (text: string) => {
+      const line = text?.trim();
+      // Judging before the deck exists would score every line 0% and arm the
+      // ones the learner already knows — the exact false positive this guards.
+      if (!line || !ready || seenRef.current.has(line)) return;
+      seenRef.current.add(line);
+
+      const score = greenScoreForLine(line, language, deckRef.current);
+      if (score.totalCount > 0 && score.pct < 100) armedRef.current.add(line);
+    },
+    [language, ready],
+  );
+
   const completeLine = useCallback(
     (text: string) => {
       const line = text?.trim();
       if (!line || blastedRef.current.has(line)) return false;
+      // Not armed means it was already green when the learner met it. Nothing
+      // was achieved just now, so nothing is celebrated.
+      if (!armedRef.current.has(line)) return false;
 
       const score = greenScoreForLine(line, language, deckRef.current);
       // totalCount guards against a line of pure punctuation scoring 0/0 = 100.
       if (score.totalCount === 0 || score.pct < 100) return false;
 
       blastedRef.current.add(line);
+      armedRef.current.delete(line);
       fire();
       return true;
     },
@@ -160,5 +196,15 @@ export function useLineBlast({ language }: UseLineBlastOptions): LineBlast {
     comboRef.current = 0;
   }, []);
 
-  return { praise, floatXp, glowKey, canvasRef, markGreen, completeLine, breakCombo, ready };
+  return {
+    praise,
+    floatXp,
+    glowKey,
+    canvasRef,
+    markGreen,
+    armLine,
+    completeLine,
+    breakCombo,
+    ready,
+  };
 }
