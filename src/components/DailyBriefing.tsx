@@ -1,53 +1,71 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { ArrowRight, Sparkles, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { ArrowRight, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useStreakStatus } from "@/hooks/useStreakStatus";
-import { StreakLottie } from "./StreakLottie";
+import { StreakFlame } from "./StreakFlame";
 import { DailyGoalPicker } from "./DailyGoalPicker";
-import { DEFAULT_WORD_GOAL, videoGoalForWords, wordGoalForVideos } from "@/lib/progressStats";
+import { normalizeWordGoal, videoGoalForWords } from "@/lib/progressStats";
 
 const dismissKey = (uid: string) => `briefing:${uid}:${new Date().toISOString().split("T")[0]}`;
 
 /**
- * Persistent "daily mission briefing" modal. Shows once per day for any
- * onboarded user whose profile.show_daily_briefing is true.
+ * The once-a-day briefing: where the streak stands, and what today needs.
+ *
+ * It used to be a three-step white modal dropped into a dark app, and it opened
+ * with a paragraph about the predictive value of consistency before telling
+ * anyone what to do. A returning learner met that every single session.
+ *
+ * Three faults were worth more than the styling:
+ *
+ *  - It read "Yesterday you watched 0 min and reviewed 0 words" while showing
+ *    TODAY's counters, which are naturally zero at sign-in. It reported a fresh
+ *    day as a failed one, every morning.
+ *  - A goal saved before the word-goal switch (10, 20, 40) matched no preset, so
+ *    nothing was highlighted and the closing line quoted a target the picker did
+ *    not offer.
+ *  - The panel was white on a dark product.
+ *
+ * Now: one screen, dark, the number first. The goal picker only appears when
+ * there is a real decision to make.
  */
 export const DailyBriefing = () => {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
-  const [step, setStep] = useState(0);
-  const [wordGoal, setWordGoal] = useState(DEFAULT_WORD_GOAL);
+  const [wordGoal, setWordGoal] = useState<number | null>(null);
+  const [choosing, setChoosing] = useState(false);
   const [profileChecked, setProfileChecked] = useState(false);
   const streak = useStreakStatus();
 
-  // Decide whether to show
   useEffect(() => {
     if (authLoading || !user) return;
     let cancelled = false;
     void (async () => {
       const { data } = await supabase
         .from("profiles")
-        .select("onboarded, show_daily_briefing, daily_video_goal, daily_word_goal")
+        .select("onboarded, show_daily_briefing, daily_word_goal")
         .eq("user_id", user.id)
         .single();
       if (cancelled) return;
       const p: any = data || {};
-      setWordGoal(
-        p.daily_word_goal ??
-          (p.daily_video_goal ? wordGoalForVideos(p.daily_video_goal) : DEFAULT_WORD_GOAL),
-      );
+      const stored = p.daily_word_goal;
+      const normalized = normalizeWordGoal(stored);
+      setWordGoal(normalized);
+      // A goal off the current scale is a decision the learner never actually
+      // made, so ask for one rather than quietly assuming.
+      setChoosing(normalized !== stored);
       setProfileChecked(true);
-      const dismissed = typeof window !== "undefined" && localStorage.getItem(dismissKey(user.id)) === "1";
-      if (p.onboarded && p.show_daily_briefing && !dismissed) {
-        setOpen(true);
-      }
+
+      const dismissed =
+        typeof window !== "undefined" && localStorage.getItem(dismissKey(user.id)) === "1";
+      if (p.onboarded && p.show_daily_briefing && !dismissed) setOpen(true);
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [user, authLoading]);
 
   const close = () => {
@@ -57,6 +75,7 @@ export const DailyBriefing = () => {
 
   const saveGoal = async (words: number) => {
     setWordGoal(words);
+    setChoosing(false);
     if (!user) return;
     await supabase
       .from("profiles")
@@ -68,128 +87,100 @@ export const DailyBriefing = () => {
     void streak.refresh();
   };
 
-  if (!open || !profileChecked) return null;
+  if (!open || !profileChecked || wordGoal == null) return null;
+
+  const remaining = Math.max(0, wordGoal - streak.wordsReviewed);
+  const done = remaining === 0;
 
   return (
     <AnimatePresence>
       <motion.div
         key="bg"
-        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
         onClick={close}
       >
         <motion.div
           key="panel"
-          initial={{ opacity: 0, scale: 0.96, y: 16 }}
+          initial={{ opacity: 0, scale: 0.97, y: 12 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.96, y: 16 }}
-          transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+          exit={{ opacity: 0, scale: 0.97, y: 12 }}
+          transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
           onClick={(e) => e.stopPropagation()}
-          className="relative w-full max-w-lg rounded-3xl bg-white shadow-2xl border border-orange-100 overflow-hidden"
+          role="dialog"
+          aria-label="Today's mission"
+          className="relative w-full max-w-md overflow-hidden rounded-3xl border border-white/10 bg-[#0f1714] shadow-[0_30px_80px_-20px_rgba(0,0,0,0.9)]"
         >
           <button
             onClick={close}
             aria-label="Close"
-            className="absolute top-4 right-4 z-10 w-8 h-8 rounded-full bg-neutral-100 hover:bg-neutral-200 flex items-center justify-center text-neutral-500"
+            className="absolute right-4 top-4 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/5 text-white/50 transition-colors hover:bg-white/10 hover:text-white/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-400"
           >
-            <X className="w-4 h-4" />
+            <X className="h-4 w-4" />
           </button>
 
-          <AnimatePresence mode="wait">
-            {step === 0 && (
-              <motion.div
-                key="0"
-                initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
-                className="p-7 sm:p-9"
-              >
-                <div className="flex items-center gap-4 mb-4">
-                  <StreakLottie active={streak.streakActive} size={72} />
-                  <div>
-                    <p className="text-xs font-medium uppercase tracking-wider text-orange-600">
-                      Welcome back
-                    </p>
-                    <h2 className="text-2xl font-semibold tracking-tight text-neutral-900">
-                      {streak.streakCount > 0
-                        ? `${streak.streakCount}-day streak`
-                        : "Let's start your streak"}
-                    </h2>
-                  </div>
-                </div>
-                <p className="text-sm text-neutral-600 leading-relaxed">
-                  Consistency is the single biggest predictor of fluency. A few minutes of comprehensible
-                  input every day compounds into thousands of new words over the year.
-                </p>
-                <div className="mt-6 flex items-start gap-2 rounded-2xl bg-orange-50/60 border border-orange-100 p-4 text-sm text-neutral-700">
-                  <Sparkles className="w-4 h-4 text-orange-500 mt-0.5 shrink-0" />
-                  <p>
-                    Yesterday you watched <b>{streak.minutesWatched}</b> min and reviewed{" "}
-                    <b>{streak.wordsReviewed}</b> words. Let's make today count.
-                  </p>
-                </div>
-              </motion.div>
-            )}
+          {/* The flame carries the state; the number carries the fact. */}
+          <div className="flex flex-col items-center px-7 pb-2 pt-9 text-center">
+            <StreakFlame active={streak.streakActive} size={112} />
+            <p className="mt-1 text-5xl font-black tabular-nums tracking-tight text-white">
+              {streak.streakCount}
+            </p>
+            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-amber-400/90">
+              {streak.streakCount === 1 ? "day streak" : "days streak"}
+            </p>
+          </div>
 
-            {step === 1 && (
-              <motion.div
-                key="1"
-                initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
-                className="p-7 sm:p-9"
-              >
-                <p className="text-xs font-medium uppercase tracking-wider text-orange-600 mb-1.5">
-                  Today's mission
-                </p>
-                <h2 className="text-2xl font-semibold tracking-tight text-neutral-900 mb-4">
-                  Choose your daily input goal
+          <div className="px-7 pb-7 pt-5">
+            {choosing ? (
+              <>
+                <h2 className="mb-1 text-lg font-bold tracking-tight text-white">
+                  How many words a day?
                 </h2>
+                <p className="mb-4 text-sm text-white/50">
+                  Pick something you can hit on a bad day. You can always do more.
+                </p>
                 <DailyGoalPicker value={wordGoal} onChange={saveGoal} compact />
-              </motion.div>
-            )}
-
-            {step === 2 && (
-              <motion.div
-                key="2"
-                initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
-                className="p-7 sm:p-9 text-center"
-              >
-                <div className="mx-auto mb-4">
-                  <StreakLottie active size={120} />
-                </div>
-                <h2 className="text-2xl font-semibold tracking-tight text-neutral-900">
-                  Go earn today's streak
-                </h2>
-                <p className="mt-2 text-sm text-neutral-600 leading-relaxed">
-                  Save or review <b>{wordGoal}</b> word{wordGoal === 1 ? "" : "s"} to
-                  light the fire. Watch time is a bonus, not a second goal.
+              </>
+            ) : (
+              <>
+                <p className="text-center text-[15px] leading-relaxed text-white/70">
+                  {done ? (
+                    <>
+                      Today&apos;s <b className="text-white">{wordGoal}</b> word
+                      {wordGoal === 1 ? "" : "s"} are done. The fire is lit.
+                    </>
+                  ) : (
+                    <>
+                      <b className="text-white">{remaining}</b> more word
+                      {remaining === 1 ? "" : "s"} today keeps it burning.
+                    </>
+                  )}
                 </p>
-              </motion.div>
-            )}
-          </AnimatePresence>
 
-          {/* Footer */}
-          <div className="flex items-center justify-between gap-3 px-7 sm:px-9 pb-7 sm:pb-9">
-            <div className="flex gap-1.5">
-              {[0, 1, 2].map((i) => (
-                <span
-                  key={i}
-                  className={`h-1.5 rounded-full transition-all ${
-                    i === step ? "w-6 bg-orange-500" : "w-1.5 bg-orange-200"
-                  }`}
-                />
-              ))}
-            </div>
-            <Button
-              onClick={() => {
-                if (step < 2) setStep(step + 1);
-                else {
-                  close();
-                  navigate("/discover");
-                }
-              }}
-              className="rounded-full bg-orange-500 hover:bg-orange-600 text-white gap-2"
-            >
-              {step < 2 ? "Continue" : "Start learning"}
-              <ArrowRight className="w-4 h-4" />
-            </Button>
+                <div className="mt-5 flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setChoosing(true)}
+                    className="rounded-full border border-white/10 px-4 py-2 text-xs font-semibold text-white/60 transition-colors hover:border-white/25 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-400"
+                  >
+                    Change goal
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      close();
+                      navigate("/discover");
+                    }}
+                    className="flex flex-1 items-center justify-center gap-2 rounded-full bg-amber-500 px-5 py-2.5 text-sm font-bold text-[#0f1714] transition-transform hover:scale-[1.02] focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-300"
+                  >
+                    {done ? "Keep going" : "Start watching"}
+                    <ArrowRight className="h-4 w-4" />
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </motion.div>
       </motion.div>

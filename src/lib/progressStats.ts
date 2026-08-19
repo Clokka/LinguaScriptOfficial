@@ -115,6 +115,21 @@ export const WORD_GOAL_PRESETS = [
 
 export const DEFAULT_WORD_GOAL = 5;
 
+/**
+ * Coerce a stored goal onto the current scale.
+ *
+ * Profiles written before the switch hold 10, 20 or 40 — numbers derived from a
+ * video count, not chosen by anyone. Left alone they match no preset, so the
+ * picker highlights nothing and the streak copy quotes a target that isn't on
+ * offer. Snapping them to the recommended default is honest precisely because
+ * the old value was never a decision.
+ */
+export function normalizeWordGoal(stored: number | null | undefined): number {
+  const presets = WORD_GOAL_PRESETS.map((p) => p.words) as readonly number[];
+  if (stored != null && presets.includes(stored)) return stored;
+  return DEFAULT_WORD_GOAL;
+}
+
 /** @deprecated Superseded by WORD_GOAL_PRESETS. Retained for old profiles. */
 export const VIDEO_GOAL_PRESETS = [
   {

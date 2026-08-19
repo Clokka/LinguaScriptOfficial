@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { DotLottieReact } from "@lottiefiles/dotlottie-react";
-import lottieSrc from "@/assets/check-in-stream.lottie?url";
+import { StreakFlame } from "@/components/StreakFlame";
 import { Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { usePet } from "@/contexts/PetContext";
@@ -135,15 +134,10 @@ export const StreakCelebrationModal = () => {
               Daily mission complete
             </motion.p>
 
-            {/* Lottie + overlaid streak number */}
+            {/* Flame + overlaid streak number. The canvas scales to whatever
+                size it is given, which the raster Lottie did not. */}
             <div className="relative mt-4 w-[min(78vw,460px)] h-[min(78vw,460px)] flex items-center justify-center">
-              <DotLottieReact
-                src={lottieSrc}
-                autoplay
-                loop
-                style={{ width: "100%", height: "100%" }}
-              />
-              {/* Big streak number overlay (Lottie text is hard to edit) */}
+              <StreakFlame active size={Math.min(window.innerWidth * 0.78, 460)} />
               <motion.div
                 initial={{ opacity: 0, scale: 0.4 }}
                 animate={{ opacity: 1, scale: 1 }}

@@ -4,7 +4,7 @@ import { Flame, BookOpen, Brain, Sparkles, Clock, TrendingUp, Target } from "luc
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useStreakStatus } from "@/hooks/useStreakStatus";
-import { StreakLottie } from "./StreakLottie";
+import { StreakFlame } from "./StreakFlame";
 import { MemoryStageCard } from "./MemoryStageCard";
 import {
   stageCounts,
@@ -180,7 +180,7 @@ export const ProgressDashboard = ({ variant = "light" }: ProgressDashboardProps)
                 streak.streakActive ? "bg-orange-400/50" : "bg-neutral-300/30",
               )}
             />
-            <StreakLottie active={streak.streakActive} size={180} className="relative" />
+            <StreakFlame active={streak.streakActive} size={180} className="relative" />
           </div>
 
           {/* Right side */}
