@@ -11,6 +11,7 @@
 // (aayanaqdas/block_blast, futzumi/block-blast, tokaa1/blockerino).
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChameleonMascot, ChameleonTier } from "./ChameleonMascot";
+import { WordBlock } from "@/components/blocks/WordBlock";
 
 export interface GapFillChallengeProps {
   /** The full line, already split into words. */
@@ -25,51 +26,6 @@ export interface GapFillChallengeProps {
   translation?: string;
   onComplete: () => void;
   onSkip: () => void;
-}
-
-// Block Blast palette: [face, light highlight, dark bevel]
-const BLOCK_SKINS: Record<string, [string, string, string]> = {
-  red: ["#FF3B30", "#FF7A72", "#C22A22"],
-  orange: ["#FF8A00", "#FFB44D", "#C46500"],
-  green: ["#34C759", "#6BE08A", "#1F8F3E"],
-  slate: ["#41414d", "#5a5a69", "#2a2a33"],
-};
-
-function WordBlock({
-  label,
-  skin = "slate",
-  size = "md",
-  dragging = false,
-  style,
-  ...rest
-}: {
-  label: string;
-  skin?: keyof typeof BLOCK_SKINS;
-  size?: "md" | "sm";
-  dragging?: boolean;
-  style?: React.CSSProperties;
-} & React.HTMLAttributes<HTMLDivElement>) {
-  const [face, light, dark] = BLOCK_SKINS[skin] ?? BLOCK_SKINS.slate;
-  return (
-    <div
-      {...rest}
-      className={`select-none rounded-2xl text-center font-extrabold text-white ${
-        size === "md" ? "px-5 py-3 text-lg" : "px-3.5 py-2 text-sm"
-      } ${dragging ? "" : "transition-transform duration-150"}`}
-      style={{
-        background: `linear-gradient(160deg, ${light} 0%, ${face} 42%, ${face} 72%, ${dark} 100%)`,
-        boxShadow: dragging
-          ? `0 18px 34px rgba(0,0,0,0.55), inset 0 2px 0 ${light}, inset 0 -4px 0 ${dark}`
-          : `0 6px 0 ${dark}, 0 10px 20px rgba(0,0,0,0.45), inset 0 2px 0 ${light}`,
-        textShadow: "0 2px 3px rgba(0,0,0,0.35)",
-        cursor: "grab",
-        touchAction: "none",
-        ...style,
-      }}
-    >
-      {label}
-    </div>
-  );
 }
 
 const shuffle = <T,>(a: T[]): T[] => {

@@ -9,6 +9,7 @@
  *
  * Provides corrective feedback (not harsh, not patronizing)
  */
+import { supabase } from "@/integrations/supabase/client";
 
 export interface EvaluationResult {
   word: string;
@@ -64,18 +65,19 @@ export async function evaluateLinguaScript(
 export async function evaluateLinguaScripts(
   sentences: Array<{ word: string; text: string }>
 ): Promise<EvaluationResult[]> {
-  // Call the API endpoint that uses Claude for evaluation
-  const response = await fetch("/api/evaluate-linguascripts", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(sentences),
+  // Two bugs lived here. The URL pointed at /api/evaluate-linguascripts, which
+  // does not exist — this is a Vite SPA with no proxy and no rewrite config, so
+  // the request hit the app itself and came back as HTML. And the body was a
+  // bare array, while the edge function destructures `{ sentences }`, so even a
+  // correctly addressed call would have been rejected as malformed.
+  const { data, error } = await supabase.functions.invoke("evaluate-linguascripts", {
+    body: { sentences },
   });
 
-  if (!response.ok) {
-    throw new Error("Failed to evaluate linguascripts");
-  }
+  if (error) throw new Error(error.message || "Failed to evaluate linguascripts");
+  if (!Array.isArray(data)) throw new Error("Evaluation returned an unexpected shape");
 
-  return response.json();
+  return data as EvaluationResult[];
 }
 
 /**

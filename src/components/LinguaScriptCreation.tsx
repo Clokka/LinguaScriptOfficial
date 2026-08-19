@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowRight, AlertCircle, Loader2 } from "lucide-react";
 import confetti from "canvas-confetti";
+import { evaluateLinguaScripts } from "@/lib/linguaScriptEvaluation";
 
 interface Sentence {
   word: string;
@@ -30,6 +31,8 @@ export function LinguaScriptCreation({
   );
   const [evaluating, setEvaluating] = useState(false);
   const [evaluated, setEvaluated] = useState(false);
+  /** Inline, non-blocking. alert() halts the whole page and is OS chrome. */
+  const [error, setError] = useState<string | null>(null);
 
   const handleSentenceChange = useCallback((index: number, text: string) => {
     setSentences((prev) => {
@@ -40,31 +43,22 @@ export function LinguaScriptCreation({
   }, []);
 
   const handleEvaluate = useCallback(async () => {
-    // Validate all sentences have text
+    setError(null);
     if (sentences.some((s) => !s.userText.trim())) {
-      alert("Please write a sentence for each word.");
+      setError("Write a sentence for each word before checking.");
       return;
     }
 
     setEvaluating(true);
 
     try {
-      // Call AI evaluation endpoint
-      // For now, this is a stub that will be replaced with real AI
-      const response = await fetch("/api/evaluate-linguascripts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          sentences: sentences.map((s) => ({
-            word: s.word,
-            text: s.userText,
-          })),
-        }),
-      });
-
-      if (!response.ok) throw new Error("Evaluation failed");
-
-      const evaluated = await response.json();
+      // This used to POST to /api/evaluate-linguascripts, which does not exist —
+      // no Vite proxy, no rewrite config — so the request hit the SPA, came back
+      // as HTML, and every learner saw "Error evaluating sentences. Try again."
+      // The edge function was there the whole time; only the address was wrong.
+      const evaluated = await evaluateLinguaScripts(
+        sentences.map((s) => ({ word: s.word, text: s.userText })),
+      );
 
       setSentences((prev) =>
         prev.map((s, i) => ({
@@ -89,7 +83,7 @@ export function LinguaScriptCreation({
       }
     } catch (err) {
       console.error("Evaluation error:", err);
-      alert("Error evaluating sentences. Try again.");
+      setError("We couldn't check those just now. Try again in a moment.");
     } finally {
       setEvaluating(false);
     }
@@ -188,6 +182,16 @@ export function LinguaScriptCreation({
           </div>
         ))}
       </div>
+
+      {error && (
+        <div
+          role="alert"
+          className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-200"
+        >
+          <AlertCircle className="mt-0.5 h-4 w-4 flex-none" />
+          <span>{error}</span>
+        </div>
+      )}
 
       {/* Actions */}
       <div className="flex gap-3">

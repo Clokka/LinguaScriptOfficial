@@ -1,5 +1,14 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
+// Browsers block a cross-origin call without these, so the function was
+// unreachable from the app even once the client stopped posting to /api.
+// Mirrors the header list used by translate-word.
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+};
+
 const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 const LOVABLE_API_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
@@ -80,18 +89,26 @@ Do NOT include markdown code blocks. Only the raw JSON array.`;
   // Parse JSON
   const evaluated = JSON.parse(responseText);
 
-  // Map back to user's original text
-  return sentences.map((s, i) => ({
-    word: s.word,
-    userText: s.text,
-    score: evaluated[i].score,
-    feedback: evaluated[i].feedback,
-  }));
+  // Map back to the learner's original text. The model is asked for one object
+  // per sentence in order, but a short or reordered array must not throw — a
+  // missing entry scores 0 with an honest message rather than failing the batch.
+  return sentences.map((s, i) => {
+    const row = Array.isArray(evaluated) ? evaluated[i] : undefined;
+    return {
+      word: s.word,
+      userText: s.text,
+      score: typeof row?.score === "number" ? row.score : 0,
+      feedback: row?.feedback ?? "We couldn't grade this one — try rephrasing it.",
+    };
+  });
 }
 
 serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
   if (req.method !== "POST") {
-    return new Response("Method not allowed", { status: 405 });
+    return new Response("Method not allowed", { status: 405, headers: corsHeaders });
   }
 
   try {
@@ -100,14 +117,14 @@ serve(async (req) => {
     if (!sentences || !Array.isArray(sentences)) {
       return new Response(
         JSON.stringify({ error: "Invalid request: sentences array required" }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     const results = await evaluateSentences(sentences);
 
     return new Response(JSON.stringify(results), {
-      headers: { "Content-Type": "application/json" },
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
     console.error("Evaluation error:", error);
@@ -115,7 +132,7 @@ serve(async (req) => {
       JSON.stringify({
         error: error instanceof Error ? error.message : "Evaluation failed",
       }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });
