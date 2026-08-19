@@ -54,11 +54,26 @@ export function watchTimeThisWeek(activity: ActivityDayLite[]): number {
     .reduce((sum, d) => sum + (d.minutes_watched ?? 0), 0);
 }
 
-/** Daily goal -> derived word target. */
+/**
+ * Legacy: the daily goal used to be a video count, which derived a word target.
+ *
+ * @deprecated The learner now picks words directly — see WORD_GOAL_PRESETS. Kept
+ * so profiles saved before that change still resolve to a sensible number.
+ */
 export function wordGoalForVideos(videoGoal: number): number {
   if (videoGoal <= 1) return 10;
   if (videoGoal === 2) return 20;
   return 40;
+}
+
+/**
+ * Watch-time expectation implied by a word goal.
+ *
+ * The relationship runs the other way now, but daily_video_goal still feeds the
+ * watch-time stat, so a word goal needs to imply one rather than the reverse.
+ */
+export function videoGoalForWords(wordGoal: number): number {
+  return wordGoal >= 8 ? 2 : 1;
 }
 
 /** Daily goal -> watch-time target in minutes (assumes ~10 min/video). */
@@ -66,6 +81,41 @@ export function minuteGoalForVideos(videoGoal: number): number {
   return videoGoal * 10;
 }
 
+/**
+ * The daily goal, in words.
+ *
+ * It used to be a video count (1/2/3) which silently derived 10/20/40 words.
+ * Nobody chose 40; it fell out of a function, and a goal that gets missed twice
+ * teaches the learner they fail at this app. A goal's job is to be met — it has
+ * to survive a bad day, because bad days are where retention is won or lost.
+ *
+ * Serious learners overshoot regardless. What the low floor changes is what
+ * happens on the days they nearly don't show up.
+ */
+export const WORD_GOAL_PRESETS = [
+  {
+    words: 1,
+    perYear: "365",
+    label: "Gentle",
+    milestone: "The floor. A bad day still counts \u2014 ninety seconds and the streak lives.",
+  },
+  {
+    words: 5,
+    perYear: "1,825",
+    label: "Recommended",
+    milestone: "Roughly the vocabulary gap between B1 and B2, in a year.",
+  },
+  {
+    words: 8,
+    perYear: "2,920",
+    label: "Ambitious",
+    milestone: "For when you have already proved you will show up.",
+  },
+] as const;
+
+export const DEFAULT_WORD_GOAL = 5;
+
+/** @deprecated Superseded by WORD_GOAL_PRESETS. Retained for old profiles. */
 export const VIDEO_GOAL_PRESETS = [
   {
     videos: 1,

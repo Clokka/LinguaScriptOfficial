@@ -215,18 +215,20 @@ export const ProgressDashboard = ({ variant = "light" }: ProgressDashboardProps)
             {!streak.streakActive ? (
               <div className="mt-4 space-y-3">
                 <p className="text-sm sm:text-base text-neutral-700 leading-relaxed max-w-md mx-auto sm:mx-0">
-                  Review your target words and watch time to ignite today's streak.
+                  Hit your word goal to ignite today&apos;s streak.
                 </p>
                 <div className="flex flex-wrap gap-2 justify-center sm:justify-start">
                   <Pill done={streak.wordsGoalMet}>
                     {streak.wordsGoalMet
-                      ? `${streak.wordGoal} words reviewed`
+                      ? `${streak.wordGoal} word${streak.wordGoal === 1 ? "" : "s"} reviewed`
                       : `${remainingWords} more word${remainingWords === 1 ? "" : "s"} to review`}
                   </Pill>
+                  {/* Watch time is a bonus, so it reads as one — the streak does
+                      not wait on it and the copy must not imply that it does. */}
                   <Pill done={streak.watchGoalMet}>
                     {streak.watchGoalMet
-                      ? `${streak.minuteGoal} min watched`
-                      : `${remainingMins} more min to watch`}
+                      ? `${streak.minuteGoal} min watched \u2014 bonus`
+                      : `bonus: ${remainingMins} more min to watch`}
                   </Pill>
                 </div>
               </div>

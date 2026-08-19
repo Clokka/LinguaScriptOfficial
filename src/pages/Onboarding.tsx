@@ -20,7 +20,7 @@ import { TOUR_TRAINING_BY_LANG, TOUR_TRAINING_YT_ID } from "@/lib/tourSteps";
 import { playDing } from "@/lib/sound";
 import { toast } from "sonner";
 import { DailyGoalPicker } from "@/components/DailyGoalPicker";
-import { wordGoalForVideos } from "@/lib/progressStats";
+import { DEFAULT_WORD_GOAL, videoGoalForWords, wordGoalForVideos } from "@/lib/progressStats";
 import { INTERESTS, MAX_INTERESTS } from "@/lib/interests";
 
 // LinguaScript targets learners beyond beginner. A1 learners are gated to
@@ -51,7 +51,7 @@ const Onboarding = () => {
   const [target, setTarget] = useState(initialPersisted?.target ?? "fr");
   const [level, setLevel] = useState<Level | null>(initialPersisted?.level ?? null);
   const [school, setSchool] = useState(initialPersisted?.school ?? "");
-  const [videoGoal, setVideoGoal] = useState<number>(initialPersisted?.videoGoal ?? 1);
+  const [wordGoal, setWordGoal] = useState<number>(initialPersisted?.wordGoal ?? DEFAULT_WORD_GOAL);
   const [goal, setGoal] = useState(initialPersisted?.goal ?? "");
   const [goalSaved, setGoalSaved] = useState<boolean>(initialPersisted?.goalSaved ?? false);
   const [showOnLeaderboard, setShowOnLeaderboard] = useState<boolean>(initialPersisted?.showOnLeaderboard ?? true);
@@ -62,10 +62,10 @@ const Onboarding = () => {
   useEffect(() => {
     try {
       localStorage.setItem(ONBOARDING_KEY, JSON.stringify({
-        step, native, target, level, school, videoGoal, goal, goalSaved, showOnLeaderboard, dualClicked, interests,
+        step, native, target, level, school, wordGoal, goal, goalSaved, showOnLeaderboard, dualClicked, interests,
       }));
     } catch { /* ignore */ }
-  }, [step, native, target, level, school, videoGoal, goal, goalSaved, showOnLeaderboard, dualClicked, interests]);
+  }, [step, native, target, level, school, wordGoal, goal, goalSaved, showOnLeaderboard, dualClicked, interests]);
 
   // Load any existing profile values (auth optional — anonymous users see onboarding too)
   useEffect(() => {
@@ -76,7 +76,13 @@ const Onboarding = () => {
         if ((data as any).cef_level) setLevel((data as any).cef_level as Level);
         if ((data as any).learning_goal) setGoal((data as any).learning_goal);
         if ((data as any).school) setSchool((data as any).school);
-        if ((data as any).daily_video_goal) setVideoGoal((data as any).daily_video_goal);
+        // An existing learner keeps the goal they already have. Only a profile
+        // predating the switch falls back to deriving one from the video count.
+        if ((data as any).daily_word_goal) {
+          setWordGoal((data as any).daily_word_goal);
+        } else if ((data as any).daily_video_goal) {
+          setWordGoal(wordGoalForVideos((data as any).daily_video_goal));
+        }
         if (Array.isArray((data as any).interests) && (data as any).interests.length) {
           setInterests((data as any).interests);
         }
@@ -110,8 +116,10 @@ const Onboarding = () => {
         learning_language: target,
         cef_level: level,
         school: school.trim() || null,
-        daily_video_goal: videoGoal,
-        daily_word_goal: wordGoalForVideos(videoGoal),
+        daily_word_goal: wordGoal,
+        // Still written because the watch-time stat reads it, but it is now
+        // derived from the word goal rather than the other way round.
+        daily_video_goal: videoGoalForWords(wordGoal),
       } as any).eq("user_id", user.id);
       setLearningLanguage(target);
       // Pre-mark the learner's high-frequency "known" vocabulary based on level
@@ -278,7 +286,7 @@ const Onboarding = () => {
                   </Field>
 
                   <Field label="Daily input goal">
-                    <DailyGoalPicker value={videoGoal} onChange={setVideoGoal} compact />
+                    <DailyGoalPicker value={wordGoal} onChange={setWordGoal} compact />
                   </Field>
                 </div>
               </Card>

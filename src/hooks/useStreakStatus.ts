@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { wordGoalForVideos, minuteGoalForVideos } from "@/lib/progressStats";
+import { DEFAULT_WORD_GOAL, wordGoalForVideos, minuteGoalForVideos } from "@/lib/progressStats";
 import { emitStreakIgnited } from "@/components/StreakCelebrationModal";
 
 export interface StreakStatus {
@@ -14,7 +14,13 @@ export interface StreakStatus {
   videosWatched: number;
   wordsGoalMet: boolean;
   watchGoalMet: boolean;
-  streakActive: boolean; // both goals met today
+  /**
+   * True once today's WORD goal is met. Watch time is reported but does not
+   * gate this: the learner chose a word goal, and that is the promise the app
+   * has to keep. Requiring minutes as well made a 1-word goal meaningless,
+   * because the streak still demanded ten to thirty minutes of video.
+   */
+  streakActive: boolean;
   streakCount: number;
   refresh: () => Promise<void>;
 }
@@ -39,7 +45,7 @@ export function useStreakStatus(): StreakStatus {
   const [state, setState] = useState<StreakStatus>({
     loading: true,
     videoGoal: 1,
-    wordGoal: 10,
+    wordGoal: DEFAULT_WORD_GOAL,
     minuteGoal: 10,
     wordsReviewed: 0,
     minutesWatched: 0,
@@ -73,7 +79,8 @@ export function useStreakStatus(): StreakStatus {
     ]);
 
     const videoGoal = (profile as any)?.daily_video_goal ?? 1;
-    const wordGoal = (profile as any)?.daily_word_goal ?? wordGoalForVideos(videoGoal);
+    const wordGoal =
+      (profile as any)?.daily_word_goal ?? wordGoalForVideos(videoGoal);
     const minuteGoal = minuteGoalForVideos(videoGoal);
 
     const wordsReviewed = (activity as any)?.words_reviewed ?? 0;
@@ -82,13 +89,16 @@ export function useStreakStatus(): StreakStatus {
 
     const wordsGoalMet = wordsReviewed >= wordGoal;
     const watchGoalMet = minutesWatched >= minuteGoal;
-    const bothMet = wordsGoalMet && watchGoalMet;
+    // The word goal alone ignites the streak. watchGoalMet is still surfaced so
+    // the UI can celebrate it, but it is a bonus and never a second, hidden
+    // goal the learner never agreed to.
+    const streakEarned = wordsGoalMet;
     let streakCount = (profile as any)?.streak_count ?? 0;
     const lastStreakDate: string | null = (profile as any)?.last_streak_date ?? null;
     const alreadyMarkedToday = (activity as any)?.goal_met === true;
 
     // Ignite streak lazily once both goals are met
-    if (bothMet && !alreadyMarkedToday) {
+    if (streakEarned && !alreadyMarkedToday) {
       const continuing = lastStreakDate === yesterdayStr();
       const sameDay = lastStreakDate === today;
       const newCount = sameDay ? streakCount : continuing ? streakCount + 1 : 1;
@@ -132,7 +142,7 @@ export function useStreakStatus(): StreakStatus {
       videosWatched,
       wordsGoalMet,
       watchGoalMet,
-      streakActive: bothMet,
+      streakActive: streakEarned,
       streakCount,
       refresh: load,
     });

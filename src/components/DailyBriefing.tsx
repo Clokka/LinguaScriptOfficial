@@ -8,7 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useStreakStatus } from "@/hooks/useStreakStatus";
 import { StreakLottie } from "./StreakLottie";
 import { DailyGoalPicker } from "./DailyGoalPicker";
-import { wordGoalForVideos } from "@/lib/progressStats";
+import { DEFAULT_WORD_GOAL, videoGoalForWords, wordGoalForVideos } from "@/lib/progressStats";
 
 const dismissKey = (uid: string) => `briefing:${uid}:${new Date().toISOString().split("T")[0]}`;
 
@@ -21,7 +21,7 @@ export const DailyBriefing = () => {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(0);
-  const [videoGoal, setVideoGoal] = useState(1);
+  const [wordGoal, setWordGoal] = useState(DEFAULT_WORD_GOAL);
   const [profileChecked, setProfileChecked] = useState(false);
   const streak = useStreakStatus();
 
@@ -32,12 +32,15 @@ export const DailyBriefing = () => {
     void (async () => {
       const { data } = await supabase
         .from("profiles")
-        .select("onboarded, show_daily_briefing, daily_video_goal")
+        .select("onboarded, show_daily_briefing, daily_video_goal, daily_word_goal")
         .eq("user_id", user.id)
         .single();
       if (cancelled) return;
       const p: any = data || {};
-      setVideoGoal(p.daily_video_goal ?? 1);
+      setWordGoal(
+        p.daily_word_goal ??
+          (p.daily_video_goal ? wordGoalForVideos(p.daily_video_goal) : DEFAULT_WORD_GOAL),
+      );
       setProfileChecked(true);
       const dismissed = typeof window !== "undefined" && localStorage.getItem(dismissKey(user.id)) === "1";
       if (p.onboarded && p.show_daily_briefing && !dismissed) {
@@ -52,14 +55,14 @@ export const DailyBriefing = () => {
     setOpen(false);
   };
 
-  const saveGoal = async (videos: number) => {
-    setVideoGoal(videos);
+  const saveGoal = async (words: number) => {
+    setWordGoal(words);
     if (!user) return;
     await supabase
       .from("profiles")
       .update({
-        daily_video_goal: videos,
-        daily_word_goal: wordGoalForVideos(videos),
+        daily_word_goal: words,
+        daily_video_goal: videoGoalForWords(words),
       } as any)
       .eq("user_id", user.id);
     void streak.refresh();
@@ -138,7 +141,7 @@ export const DailyBriefing = () => {
                 <h2 className="text-2xl font-semibold tracking-tight text-neutral-900 mb-4">
                   Choose your daily input goal
                 </h2>
-                <DailyGoalPicker value={videoGoal} onChange={saveGoal} compact />
+                <DailyGoalPicker value={wordGoal} onChange={saveGoal} compact />
               </motion.div>
             )}
 
@@ -155,8 +158,8 @@ export const DailyBriefing = () => {
                   Go earn today's streak
                 </h2>
                 <p className="mt-2 text-sm text-neutral-600 leading-relaxed">
-                  Review <b>{wordGoalForVideos(videoGoal)}</b> words and watch{" "}
-                  <b>{videoGoal * 10}</b> minutes of French to light the fire.
+                  Save or review <b>{wordGoal}</b> word{wordGoal === 1 ? "" : "s"} to
+                  light the fire. Watch time is a bonus, not a second goal.
                 </p>
               </motion.div>
             )}
