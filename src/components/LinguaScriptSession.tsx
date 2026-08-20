@@ -41,6 +41,17 @@ export function LinguaScriptSession({
   const { learningLanguage } = useLanguage();
 
   /**
+   * Every word runs the same three-stage spec — gap-fill, then active
+   * recall, then production — before the next word starts its own three.
+   * Interleaving stages across different words (gap-fill on word A, recall
+   * on word B) was the bug this fixes: STAGES_PER_WORD is the one place
+   * that ordering is defined, so the stage list and "which word is this"
+   * lookup can never drift apart again.
+   */
+  const STAGES_PER_WORD = 3;
+  const currentExercise = exercises[Math.floor(stageIndex / STAGES_PER_WORD)];
+
+  /**
    * The blast is for a LinguaScript's sentence turning fully green, never for
    * clearing a stage.
    *
@@ -71,10 +82,10 @@ export function LinguaScriptSession({
    * real words instead of a literal "test" placeholder.
    */
   const gapFillData = useMemo(() => {
-    const ex = exercises[0];
+    const ex = currentExercise;
     if (!ex) return null;
     const distractorPool = exercises
-      .slice(1)
+      .filter((e) => e.id !== ex.id)
       .map((e) => e.target_word)
       .filter((w, i, arr) => w && arr.indexOf(w) === i);
     const { gapPosition, gapOptions } = buildExerciseOptions(ex.sentence, ex.target_word, distractorPool);
@@ -83,7 +94,7 @@ export function LinguaScriptSession({
       gapIndex: gapPosition,
       distractors: gapOptions.distractors,
     };
-  }, [exercises]);
+  }, [currentExercise, exercises]);
 
   /**
    * Persist a clean (correct, no-hint) recall as forward SRS progress —
@@ -161,38 +172,24 @@ export function LinguaScriptSession({
     loadExercises();
   }, [exerciseIds]);
 
-  // Generate session stages
+  // Generate session stages: gap-fill, active-recall, linguascript for each
+  // word in turn, so all three ever run on the word they were assembled
+  // for — never on whichever word a stale index happened to land on.
   const generateStages = useCallback((): SessionStage[] => {
     if (exercises.length === 0) return [];
 
     const stages: SessionStage[] = [];
-    const words = exercises.map((e) => e.target_word);
 
-    // Stage 1: Gap-Fill (warm-up, easy)
-    stages.push({
-      type: "gap-fill",
-      exerciseIds: exerciseIds,
-    });
+    for (const ex of exercises) {
+      stages.push({ type: "gap-fill", exerciseIds: [ex.id] });
+      stages.push({ type: "active-recall", exerciseIds: [ex.id] });
+      stages.push({ type: "linguascript", exerciseIds: [ex.id], words: [ex.target_word] });
+    }
 
-    // Stage 2: Active Recall (hard, pure memory)
-    stages.push({
-      type: "active-recall",
-      exerciseIds: exerciseIds,
-    });
-
-    // Stage 3: LinguaScript Creation (production, hardest)
-    stages.push({
-      type: "linguascript",
-      words: words,
-    });
-
-    // Stage 4: Complete
-    stages.push({
-      type: "complete",
-    });
+    stages.push({ type: "complete" });
 
     return stages;
-  }, [exercises, exerciseIds]);
+  }, [exercises]);
 
   const stages = generateStages();
 
@@ -202,7 +199,7 @@ export function LinguaScriptSession({
 
   const handleActiveRecallComplete = useCallback(
     (data: { correct: boolean; xpEarned: number }) => {
-      const exercise = exercises[stageIndex % exercises.length];
+      const exercise = currentExercise;
 
       if (data.xpEarned > 0) {
         setSessionXp((prev) => prev + data.xpEarned);
@@ -218,7 +215,7 @@ export function LinguaScriptSession({
       }
       setStageIndex((prev) => prev + 1);
     },
-    [blast, checkSentences, exercises, stageIndex, promoteWordState]
+    [blast, checkSentences, currentExercise, promoteWordState]
   );
 
   const handleLinguaScriptComplete = useCallback(
@@ -292,6 +289,7 @@ export function LinguaScriptSession({
   }
 
   const currentStage = stages[stageIndex];
+  const wordNumber = Math.min(Math.floor(stageIndex / STAGES_PER_WORD) + 1, exercises.length);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 to-slate-900 p-6">
@@ -323,40 +321,46 @@ export function LinguaScriptSession({
 
       {/* Stage Content */}
       <div className="container mx-auto max-w-4xl">
-        {currentStage.type === "gap-fill" && gapFillData && (
+        {currentStage.type === "gap-fill" && gapFillData && currentExercise && (
           <div>
-            <p className="text-sm text-slate-400 mb-4">Stage 1: Gap-Fill (Warm-up)</p>
+            <p className="text-sm text-slate-400 mb-4">
+              Word {wordNumber} of {exercises.length} · Gap-Fill (Warm-up)
+            </p>
             <GapFillChallenge
               words={gapFillData.words}
               gapIndex={gapFillData.gapIndex}
               distractors={gapFillData.distractors}
-              tier={exercises[0].word_state === "green" ? "orange" : exercises[0].word_state}
-              translation={exercises[0].translation}
+              tier={currentExercise.word_state === "green" ? "orange" : currentExercise.word_state}
+              translation={currentExercise.translation}
               onComplete={handleGapFillComplete}
               onSkip={handleSkip}
             />
           </div>
         )}
 
-        {currentStage.type === "active-recall" && (
+        {currentStage.type === "active-recall" && currentExercise && (
           <div>
-            <p className="text-sm text-slate-400 mb-4">Stage 2: Active Recall (Memory)</p>
+            <p className="text-sm text-slate-400 mb-4">
+              Word {wordNumber} of {exercises.length} · Active Recall (Memory)
+            </p>
             <ActiveRecallReview
-              exerciseId={exerciseIds[stageIndex % exerciseIds.length]}
-              sentence={exercises[stageIndex % exercises.length].sentence}
-              targetWord={exercises[stageIndex % exercises.length].target_word}
-              translation={exercises[stageIndex % exercises.length].translation}
+              exerciseId={currentExercise.id}
+              sentence={currentExercise.sentence}
+              targetWord={currentExercise.target_word}
+              translation={currentExercise.translation}
               onComplete={handleActiveRecallComplete}
               onSkip={handleSkip}
             />
           </div>
         )}
 
-        {currentStage.type === "linguascript" && (
+        {currentStage.type === "linguascript" && currentExercise && (
           <div>
-            <p className="text-sm text-slate-400 mb-4">Stage 3: Make Sentences (Production)</p>
+            <p className="text-sm text-slate-400 mb-4">
+              Word {wordNumber} of {exercises.length} · Make a Sentence (Production)
+            </p>
             <LinguaScriptCreation
-              words={exercises.map((e) => e.target_word)}
+              words={[currentExercise.target_word]}
               onComplete={handleLinguaScriptComplete}
               onSkip={handleSkip}
             />
