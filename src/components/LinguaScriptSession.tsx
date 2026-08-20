@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { GapFillChallenge } from "@/components/GapFillChallenge";
 import { ActiveRecallReview } from "@/components/ActiveRecallReview";
@@ -8,6 +8,7 @@ import { Loader2, ArrowRight } from "lucide-react";
 import { useLineBlast } from "@/hooks/useLineBlast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { nextState, type DeckState } from "@/lib/vocab";
+import { buildExerciseOptions } from "@/lib/linguascripts";
 
 interface Exercise {
   id: string;
@@ -63,6 +64,26 @@ export function LinguaScriptSession({
     }
     return fired;
   }, [exercises, blast]);
+
+  /**
+   * The gap-fill blank, computed from the real target word instead of
+   * hardcoded to word 0 — and distractors drawn from the session's other
+   * real words instead of a literal "test" placeholder.
+   */
+  const gapFillData = useMemo(() => {
+    const ex = exercises[0];
+    if (!ex) return null;
+    const distractorPool = exercises
+      .slice(1)
+      .map((e) => e.target_word)
+      .filter((w, i, arr) => w && arr.indexOf(w) === i);
+    const { gapPosition, gapOptions } = buildExerciseOptions(ex.sentence, ex.target_word, distractorPool);
+    return {
+      words: ex.sentence.split(/\s+/),
+      gapIndex: gapPosition,
+      distractors: gapOptions.distractors,
+    };
+  }, [exercises]);
 
   /**
    * Persist a clean (correct, no-hint) recall as forward SRS progress —
@@ -302,17 +323,13 @@ export function LinguaScriptSession({
 
       {/* Stage Content */}
       <div className="container mx-auto max-w-4xl">
-        {currentStage.type === "gap-fill" && (
+        {currentStage.type === "gap-fill" && gapFillData && (
           <div>
             <p className="text-sm text-slate-400 mb-4">Stage 1: Gap-Fill (Warm-up)</p>
             <GapFillChallenge
-              words={exercises[0].sentence.split(/\s+/)}
-              gapIndex={0} // Simplified for now
-              distractors={[
-                exercises[1]?.target_word || "test",
-                exercises[2]?.target_word || "test",
-                "test",
-              ]}
+              words={gapFillData.words}
+              gapIndex={gapFillData.gapIndex}
+              distractors={gapFillData.distractors}
               tier={exercises[0].word_state === "green" ? "orange" : exercises[0].word_state}
               translation={exercises[0].translation}
               onComplete={handleGapFillComplete}
