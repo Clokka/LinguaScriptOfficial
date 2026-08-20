@@ -225,12 +225,13 @@ export const Chameleon3D = ({
       renderer.dispose();
       renderer.domElement.remove();
     };
-  }, [size, tier]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [size]);
 
   if (failed) {
     return (
       <div className={className} style={{ width: size }}>
-        <ChameleonMascot tier={tier} />
+        <ChameleonMascot tier={tier === "gold" ? "green" : tier} />
       </div>
     );
   }
