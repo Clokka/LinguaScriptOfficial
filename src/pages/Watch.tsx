@@ -23,6 +23,7 @@ import { playDing } from "@/lib/sound";
 import { useXp } from "@/contexts/XpContext";
 import { usePet } from "@/contexts/PetContext";
 import { recordDailyVideoWatch, setReinforcementPending } from "@/lib/dailyVideo";
+import { incrementWordsSavedToday } from "@/lib/dailyQuest";
 import { toast } from "sonner";
 import {
   computeVideoComprehension,
@@ -751,6 +752,7 @@ const Watch = () => {
     onWordSaved(savedTodayRef.current);
     playDing("success");
     maybeTriggerLearningBreak({ word: word.text, translation });
+    void incrementWordsSavedToday(user.id);
 
     // Create LinguaScript record immediately (scheduled for now, not tomorrow)
     supabase.from("linguascripts").insert({
@@ -825,6 +827,7 @@ const Watch = () => {
     }
     toast.success("Phrase saved to flashcards");
     playDing("success");
+    void incrementWordsSavedToday(user.id);
 
     // Create LinguaScript record for phrase (scheduled for now, not tomorrow)
     supabase.from("linguascripts").insert({
@@ -871,6 +874,7 @@ const Watch = () => {
       return;
     }
     toast.success("Marked as known: " + word.text);
+    void incrementWordsSavedToday(user.id);
 
     // Create LinguaScript record for known word (scheduled for now, not 7 days from now)
     supabase.from("linguascripts").insert({

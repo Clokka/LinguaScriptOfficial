@@ -51,8 +51,10 @@ import { useLinguaScriptStatus } from "@/hooks/useLinguaScriptStatus";
 import { LinguaScriptsPendingAlert } from "@/components/LinguaScriptsPendingAlert";
 import { LinguaScriptsCompleteCard } from "@/components/LinguaScriptsCompleteCard";
 import { FlashcardsDueAlert } from "@/components/FlashcardsDueAlert";
-import { LinguaScriptSessionFlow } from "@/components/LinguaScriptSessionFlow";
+import { LinguaScriptSession } from "@/components/LinguaScriptSession";
 import { LevelBadge } from "@/components/LevelBadge";
+import { DailyQuestCard } from "@/components/DailyQuestCard";
+import { useDailyQuest } from "@/hooks/useDailyQuest";
 
 const INTERESTS_BY_ID: Record<string, Interest> = Object.fromEntries(
   INTERESTS.map((i) => [i.id, i]),
@@ -109,6 +111,7 @@ const Browse = () => {
   const { toast } = useToast();
   const tour = useTour();
   const { status: linguaScriptStatus, loading: statusLoading, refetch: refetchStatus } = useLinguaScriptStatus();
+  const quest = useDailyQuest();
 
   const initialTab: TabKey = location.pathname.startsWith("/discover") ? "discover" : "home";
   const [activeTab, setActiveTab] = useState<TabKey>(initialTab);
@@ -520,19 +523,35 @@ const Browse = () => {
         <div className="px-6 py-6">
           {/* Show LinguaScript session if active */}
           {showLinguaScriptSession && linguaScriptStatus?.linguascriptsDueIds ? (
-            <LinguaScriptSessionFlow
-              wordIds={linguaScriptStatus.linguascriptsDueIds}
+            <LinguaScriptSession
+              exerciseIds={linguaScriptStatus.linguascriptsDueIds}
               onClose={() => {
                 setShowLinguaScriptSession(false);
                 refetchStatus();
+                quest.refresh();
               }}
               onSessionComplete={() => {
                 setShowLinguaScriptSession(false);
                 refetchStatus();
+                quest.markBuilt();
               }}
             />
           ) : activeTab === "home" && !statusLoading && linguaScriptStatus ? (
             <div>
+              {/* Daily quest: save -> celebrate -> review -> build */}
+              <DailyQuestCard
+                stage={quest.stage}
+                progress={quest.progress}
+                goal={quest.goal}
+                loading={quest.loading}
+                hasWordsToReview={linguaScriptStatus.linguascriptsDueIds.length > 0}
+                onCelebrated={quest.celebrate}
+                onStart={() => {
+                  if (quest.stage === "celebrate" || quest.stage === "review") quest.markReviewed();
+                  setShowLinguaScriptSession(true);
+                }}
+              />
+
               {/* LinguaScripts Alerts - Top Priority */}
               {linguaScriptStatus.state === "linguascripts-pending" && (
                 <LinguaScriptsPendingAlert

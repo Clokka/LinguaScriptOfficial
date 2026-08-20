@@ -5,7 +5,7 @@ import { TileSentenceBuilder } from "@/components/TileSentenceBuilder";
 import { ActiveRecallReview } from "@/components/ActiveRecallReview";
 import { LinguaScriptCreation } from "@/components/LinguaScriptCreation";
 import { LineBlastOverlay } from "@/components/LineBlastOverlay";
-import { Loader2, ArrowRight } from "lucide-react";
+import { Loader2, ArrowRight, ArrowLeft } from "lucide-react";
 import { useLineBlast } from "@/hooks/useLineBlast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { nextState, type DeckState } from "@/lib/vocab";
@@ -28,11 +28,14 @@ interface SessionStage {
 interface LinguaScriptSessionProps {
   exerciseIds: string[]; // IDs of exercises for this session
   onSessionComplete: (data: { totalXp: number; exercises: string[] }) => void;
+  /** Lets a host screen offer a way out mid-session. Hidden when omitted. */
+  onClose?: () => void;
 }
 
 export function LinguaScriptSession({
   exerciseIds,
   onSessionComplete,
+  onClose,
 }: LinguaScriptSessionProps) {
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [loading, setLoading] = useState(true);
@@ -313,11 +316,22 @@ export function LinguaScriptSession({
       {/* Session Progress */}
       <div className="container mx-auto max-w-4xl mb-8">
         <div className="flex items-center justify-between mb-4">
-          <div>
-            <h1 className="text-2xl font-black text-amber-400">LinguaScript Session</h1>
-            <p className="text-sm text-slate-400">
-              {stageIndex + 1} of {stages.length - 1} stages
-            </p>
+          <div className="flex items-center gap-3">
+            {onClose && (
+              <button
+                onClick={onClose}
+                className="rounded-full p-2 text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
+                aria-label="Exit session"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+            )}
+            <div>
+              <h1 className="text-2xl font-black text-amber-400">LinguaScript Session</h1>
+              <p className="text-sm text-slate-400">
+                {stageIndex + 1} of {stages.length - 1} stages
+              </p>
+            </div>
           </div>
           <div className="text-right">
             <p className="text-2xl font-black text-emerald-400">{sessionXp} XP</p>
