@@ -94,7 +94,9 @@ export const Chameleon3D = ({
     renderer.setSize(size, size);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.domElement.style.cursor = "grab";
-    renderer.domElement.style.filter = `hue-rotate(${TIER_HUE[tier]}deg)`;
+    renderer.domElement.style.transition = "filter .7s ease";
+    renderer.domElement.style.filter = `hue-rotate(${TIER_HUE[tier]}deg) saturate(${TIER_SAT[tier]})`;
+    canvasRef.current = renderer.domElement;
     mount.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
