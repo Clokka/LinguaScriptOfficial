@@ -11,6 +11,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { DeckState, STATE_META, coerceDeckState } from "@/lib/vocab";
 import { getGuestWords } from "@/lib/guestWords";
 import { cn } from "@/lib/utils";
+import { WordDetailModal } from "@/components/WordDetailModal";
 
 interface DeckWord {
   id: string;
@@ -41,6 +42,7 @@ export default function Vocabulary() {
   const [filter, setFilter] = useState<"all" | DeckState>("all");
   const [search, setSearch] = useState("");
   const [coreTotal, setCoreTotal] = useState<number | null>(null);
+  const [detailWord, setDetailWord] = useState<DeckWord | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -233,7 +235,16 @@ export default function Vocabulary() {
                 return (
                   <div
                     key={w.id}
-                    className="rounded-xl border border-border/60 p-4 bg-card/50 transition hover:bg-card flex items-start justify-between gap-2"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setDetailWord(w)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setDetailWord(w);
+                      }
+                    }}
+                    className="text-left rounded-xl border border-border/60 p-4 bg-card/50 transition hover:bg-card flex items-start justify-between gap-2 cursor-pointer"
                   >
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
@@ -246,7 +257,10 @@ export default function Vocabulary() {
                       variant="ghost"
                       size="icon"
                       className="shrink-0"
-                      onClick={() => speak(w.word, learningLanguage)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        speak(w.word, learningLanguage);
+                      }}
                       title="Pronounce"
                     >
                       <Volume2 className="w-4 h-4" />
@@ -258,6 +272,18 @@ export default function Vocabulary() {
           )}
         </section>
       </div>
+
+      {detailWord && (
+        <WordDetailModal
+          open={!!detailWord}
+          onClose={() => setDetailWord(null)}
+          word={detailWord.word}
+          translation={detailWord.translation}
+          language={learningLanguage || "fr"}
+          state={detailWord.state}
+          speak={speak}
+        />
+      )}
     </div>
   );
 }
