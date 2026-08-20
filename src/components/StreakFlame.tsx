@@ -1,138 +1,128 @@
-import { useEffect, useRef } from "react";
-import gsap from "gsap";
 import { cn } from "@/lib/utils";
 
 /**
- * The streak flame — a particle fire on a canvas, sized to whatever it's given.
+ * The streak flame — a flat, bold vector flame in the Block Blast palette.
  *
- * It replaces a 24KB Lottie that was being stretched from 72px to 180px across
- * three call sites and desaturated with a CSS `grayscale` filter when the streak
- * was cold. A raster animation scaled that far, then filtered, is where the
- * "glitchy" look came from.
+ * Two earlier attempts were wrong in the same way. A 24KB Lottie was stretched
+ * from 72px to 460px and desaturated with a CSS filter, which is where the
+ * artefacts came from. Replacing it with a canvas particle fire fixed the
+ * scaling but not the look: a soft, glowy simulation is the opposite of this
+ * product's visual language, which is WordBlock — flat, saturated, hard-bevelled
+ * shapes. A smoke sim next to those tiles reads as cheap.
  *
- * The technique is deliberately the one already proven in GoldenDust: a canvas,
- * the GSAP ticker the project already runs, and additive blending so the warm
- * tones build into light rather than paint. That means the flame and the Golden
- * Reveal read as members of the same family, which a stock Lottie never could.
+ * So the flame is built the way the tiles are: layered solid shapes, a saturated
+ * face, a light core, a hard dark edge. Colours come from the same values as
+ * BLOCK_SKINS.orange and the Golden Reveal gold, so the flame belongs to the
+ * family rather than visiting it.
  *
- * Resolution-independent, a couple of KB, and no new dependency.
+ * SVG, so it is crisp at 24px and at 460px. Roughly 2KB and no dependency.
  */
 
-interface Ember {
-  /** 0..1 across the base of the flame. */
-  x: number;
-  /** 0 at the base, 1 at the tip. */
-  y: number;
-  vy: number;
-  drift: number;
-  seed: number;
-  size: number;
-}
-
 interface StreakFlameProps {
-  /** A cold streak burns low and blue-grey rather than being greyscaled. */
+  /**
+   * A cold streak keeps the exact silhouette and drops to the slate tile skin.
+   * Reading "not lit" beats reading "broken image", which is what greyscaling a
+   * full-colour animation always looked like.
+   */
   active?: boolean;
   size?: number;
   className?: string;
 }
 
-const EMBERS = 42;
+/** Matches BLOCK_SKINS in components/blocks/WordBlock.tsx. */
+const LIT = {
+  outerFrom: "#FF8A00",
+  outerTo: "#C46500",
+  innerFrom: "#FFB44D",
+  innerTo: "#FF8A00",
+  coreFrom: "#FFF3C4",
+  coreTo: "#FFD54A",
+  glow: "rgba(255,138,0,0.45)",
+};
 
-const spawn = (): Ember => ({
-  x: 0.5 + (Math.random() - 0.5) * 0.34,
-  y: Math.random(),
-  vy: 0.55 + Math.random() * 0.75,
-  drift: (Math.random() - 0.5) * 0.5,
-  seed: Math.random() * Math.PI * 2,
-  size: 0.05 + Math.random() * 0.09,
-});
+const COLD = {
+  outerFrom: "#4A4A57",
+  outerTo: "#2A2A33",
+  innerFrom: "#5A5A69",
+  innerTo: "#41414D",
+  coreFrom: "#6E6E7D",
+  coreTo: "#4A4A57",
+  glow: "rgba(0,0,0,0)",
+};
 
 export const StreakFlame = ({ active = true, size = 96, className }: StreakFlameProps) => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const activeRef = useRef(active);
-  activeRef.current = active;
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-    const dpr = Math.min(window.devicePixelRatio, 2);
-    canvas.width = size * dpr;
-    canvas.height = size * dpr;
-    ctx.scale(dpr, dpr);
-
-    const embers = Array.from({ length: EMBERS }, spawn);
-    let t = 0;
-
-    const draw = () => {
-      const lit = activeRef.current;
-      ctx.clearRect(0, 0, size, size);
-      ctx.globalCompositeOperation = "lighter";
-
-      for (const e of embers) {
-        if (!reduced) {
-          e.y += (e.vy * 0.006) * (lit ? 1 : 0.45);
-          if (e.y > 1) Object.assign(e, spawn(), { y: 0 });
-        }
-
-        // Narrow toward the tip so the silhouette reads as a flame rather than
-        // a column of sparks.
-        const taper = 1 - e.y * 0.72;
-        const wobble = Math.sin(t * 0.9 + e.seed) * 0.06 * e.y;
-        const px = (e.x - 0.5) * taper + 0.5 + wobble + e.drift * e.y * 0.12;
-        const py = 1 - e.y;
-
-        // Hot white-yellow at the base, deep orange at the tip. A cold streak
-        // keeps the shape but drops to a dim slate-blue, which reads as "not
-        // burning" far better than desaturating a full-colour animation.
-        const heat = 1 - e.y;
-        const r = lit ? 255 : 120;
-        const g = lit ? Math.round(90 + heat * 150) : 140;
-        const b = lit ? Math.round(20 + heat * 90) : 165;
-        const alpha = Math.sin(Math.min(e.y, 1) * Math.PI) * (lit ? 0.85 : 0.35);
-
-        const radius = e.size * size * taper;
-        const grad = ctx.createRadialGradient(
-          px * size, py * size, 0,
-          px * size, py * size, Math.max(radius, 0.6),
-        );
-        grad.addColorStop(0, `rgba(${r},${g},${b},${alpha})`);
-        grad.addColorStop(1, `rgba(${r},${g},${b},0)`);
-
-        ctx.fillStyle = grad;
-        ctx.beginPath();
-        ctx.arc(px * size, py * size, Math.max(radius, 0.6), 0, Math.PI * 2);
-        ctx.fill();
-      }
-
-      ctx.globalCompositeOperation = "source-over";
-      t += 0.016;
-    };
-
-    // Under reduced motion the flame is painted once and left alone: the shape
-    // and the lit/cold state still communicate, without anything moving.
-    if (reduced) {
-      draw();
-      return;
-    }
-
-    gsap.ticker.add(draw);
-    return () => {
-      gsap.ticker.remove(draw);
-    };
-  }, [size]);
+  const c = active ? LIT : COLD;
+  const uid = active ? "lit" : "cold";
 
   return (
-    <canvas
-      ref={canvasRef}
-      aria-hidden="true"
-      className={cn("shrink-0 transition-opacity duration-500", className)}
+    <div
+      className={cn("shrink-0", className)}
       style={{ width: size, height: size }}
-    />
+      aria-hidden="true"
+    >
+      <style>{`
+        @keyframes ls-flame-core {
+          0%, 100% { transform: scaleY(1) translateY(0); }
+          50%      { transform: scaleY(0.9) translateY(2px); }
+        }
+        @keyframes ls-flame-inner {
+          0%, 100% { transform: scaleY(1); }
+          50%      { transform: scaleY(0.94); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .ls-flame-core, .ls-flame-inner { animation: none !important; }
+        }
+      `}</style>
+
+      <svg viewBox="0 0 64 80" width="100%" height="100%" role="img">
+        <defs>
+          <linearGradient id={`fo-${uid}`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={c.outerFrom} />
+            <stop offset="100%" stopColor={c.outerTo} />
+          </linearGradient>
+          <linearGradient id={`fi-${uid}`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={c.innerFrom} />
+            <stop offset="100%" stopColor={c.innerTo} />
+          </linearGradient>
+          <linearGradient id={`fc-${uid}`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={c.coreFrom} />
+            <stop offset="100%" stopColor={c.coreTo} />
+          </linearGradient>
+        </defs>
+
+        {active && (
+          <ellipse cx="32" cy="58" rx="26" ry="22" fill={c.glow} opacity="0.55">
+            <animate
+              attributeName="opacity"
+              values="0.42;0.62;0.42"
+              dur="2.4s"
+              repeatCount="indefinite"
+            />
+          </ellipse>
+        )}
+
+        {/* Outer body. A waist at the middle is what separates a flame
+            silhouette from a teardrop. */}
+        <path
+          d="M32 3c0 0 13 16 13 28 0 8-4 12-4 18 0 6 6 8 8 14 3 9-5 16-17 16S12 72 15 63c2-6 8-8 8-14 0-6-4-10-4-18C19 19 32 3 32 3Z"
+          fill={`url(#fo-${uid})`}
+        />
+
+        <path
+          className="ls-flame-inner"
+          style={{ animation: "ls-flame-inner 1.9s ease-in-out infinite", transformOrigin: "32px 74px" }}
+          d="M32 21c0 0 7 11 7 18 0 5-3 8-3 12 0 5 4 6 4 10 0 5-4 8-8 8s-8-3-8-8c0-4 4-5 4-10 0-4-3-7-3-12 0-7 7-18 7-18Z"
+          fill={`url(#fi-${uid})`}
+        />
+
+        <path
+          className="ls-flame-core"
+          style={{ animation: "ls-flame-core 1.4s ease-in-out infinite", transformOrigin: "32px 74px" }}
+          d="M32 44c0 0 4 6 4 11 0 4-2 5-2 8 0 3 2 4 2 6 0 3-2 4-4 4s-4-1-4-4c0-2 2-3 2-6 0-3-2-4-2-8 0-5 4-11 4-11Z"
+          fill={`url(#fc-${uid})`}
+        />
+      </svg>
+    </div>
   );
 };
 
