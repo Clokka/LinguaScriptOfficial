@@ -7,6 +7,7 @@ import { LineBlastOverlay } from "@/components/LineBlastOverlay";
 import { Loader2, ArrowRight } from "lucide-react";
 import { useLineBlast } from "@/hooks/useLineBlast";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { nextState, type DeckState } from "@/lib/vocab";
 
 interface Exercise {
   id: string;
@@ -62,6 +63,61 @@ export function LinguaScriptSession({
     }
     return fired;
   }, [exercises, blast]);
+
+  /**
+   * Persist a clean (correct, no-hint) recall as forward SRS progress —
+   * the same red→orange→green rule FlashcardReview already applies, just
+   * reached from a word instead of an existing saved_words row.
+   */
+  const promoteWordState = useCallback(
+    async (targetWord: string) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: existing, error: fetchError } = await supabase
+        .from("saved_words")
+        .select("id, state, times_correct")
+        .eq("user_id", user.id)
+        .eq("language", learningLanguage)
+        .eq("word", targetWord)
+        .maybeSingle();
+
+      if (fetchError) {
+        console.error("[ActiveRecall] failed to load saved_words row", fetchError);
+        return;
+      }
+
+      const prevState = (existing?.state as DeckState | undefined) ?? "red";
+      const prevTimes = existing?.times_correct ?? 0;
+      const newState = nextState(prevState, prevTimes, true);
+      const newTimes = prevTimes + 1;
+
+      try {
+        if (existing) {
+          const patch: Record<string, unknown> = { state: newState, times_correct: newTimes };
+          if (newState !== prevState) patch.state_changed_at = new Date().toISOString();
+          const { error } = await supabase
+            .from("saved_words")
+            .update(patch as any)
+            .eq("id", existing.id);
+          if (error) throw error;
+        } else {
+          const { error } = await supabase.from("saved_words").insert({
+            user_id: user.id,
+            word: targetWord,
+            language: learningLanguage,
+            state: newState,
+            times_correct: newTimes,
+            state_changed_at: new Date().toISOString(),
+          } as any);
+          if (error) throw error;
+        }
+      } catch (error) {
+        console.error("[ActiveRecall] failed to persist deck transition", error);
+      }
+    },
+    [learningLanguage]
+  );
 
   // Load exercises
   useEffect(() => {
@@ -125,8 +181,15 @@ export function LinguaScriptSession({
 
   const handleActiveRecallComplete = useCallback(
     (data: { correct: boolean; xpEarned: number }) => {
+      const exercise = exercises[stageIndex % exercises.length];
+
       if (data.xpEarned > 0) {
         setSessionXp((prev) => prev + data.xpEarned);
+        if (exercise) {
+          // Clean recall is forward SRS progress, not just session XP.
+          void promoteWordState(exercise.target_word);
+          blast.markGreen(exercise.target_word);
+        }
         // Recall can be what pushes a word green and completes its sentence.
         checkSentences();
       } else {
@@ -134,7 +197,7 @@ export function LinguaScriptSession({
       }
       setStageIndex((prev) => prev + 1);
     },
-    [blast, checkSentences]
+    [blast, checkSentences, exercises, stageIndex, promoteWordState]
   );
 
   const handleLinguaScriptComplete = useCallback(
