@@ -7,19 +7,33 @@ import { LineBlastOverlay } from "@/components/LineBlastOverlay";
 import { Loader2, ArrowRight } from "lucide-react";
 import { useLineBlast } from "@/hooks/useLineBlast";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useAuth } from "@/hooks/useAuth";
+import { nextState, coerceDeckState, type DeckState } from "@/lib/vocab";
+import type { RecallOutcome } from "@/lib/activeRecall";
 
 interface Exercise {
   id: string;
   target_word: string;
   sentence: string;
   translation: string;
-  word_state: "red" | "orange" | "green";
+  word_state: DeckState;
+  /** The saved_words row this exercise was generated from, if any — the
+   *  write target for Active Recall's deck promotion. Older rows created
+   *  before this column was backfilled can be null. */
+  saved_word_id: string | null;
 }
 
+/**
+ * gap-fill and active-recall now carry `exerciseIndex` because they used to
+ * each pick their own word independently — gap-fill hardcoded exercises[0],
+ * recall rotated through exercises[stageIndex % length] — so a session could
+ * warm up on one word and test memory on a different one entirely. One index
+ * per stage is what makes "the same word climbs the ladder" true rather than
+ * aspirational.
+ */
 interface SessionStage {
   type: "gap-fill" | "active-recall" | "linguascript" | "complete";
-  exerciseIds?: string[];
-  words?: string[];
+  exerciseIndex?: number;
 }
 
 interface LinguaScriptSessionProps {
@@ -31,9 +45,9 @@ export function LinguaScriptSession({
   exerciseIds,
   onSessionComplete,
 }: LinguaScriptSessionProps) {
+  const { user } = useAuth();
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [loading, setLoading] = useState(true);
-  const [stage, setStage] = useState<SessionStage>({ type: "gap-fill", exerciseIds });
   const [stageIndex, setStageIndex] = useState(0);
   const [sessionXp, setSessionXp] = useState(0);
   const { learningLanguage } = useLanguage();
@@ -73,7 +87,12 @@ export function LinguaScriptSession({
           .in("id", exerciseIds);
 
         if (error) throw error;
-        setExercises((data || []) as unknown as Exercise[]);
+        setExercises(
+          ((data || []) as any[]).map((row) => ({
+            ...row,
+            word_state: coerceDeckState(row.word_state),
+          })) as Exercise[],
+        );
       } catch (err) {
         console.error("Error loading exercises:", err);
       } finally {
@@ -84,38 +103,21 @@ export function LinguaScriptSession({
     loadExercises();
   }, [exerciseIds]);
 
-  // Generate session stages
+  // Gap-fill then recall, per word, in order — then one production stage
+  // covering every word, then complete. See the SessionStage comment above
+  // for why the per-word index matters.
   const generateStages = useCallback((): SessionStage[] => {
     if (exercises.length === 0) return [];
 
     const stages: SessionStage[] = [];
-    const words = exercises.map((e) => e.target_word);
-
-    // Stage 1: Gap-Fill (warm-up, easy)
-    stages.push({
-      type: "gap-fill",
-      exerciseIds: exerciseIds,
+    exercises.forEach((_, i) => {
+      stages.push({ type: "gap-fill", exerciseIndex: i });
+      stages.push({ type: "active-recall", exerciseIndex: i });
     });
-
-    // Stage 2: Active Recall (hard, pure memory)
-    stages.push({
-      type: "active-recall",
-      exerciseIds: exerciseIds,
-    });
-
-    // Stage 3: LinguaScript Creation (production, hardest)
-    stages.push({
-      type: "linguascript",
-      words: words,
-    });
-
-    // Stage 4: Complete
-    stages.push({
-      type: "complete",
-    });
-
+    stages.push({ type: "linguascript" });
+    stages.push({ type: "complete" });
     return stages;
-  }, [exercises, exerciseIds]);
+  }, [exercises]);
 
   const stages = generateStages();
 
@@ -123,18 +125,62 @@ export function LinguaScriptSession({
     setStageIndex((prev) => prev + 1);
   }, []);
 
+  /**
+   * Promote the deck on a clean recall only. An assisted recall still earns
+   * XP but holds the word's current position — retrieval with a hint is real
+   * work, but it is the unaided recall that is evidence the word is learned.
+   * `nextState` is forward-only, so a promotion here can never demote a word
+   * that recall alone would demote.
+   */
   const handleActiveRecallComplete = useCallback(
-    (data: { correct: boolean; xpEarned: number }) => {
-      if (data.xpEarned > 0) {
-        setSessionXp((prev) => prev + data.xpEarned);
+    async (
+      data: { outcome: RecallOutcome; hintsUsed: number; xpEarned: number },
+      exercise: Exercise,
+    ) => {
+      if (data.xpEarned > 0) setSessionXp((prev) => prev + data.xpEarned);
+
+      if (data.outcome === "clean") {
+        const promoted = nextState(exercise.word_state, 0, true);
+        if (promoted !== exercise.word_state) {
+          setExercises((prev) =>
+            prev.map((e) => (e.id === exercise.id ? { ...e, word_state: promoted } : e)),
+          );
+          blast.markGreen(exercise.target_word);
+
+          if (user && exercise.saved_word_id) {
+            await supabase
+              .from("saved_words")
+              .update({ state: promoted, state_changed_at: new Date().toISOString() } as any)
+              .eq("id", exercise.saved_word_id)
+              .eq("user_id", user.id);
+          }
+        }
         // Recall can be what pushes a word green and completes its sentence.
         checkSentences();
       } else {
         blast.breakCombo();
       }
+
+      // linguascript_reviews already has a method_used constraint expecting
+      // 'active-recall' rows, and its whole purpose is Phase 2 spaced-
+      // repetition data — performance, first-try success — none of which
+      // existed anywhere until now. performance is a rough 0-100 proxy for
+      // that later use, not a precision score.
+      if (user) {
+        const performance = data.outcome === "clean" ? 100 : data.outcome === "assisted" ? 50 : 0;
+        void supabase.from("linguascript_reviews").insert({
+          linguascript_id: exercise.id,
+          user_id: user.id,
+          method_used: "active-recall",
+          performance,
+          first_try_correct: data.outcome === "clean" && data.hintsUsed === 0,
+          session_id: `session_${Date.now()}`,
+        } as any);
+      }
+
       setStageIndex((prev) => prev + 1);
     },
-    [blast, checkSentences]
+    [blast, checkSentences, user],
   );
 
   const handleLinguaScriptComplete = useCallback(
@@ -208,6 +254,9 @@ export function LinguaScriptSession({
   }
 
   const currentStage = stages[stageIndex];
+  const currentExercise =
+    currentStage.exerciseIndex != null ? exercises[currentStage.exerciseIndex] : undefined;
+  const wordNumber = currentStage.exerciseIndex != null ? currentStage.exerciseIndex + 1 : null;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 to-slate-900 p-6">
@@ -239,34 +288,50 @@ export function LinguaScriptSession({
 
       {/* Stage Content */}
       <div className="container mx-auto max-w-4xl">
-        {currentStage.type === "gap-fill" && (
+        {currentStage.type === "gap-fill" && currentExercise && (
           <div>
-            <p className="text-sm text-slate-400 mb-4">Stage 1: Gap-Fill (Warm-up)</p>
+            <p className="text-sm text-slate-400 mb-4">
+              Word {wordNumber} of {exercises.length} — Recognise
+            </p>
+            {/*
+              gapIndex and distractors are still the pre-existing bugs: this
+              blanks the FIRST word of the sentence rather than the target
+              word, and the distractor is a neighbouring exercise's word
+              rather than one drawn from the learner's own deck. Both are
+              scoped to the gap-fill rebuild (buildGapFill), not this pass —
+              the fix here is only that every stage now looks at the SAME
+              word, via currentExercise, instead of a hardcoded index.
+            */}
             <GapFillChallenge
-              words={exercises[0].sentence.split(/\s+/)}
-              gapIndex={0} // Simplified for now
+              words={currentExercise.sentence.split(/\s+/)}
+              gapIndex={0}
               distractors={[
-                exercises[1]?.target_word || "test",
-                exercises[2]?.target_word || "test",
+                exercises[(currentStage.exerciseIndex! + 1) % exercises.length]?.target_word ??
+                  "test",
+                exercises[(currentStage.exerciseIndex! + 2) % exercises.length]?.target_word ??
+                  "test",
                 "test",
               ]}
-              tier={exercises[0].word_state === "green" ? "orange" : exercises[0].word_state}
-              translation={exercises[0].translation}
+              tier={currentExercise.word_state === "green" ? "orange" : currentExercise.word_state}
+              translation={currentExercise.translation}
               onComplete={handleGapFillComplete}
               onSkip={handleSkip}
             />
           </div>
         )}
 
-        {currentStage.type === "active-recall" && (
+        {currentStage.type === "active-recall" && currentExercise && (
           <div>
-            <p className="text-sm text-slate-400 mb-4">Stage 2: Active Recall (Memory)</p>
+            <p className="text-sm text-slate-400 mb-4">
+              Word {wordNumber} of {exercises.length} — Recall
+            </p>
             <ActiveRecallReview
-              exerciseId={exerciseIds[stageIndex % exerciseIds.length]}
-              sentence={exercises[stageIndex % exercises.length].sentence}
-              targetWord={exercises[stageIndex % exercises.length].target_word}
-              translation={exercises[stageIndex % exercises.length].translation}
-              onComplete={handleActiveRecallComplete}
+              exerciseId={currentExercise.id}
+              sentence={currentExercise.sentence}
+              targetWord={currentExercise.target_word}
+              translation={currentExercise.translation}
+              language={learningLanguage}
+              onComplete={(data) => handleActiveRecallComplete(data, currentExercise)}
               onSkip={handleSkip}
             />
           </div>
