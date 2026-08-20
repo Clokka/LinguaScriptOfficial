@@ -21,3 +21,10 @@ export type DeckState = keyof typeof DECK;
 
 /** Ordered weakest → strongest, the direction a word travels as you learn it. */
 export const DECK_ORDER: DeckState[] = ["red", "orange", "green"];
+
+/**
+ * Celebration-only gold. Not a deck: it never marks a word's state, it only
+ * fires during a Line Blast and on the landing hero. Kept here so the one
+ * amber in the product cannot fork into five slightly different ambers.
+ */
+export const CELEBRATION_GOLD = "#FBBF24";
