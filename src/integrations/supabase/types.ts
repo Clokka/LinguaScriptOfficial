@@ -906,6 +906,8 @@ export type Database = {
           created_at: string
           ease_factor: number
           film_id: string | null
+          gold_seen_count: number
+          green_revealed_at: string | null
           id: string
           interval_days: number
           ipa: string
@@ -932,6 +934,8 @@ export type Database = {
           created_at?: string
           ease_factor?: number
           film_id?: string | null
+          gold_seen_count?: number
+          green_revealed_at?: string | null
           id?: string
           interval_days?: number
           ipa?: string
@@ -958,6 +962,8 @@ export type Database = {
           created_at?: string
           ease_factor?: number
           film_id?: string | null
+          gold_seen_count?: number
+          green_revealed_at?: string | null
           id?: string
           interval_days?: number
           ipa?: string
@@ -1836,6 +1842,7 @@ export type Database = {
           watch_number: number
         }[]
       }
+      reveal_green_word: { Args: { p_word_id: string }; Returns: Json }
       safe_display_name: {
         Args: { _display: string; _user_id: string; _username: string }
         Returns: string
@@ -1849,6 +1856,10 @@ export type Database = {
         Returns: number
       }
       set_username: { Args: { _username: string }; Returns: string }
+      touch_gold_word: {
+        Args: { p_decay_at?: number; p_word_id: string }
+        Returns: Json
+      }
       update_email_prefs: { Args: { _prefs: Json }; Returns: Json }
       update_privacy_settings: {
         Args: { _discoverable: boolean; _show_on_leaderboard: boolean }
