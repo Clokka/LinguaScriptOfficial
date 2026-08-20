@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { GapFillChallenge } from "@/components/GapFillChallenge";
+import { TileSentenceBuilder } from "@/components/TileSentenceBuilder";
 import { ActiveRecallReview } from "@/components/ActiveRecallReview";
 import { LinguaScriptCreation } from "@/components/LinguaScriptCreation";
 import { LineBlastOverlay } from "@/components/LineBlastOverlay";
@@ -19,7 +20,7 @@ interface Exercise {
 }
 
 interface SessionStage {
-  type: "gap-fill" | "active-recall" | "linguascript" | "complete";
+  type: "gap-fill" | "tile-builder" | "active-recall" | "linguascript" | "complete";
   exerciseIds?: string[];
   words?: string[];
 }
@@ -41,14 +42,14 @@ export function LinguaScriptSession({
   const { learningLanguage } = useLanguage();
 
   /**
-   * Every word runs the same three-stage spec — gap-fill, then active
-   * recall, then production — before the next word starts its own three.
-   * Interleaving stages across different words (gap-fill on word A, recall
-   * on word B) was the bug this fixes: STAGES_PER_WORD is the one place
-   * that ordering is defined, so the stage list and "which word is this"
-   * lookup can never drift apart again.
+   * Every word runs the same four-stage spec — gap-fill, tile builder,
+   * active recall, then production — before the next word starts its own
+   * four. Interleaving stages across different words (gap-fill on word A,
+   * recall on word B) was the bug this fixes: STAGES_PER_WORD is the one
+   * place that ordering is defined, so the stage list and "which word is
+   * this" lookup can never drift apart again.
    */
-  const STAGES_PER_WORD = 3;
+  const STAGES_PER_WORD = 4;
   const currentExercise = exercises[Math.floor(stageIndex / STAGES_PER_WORD)];
 
   /**
@@ -182,6 +183,7 @@ export function LinguaScriptSession({
 
     for (const ex of exercises) {
       stages.push({ type: "gap-fill", exerciseIds: [ex.id] });
+      stages.push({ type: "tile-builder", exerciseIds: [ex.id] });
       stages.push({ type: "active-recall", exerciseIds: [ex.id] });
       stages.push({ type: "linguascript", exerciseIds: [ex.id], words: [ex.target_word] });
     }
@@ -196,6 +198,21 @@ export function LinguaScriptSession({
   const handleGapFillComplete = useCallback(() => {
     setStageIndex((prev) => prev + 1);
   }, []);
+
+  const handleTileBuilderComplete = useCallback(
+    (data: { correct: boolean; xpEarned: number }) => {
+      const exercise = currentExercise;
+      if (data.correct && data.xpEarned > 0) {
+        setSessionXp((prev) => prev + data.xpEarned);
+        if (exercise) blast.markGreen(exercise.target_word);
+        checkSentences();
+      } else {
+        blast.breakCombo();
+      }
+      setStageIndex((prev) => prev + 1);
+    },
+    [blast, checkSentences, currentExercise]
+  );
 
   const handleActiveRecallComplete = useCallback(
     (data: { correct: boolean; xpEarned: number }) => {
@@ -338,6 +355,21 @@ export function LinguaScriptSession({
           </div>
         )}
 
+        {currentStage.type === "tile-builder" && currentExercise && (
+          <div>
+            <p className="text-sm text-slate-400 mb-4">
+              Word {wordNumber} of {exercises.length} · Tile Builder
+            </p>
+            <TileSentenceBuilder
+              sentence={currentExercise.sentence}
+              translation={currentExercise.translation}
+              language={learningLanguage}
+              onComplete={handleTileBuilderComplete}
+              onSkip={handleSkip}
+            />
+          </div>
+        )}
+
         {currentStage.type === "active-recall" && currentExercise && (
           <div>
             <p className="text-sm text-slate-400 mb-4">
@@ -374,7 +406,7 @@ export function LinguaScriptSession({
               <p className="text-slate-400">Session Complete!</p>
             </div>
             <p className="text-slate-300 mb-6">
-              Great work! You completed all 3 methods for {exercises.length} words.
+              Great work! You completed all 4 methods for {exercises.length} words.
             </p>
             <button
               onClick={handleSessionComplete}
