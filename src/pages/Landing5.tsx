@@ -104,7 +104,7 @@ const Landing5 = () => {
           animate="visible"
           custom={2}
           variants={reveal}
-          className="mt-10 text-lg sm:text-xl text-white/60 max-w-xl mx-auto leading-relaxed"
+          className="mt-2 text-lg sm:text-xl text-white/60 max-w-xl mx-auto leading-relaxed"
         >
           The app that makes learning a language free, fun, and open to everyone.
         </motion.p>
