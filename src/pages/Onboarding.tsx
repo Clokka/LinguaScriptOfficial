@@ -237,16 +237,32 @@ const Onboarding = () => {
 
             {step === 1 && (
               <Card>
-                <Eyebrow icon={<Sparkles className="w-3.5 h-3.5" />}>Quick setup</Eyebrow>
-                <Title>Let's tune Linguascript to you.</Title>
+                <Eyebrow icon={<Sparkles className="w-3.5 h-3.5" />}>Sign up</Eyebrow>
+                <Title>Let's tune LinguaScript to you.</Title>
                 <Sub>Tell us your languages and current level — this powers translations and recommendations.</Sub>
 
                 <div className="mt-8 space-y-6">
+                  {/* Neither list excludes the other language: a French speaker must be
+                      able to pick French as their native tongue even while French is
+                      still the default learning language. Picking the same language on
+                      both sides simply clears the other side. */}
                   <Field label="I speak (native)">
-                    <LangSelect value={native} onChange={setNative} exclude={target} />
+                    <LangSelect
+                      value={native}
+                      onChange={(v) => {
+                        setNative(v);
+                        if (v === target) setTarget("");
+                      }}
+                    />
                   </Field>
                   <Field label="I want to learn">
-                    <LearningLanguageSelect value={target} onChange={setTarget} exclude={native} />
+                    <LearningLanguageSelect
+                      value={target}
+                      onChange={(v) => {
+                        setTarget(v);
+                        if (v === native) setNative("");
+                      }}
+                    />
                   </Field>
 
                   <Field label="My current level">
