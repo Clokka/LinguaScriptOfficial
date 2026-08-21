@@ -18,6 +18,7 @@ import Landing from "./pages/Landing";
 import LandingPage2 from "./pages/LandingPage2";
 import LandingPage3 from "./pages/LandingPage3";
 import LandingPage4 from "./pages/LandingPage4";
+import Landing5 from "./pages/Landing5";
 import GapDemo from "./pages/GapDemo";
 import Demo from "./pages/Demo";
 import Browse from "./pages/Browse";
@@ -70,6 +71,7 @@ const App = () => (
                 <Route path="/landingpage2" element={<LandingPage2 />} />
                 <Route path="/landingpage3" element={<LandingPage3 />} />
                 <Route path="/landingpage4" element={<LandingPage4 />} />
+                <Route path="/landing5" element={<Landing5 />} />
                 <Route path="/gap-demo" element={<GapDemo />} />
                 <Route path="/demo" element={<Demo />} />
                 <Route path="/browse" element={<Navigate to="/discover" replace />} />
