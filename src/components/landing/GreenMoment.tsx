@@ -8,12 +8,14 @@ gsap.registerPlugin(ScrollTrigger);
 
 /** The line that turns green. French → English, word by word. */
 const LINE = [
-  { fr: "alors,", en: "so," },
-  { fr: "quelle", en: "what" },
-  { fr: "est", en: "is" },
+  { fr: "J'utiliserai", en: "I will use" },
   { fr: "la", en: "the" },
   { fr: "meilleure", en: "best" },
-  { fr: "façon", en: "way" },
+  { fr: "application", en: "app" },
+  { fr: "d'apprentissage", en: "for learning" },
+  { fr: "des", en: "" },
+  { fr: "langues", en: "languages" },
+  { fr: "(LinguaScript).", en: "(LinguaScript)." },
 ];
 
 /**
