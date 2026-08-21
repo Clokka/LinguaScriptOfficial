@@ -92,9 +92,9 @@ export const GreenMoment = () => {
           The moment it clicks
         </p>
         <h2 className="text-4xl sm:text-6xl font-extrabold tracking-tight leading-[1.05] mb-14">
-          Watch the language
+          Scroll to turn the
           <br />
-          <span className="text-[#34C759]">turn green.</span>
+          <span className="text-[#34C759]">LinguaScript green.</span>
         </h2>
 
         <div className="grid gap-12 md:grid-cols-[1.35fr_1fr] md:items-center">
