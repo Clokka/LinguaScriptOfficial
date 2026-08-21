@@ -40,7 +40,7 @@ const PHASE_COLOR: Record<Phase, string> = {
   gold: CELEBRATION_GOLD,
 };
 
-export const HeroWordmarkBlast = ({ chameleonSize = 300 }: { chameleonSize?: number }) => {
+export const HeroWordmarkBlast = ({ chameleonSize = 260 }: { chameleonSize?: number }) => {
   const [phase, setPhase] = useState<Phase>("idle");
   const [running, setRunning] = useState(false);
   const [combo, setCombo] = useState(0);
@@ -160,7 +160,7 @@ export const HeroWordmarkBlast = ({ chameleonSize = 300 }: { chameleonSize?: num
           {running ? "There it goes." : "Tap Script. That is the whole app in one word."}
         </p>
 
-        <div className="mt-6" data-cursor="hot">
+        <div className="-mt-2" data-cursor="hot">
           <Chameleon3D tier={PHASE_TIER[phase]} size={chameleonSize} />
         </div>
       </div>

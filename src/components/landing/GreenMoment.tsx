@@ -8,12 +8,14 @@ gsap.registerPlugin(ScrollTrigger);
 
 /** The line that turns green. French → English, word by word. */
 const LINE = [
-  { fr: "alors,", en: "so," },
-  { fr: "quelle", en: "what" },
-  { fr: "est", en: "is" },
+  { fr: "J'utiliserai", en: "I will use" },
   { fr: "la", en: "the" },
   { fr: "meilleure", en: "best" },
-  { fr: "façon", en: "way" },
+  { fr: "application", en: "app" },
+  { fr: "d'apprentissage", en: "for learning" },
+  { fr: "des", en: "" },
+  { fr: "langues", en: "languages" },
+  { fr: "(LinguaScript).", en: "(LinguaScript)." },
 ];
 
 /**
@@ -90,9 +92,9 @@ export const GreenMoment = () => {
           The moment it clicks
         </p>
         <h2 className="text-4xl sm:text-6xl font-extrabold tracking-tight leading-[1.05] mb-14">
-          Watch the language
+          Scroll to turn the
           <br />
-          <span className="text-[#34C759]">turn green.</span>
+          <span className="text-[#34C759]">LinguaScript green.</span>
         </h2>
 
         <div className="grid gap-12 md:grid-cols-[1.35fr_1fr] md:items-center">
