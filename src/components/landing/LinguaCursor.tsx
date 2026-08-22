@@ -16,8 +16,12 @@ export const LinguaCursor = () => {
 
   useLayoutEffect(() => {
     const fine = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+    const coarse = window.matchMedia("(any-pointer: coarse)").matches;
+    const touch = (navigator.maxTouchPoints ?? 0) > 0 || "ontouchstart" in window;
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (!fine || reduced) return;
+    // Some mobile browsers report a fine pointer during the first paint; any
+    // sign of touch capability disqualifies the custom cursor outright.
+    if (!fine || coarse || touch || reduced) return;
 
     const a = arrow.current;
     const h = halo.current;
