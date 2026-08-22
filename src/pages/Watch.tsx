@@ -541,13 +541,16 @@ const Watch = () => {
       let primary: SubtitleSegment[] = [];
       let secondary: SubtitleSegment[] = [];
       let loadError: string | null = null;
+      let usedLang = primaryLang;
       try {
         const res = await loadAllCaptions(
           film.id, ytId, primaryLang, secondaryLang,
           (msg) => { if (!cancelled) setCaptionsStatus(msg); },
+          [film.language || "", secondaryLang, "en"],
         );
         primary = res.primary;
         secondary = res.secondary;
+        usedLang = res.primaryLang;
       } catch (e: any) {
         loadError = e?.message || "Caption fetch failed";
       }
@@ -557,6 +560,12 @@ const Watch = () => {
       if (primary.length > 0) {
         setSubtitles(buildDisplaySubtitles(primary, secondary));
         setCaptionsStatus(null);
+        if (usedLang !== primaryLang) {
+          toast.message(`No ${getLanguageLabel(primaryLang)} captions on this video`, {
+            description: `Showing ${getLanguageLabel(usedLang)} with a ${getLanguageLabel(secondaryLang)} translation underneath.`,
+            duration: 7000,
+          });
+        }
       } else {
         const detail = loadError ? ` (${loadError})` : "";
         setCaptionsError(
