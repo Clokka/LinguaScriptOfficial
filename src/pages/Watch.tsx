@@ -160,7 +160,14 @@ async function loadAllCaptions(
   primaryLang: string,
   secondaryLang: string,
   onStatus: (msg: string) => void,
-): Promise<{ primary: SubtitleSegment[]; secondary: SubtitleSegment[] }> {
+  /**
+   * Languages to fall back to when the learning language has no caption track
+   * on this video — e.g. a French learner opening an English video. We would
+   * rather show the video's own language on top and translate underneath than
+   * refuse to play it: there is still real reading practice in that.
+   */
+  fallbackLangs: string[] = [],
+): Promise<{ primary: SubtitleSegment[]; secondary: SubtitleSegment[]; primaryLang: string }> {
   // 1) Check DB
   onStatus("Checking saved captions…");
   let primary = await loadStoredTrack(filmId, primaryLang);
