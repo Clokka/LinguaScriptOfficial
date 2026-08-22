@@ -28,6 +28,7 @@ const SUPPORTED_LANGUAGES = [
   { code: "de", label: "German", flag: "🇩🇪" },
   { code: "it", label: "Italian", flag: "🇮🇹" },
   { code: "en", label: "English", flag: "🇬🇧" },
+  { code: "zh", label: "Chinese", flag: "🇨🇳" },
 ];
 
 const FREE_SWITCH_ALLOWANCE = 1;
