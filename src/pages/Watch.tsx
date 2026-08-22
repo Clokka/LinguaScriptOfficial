@@ -188,8 +188,12 @@ async function loadAllCaptions(
   }
 
   if (primary.length > 0 && (primaryLang === secondaryLang || secondary.length > 0)) {
-    return { primary, secondary };
+    return { primary, secondary, primaryLang };
   }
+
+  // The language the top line actually ends up in. Normally the learning
+  // language; swapped by the fallback below when the video has no track in it.
+  let effectivePrimary = primaryLang;
 
   // 2) Fetch via edge function (proxies InnerTube + tlang to avoid CORS)
   let edgeFailure: string | null = null;
@@ -241,10 +245,52 @@ async function loadAllCaptions(
       }
     }
 
+    // Fallback C: no track in the learning language at all — take whatever the
+    // video actually has (its own language, then the user's native language,
+    // then English) and make that the top line.
+    if (!primary.length) {
+      const tried = new Set([primaryLang]);
+      for (const alt of fallbackLangs) {
+        const code = (alt || "").toLowerCase();
+        if (!code || tried.has(code)) continue;
+        tried.add(code);
+        onStatus(`No ${getLanguageLabel(primaryLang)} captions — trying ${getLanguageLabel(code)}…`);
+
+        let found: SubtitleSegment[] = await loadStoredTrack(filmId, code);
+        if (!found.length) {
+          try {
+            const { data } = (await supabase.functions.invoke("fetch-captions", {
+              body: { videoId, language: code, nativeLanguage: code },
+            })) as any;
+            if (data?.subtitles?.length) found = data.subtitles;
+          } catch (e) {
+            console.warn(`Fallback caption fetch (${code}) failed:`, e);
+          }
+        }
+        if (!found.length) {
+          try {
+            const browserRes = await fetchCaptionsFromBrowser(videoId, code, code);
+            if (browserRes.learning.length) found = browserRes.learning;
+          } catch (e) {
+            console.warn(`Fallback browser caption fetch (${code}) failed:`, e);
+          }
+        }
+
+        if (found.length) {
+          primary = found;
+          effectivePrimary = code;
+          edgeFailure = null;
+          secondary = [];
+          await persistTrack(filmId, code, primary);
+          break;
+        }
+      }
+    }
+
     // Fallback B: AI translate if one track still missing
-    if (primary.length && !secondary.length && primaryLang !== secondaryLang) {
+    if (primary.length && !secondary.length && effectivePrimary !== secondaryLang) {
       onStatus(`Translating to ${getLanguageLabel(secondaryLang)}…`);
-      secondary = await translateTrack(primary, primaryLang, secondaryLang);
+      secondary = await translateTrack(primary, effectivePrimary, secondaryLang);
       if (secondary.length) await persistTrack(filmId, secondaryLang, secondary);
     }
 
@@ -254,7 +300,11 @@ async function loadAllCaptions(
     }
   }
 
-  return { primary, secondary: primaryLang === secondaryLang ? primary : secondary };
+  return {
+    primary,
+    secondary: effectivePrimary === secondaryLang ? primary : secondary,
+    primaryLang: effectivePrimary,
+  };
 }
 
 // ── YT Player globals ──
