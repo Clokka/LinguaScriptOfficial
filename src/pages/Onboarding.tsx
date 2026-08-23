@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectSe
 import { LANGUAGES } from "@/lib/languages";
 // (InteractiveDemo replaced by the live tour overlay launched from this screen)
 import { useAuth } from "@/hooks/useAuth";
-import brandLockup from "@/assets/brand/linguascript-lockup.png.asset.json";
+import brandLockup from "@/assets/brand/linguascript-wordmark.png.asset.json";
 import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTour } from "@/contexts/TourContext";
