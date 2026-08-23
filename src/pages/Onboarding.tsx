@@ -662,7 +662,7 @@ const InfoTile = ({ icon, title, body }: { icon: React.ReactNode; title: string;
 const PillarCard = ({
   icon, pillar, aliases, title, body,
 }: { icon: React.ReactNode; pillar: string; aliases: string; title: string; body: string }) => (
-  <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-orange-50/60 to-white p-5 flex gap-4">
+  <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 flex gap-4">
     <div className="shrink-0 w-12 h-12 rounded-2xl bg-gradient-to-br from-[#34C759] to-[#FF8A00] text-white flex items-center justify-center shadow-[0_8px_20px_-8px_rgba(52,199,89,0.6)]">
       {icon}
     </div>
