@@ -449,11 +449,8 @@ const Browse = () => {
     <div className="min-h-screen bg-background flex">
       {/* Sidebar */}
       <aside className="hidden md:flex flex-col w-52 bg-card border-r border-border py-6 shrink-0">
-        <button onClick={() => navigate("/")} className="flex items-center gap-3 px-5 mb-8">
-          <div className="w-9 h-9 rounded-xl bg-gradient-primary flex items-center justify-center shadow-glow-primary">
-            <Languages className="w-4 h-4 text-primary-foreground" />
-          </div>
-          <span className="text-sm font-bold gradient-text">LinguaScript</span>
+          <button onClick={() => navigate("/")} className="flex items-center px-5 mb-8" aria-label="LinguaScript home">
+           <BrandMark variant="lockup" size={34} />
         </button>
 
         <nav className="flex flex-col gap-1 px-3 flex-1">

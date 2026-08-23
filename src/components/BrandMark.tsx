@@ -23,10 +23,10 @@ export function BrandMark({ variant = "lockup", size = 40, className }: BrandMar
       <img
         src={chameleon.url}
         alt="LinguaScript"
-        width={size}
+        width={Math.round(size * 0.9)}
         height={size}
         className="object-contain drop-shadow-[0_2px_10px_rgba(52,199,89,0.35)]"
-        style={{ height: size, width: size }}
+        style={{ height: size, width: "auto", maxWidth: Math.round(size * 0.9) }}
       />
       {variant === "lockup" && (
         <img
