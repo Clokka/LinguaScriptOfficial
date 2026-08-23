@@ -5,6 +5,7 @@ import { ArrowLeft, Volume2, BookOpen, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { LevelBadge } from "@/components/LevelBadge";
+import { BrandMark } from "@/components/BrandMark";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -18,6 +19,7 @@ interface DeckWord {
   translation: string;
   state: DeckState;
   state_changed_at?: string | null;
+  created_at?: string | null;
 }
 
 // Three universal vocabulary states, shared across every language and every
@@ -71,7 +73,7 @@ export default function Vocabulary() {
       }
       const { data } = await supabase
         .from("saved_words")
-        .select("id, word, translation, state, state_changed_at")
+        .select("id, word, translation, state, state_changed_at, created_at")
         .eq("user_id", user.id)
         .eq("language", lang)
         .order("created_at", { ascending: false });
@@ -97,11 +99,22 @@ export default function Vocabulary() {
     return Math.max(0, coreTotal - words.length);
   }, [coreTotal, words.length]);
 
+  // Words genuinely *learned* this week — i.e. promoted to green after being
+  // saved. CEFR-seeded vocabulary is created green in one shot (created_at ==
+  // state_changed_at), and counting it produced the fictional "+700 this week"
+  // a brand-new account was shown on day one.
   const learnedThisWeek = useMemo(() => {
     const since = Date.now() - 7 * 24 * 60 * 60 * 1000;
-    return words.filter(
-      (w) => w.state === "green" && w.state_changed_at && new Date(w.state_changed_at).getTime() >= since,
-    ).length;
+    return words.filter((w) => {
+      if (w.state !== "green" || !w.state_changed_at) return false;
+      const changed = new Date(w.state_changed_at).getTime();
+      if (changed < since) return false;
+      if (w.created_at) {
+        const created = new Date(w.created_at).getTime();
+        if (Math.abs(changed - created) < 5000) return false; // seeded, not learned
+      }
+      return true;
+    }).length;
   }, [words]);
 
   const filtered = useMemo(() => {
@@ -121,6 +134,7 @@ export default function Vocabulary() {
           <Button variant="ghost" size="icon" onClick={() => navigate("/discover")}>
             <ArrowLeft className="w-5 h-5" />
           </Button>
+          <BrandMark variant="pin" size={26} />
           <h1 className="text-lg font-bold text-foreground">Your Vocabulary</h1>
           <div className="ml-auto"><LevelBadge /></div>
         </div>
@@ -128,9 +142,9 @@ export default function Vocabulary() {
 
       <div className="max-w-5xl mx-auto px-6 py-8 space-y-8">
         {/* Confidence-first hero: surface Recognized Vocabulary front and centre. */}
-        <section className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-6">
-          <p className="text-xs uppercase tracking-wider text-emerald-400/80 font-semibold">Recognized vocabulary</p>
-          <p className="text-5xl font-bold tabular-nums text-emerald-300 mt-1">
+        <section className="rounded-2xl border border-[#34C759]/40 bg-[#34C759]/10 p-6">
+          <p className="text-xs uppercase tracking-wider text-[#34C759] font-semibold">Recognized vocabulary</p>
+          <p className="text-5xl font-bold tabular-nums text-[#34C759] mt-1">
             {counts.green.toLocaleString()}
             {coreTotal != null && (
               <span className="text-base text-muted-foreground font-normal ml-2">
@@ -166,7 +180,7 @@ export default function Vocabulary() {
                   <span className={cn("w-2.5 h-2.5 rounded-full", meta.dot)} />
                   <p className="font-semibold text-foreground">{d.title}</p>
                 </div>
-                <p className="text-4xl font-bold tabular-nums">{counts[d.key]}</p>
+                <p className={cn("text-4xl font-bold tabular-nums", meta.text)}>{counts[d.key]}</p>
                 <p className="text-xs text-muted-foreground mt-1">{d.subtitle}</p>
               </motion.button>
             );
@@ -182,7 +196,7 @@ export default function Vocabulary() {
           </div>
           <div className="glass-panel rounded-2xl p-5">
             <p className="text-xs uppercase tracking-wider text-muted-foreground/70">Learned this week</p>
-            <p className="text-3xl font-bold mt-1 tabular-nums text-emerald-500">+{learnedThisWeek}</p>
+            <p className="text-3xl font-bold mt-1 tabular-nums text-[#34C759]">+{learnedThisWeek}</p>
           </div>
         </section>
 

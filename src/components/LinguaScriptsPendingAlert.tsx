@@ -1,10 +1,12 @@
 import { Zap, ArrowRight } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 
 interface LinguaScriptsPendingAlertProps {
   count: number;
   estimatedTime?: number; // in minutes
-  onStart: () => void;
+  /** Optional in-page session. Without it (or if it no-ops) we go to /linguascripts. */
+  onStart?: () => void;
 }
 
 export function LinguaScriptsPendingAlert({
@@ -12,6 +14,11 @@ export function LinguaScriptsPendingAlert({
   estimatedTime = 5,
   onStart,
 }: LinguaScriptsPendingAlertProps) {
+  const navigate = useNavigate();
+  const start = () => {
+    if (onStart) onStart();
+    else navigate("/linguascripts");
+  };
   return (
     <div className="mb-8 bg-gradient-to-r from-amber-500/20 via-amber-500/10 to-emerald-500/10 border border-amber-500/30 rounded-2xl p-8 backdrop-blur-sm">
       <div className="flex items-start justify-between gap-6">
@@ -33,7 +40,7 @@ export function LinguaScriptsPendingAlert({
         </div>
 
         <Button
-          onClick={onStart}
+          onClick={start}
           className="whitespace-nowrap bg-gradient-to-r from-amber-400 to-emerald-400 text-slate-900 font-bold hover:shadow-lg hover:shadow-amber-500/50 transition-all"
         >
           Start <ArrowRight className="w-4 h-4 ml-2" />

@@ -92,10 +92,14 @@ export function GapFillChallenge({
     [answer, filled, goldSweep, onComplete],
   );
 
-  // Pointer-based drag so it works with both mouse and touch.
+  // Pointer-based drag so it works with both mouse and touch. Touch pointers get
+  // implicit capture on the block, which keeps pointermove pinned to it and made
+  // the drag look frozen on phones — release it so the window listeners drive.
   const startDrag = (label: string) => (e: React.PointerEvent) => {
     if (filled) return;
     e.preventDefault();
+    const el = e.currentTarget as HTMLElement;
+    if (el.hasPointerCapture?.(e.pointerId)) el.releasePointerCapture(e.pointerId);
     setDrag({ label, x: e.clientX, y: e.clientY });
   };
 

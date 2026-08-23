@@ -5,7 +5,8 @@ import { lovable } from "@/integrations/lovable/index";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Layers, Mail, Lock, User } from "lucide-react";
+import { Mail, Lock, User } from "lucide-react";
+import { BrandMark } from "@/components/BrandMark";
 import { useToast } from "@/hooks/use-toast";
 
 function GoogleIcon() {
@@ -140,9 +141,7 @@ const Auth = () => {
       <div className="absolute inset-0 bg-gradient-hero pointer-events-none" />
       <div className="relative z-10 w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-primary flex items-center justify-center shadow-glow-primary mx-auto mb-4">
-            <Layers className="w-7 h-7 text-primary-foreground" />
-          </div>
+          <BrandMark variant="lockup" size={44} className="mx-auto mb-5" />
           <h1 className="text-3xl font-bold text-foreground">
             {isLogin ? "Welcome back" : "Join LinguaScript"}
           </h1>

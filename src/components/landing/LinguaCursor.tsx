@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import gsap from "gsap";
 
 /**
@@ -13,6 +13,21 @@ import gsap from "gsap";
 export const LinguaCursor = () => {
   const arrow = useRef<HTMLDivElement>(null);
   const halo = useRef<HTMLDivElement>(null);
+  // Nothing is rendered until the device has proven it is a mouse-driven one.
+  // Rendering first and hiding later left a frozen arrow painted at 0,0 on
+  // phones — the nodes existed before any pointer event could position them.
+  const [enabled, setEnabled] = useState(false);
+
+  useEffect(() => {
+    const fine = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+    const coarse = window.matchMedia("(any-pointer: coarse)").matches;
+    const touch = (navigator.maxTouchPoints ?? 0) > 0 || "ontouchstart" in window;
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (fine && !coarse && !touch && !reduced) setEnabled(true);
+    const off = () => setEnabled(false);
+    window.addEventListener("touchstart", off, { once: true, passive: true });
+    return () => window.removeEventListener("touchstart", off);
+  }, []);
 
   useLayoutEffect(() => {
     const fine = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
@@ -21,7 +36,7 @@ export const LinguaCursor = () => {
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     // Some mobile browsers report a fine pointer during the first paint; any
     // sign of touch capability disqualifies the custom cursor outright.
-    if (!fine || coarse || touch || reduced) return;
+    if (!enabled || !fine || coarse || touch || reduced) return;
 
     const a = arrow.current;
     const h = halo.current;
@@ -70,7 +85,9 @@ export const LinguaCursor = () => {
       document.removeEventListener("pointerleave", onOut);
       gsap.killTweensOf([a, h]);
     };
-  }, []);
+  }, [enabled]);
+
+  if (!enabled) return null;
 
   return (
     <>
