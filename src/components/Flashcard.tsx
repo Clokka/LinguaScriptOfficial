@@ -80,10 +80,28 @@ export const Flashcard = ({
           {imageUrl && showLearningFirst && (
             <img src={imageUrl} alt={word} className="w-28 h-28 object-cover rounded-2xl mb-3 shadow-md" />
           )}
-          <p className={cn("mb-4", showLearningFirst ? "text-4xl font-bold gradient-text" : "text-3xl font-bold text-foreground")}>
+          <p
+            className={cn(
+              "mb-2",
+              showLearningFirst ? "text-4xl font-bold" : "text-3xl font-bold text-foreground",
+              showLearningFirst && !deckColor && "gradient-text",
+            )}
+            style={showLearningFirst && deckColor ? { color: deckColor } : undefined}
+          >
             {frontText || "—"}
           </p>
-          <p className="text-muted-foreground text-lg">{frontSub}</p>
+          {showLearningFirst && romanisation ? (
+            /* Pinyin carries the same deck colour as its character. */
+            <p
+              className="text-xl font-semibold"
+              style={deckColor ? { color: deckColor, opacity: 0.85 } : undefined}
+            >
+              {romanisation}
+            </p>
+          ) : (
+            <p className="text-muted-foreground text-lg">{frontSub}</p>
+          )}
+
           {context && showLearningFirst && (
             <div className="mt-4 text-center space-y-1">
               <p className="text-sm text-muted-foreground italic">"{context}"</p>
