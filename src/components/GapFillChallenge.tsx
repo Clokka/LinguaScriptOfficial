@@ -151,10 +151,15 @@ export function GapFillChallenge({
     };
     const up = (e: PointerEvent) => {
       const box = slotRef.current?.getBoundingClientRect();
+      // Test the tile's centre, not the raw finger point, so an edge grab
+      // drops where the block visually sits.
+      const cx = e.clientX + grabOffsetRef.current.x;
+      const cy = e.clientY + grabOffsetRef.current.y;
       const hit =
         box &&
-        e.clientX >= box.left - 28 && e.clientX <= box.right + 28 &&
-        e.clientY >= box.top - 28 && e.clientY <= box.bottom + 28;
+        cx >= box.left - 40 && cx <= box.right + 40 &&
+        cy >= box.top - 40 && cy <= box.bottom + 40;
+
       const label = drag.label;
       if (hit) attempt(label);
       else setDrag(null);
