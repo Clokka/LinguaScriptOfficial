@@ -42,6 +42,7 @@ import Upgrade from "./pages/Upgrade";
 import CheckoutReturn from "./pages/CheckoutReturn";
 import Privacy from "./pages/Privacy";
 import PrivacyExtension from "./pages/PrivacyExtension";
+import Terms from "./pages/Terms";
 import Teacher from "./pages/Teacher";
 import Progress from "./pages/Progress";
 import GiftClaim from "./pages/GiftClaim";
