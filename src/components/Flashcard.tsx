@@ -3,6 +3,17 @@ import { Volume2, Check, X, RotateCcw } from "lucide-react";
 import { Button } from "./ui/button";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/contexts/LanguageContext";
+import type { DeckState } from "@/lib/vocab";
+
+/** Same hexes as the subtitle overlay — one word, one colour, everywhere. */
+const DECK_COLORS: Record<DeckState, string> = {
+  red: "#FF3B30",
+  orange: "#FF8A00",
+  green: "#34C759",
+};
+
+/** Chinese cards lead with the characters and carry pinyin underneath. */
+const isChinese = (lang?: string) => !!lang && lang.toLowerCase().startsWith("zh");
 
 interface FlashcardProps {
   word: string;
@@ -13,6 +24,8 @@ interface FlashcardProps {
   contextTranslation?: string;
   imageUrl?: string;
   language?: string;
+  /** Deck the card lives in — the word and its pinyin render in this colour. */
+  state?: DeckState;
   direction?: "learn-to-native" | "native-to-learn";
   onCorrect: () => void;
   onIncorrect: () => void;
@@ -27,6 +40,7 @@ export const Flashcard = ({
   contextTranslation,
   imageUrl,
   language,
+  state,
   direction = "learn-to-native",
   onCorrect,
   onIncorrect,
@@ -35,6 +49,11 @@ export const Flashcard = ({
   const { speak } = useLanguage();
 
   const handleFlip = () => setIsFlipped(!isFlipped);
+
+  const deckColor = state ? DECK_COLORS[state] : undefined;
+  // For Chinese the "phonetic" line is pinyin, and it must read as clearly as
+  // the character it belongs to — it is the pronunciation, not a footnote.
+  const romanisation = isChinese(language) ? (ipa || pronunciation) : "";
 
   // Determine which side shows what based on direction
   const showLearningFirst = direction === "learn-to-native";
@@ -45,6 +64,7 @@ export const Flashcard = ({
   const backText = showLearningFirst ? translation : word;
   const backSub = showLearningFirst ? pronunciation : ipa;
   const frontHint = showLearningFirst ? "Tap to reveal translation" : "Tap to reveal the word";
+
 
   return (
     <div className="flashcard-container w-full max-w-md mx-auto">
