@@ -118,10 +118,27 @@ export const Flashcard = ({
         {/* Back */}
         <div className="flashcard-face flashcard-back glass-panel-strong p-8 flex flex-col items-center justify-center shadow-float">
           <p className="text-xs uppercase tracking-wider text-muted-foreground/60 mb-2">{backLabel}</p>
-          <p className={cn("mb-3", showLearningFirst ? "text-3xl font-bold text-foreground" : "text-4xl font-bold gradient-text")}>
+          <p
+            className={cn(
+              "mb-2",
+              showLearningFirst ? "text-3xl font-bold text-foreground" : "text-4xl font-bold",
+              !showLearningFirst && !deckColor && "gradient-text",
+            )}
+            style={!showLearningFirst && deckColor ? { color: deckColor } : undefined}
+          >
             {backText || "—"}
           </p>
-          <p className="text-muted-foreground">{backSub}</p>
+          {!showLearningFirst && romanisation ? (
+            <p
+              className="text-xl font-semibold"
+              style={deckColor ? { color: deckColor, opacity: 0.85 } : undefined}
+            >
+              {romanisation}
+            </p>
+          ) : (
+            <p className="text-muted-foreground">{backSub}</p>
+          )}
+
           {context && (
             <div className="mt-4 text-center space-y-1 border-t border-border/30 pt-3">
               <p className="text-sm font-medium text-foreground/80 italic">"{context}"</p>
