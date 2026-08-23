@@ -508,7 +508,15 @@ export const SubtitleOverlay = ({
           position={popupPosition}
           language={effectiveLang}
           translating={translating}
+          /* The popup must never recolour a word: an unknown word stays white,
+             a saved word keeps its exact deck colour. */
+          deckColor={
+            stateForToken(selectedWord.text)
+              ? DECK_COLORS[stateForToken(selectedWord.text)!]
+              : "#FFFFFF"
+          }
           onClose={() => setSelectedWord(null)}
+
           onSave={() => {
             // Check BEFORE the optimistic update (while the word is still white).
             const sweep = selectedWord ? wouldCompleteLine(selectedWord.text) : false;
