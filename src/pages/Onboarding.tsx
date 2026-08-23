@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectSe
 import { LANGUAGES } from "@/lib/languages";
 // (InteractiveDemo replaced by the live tour overlay launched from this screen)
 import { useAuth } from "@/hooks/useAuth";
+import brandLockup from "@/assets/brand/linguascript-lockup.png.asset.json";
 import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTour } from "@/contexts/TourContext";
@@ -173,13 +174,10 @@ const Onboarding = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#0d1410] via-[#08080B] to-[#08080B] text-white antialiased">
-      <header className="sticky top-0 z-50 bg-[#0E0E11]/80 backdrop-blur-xl border-b border-white/10/60">
+      <header className="sticky top-0 z-50 bg-[#0E0E11]/80 backdrop-blur-xl border-b border-white/10">
         <div className="max-w-2xl mx-auto px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#34C759] to-[#FF8A00] flex items-center justify-center">
-              <Languages className="w-4 h-4 text-white" strokeWidth={2.5} />
-            </div>
-            <span className="text-[15px] font-semibold tracking-tight">LinguaScript</span>
+            <img src={brandLockup.url} alt="LinguaScript" className="h-6 w-auto" />
           </div>
           <div className="flex items-center gap-1.5">
             {Array.from({ length: totalSteps }).map((_, i) => (
