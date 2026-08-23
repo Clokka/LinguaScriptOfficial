@@ -172,11 +172,11 @@ const Onboarding = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-orange-50/40 via-white to-white text-white antialiased">
+    <div className="min-h-screen bg-gradient-to-b from-[#0d1410] via-[#08080B] to-[#08080B] text-white antialiased">
       <header className="sticky top-0 z-50 bg-[#0E0E11]/80 backdrop-blur-xl border-b border-white/10/60">
         <div className="max-w-2xl mx-auto px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-orange-400 to-orange-500 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#34C759] to-[#FF8A00] flex items-center justify-center">
               <Languages className="w-4 h-4 text-white" strokeWidth={2.5} />
             </div>
             <span className="text-[15px] font-semibold tracking-tight">LinguaScript</span>
@@ -186,7 +186,7 @@ const Onboarding = () => {
               <div
                 key={i}
                 className={`h-1.5 rounded-full transition-all ${
-                  i === step ? "w-6 bg-white/[0.04]0" : i < step ? "w-1.5 bg-orange-300" : "w-1.5 bg-orange-100"
+                  i === step ? "w-6 bg-[#34C759]" : i < step ? "w-1.5 bg-[#34C759]/60" : "w-1.5 bg-white/10"
                 }`}
               />
             ))}
@@ -273,8 +273,8 @@ const Onboarding = () => {
                           onClick={() => setLevel(l)}
                           className={`px-4 py-2 rounded-full text-sm font-medium border transition ${
                             level === l
-                              ? "bg-white/[0.04]0 border-orange-500 text-white shadow-[0_6px_18px_-6px_rgba(249,115,22,0.6)]"
-                              : "bg-[#0E0E11] border-white/10 text-white/75 hover:border-orange-300"
+                              ? "bg-[#34C759] border-[#34C759] text-white shadow-[0_6px_18px_-6px_rgba(52,199,89,0.6)]"
+                              : "bg-[#0E0E11] border-white/10 text-white/75 hover:border-[#34C759]/60"
                           }`}
                         >
                           {l === "below" ? "Below A1" : l}
@@ -282,7 +282,7 @@ const Onboarding = () => {
                       ))}
                     </div>
                     {level === "below" && (
-                      <div className="mt-4 rounded-2xl bg-white/[0.04] border border-white/15/70 p-4 text-sm text-white/75 leading-relaxed">
+                      <div className="mt-4 rounded-2xl bg-white/[0.04] border border-white/15 p-4 text-sm text-white/75 leading-relaxed">
                         Linguascript works best for learners with basic foundations.
                         We recommend starting with <span className="font-medium">Duolingo</span> and returning when you reach A2. 🌱
                       </div>
@@ -294,7 +294,7 @@ const Onboarding = () => {
                       value={school}
                       onChange={(e) => setSchool(e.target.value)}
                       placeholder="e.g. Truro College"
-                      className="rounded-xl border-white/10 bg-[#0E0E11] h-11 focus-visible:ring-orange-300 text-white"
+                      className="rounded-xl border-white/10 bg-[#0E0E11] h-11 focus-visible:ring-[#34C759] text-white"
                     />
                     <p className="mt-2 text-xs text-white/50">
                       Add your school or college so we can connect you with classmates later. Skip if you're learning solo.
@@ -328,8 +328,8 @@ const Onboarding = () => {
                         onClick={() => toggleInterest(interest.id)}
                         className={`relative rounded-2xl border p-4 flex flex-col items-center justify-center gap-2 transition text-center min-h-[104px] ${
                           active
-                            ? "bg-white/[0.04]0 border-orange-500 text-white shadow-[0_10px_24px_-10px_rgba(249,115,22,0.7)] scale-[1.02]"
-                            : "bg-[#0E0E11] border-white/10 text-white/90 hover:border-orange-300 hover:-translate-y-0.5"
+                            ? "bg-[#34C759] border-[#34C759] text-white shadow-[0_10px_24px_-10px_rgba(52,199,89,0.7)] scale-[1.02]"
+                            : "bg-[#0E0E11] border-white/10 text-white/90 hover:border-[#34C759]/60 hover:-translate-y-0.5"
                         }`}
                       >
                         {active && (
@@ -358,7 +358,7 @@ const Onboarding = () => {
                 <Title>Welcome to the Lingua Universe 🌍</Title>
                 <Sub>We're here to support your language learning goals.</Sub>
 
-                <div className="mt-8 rounded-2xl bg-white/[0.04]/60 border border-white/10 p-5 text-[15px] leading-relaxed text-white/75">
+                <div className="mt-8 rounded-2xl bg-white/[0.04] border border-white/10 p-5 text-[15px] leading-relaxed text-white/75">
                   Learners who write down clear goals before starting are{" "}
                   <span className="font-semibold text-[#34C759]">95% more likely</span> to succeed.
                 </div>
@@ -369,13 +369,13 @@ const Onboarding = () => {
                     value={goal}
                     onChange={(e) => { setGoal(e.target.value); setGoalSaved(false); }}
                     placeholder="e.g. Hold a 10-minute conversation in French by summer."
-                    className="min-h-[110px] rounded-2xl border-white/10 focus-visible:ring-orange-300 bg-[#0E0E11] text-white"
+                    className="min-h-[110px] rounded-2xl border-white/10 focus-visible:ring-[#34C759] bg-[#0E0E11] text-white"
                   />
                   <div className="mt-3 flex items-center gap-3">
                     <Button
                       onClick={saveGoal}
                       disabled={!goal.trim() || goalSaved}
-                      className="rounded-full bg-white/[0.04]0 hover:bg-[#2CB350] text-white"
+                      className="rounded-full bg-[#34C759] hover:bg-[#2CB350] text-white"
                     >
                       {goalSaved ? <><Check className="w-4 h-4" /> Saved</> : "Save goal"}
                     </Button>
@@ -400,7 +400,7 @@ const Onboarding = () => {
                       type="checkbox"
                       checked={showOnLeaderboard}
                       onChange={(e) => setShowOnLeaderboard(e.target.checked)}
-                      className="mt-1 w-4 h-4 accent-orange-500"
+                      className="mt-1 w-4 h-4 accent-[#34C759]"
                     />
                     <span className="text-sm text-white/75 leading-relaxed">
                       Appear on the public LinguaScript leaderboard.<br />
@@ -408,7 +408,7 @@ const Onboarding = () => {
                     </span>
                   </label>
                   {!showOnLeaderboard && (
-                    <div className="mt-3 rounded-xl bg-white/[0.04]/60 border border-white/10 p-3 text-xs text-white/60 leading-relaxed">
+                    <div className="mt-3 rounded-xl bg-white/[0.04] border border-white/10 p-3 text-xs text-white/60 leading-relaxed">
                       Hidden from: public leaderboards, XP rankings, friend discovery. Existing friends can still see your profile.
                     </div>
                   )}
@@ -464,7 +464,7 @@ const Onboarding = () => {
                         tabIndex={0}
                         onClick={enterDemo}
                         onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") enterDemo(); }}
-                        className="mt-8 relative rounded-3xl overflow-hidden border border-white/10 aspect-video bg-neutral-900 shadow-[0_24px_60px_-30px_rgba(249,115,22,0.4)] cursor-pointer group"
+                        className="mt-8 relative rounded-3xl overflow-hidden border border-white/10 aspect-video bg-neutral-900 shadow-[0_24px_60px_-30px_rgba(52,199,89,0.4)] cursor-pointer group"
                       >
                         <iframe
                           title="Linguascript intro"
@@ -480,7 +480,7 @@ const Onboarding = () => {
                         <Button
                           onClick={enterDemo}
                           disabled={enteringDemo}
-                          className="h-12 px-8 rounded-full bg-white/[0.04]0 hover:bg-[#2CB350] text-white font-medium shadow-[0_8px_24px_-8px_rgba(249,115,22,0.6)] gap-2"
+                          className="h-12 px-8 rounded-full bg-[#34C759] hover:bg-[#2CB350] text-white font-medium shadow-[0_8px_24px_-8px_rgba(52,199,89,0.6)] gap-2"
                         >
                           {enteringDemo ? "Loading…" : "Enter the demo"}
                           <ArrowRight className="w-4 h-4" />
@@ -523,9 +523,9 @@ const Onboarding = () => {
 
                 <div className="mt-8 grid grid-cols-3 gap-3">
                   {[
-                    { name: "Short term", color: "from-orange-200 to-orange-300" },
-                    { name: "Medium term", color: "from-orange-300 to-orange-400" },
-                    { name: "Long term", color: "from-orange-400 to-orange-500" },
+                    { name: "Short term", color: "from-[#34C759]/40 to-[#34C759]/60" },
+                    { name: "Medium term", color: "from-[#34C759]/60 to-[#FF8A00]/70" },
+                    { name: "Long term", color: "from-[#34C759] to-[#FF8A00]" },
                   ].map((d) => (
                     <div key={d.name} className="rounded-2xl border border-white/10 p-4 text-center">
                       <div className={`mx-auto w-10 h-10 rounded-xl bg-gradient-to-br ${d.color} mb-3`} />
@@ -576,7 +576,7 @@ const Onboarding = () => {
           <Button
             onClick={next}
             disabled={!canContinue}
-            className="h-11 px-6 rounded-full bg-white/[0.04]0 hover:bg-[#2CB350] text-white font-medium shadow-[0_8px_24px_-8px_rgba(249,115,22,0.5)] gap-2 disabled:opacity-40"
+            className="h-11 px-6 rounded-full bg-[#34C759] hover:bg-[#2CB350] text-white font-medium shadow-[0_8px_24px_-8px_rgba(52,199,89,0.5)] gap-2 disabled:opacity-40"
           >
             {step === totalSteps - 1 ? "Start learning" : "Continue"}
             <ArrowRight className="w-4 h-4" />
@@ -588,13 +588,13 @@ const Onboarding = () => {
 };
 
 const Card = ({ children }: { children: React.ReactNode }) => (
-  <div className="rounded-3xl bg-[#0E0E11] border border-white/10/80 shadow-[0_24px_60px_-30px_rgba(249,115,22,0.25)] p-7 sm:p-10">
+  <div className="rounded-3xl bg-[#0E0E11] border border-white/10/80 shadow-[0_24px_60px_-30px_rgba(52,199,89,0.25)] p-7 sm:p-10">
     {children}
   </div>
 );
 
 const Eyebrow = ({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) => (
-  <div className="inline-flex items-center gap-2 bg-white/[0.04] border border-white/15/70 rounded-full px-3 py-1 mb-5 text-[#34C759] text-xs font-medium">
+  <div className="inline-flex items-center gap-2 bg-white/[0.04] border border-white/15 rounded-full px-3 py-1 mb-5 text-[#34C759] text-xs font-medium">
     {icon} {children}
   </div>
 );
@@ -651,7 +651,7 @@ const LangSelect = ({ value, onChange, exclude }: { value: string; onChange: (v:
 
 const InfoTile = ({ icon, title, body }: { icon: React.ReactNode; title: string; body: string }) => (
   <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
-    <div className="w-9 h-9 rounded-xl bg-white/[0.04]0/10 text-[#34C759] flex items-center justify-center mb-3">
+    <div className="w-9 h-9 rounded-xl bg-[#34C759]/10 text-[#34C759] flex items-center justify-center mb-3">
       {icon}
     </div>
     <p className="font-semibold text-white">{title}</p>
@@ -663,7 +663,7 @@ const PillarCard = ({
   icon, pillar, aliases, title, body,
 }: { icon: React.ReactNode; pillar: string; aliases: string; title: string; body: string }) => (
   <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-orange-50/60 to-white p-5 flex gap-4">
-    <div className="shrink-0 w-12 h-12 rounded-2xl bg-gradient-to-br from-orange-400 to-orange-500 text-white flex items-center justify-center shadow-[0_8px_20px_-8px_rgba(249,115,22,0.6)]">
+    <div className="shrink-0 w-12 h-12 rounded-2xl bg-gradient-to-br from-[#34C759] to-[#FF8A00] text-white flex items-center justify-center shadow-[0_8px_20px_-8px_rgba(52,199,89,0.6)]">
       {icon}
     </div>
     <div className="min-w-0">
@@ -703,8 +703,8 @@ const LearningLanguageSelect = ({
             onClick={() => onChange(l.code)}
             className={`flex items-center gap-2 rounded-xl border px-3 h-11 text-sm font-medium transition ${
               active
-                ? "bg-white/[0.04]0 border-orange-500 text-white shadow-[0_6px_18px_-6px_rgba(249,115,22,0.6)]"
-                : "bg-[#0E0E11] border-white/10 text-white/75 hover:border-orange-300"
+                ? "bg-[#34C759] border-[#34C759] text-white shadow-[0_6px_18px_-6px_rgba(52,199,89,0.6)]"
+                : "bg-[#0E0E11] border-white/10 text-white/75 hover:border-[#34C759]/60"
             }`}
           >
             <span className="text-lg leading-none">{l.flag}</span>
