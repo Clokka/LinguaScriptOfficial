@@ -98,8 +98,8 @@ export function GapFillChallenge({
   // The tile used to be positioned from React state updated on every
   // pointermove: each move queued a render, so the block always painted a frame
   // or two behind the finger and felt like it was on elastic. The pointer
-  // position now goes straight onto the element's transform inside the event,
-  // batched into a rAF — no React render sits between the finger and the pixel.
+  // position now goes straight onto the element's transform inside the event —
+  // no React render or extra animation frame sits between finger and pixel.
   const dragElRef = useRef<HTMLDivElement>(null);
   const dragPosRef = useRef({ x: 0, y: 0 });
   // Exact point inside the source tile where the pointer landed, measured from
@@ -111,7 +111,6 @@ export function GapFillChallenge({
   const activePointerRef = useRef<number | null>(null);
 
   const paintDrag = useCallback(() => {
-    rafRef.current = null;
     const el = dragElRef.current;
     if (!el) return;
     const { x, y } = dragPosRef.current;
