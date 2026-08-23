@@ -95,6 +95,7 @@ const App = () => (
                 <Route path="/checkout/return" element={<CheckoutReturn />} />
                 <Route path="/privacy" element={<Privacy />} />
                 <Route path="/privacy-extension" element={<PrivacyExtension />} />
+                <Route path="/terms" element={<Terms />} />
                 <Route path="/teacher" element={<Teacher />} />
                 <Route path="/progress" element={<Progress />} />
                 <Route path="/gift" element={<GiftClaim />} />
