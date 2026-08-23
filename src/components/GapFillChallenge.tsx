@@ -101,6 +101,10 @@ export function GapFillChallenge({
   // batched into a rAF — no React render sits between the finger and the pixel.
   const dragElRef = useRef<HTMLDivElement>(null);
   const dragPosRef = useRef({ x: 0, y: 0 });
+  // Where inside the tile the finger landed, relative to the tile's centre.
+  // Without this the floating copy snaps its centre under the finger, so
+  // grabbing a word near its edge made it visibly jump before moving.
+  const grabOffsetRef = useRef({ x: 0, y: 0 });
   const rafRef = useRef<number | null>(null);
 
   const paintDrag = useCallback(() => {
@@ -108,7 +112,8 @@ export function GapFillChallenge({
     const el = dragElRef.current;
     if (!el) return;
     const { x, y } = dragPosRef.current;
-    el.style.transform = `translate3d(${x}px, ${y}px, 0) translate(-50%, -50%) scale(1.08) rotate(-2deg)`;
+    const o = grabOffsetRef.current;
+    el.style.transform = `translate3d(${x + o.x}px, ${y + o.y}px, 0) translate(-50%, -50%) scale(1.08) rotate(-2deg)`;
   }, []);
 
   const queuePaint = useCallback(() => {
@@ -123,9 +128,15 @@ export function GapFillChallenge({
     // listeners drive.
     const el = e.currentTarget as HTMLElement;
     if (el.hasPointerCapture?.(e.pointerId)) el.releasePointerCapture(e.pointerId);
+    const r = el.getBoundingClientRect();
+    grabOffsetRef.current = {
+      x: r.left + r.width / 2 - e.clientX,
+      y: r.top + r.height / 2 - e.clientY,
+    };
     dragPosRef.current = { x: e.clientX, y: e.clientY };
     setDrag({ label, x: e.clientX, y: e.clientY });
   };
+
 
   // Position the floating tile the instant it mounts, before the first move.
   useEffect(() => {
