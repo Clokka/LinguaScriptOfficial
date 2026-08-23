@@ -34,6 +34,8 @@ import { recordWatchSession, type RecordResult } from "@/lib/watchSessions";
 import { WatchResultsModal } from "@/components/WatchResultsModal";
 import { LearningBreakModal, type QuizWord } from "@/components/LearningBreakModal";
 import { PronunciationJudge } from "@/components/PronunciationJudge";
+import { DailyGoalTally } from "@/components/DailyGoalTally";
+import { useDailyWordGoal } from "@/hooks/useDailyWordGoal";
 
 interface FilmData {
   id: string;
@@ -323,6 +325,23 @@ const Watch = () => {
   const { isPro } = useSubscription();
   const { onWordSaved, onVideoFinished } = useUpgradeTrigger(isPro);
   const savedTodayRef = useRef(0);
+  const dailyGoal = useDailyWordGoal();
+
+  // One nudge per day, fired the moment the goal is met: the point of the goal
+  // is to hand the learner over to review, not to congratulate them and stop.
+  const nudgedRef = useRef(false);
+  const registerDailySave = useCallback(() => {
+    dailyGoal.bump();
+    const next = dailyGoal.savedToday + 1;
+    if (!nudgedRef.current && next >= dailyGoal.goal) {
+      nudgedRef.current = true;
+      toast.success(`Daily goal reached — ${dailyGoal.goal} words saved`, {
+        description: "Review them now while they're fresh.",
+        action: { label: "Review", onClick: () => navigate("/linguascripts") },
+        duration: 8000,
+      });
+    }
+  }, [dailyGoal, navigate]);
   const { learningLanguage, languageContext, isContentLocked } = useLanguage();
   const { award } = useXp();
   const { triggerReaction } = usePet();
@@ -785,6 +804,7 @@ const Watch = () => {
       triggerReaction("happy", 2000);
       savedTodayRef.current += 1;
       onWordSaved(savedTodayRef.current);
+      registerDailySave();
       playDing("success");
       maybeTriggerLearningBreak({ word: word.text, translation });
       return;
@@ -815,6 +835,7 @@ const Watch = () => {
     triggerReaction("happy", 2000);
     savedTodayRef.current += 1;
     onWordSaved(savedTodayRef.current);
+    registerDailySave();
     playDing("success");
     maybeTriggerLearningBreak({ word: word.text, translation });
 
@@ -890,6 +911,7 @@ const Watch = () => {
       return;
     }
     toast.success("Phrase saved to flashcards");
+    registerDailySave();
     playDing("success");
 
     // Create LinguaScript record for phrase (scheduled for now, not tomorrow)
@@ -1222,6 +1244,11 @@ const Watch = () => {
             {getLanguageFlag(film.language ?? "fr")} {getLanguageLabel(film.language ?? "fr")}
           </p>
         </div>
+        <DailyGoalTally
+          savedToday={dailyGoal.savedToday}
+          goal={dailyGoal.goal}
+          className="hidden sm:inline-flex"
+        />
         <ActiveLanguageBadge variant="dark" />
         <div className="flex items-center gap-2">
           {captionsLoading && <Loader2 className="w-4 h-4 text-white/60 animate-spin" />}
