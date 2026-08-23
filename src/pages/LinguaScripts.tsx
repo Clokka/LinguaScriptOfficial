@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { BrandMark } from "@/components/BrandMark";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -158,8 +159,9 @@ export default function LinguaScripts() {
           >
             <ArrowLeft className="w-5 h-5 text-slate-400" />
           </button>
+          <BrandMark variant="pin" size={30} />
           <div>
-            <h1 className="text-3xl font-black text-amber-400">LinguaScripts</h1>
+            <h1 className="text-3xl font-black text-[#FF8A00]">LinguaScripts</h1>
             <p className="text-xs text-slate-500 uppercase tracking-widest mt-1">SRS Practice</p>
           </div>
         </div>
