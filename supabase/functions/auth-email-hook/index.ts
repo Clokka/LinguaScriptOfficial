@@ -37,7 +37,7 @@ const EMAIL_TEMPLATES: Record<string, React.ComponentType<any>> = {
 
 // Configuration
 const SITE_NAME = "LinguaScript"
-const SENDER_DOMAIN = "rowan.linguascript.co.uk"
+const SENDER_DOMAIN = "notify.linguascript.co.uk"
 const ROOT_DOMAIN = "linguascript.co.uk"
 const FROM_DOMAIN = "linguascript.co.uk" // Domain shown in From address (may be root or sender subdomain)
 
