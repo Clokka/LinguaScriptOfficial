@@ -53,6 +53,9 @@ import { LinguaScriptsCompleteCard } from "@/components/LinguaScriptsCompleteCar
 import { FlashcardsDueAlert } from "@/components/FlashcardsDueAlert";
 import { LinguaScriptSessionFlow } from "@/components/LinguaScriptSessionFlow";
 import { LevelBadge } from "@/components/LevelBadge";
+import { BrandMark } from "@/components/BrandMark";
+import { DailyGoalTally } from "@/components/DailyGoalTally";
+import { useDailyWordGoal } from "@/hooks/useDailyWordGoal";
 
 const INTERESTS_BY_ID: Record<string, Interest> = Object.fromEntries(
   INTERESTS.map((i) => [i.id, i]),
@@ -486,6 +489,7 @@ const Browse = () => {
         {/* Top bar */}
         <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-xl border-b border-border">
           <div className="flex items-center justify-between px-6 py-3">
+            <BrandMark variant="pin" size={26} className="mr-3 shrink-0 md:hidden" />
             {/* Mobile tabs */}
             <div className="flex md:hidden gap-1">
               {SIDEBAR_ITEMS.map(({ icon: Icon, key }) => (
@@ -533,12 +537,19 @@ const Browse = () => {
             />
           ) : activeTab === "home" && !statusLoading && linguaScriptStatus ? (
             <div>
+              <DailyGoalTally
+                savedToday={dailyGoal.savedToday}
+                goal={dailyGoal.goal}
+                variant="card"
+                className="mb-6"
+              />
+
               {/* LinguaScripts Alerts - Top Priority */}
               {linguaScriptStatus.state === "linguascripts-pending" && (
                 <LinguaScriptsPendingAlert
                   count={linguaScriptStatus.linguascriptsPending}
                   estimatedTime={Math.ceil(linguaScriptStatus.linguascriptsPending * 1)}
-                  onStart={() => setShowLinguaScriptSession(true)}
+                  onStart={() => navigate("/linguascripts")}
                 />
               )}
 
