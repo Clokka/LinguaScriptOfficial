@@ -71,6 +71,7 @@ export const WordPopup = ({ word, position, language, translating, deckColor, on
               >
                 {word.text}
               </h3>
+              {word.ipa && <p className="text-muted-foreground text-sm mt-1">{word.ipa}</p>}
 
             </div>
             <Button
