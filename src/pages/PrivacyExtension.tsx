@@ -73,7 +73,7 @@ const PrivacyExtension = () => (
       </Section>
 
       <Section title="Contact">
-        Rowan — <a className="underline" href="mailto:rowan@linguascript.xyz">rowan@linguascript.xyz</a>
+        Rowan — <a className="underline" href="mailto:rowan@linguascript.co.uk">rowan@linguascript.co.uk</a>
       </Section>
     </main>
   </div>

@@ -312,7 +312,12 @@ const Landing5 = () => {
               className="h-6 w-auto opacity-80"
               loading="lazy"
             />
-            <p className="text-xs text-white/30">© {new Date().getFullYear()} LinguaScript</p>
+            <div className="flex flex-wrap items-center gap-4 text-xs text-white/40">
+              <a href="/privacy" className="hover:text-white/80 transition-colors">Privacy Policy</a>
+              <a href="/terms" className="hover:text-white/80 transition-colors">Terms of Service</a>
+              <a href="mailto:rowan@linguascript.co.uk" className="hover:text-white/80 transition-colors">Contact</a>
+              <span className="text-white/30">© {new Date().getFullYear()} LinguaScript</span>
+            </div>
           </div>
         </div>
       </footer>
