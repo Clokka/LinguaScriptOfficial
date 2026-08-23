@@ -35,63 +35,36 @@ const Auth = () => {
   const next = searchParams.get("next") || "/discover";
   const { toast } = useToast();
 
-  // Google sign-in via Lovable's managed OAuth broker.
+  // Google sign-in via the project's own Google OAuth provider.
+  // Google redirects to the Supabase callback
+  // (https://<project>.supabase.co/auth/v1/callback), which then returns the
+  // browser to this app's origin. Post-login routing (new user -> /onboarding,
+  // existing user -> /discover) is handled by the root route (Index.tsx).
   const handleGoogleFallback = async () => {
-
     setGoogleLoading(true);
     try {
-      const result = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: window.location.origin,
+      if (inviteToken) localStorage.setItem("pendingSchoolInvite", inviteToken);
+      if (next && next !== "/discover") localStorage.setItem("pendingAuthNext", next);
+
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: window.location.origin,
+          queryParams: { prompt: "select_account" },
+        },
       });
-      // A redirect means the browser is navigating away — nothing failed.
-      if (result.redirected) return;
-
-      // Only surface a genuine, human-readable failure. The broker can return
-      // empty/benign objects (or a user-cancelled popup) which must not show
-      // a red error while sign-in is actually working.
-      const rawError = (result as { error?: unknown }).error;
-      const message =
-        rawError instanceof Error
-          ? rawError.message
-          : typeof rawError === "string"
-          ? rawError
-          : typeof rawError === "object" && rawError !== null
-          ? String((rawError as { message?: unknown }).message ?? "")
-          : "";
-      const benign = /cancel|closed|abort|popup/i.test(message);
-      if (message && !benign) throw new Error(message);
-      if (!message && rawError) return; // opaque, non-actionable — stay silent
-
-      if (inviteToken) {
-        await supabase.rpc("accept_school_invite", { _token: inviteToken });
-      }
-
-      // Brand-new Google users have no completed profile yet — send them
-      // through onboarding instead of straight into the app.
-      const { data: session } = await supabase.auth.getSession();
-      const uid = session.session?.user?.id;
-      if (uid) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("onboarded")
-          .eq("user_id", uid)
-          .maybeSingle();
-        if (!(profile as { onboarded?: boolean } | null)?.onboarded) {
-          navigate("/onboarding");
-          return;
-        }
-      }
-      navigate(next);
+      if (error) throw error;
+      // Browser navigates to Google from here.
     } catch (e) {
       toast({
         title: "Google sign-in failed",
         description: e instanceof Error ? e.message : "Please try again",
         variant: "destructive",
       });
-    } finally {
       setGoogleLoading(false);
     }
   };
+
 
 
   const acceptInviteIfAny = async () => {

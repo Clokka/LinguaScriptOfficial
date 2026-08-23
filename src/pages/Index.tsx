@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 const Index = () => {
   const { user, loading } = useAuth();
   const [onboarded, setOnboarded] = useState<boolean | null>(null);
+  const [next, setNext] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -19,12 +20,25 @@ const Index = () => {
       return;
     }
     (async () => {
+      // Redeem any school invite captured before an OAuth redirect.
+      const invite = localStorage.getItem("pendingSchoolInvite");
+      if (invite) {
+        localStorage.removeItem("pendingSchoolInvite");
+        await supabase.rpc("accept_school_invite", { _token: invite });
+      }
+      const pendingNext = localStorage.getItem("pendingAuthNext");
+      if (pendingNext) localStorage.removeItem("pendingAuthNext");
+
       const { data } = await supabase
         .from("profiles")
         .select("onboarded")
         .eq("user_id", user.id)
         .maybeSingle();
-      if (!cancelled) setOnboarded(Boolean((data as { onboarded?: boolean } | null)?.onboarded));
+      if (!cancelled) {
+        // Only same-origin app paths are honoured.
+        setNext(pendingNext && pendingNext.startsWith("/") && !pendingNext.startsWith("//") ? pendingNext : null);
+        setOnboarded(Boolean((data as { onboarded?: boolean } | null)?.onboarded));
+      }
     })();
     return () => {
       cancelled = true;
@@ -34,7 +48,8 @@ const Index = () => {
   if (loading) return null;
   if (!user) return <Landing5 />;
   if (onboarded === null) return null;
-  return <Navigate to={onboarded ? "/discover" : "/onboarding"} replace />;
+  return <Navigate to={onboarded ? next ?? "/discover" : "/onboarding"} replace />;
 };
+
 
 export default Index;
