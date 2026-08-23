@@ -40,29 +40,32 @@ export const STATE_META: Record<DeckState, {
   text: string;
   border: string;
 }> = {
+  // Deck colours are the landing palette at full strength — #FF3B30 / #FF8A00 /
+  // #34C759 — never washed out, because they are the product's only real
+  // information channel.
   red: {
     label: "Unknown",
-    dot: "bg-red-500",
-    bg: "bg-red-500/10",
-    ring: "ring-red-500/40",
-    text: "text-red-500",
-    border: "border-red-500/40",
+    dot: "bg-[#FF3B30]",
+    bg: "bg-[#FF3B30]/15",
+    ring: "ring-[#FF3B30]",
+    text: "text-[#FF3B30]",
+    border: "border-[#FF3B30]/60",
   },
   orange: {
     label: "Learning",
-    dot: "bg-amber-500",
-    bg: "bg-amber-500/10",
-    ring: "ring-amber-500/40",
-    text: "text-amber-500",
-    border: "border-amber-500/40",
+    dot: "bg-[#FF8A00]",
+    bg: "bg-[#FF8A00]/15",
+    ring: "ring-[#FF8A00]",
+    text: "text-[#FF8A00]",
+    border: "border-[#FF8A00]/60",
   },
   green: {
     label: "Recognized",
-    dot: "bg-emerald-500",
-    bg: "bg-emerald-500/10",
-    ring: "ring-emerald-500/40",
-    text: "text-emerald-500",
-    border: "border-emerald-500/40",
+    dot: "bg-[#34C759]",
+    bg: "bg-[#34C759]/15",
+    ring: "ring-[#34C759]",
+    text: "text-[#34C759]",
+    border: "border-[#34C759]/60",
   },
 };
 
