@@ -468,10 +468,14 @@ export const SubtitleOverlay = ({
           {renderWords()}
         </p>
         {mode === "dual" && secondaryText && (
-          <p className="text-lg text-muted-foreground mt-2 font-light" style={{ textShadow: "0 2px 8px rgba(0,0,0,0.95)" }}>
+          <p
+            className="mt-2 text-xl font-medium text-white/95"
+            style={{ textShadow: "0 2px 10px rgba(0,0,0,0.95), 0 1px 2px rgba(0,0,0,0.9)" }}
+          >
             {secondaryText}
           </p>
         )}
+
 
         {/* Blast layers. The FX layer holds the scattering word clones and the
             canvas holds the confetti, both scoped to this overlay so the
@@ -504,7 +508,15 @@ export const SubtitleOverlay = ({
           position={popupPosition}
           language={effectiveLang}
           translating={translating}
+          /* The popup must never recolour a word: an unknown word stays white,
+             a saved word keeps its exact deck colour. */
+          deckColor={
+            stateForToken(selectedWord.text)
+              ? DECK_COLORS[stateForToken(selectedWord.text)!]
+              : "#FFFFFF"
+          }
           onClose={() => setSelectedWord(null)}
+
           onSave={() => {
             // Check BEFORE the optimistic update (while the word is still white).
             const sweep = selectedWord ? wouldCompleteLine(selectedWord.text) : false;

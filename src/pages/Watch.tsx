@@ -465,7 +465,31 @@ const Watch = () => {
 
   useEffect(() => {
     const handler = () => {
-      const fsEl = document.fullscreenElement || (document as any).webkitFullscreenElement;
+      const fsEl = (document.fullscreenElement ||
+        (document as any).webkitFullscreenElement) as Element | null;
+
+      // YouTube's own fullscreen button promotes the IFRAME itself. The iframe
+      // then paints over the whole screen and our subtitle layer — a sibling in
+      // the DOM — disappears. Escalate to the player container instead, which
+      // contains both the iframe and the overlay, so the native button behaves
+      // exactly like ours.
+      const container = videoContainerRef.current;
+      if (fsEl && container && fsEl !== container && container.contains(fsEl)) {
+        void (async () => {
+          try {
+            if (document.exitFullscreen) await document.exitFullscreen();
+            else if ((document as any).webkitExitFullscreen) (document as any).webkitExitFullscreen();
+            await (container as any).requestFullscreen?.();
+          } catch {
+            // Native escalation refused (iOS) — fall back to CSS fullscreen so
+            // the subtitles are still on top.
+            setCssFullscreen(true);
+          }
+        })();
+        setIsFullscreen(true);
+        return;
+      }
+
       setIsFullscreen(!!fsEl);
     };
     document.addEventListener("fullscreenchange", handler);
@@ -475,6 +499,7 @@ const Watch = () => {
       document.removeEventListener("webkitfullscreenchange", handler);
     };
   }, []);
+
 
   // Load film
   useEffect(() => {

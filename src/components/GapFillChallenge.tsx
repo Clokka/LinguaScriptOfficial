@@ -92,20 +92,52 @@ export function GapFillChallenge({
     [answer, filled, goldSweep, onComplete],
   );
 
-  // Pointer-based drag so it works with both mouse and touch. Touch pointers get
-  // implicit capture on the block, which keeps pointermove pinned to it and made
-  // the drag look frozen on phones — release it so the window listeners drive.
+  // Pointer-based drag so it works with both mouse and touch.
+  //
+  // The tile used to be positioned from React state updated on every
+  // pointermove: each move queued a render, so the block always painted a frame
+  // or two behind the finger and felt like it was on elastic. The pointer
+  // position now goes straight onto the element's transform inside the event,
+  // batched into a rAF — no React render sits between the finger and the pixel.
+  const dragElRef = useRef<HTMLDivElement>(null);
+  const dragPosRef = useRef({ x: 0, y: 0 });
+  const rafRef = useRef<number | null>(null);
+
+  const paintDrag = useCallback(() => {
+    rafRef.current = null;
+    const el = dragElRef.current;
+    if (!el) return;
+    const { x, y } = dragPosRef.current;
+    el.style.transform = `translate3d(${x}px, ${y}px, 0) translate(-50%, -50%) scale(1.08) rotate(-2deg)`;
+  }, []);
+
+  const queuePaint = useCallback(() => {
+    if (rafRef.current == null) rafRef.current = requestAnimationFrame(paintDrag);
+  }, [paintDrag]);
+
   const startDrag = (label: string) => (e: React.PointerEvent) => {
     if (filled) return;
     e.preventDefault();
+    // Touch pointers get implicit capture on the block, which pins pointermove
+    // to it and made the drag look frozen on phones — release it so the window
+    // listeners drive.
     const el = e.currentTarget as HTMLElement;
     if (el.hasPointerCapture?.(e.pointerId)) el.releasePointerCapture(e.pointerId);
+    dragPosRef.current = { x: e.clientX, y: e.clientY };
     setDrag({ label, x: e.clientX, y: e.clientY });
   };
 
+  // Position the floating tile the instant it mounts, before the first move.
+  useEffect(() => {
+    if (drag) paintDrag();
+  }, [drag, paintDrag]);
+
   useEffect(() => {
     if (!drag) return;
-    const move = (e: PointerEvent) => setDrag((d) => (d ? { ...d, x: e.clientX, y: e.clientY } : d));
+    const move = (e: PointerEvent) => {
+      dragPosRef.current = { x: e.clientX, y: e.clientY };
+      queuePaint();
+    };
     const up = (e: PointerEvent) => {
       const box = slotRef.current?.getBoundingClientRect();
       const hit =
@@ -116,13 +148,20 @@ export function GapFillChallenge({
       if (hit) attempt(label);
       else setDrag(null);
     };
-    window.addEventListener("pointermove", move);
+    window.addEventListener("pointermove", move, { passive: true });
     window.addEventListener("pointerup", up, { once: true });
+    window.addEventListener("pointercancel", up, { once: true });
     return () => {
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", up);
+      if (rafRef.current != null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
     };
-  }, [drag, attempt]);
+  }, [drag, attempt, queuePaint]);
+
 
   return (
     <div className="pointer-events-auto relative mx-auto w-full max-w-3xl rounded-3xl border border-white/10 bg-[#0b1210]/95 p-6 backdrop-blur-xl sm:p-8">
@@ -218,12 +257,13 @@ export function GapFillChallenge({
       {/* floating dragged block */}
       {drag && (
         <div
-          className="pointer-events-none fixed z-[100]"
-          style={{ left: drag.x, top: drag.y, transform: "translate(-50%, -50%) scale(1.08) rotate(-2deg)" }}
+          ref={dragElRef}
+          className="pointer-events-none fixed left-0 top-0 z-[100] will-change-transform"
         >
           <WordBlock label={drag.label} skin={drag.label === answer ? tier : "slate"} dragging />
         </div>
       )}
+
     </div>
   );
 }

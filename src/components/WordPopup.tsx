@@ -16,14 +16,20 @@ interface WordPopupProps {
   position: { x: number; y: number };
   language?: string;
   translating?: boolean;
+  /**
+   * The word's deck colour (white when it isn't saved yet). The popup title
+   * must match the subtitle exactly — clicking a word never changes its colour.
+   */
+  deckColor?: string;
   onClose: () => void;
   onSave: () => void;
   onMarkKnown?: () => void;
 }
 
-export const WordPopup = ({ word, position, language, translating, onClose, onSave, onMarkKnown }: WordPopupProps) => {
+export const WordPopup = ({ word, position, language, translating, deckColor, onClose, onSave, onMarkKnown }: WordPopupProps) => {
   const { speak } = useLanguage();
   const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
+
   return (
     <>
       <div className="fixed inset-0 z-40" onClick={onClose} />
@@ -59,8 +65,14 @@ export const WordPopup = ({ word, position, language, translating, onClose, onSa
         <div className="space-y-4">
           <div className="flex items-start gap-3">
             <div className="flex-1">
-              <h3 className="text-2xl font-bold gradient-text">{word.text}</h3>
-              <p className="text-muted-foreground text-sm mt-1">{word.ipa}</p>
+              <h3
+                className={cn("text-2xl font-bold", !deckColor && "gradient-text")}
+                style={deckColor ? { color: deckColor } : undefined}
+              >
+                {word.text}
+              </h3>
+              {word.ipa && <p className="text-muted-foreground text-sm mt-1">{word.ipa}</p>}
+
             </div>
             <Button
               data-tour="word-pronounce"

@@ -17,7 +17,7 @@ export interface BrandMarkProps {
   className?: string;
 }
 
-export function BrandMark({ variant = "lockup", size = 32, className }: BrandMarkProps) {
+export function BrandMark({ variant = "lockup", size = 40, className }: BrandMarkProps) {
   return (
     <span className={cn("inline-flex items-center gap-2 select-none", className)}>
       <img
