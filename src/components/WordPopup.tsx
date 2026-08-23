@@ -16,14 +16,20 @@ interface WordPopupProps {
   position: { x: number; y: number };
   language?: string;
   translating?: boolean;
+  /**
+   * The word's deck colour (white when it isn't saved yet). The popup title
+   * must match the subtitle exactly — clicking a word never changes its colour.
+   */
+  deckColor?: string;
   onClose: () => void;
   onSave: () => void;
   onMarkKnown?: () => void;
 }
 
-export const WordPopup = ({ word, position, language, translating, onClose, onSave, onMarkKnown }: WordPopupProps) => {
+export const WordPopup = ({ word, position, language, translating, deckColor, onClose, onSave, onMarkKnown }: WordPopupProps) => {
   const { speak } = useLanguage();
   const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
+
   return (
     <>
       <div className="fixed inset-0 z-40" onClick={onClose} />
