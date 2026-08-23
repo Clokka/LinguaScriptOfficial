@@ -368,7 +368,7 @@ const Landing = () => {
           <nav className="flex items-center gap-4">
             <a href="/privacy" className="hover:text-foreground">Privacy</a>
             <a href="/privacy-extension" className="hover:text-foreground">Extension Privacy</a>
-            <a href="mailto:rowan@linguascript.xyz" className="hover:text-foreground">Contact</a>
+            <a href="mailto:rowan@linguascript.co.uk" className="hover:text-foreground">Contact</a>
           </nav>
         </div>
       </footer>

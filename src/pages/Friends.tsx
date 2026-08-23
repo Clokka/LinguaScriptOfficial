@@ -590,7 +590,7 @@ const Friends = () => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Message {msgTarget?.username ? `@${msgTarget.username}` : msgTarget?.display_name || "learner"}</DialogTitle>
-            <DialogDescription>They'll also receive an email notification from hello@linguascript.xyz.</DialogDescription>
+            <DialogDescription>They'll also receive an email notification from hello@linguascript.co.uk.</DialogDescription>
           </DialogHeader>
           <Textarea
             value={msgBody}
