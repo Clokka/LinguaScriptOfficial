@@ -274,6 +274,8 @@ export const FlashcardReview = ({ cards: initialCards, onClose, onCardReviewed, 
         context={currentCard.context}
         contextTranslation={currentCard.contextTranslation}
         language={currentCard.language}
+        state={currentCard.state}
+
         direction={direction}
         onCorrect={handleCorrect}
         onIncorrect={handleIncorrect}
