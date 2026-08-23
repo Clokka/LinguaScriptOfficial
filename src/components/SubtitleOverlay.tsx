@@ -468,10 +468,14 @@ export const SubtitleOverlay = ({
           {renderWords()}
         </p>
         {mode === "dual" && secondaryText && (
-          <p className="text-lg text-muted-foreground mt-2 font-light" style={{ textShadow: "0 2px 8px rgba(0,0,0,0.95)" }}>
+          <p
+            className="mt-2 text-xl font-medium text-white/95"
+            style={{ textShadow: "0 2px 10px rgba(0,0,0,0.95), 0 1px 2px rgba(0,0,0,0.9)" }}
+          >
             {secondaryText}
           </p>
         )}
+
 
         {/* Blast layers. The FX layer holds the scattering word clones and the
             canvas holds the confetti, both scoped to this overlay so the
