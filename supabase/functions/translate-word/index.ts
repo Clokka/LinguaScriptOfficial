@@ -50,6 +50,10 @@ serve(async (req) => {
     const from = fromLanguage || 'French';
     const to = toLanguage || 'English';
 
+    // Chinese learners need Hanyu Pinyin, not IPA — it is the pronunciation
+    // system the whole language is taught with.
+    const isChinese = /chinese|mandarin|中文/i.test(String(from));
+
     const system = `You are a strict bilingual dictionary API. You ALWAYS return the ${to} meaning of a ${from} word. Never echo the source word back as the translation unless it is a proper noun (person, place, brand). Return only valid JSON — no markdown, no commentary.`;
 
     const userPrompt = `Translate the ${from} word "${word}" into ${to}.
@@ -58,10 +62,11 @@ ${context ? `It appears in this sentence: "${context}"` : ''}
 Return ONLY valid JSON with these exact fields:
 {
   "translation": "the ${to} word/phrase that means \\"${word}\\" — never the ${from} word itself",
-  "pronunciation": "approximate pronunciation guide for ${to} speakers",
-  "ipa": "IPA phonetic transcription of the ${from} word",
+  "pronunciation": ${isChinese ? `"Hanyu Pinyin with tone marks for \\"${word}\\""` : `"approximate pronunciation guide for ${to} speakers"`},
+  "ipa": ${isChinese ? `"Hanyu Pinyin with tone marks for \\"${word}\\" (same as pronunciation)"` : `"IPA phonetic transcription of the ${from} word"`},
   "contextTranslation": "${context ? `the full sentence translated into ${to}` : ''}"
 }`;
+
 
     let result = await callAI(apiKey, system, userPrompt);
 
