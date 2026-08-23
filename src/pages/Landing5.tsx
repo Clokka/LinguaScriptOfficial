@@ -12,6 +12,9 @@ import { LineBlastDemo } from "@/components/LineBlastDemo";
 import { PlatformLogos } from "@/components/landing/PlatformLogos";
 import { DeckCards } from "@/components/landing/DeckCards";
 import { DECK } from "@/lib/deck-colors";
+import brandLockup from "@/assets/brand/linguascript-lockup.png.asset.json";
+import quizletLogo from "@/assets/brand/quizlet.png.asset.json";
+import ankiLogo from "@/assets/brand/anki.png.asset.json";
 
 /**
  * The Chameleon Method — LinguaScript's landing page.
