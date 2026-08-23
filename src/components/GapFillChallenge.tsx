@@ -257,12 +257,13 @@ export function GapFillChallenge({
       {/* floating dragged block */}
       {drag && (
         <div
-          className="pointer-events-none fixed z-[100]"
-          style={{ left: drag.x, top: drag.y, transform: "translate(-50%, -50%) scale(1.08) rotate(-2deg)" }}
+          ref={dragElRef}
+          className="pointer-events-none fixed left-0 top-0 z-[100] will-change-transform"
         >
           <WordBlock label={drag.label} skin={drag.label === answer ? tier : "slate"} dragging />
         </div>
       )}
+
     </div>
   );
 }
