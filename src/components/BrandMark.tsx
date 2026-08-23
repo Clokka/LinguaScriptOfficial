@@ -1,5 +1,3 @@
-import chameleon from "@/assets/brand/chameleon-green.png.asset.json";
-import wordmark from "@/assets/brand/linguascript-wordmark.png.asset.json";
 import { cn } from "@/lib/utils";
 
 /**
@@ -20,21 +18,26 @@ export interface BrandMarkProps {
 export function BrandMark({ variant = "lockup", size = 40, className }: BrandMarkProps) {
   return (
     <span className={cn("inline-flex items-center gap-2 select-none", className)}>
-      <img
-        src={chameleon.url}
-        alt="LinguaScript"
-        width={size}
-        height={size}
-        className="object-contain drop-shadow-[0_2px_10px_rgba(52,199,89,0.35)]"
+      <span
+        className="inline-flex shrink-0 items-center justify-center overflow-hidden"
         style={{ height: size, width: size }}
-      />
-      {variant === "lockup" && (
+      >
         <img
-          src={wordmark.url}
+          src="/favicon-512x512.png"
           alt="LinguaScript"
-          className="object-contain"
-          style={{ height: Math.round(size * 0.62), width: "auto" }}
+          width={size}
+          height={size}
+          className="h-full w-full scale-[1.7] object-contain drop-shadow-[0_2px_10px_rgba(52,199,89,0.35)]"
         />
+      </span>
+      {variant === "lockup" && (
+        <span
+          aria-hidden="true"
+          className="font-extrabold leading-none text-foreground"
+          style={{ fontSize: Math.round(size * 0.55) }}
+        >
+          lingua<span className="text-brand-green">script</span>
+        </span>
       )}
     </span>
   );

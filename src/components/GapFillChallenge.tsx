@@ -10,6 +10,7 @@
 // Block visual language referenced from open-source Block Blast clones
 // (aayanaqdas/block_blast, futzumi/block-blast, tokaa1/blockerino).
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { ChameleonMascot, ChameleonTier } from "./ChameleonMascot";
 import { WordBlock } from "@/components/blocks/WordBlock";
 
@@ -97,28 +98,25 @@ export function GapFillChallenge({
   // The tile used to be positioned from React state updated on every
   // pointermove: each move queued a render, so the block always painted a frame
   // or two behind the finger and felt like it was on elastic. The pointer
-  // position now goes straight onto the element's transform inside the event,
-  // batched into a rAF — no React render sits between the finger and the pixel.
+  // position now goes straight onto the element's transform inside the event —
+  // no React render or extra animation frame sits between finger and pixel.
   const dragElRef = useRef<HTMLDivElement>(null);
   const dragPosRef = useRef({ x: 0, y: 0 });
-  // Where inside the tile the finger landed, relative to the tile's centre.
-  // Without this the floating copy snaps its centre under the finger, so
-  // grabbing a word near its edge made it visibly jump before moving.
+  // Exact point inside the source tile where the pointer landed, measured from
+  // its top-left corner. The body-level clone uses the same viewport coordinate
+  // system as clientX/clientY, so this offset stays valid while scrolled and
+  // inside fullscreen/backdrop-filtered ancestors.
   const grabOffsetRef = useRef({ x: 0, y: 0 });
-  const rafRef = useRef<number | null>(null);
+  const dragSizeRef = useRef({ width: 0, height: 0 });
+  const activePointerRef = useRef<number | null>(null);
 
   const paintDrag = useCallback(() => {
-    rafRef.current = null;
     const el = dragElRef.current;
     if (!el) return;
     const { x, y } = dragPosRef.current;
     const o = grabOffsetRef.current;
-    el.style.transform = `translate3d(${x + o.x}px, ${y + o.y}px, 0) translate(-50%, -50%) scale(1.08) rotate(-2deg)`;
+    el.style.transform = `translate3d(${x - o.x}px, ${y - o.y}px, 0)`;
   }, []);
-
-  const queuePaint = useCallback(() => {
-    if (rafRef.current == null) rafRef.current = requestAnimationFrame(paintDrag);
-  }, [paintDrag]);
 
   const startDrag = (label: string) => (e: React.PointerEvent) => {
     if (filled) return;
@@ -130,9 +128,11 @@ export function GapFillChallenge({
     if (el.hasPointerCapture?.(e.pointerId)) el.releasePointerCapture(e.pointerId);
     const r = el.getBoundingClientRect();
     grabOffsetRef.current = {
-      x: r.left + r.width / 2 - e.clientX,
-      y: r.top + r.height / 2 - e.clientY,
+      x: e.clientX - r.left,
+      y: e.clientY - r.top,
     };
+    dragSizeRef.current = { width: r.width, height: r.height };
+    activePointerRef.current = e.pointerId;
     dragPosRef.current = { x: e.clientX, y: e.clientY };
     setDrag({ label, x: e.clientX, y: e.clientY });
   };
@@ -146,21 +146,24 @@ export function GapFillChallenge({
   useEffect(() => {
     if (!drag) return;
     const move = (e: PointerEvent) => {
+      if (e.pointerId !== activePointerRef.current) return;
       dragPosRef.current = { x: e.clientX, y: e.clientY };
-      queuePaint();
+      paintDrag();
     };
     const up = (e: PointerEvent) => {
+      if (e.pointerId !== activePointerRef.current) return;
       const box = slotRef.current?.getBoundingClientRect();
       // Test the tile's centre, not the raw finger point, so an edge grab
       // drops where the block visually sits.
-      const cx = e.clientX + grabOffsetRef.current.x;
-      const cy = e.clientY + grabOffsetRef.current.y;
+      const cx = e.clientX - grabOffsetRef.current.x + dragSizeRef.current.width / 2;
+      const cy = e.clientY - grabOffsetRef.current.y + dragSizeRef.current.height / 2;
       const hit =
         box &&
         cx >= box.left - 40 && cx <= box.right + 40 &&
         cy >= box.top - 40 && cy <= box.bottom + 40;
 
       const label = drag.label;
+      activePointerRef.current = null;
       if (hit) attempt(label);
       else setDrag(null);
     };
@@ -171,12 +174,8 @@ export function GapFillChallenge({
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
       window.removeEventListener("pointercancel", up);
-      if (rafRef.current != null) {
-        cancelAnimationFrame(rafRef.current);
-        rafRef.current = null;
-      }
     };
-  }, [drag, attempt, queuePaint]);
+  }, [drag, attempt, paintDrag]);
 
 
   return (
@@ -271,13 +270,15 @@ export function GapFillChallenge({
       )}
 
       {/* floating dragged block */}
-      {drag && (
+      {drag && createPortal(
         <div
           ref={dragElRef}
           className="pointer-events-none fixed left-0 top-0 z-[100] will-change-transform"
+          style={{ width: dragSizeRef.current.width }}
         >
           <WordBlock label={drag.label} skin={drag.label === answer ? tier : "slate"} dragging />
-        </div>
+        </div>,
+        document.body,
       )}
 
     </div>
