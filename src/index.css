@@ -11,18 +11,18 @@
        Primary Purple #7c3aed · Purple Light #a78bfa · Green #4ade80
        Orange #fb923c · Yellow #facc15 · Coral #f87171 */
 
-    --background: 240 6% 5%;              /* #09090b */
+    --background: 240 9% 4%;              /* #08080B — landing base */
     --foreground: 210 40% 98%;
 
-    --card: 240 5% 7%;                    /* #111113 base card */
+    --card: 240 7% 6%;                    /* #0E0E11 base card */
     --card-foreground: 210 40% 98%;
 
     --popover: 240 5% 10%;                /* #1a1a1e modal */
     --popover-foreground: 210 40% 98%;
 
-    /* Primary: Brand purple #7c3aed — XP, level, actions */
-    --primary: 262 83% 58%;
-    --primary-foreground: 0 0% 100%;
+    /* Primary: Deck green #34C759 — the brand action colour */
+    --primary: 145 63% 49%;
+    --primary-foreground: 240 9% 4%;
 
     /* Secondary: raised card surface #141416 */
     --secondary: 240 5% 9%;
@@ -31,16 +31,16 @@
     --muted: 240 5% 12%;
     --muted-foreground: 240 5% 65%;
 
-    /* Accent: Purple Light #a78bfa — highlights, links */
-    --accent: 258 90% 76%;
+    /* Accent: Deck orange #FF8A00 — learning state, highlights */
+    --accent: 32 100% 50%;
     --accent-foreground: 240 6% 5%;
 
     /* Success: Green #4ade80 — known words */
-    --success: 142 71% 58%;
+    --success: 145 63% 49%;
     --success-foreground: 240 6% 5%;
 
     /* LinguaScript forest browse system */
-    --brand-green: 87 54% 45%;
+    --brand-green: 145 63% 49%;
     --brand-green-foreground: 240 6% 5%;
     --browse-forest: 151 62% 6%;
     --browse-forest-foreground: 118 42% 92%;
@@ -49,60 +49,60 @@
     --browse-leaf: 135 44% 22%;
     --browse-mist: 176 32% 72%;
     --browse-trail: 37 42% 24%;
-    --state-red: 0 84% 60%;
-    --state-orange: 24 96% 61%;
-    --state-green: 87 54% 45%;
+    --state-red: 3 100% 59%;              /* #FF3B30 */
+    --state-orange: 32 100% 50%;          /* #FF8A00 */
+    --state-green: 145 63% 49%;           /* #34C759 */
 
     /* Warning: Yellow #facc15 */
     --warning: 48 96% 53%;
     --warning-foreground: 240 6% 5%;
 
     /* Streaks / secondary attention: Orange #fb923c */
-    --streak: 27 96% 61%;
+    --streak: 32 100% 50%;
     --streak-foreground: 240 6% 5%;
 
     /* Destructive: Coral #f87171 */
-    --destructive: 0 91% 71%;
+    --destructive: 3 100% 59%;
     --destructive-foreground: 240 6% 5%;
 
     --border: 240 5% 15%;
     --input: 240 5% 15%;
-    --ring: 262 83% 58%;
+    --ring: 145 63% 49%;
 
     --radius: 0.75rem;
 
     /* Glass effect variables — tuned to the new base-card surface */
     --glass-bg: 240 5% 8% / 0.72;
-    --glass-border: 258 40% 40% / 0.28;
+    --glass-border: 0 0% 100% / 0.08;
     --glass-blur: 20px;
 
     /* Gradients — primary purple → purple light for XP/level moments,
        orange → yellow for streak celebrations, green for correct answers. */
-    --gradient-primary: linear-gradient(135deg, hsl(262 83% 58%), hsl(258 90% 76%));
-    --gradient-accent: linear-gradient(135deg, hsl(27 96% 61%), hsl(48 96% 53%));
-    --gradient-success: linear-gradient(135deg, hsl(142 71% 45%), hsl(142 71% 58%));
+    --gradient-primary: linear-gradient(135deg, hsl(145 63% 49%), hsl(32 100% 50%));
+    --gradient-accent: linear-gradient(135deg, hsl(32 100% 50%), hsl(48 96% 53%));
+    --gradient-success: linear-gradient(135deg, hsl(145 63% 40%), hsl(145 63% 55%));
     --gradient-card: linear-gradient(180deg, hsl(240 5% 8%), hsl(240 6% 5%));
-    --gradient-hero: radial-gradient(ellipse at top, hsl(262 60% 22% / 0.55), transparent 70%);
+    --gradient-hero: radial-gradient(ellipse at top, hsl(145 63% 20% / 0.45), transparent 70%);
     --gradient-browse-sky: linear-gradient(180deg, hsl(176 32% 72% / 0.85) 0%, hsl(148 43% 18% / 0.9) 54%, hsl(151 62% 6%) 100%);
     --gradient-browse-card: linear-gradient(145deg, hsl(142 45% 13% / 0.94), hsl(151 62% 6% / 0.96));
     --gradient-browse-video: linear-gradient(135deg, hsl(142 45% 13%), hsl(37 42% 24%), hsl(151 62% 6%));
 
     /* Shadows */
-    --shadow-glow-primary: 0 0 40px hsl(262 83% 58% / 0.35);
-    --shadow-glow-accent: 0 0 30px hsl(27 96% 61% / 0.4);
-    --shadow-glow-success: 0 0 20px hsl(142 71% 58% / 0.3);
+    --shadow-glow-primary: 0 0 40px hsl(145 63% 49% / 0.32);
+    --shadow-glow-accent: 0 0 30px hsl(32 100% 50% / 0.35);
+    --shadow-glow-success: 0 0 20px hsl(145 63% 49% / 0.3);
     --shadow-card: 0 8px 32px hsl(240 6% 2% / 0.6);
     --shadow-float: 0 20px 60px hsl(240 6% 2% / 0.75);
     --shadow-forest: 0 24px 70px hsl(151 62% 3% / 0.65);
 
     --sidebar-background: 240 5% 6%;
     --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 262 83% 58%;
+    --sidebar-primary: 145 63% 49%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 240 5% 10%;
     --sidebar-accent-foreground: 210 40% 98%;
     --sidebar-border: 240 5% 15%;
-    --sidebar-ring: 262 83% 58%;
+    --sidebar-ring: 145 63% 49%;
 
   }
 }
