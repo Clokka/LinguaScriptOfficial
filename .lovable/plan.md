@@ -1,73 +1,76 @@
-# Chinese, off-language videos, landing polish, app-wide dark theme
+# Brand identity, daily goal loop, and bug fixes
 
-Four separate fixes plus one small addition, in the order they should ship.
+## 1. One logo everywhere (no more default stack icon)
 
-## 1. Chinese as a learnable and native language
+Today several screens fall back to a generic Lucide "layers" square (sign-in page is
+the clearest example). Fix by building one small `BrandMark` component with two
+variants — chameleon pin only, and pin + white/green "LinguaScript" wordmark — backed
+by the brand assets already on the CDN.
 
-Chinese (`zh`) already exists in the shared language list but is filtered out of the
-selectors the app actually uses. Add it to:
+Then drop it into every logo slot: Google/email sign-in, onboarding header, app header
+on home, discover, profile, settings, vocabulary, and the LinguaScripts page. No page
+keeps its own ad-hoc icon.
 
-- Onboarding native + learning steps
-- The header `LanguageSelector` (currently hardcoded to fr/es/de/it/en)
-- Mobile onboarding and discover
-- Language-name mapping used for translation prompts and text-to-speech, so Chinese
-  words get a sensible pronunciation voice and translation label
+## 2. Daily goal loop: tally, completion nudge, review handoff
 
-## 2. Off-language videos still work (French learner watching an English video)
+Goal sizes stay 1 / 5 / 8 words.
 
-Today the watch page always asks the caption provider for captions **in the learning
-language**. When someone learning French opens an English video, no French track
-exists, the request returns nothing, and the player shows a "could not load captions"
-error — even though the video is perfectly usable for learning.
+- While watching and saving, show a small live tally ("3 / 5 saved today") next to the
+  save confirmation so progress is visible in the moment.
+- On hitting the goal: a quiet, non-blocking card — "Goal reached. Review your
+  LinguaScripts" — with one button that goes straight to the review session. No confetti
+  spam, no forced modal; the tone is "small, sustainable, come back tomorrow".
+- Home shows the same tally so users can see the day's target at a glance.
 
-New behaviour:
+## 3. "LinguaScripts ready for review" button does nothing
 
-1. Ask for the learning language first (unchanged, best case).
-2. If that comes back empty, fall back to whatever caption track the video actually
-   has (the video's own language, or auto-detected).
-3. Whatever track we end up with becomes the top subtitle line; the bottom line is the
-   user's native language, produced by translation when no native track exists.
-4. If the video language happens to equal the native language, translate the *other*
-   way so the learner still gets a target-language line where possible, and show a
-   quiet note: "This video is in English — showing English with your translations."
+On home the alert's action opens an in-page session that never mounts on some routes.
+Change it to navigate to `/linguascripts` and start the session there, so the button
+always lands somewhere real.
 
-No error banner in any of these cases; the banner is reserved for videos with no
-captions at all.
+## 4. Inaccurate "700+ words added this week"
 
-## 3. Landing page cursor on mobile
+New accounts see a hardcoded/miscomputed weekly figure. Replace it with a real count of
+words saved in the last 7 days for that user, and hide the line entirely when the count
+is zero rather than showing a fake number.
 
-`/landing5` mounts the custom arrow cursor. It is already gated to fine pointers, but
-the gate runs once on mount and some mobile browsers report a hover-capable pointer,
-leaving a stuck arrow in the corner. Harden it: also require a non-touch device, bail
-when `maxTouchPoints > 0`, and hide the arrow permanently after the first `touchstart`.
+## 5. Comprehension page colours
 
-## 4. Quizlet + Anki mention
+Swap the washed-out translucent state colours for the landing palette at full strength —
+red `#FF3B30`, orange `#FF8A00`, green `#34C759` — on the category dots, counts, bars and
+card borders, on the same near-black `#08080B` surfaces used on `/landing5`.
 
-A quiet line near the bottom of `/landing5`, above the footer — small greyed logos and
-one sentence: "Exports to Quizlet and Anki." Understated, matching the existing
-footer type scale. Uses the two uploaded logo files as CDN assets.
+## 6. Landing cursor still stuck top-left on mobile
 
-## 5. Landing palette across the whole app
+The cursor element renders before the capability check runs, so a frozen arrow paints at
+0,0. Fix: never render the DOM nodes at all until the check passes (state-gated render),
+rather than rendering then hiding.
 
-`/landing5` uses near-black `#08080B` surfaces, white type, and the three deck colours
-(red `#FF3B30`, orange `#FF8A00`, green `#34C759`) as the only accents. Right now the
-rest of the app runs a purple-led palette.
+## 7. Word-drag bug in LinguaScripts
 
-Plan: retune the global design tokens in `index.css` to the landing values —
-background, card, border, muted, primary (green), accent (orange), destructive (red) —
-so every shadcn surface picks the new scheme up without touching component code. Then
-sweep the pages that hardcode purple or old greys (onboarding, discover, flashcards,
-profile, pricing) and move them onto tokens. Onboarding additionally gets the
-LinguaScript wordmark and chameleon assets already in `src/assets/brand/`.
+In the gap-fill exercise the dragged block can detach from the pointer / drop on the
+wrong target (visible in the video). Fix by using pointer capture on the block, tracking
+one active pointer id, and hit-testing the slot on release — plus release cleanup so a
+cancelled drag always returns the block.
 
-This is the largest piece and the one most likely to surface stray hardcoded colours;
-it lands last so the functional fixes are not blocked behind it.
+## 8. Admin: Pro grants show "not_admin"
+
+The admin panel is correct but your account is missing the `admin` role, so both the
+grant panel and gift-link creation are refused by the database. Fix is to grant your
+account the admin role; the UI then works as built.
+
+## 9. Domain: hide `subtitle-mastery.lovable.app`
+
+`linguascript.co.uk` is already connected and live. What's left is to make it the
+primary/canonical domain so the lovable.app address stops being the one shown — done in
+publish settings, plus the `www` variant needs its DNS finishing (it's still pending).
+Canonical tags and OG URLs in `index.html` already point at `linguascript.co.uk`.
 
 ## Technical notes
 
-- Caption fallback lives in the `loadAllCaptions` path in `src/pages/Watch.tsx` plus
-  the `fetch-captions` edge function, which needs an "any available language" mode.
-- Language lists: `src/lib/languages.ts` is the source of truth; the fix is removing
-  the local hardcoded subsets rather than adding Chinese in five places.
-- Theme change is token-level in `src/index.css` and `tailwind.config.ts`; no
-  component rewrites unless a page hardcodes a colour.
+- New `src/components/BrandMark.tsx`; assets from `src/assets/brand/*.asset.json`.
+- Daily-goal tally reads existing `DailyGoalPicker` setting plus a count of today's
+  `saved_words`; the nudge is a small component reused on Watch and Home.
+- Cursor fix is a `useState` render gate in `LinguaCursor.tsx`.
+- Drag fix is contained to `GapFillChallenge.tsx` / `WordBlock`.
+- Admin role is a one-row insert into `user_roles`.
