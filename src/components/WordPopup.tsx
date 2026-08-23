@@ -65,8 +65,13 @@ export const WordPopup = ({ word, position, language, translating, deckColor, on
         <div className="space-y-4">
           <div className="flex items-start gap-3">
             <div className="flex-1">
-              <h3 className="text-2xl font-bold gradient-text">{word.text}</h3>
-              <p className="text-muted-foreground text-sm mt-1">{word.ipa}</p>
+              <h3
+                className={cn("text-2xl font-bold", !deckColor && "gradient-text")}
+                style={deckColor ? { color: deckColor } : undefined}
+              >
+                {word.text}
+              </h3>
+
             </div>
             <Button
               data-tour="word-pronounce"
