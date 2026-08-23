@@ -12,6 +12,9 @@ import { LineBlastDemo } from "@/components/LineBlastDemo";
 import { PlatformLogos } from "@/components/landing/PlatformLogos";
 import { DeckCards } from "@/components/landing/DeckCards";
 import { DECK } from "@/lib/deck-colors";
+import brandLockup from "@/assets/brand/linguascript-wordmark.png.asset.json";
+import quizletLogo from "@/assets/brand/quizlet.png.asset.json";
+import ankiLogo from "@/assets/brand/anki.png.asset.json";
 
 /**
  * The Chameleon Method — LinguaScript's landing page.
@@ -283,9 +286,34 @@ const Landing5 = () => {
       </Section>
 
       <footer className="border-t border-white/[0.06] py-10">
-        <div className="max-w-5xl mx-auto px-6 flex flex-wrap items-center justify-between gap-4">
-          <Wordmark className="text-sm" />
-          <p className="text-xs text-white/30">© {new Date().getFullYear()} LinguaScript</p>
+        <div className="max-w-5xl mx-auto px-6 space-y-6">
+          <div className="flex items-center gap-3 text-xs text-white/30">
+            <span>Your words export to</span>
+            <img
+              src={quizletLogo.url}
+              alt="Quizlet"
+              className="h-5 w-5 rounded opacity-60 hover:opacity-100 transition-opacity"
+              loading="lazy"
+            />
+            <span className="text-white/40">Quizlet</span>
+            <span className="text-white/15">·</span>
+            <img
+              src={ankiLogo.url}
+              alt="Anki"
+              className="h-5 w-5 rounded opacity-60 hover:opacity-100 transition-opacity"
+              loading="lazy"
+            />
+            <span className="text-white/40">Anki</span>
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <img
+              src={brandLockup.url}
+              alt="LinguaScript"
+              className="h-6 w-auto opacity-80"
+              loading="lazy"
+            />
+            <p className="text-xs text-white/30">© {new Date().getFullYear()} LinguaScript</p>
+          </div>
         </div>
       </footer>
     </div>
