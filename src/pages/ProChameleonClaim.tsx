@@ -187,7 +187,7 @@ export default function ProChameleonClaim() {
                     onClick={() =>
                       user
                         ? claim()
-                        : navigate(`/auth?redirect=${encodeURIComponent(returnTo)}`)
+                        : navigate(`/auth?next=${encodeURIComponent(returnTo)}`)
                     }
                     disabled={phase === "claiming"}
                     className="px-8 py-4 rounded-xl font-bold text-lg text-[#08080B] disabled:opacity-60 inline-flex items-center gap-2"

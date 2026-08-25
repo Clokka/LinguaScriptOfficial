@@ -53,6 +53,7 @@ import LinguaScripts from "./pages/LinguaScripts";
 import Credits from "./pages/Credits";
 import ChameleonMethod from "./pages/ChameleonMethod";
 import ProGiftClaim from "./pages/ProGiftClaim";
+import ProChameleonClaim from "./pages/ProChameleonClaim";
 
 const queryClient = new QueryClient();
 
@@ -100,6 +101,7 @@ const App = () => (
                 <Route path="/progress" element={<Progress />} />
                 <Route path="/gift" element={<GiftClaim />} />
                 <Route path="/pro-gift" element={<ProGiftClaim />} />
+                <Route path="/pro-chameleon" element={<ProChameleonClaim />} />
                 <Route path="/thechameleonmethod" element={<ChameleonMethod />} />
                 <Route path="/credits" element={<Credits />} />
                 <Route path="/mieoframes" element={<MieoFrames />} />
