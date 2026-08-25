@@ -19,6 +19,7 @@ import { Switch } from "@/components/ui/switch";
 import { getIntegrations, saveIntegrations, type IntegrationKey, type IntegrationConfig } from "@/lib/integrations";
 import { AdminProGrants } from "@/components/AdminProGrants";
 import { AdminProGiftLinks } from "@/components/AdminProGiftLinks";
+import { AdminProChameleonGiveaway } from "@/components/AdminProChameleonGiveaway";
 import { AdminStripeFallback } from "@/components/AdminStripeFallback";
 import { AdminPaymentLinks } from "@/components/AdminPaymentLinks";
 import { AdminGiftLinks } from "@/components/AdminGiftLinks";
@@ -354,6 +355,7 @@ const Admin = () => {
         <AdminProGrants />
 
         <AdminProGiftLinks />
+        <AdminProChameleonGiveaway />
         <AdminStripeFallback />
         <AdminPaymentLinks />
         <AdminGiftLinks />
