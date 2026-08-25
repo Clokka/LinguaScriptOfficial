@@ -8,7 +8,7 @@
   C.keepAlive();
 
   const OVERLAY_CSS = `
-    #ls-overlay { position:fixed; left:0; right:360px; bottom:0; z-index:2147483640; pointer-events:none; font-family:'Inter',-apple-system,sans-serif; background:rgba(5,4,12,0.96); border-top:1px solid rgba(124,58,237,0.2); padding:14px 0 50px; text-align:center; transition:right .3s ease, opacity .15s ease; min-height:100px; }
+    #ls-overlay { position:fixed; left:0; right:360px; bottom:0; z-index:2147483640; pointer-events:none; font-family:'Inter',-apple-system,sans-serif; background:rgba(5,4,12,0.96); border-top:1px solid hsla(145, 63%, 49%, 0.2); padding:14px 0 50px; text-align:center; transition:right .3s ease, opacity .15s ease; min-height:100px; }
     #ls-overlay.ls-panel-hidden { right:0; }
     #ls-primary { display:inline-block; padding:0 32px; font-size:32px; font-weight:700; color:#fff; line-height:1.5; pointer-events:auto; cursor:pointer; letter-spacing:-0.2px; }
     #ls-secondary { display:block; font-size:18px; font-weight:400; color:rgba(255,255,255,0.6); padding:4px 32px 0; pointer-events:none; }
@@ -51,7 +51,7 @@
     const div = document.createElement('div');
     div.className = 'ls-panel-line'; div.dataset.idx = idx;
     const textEl = document.createElement('div'); textEl.className = 'ls-panel-line-text';
-    textEl.appendChild(C.makeWordSpansFor(transcriptLines[idx].text));
+    textEl.appendChild(C.makeWordSpansFor(transcriptLines[idx].text, true)); // panelMode: no gold here
     const trEl = document.createElement('div'); trEl.className = 'ls-panel-line-tr';
     div.appendChild(textEl); div.appendChild(trEl);
     div.addEventListener('click', () => {
@@ -78,6 +78,10 @@
     el.innerHTML = '';
     el.onclick = () => { const v = video(); if (v) v.currentTime = Math.max(0, v.currentTime - 4); };
     text.split(/\s+/).filter(Boolean).forEach((w) => el.appendChild(C.makeWordSpan(w, text)));
+    // Line Blast only celebrates a line that was still incomplete when it
+    // first appeared — arm it now, before anything can promote its words.
+    C.LineBlast.armLine(text, C.learningLang);
+    C.LineBlast.completeLine(text, C.learningLang);
   }
   function renderSecondary(text) {
     const el = document.getElementById('ls-secondary'); if (!el) return;
@@ -131,6 +135,15 @@
     const overlay = document.createElement('div'); overlay.id = 'ls-overlay';
     overlay.innerHTML = `<div id="ls-primary"></div><div id="ls-secondary" style="display:none"></div>`;
     document.body.appendChild(overlay);
+
+    // A new title means a fresh set of lines — the combo/armed/blasted state
+    // from whatever was playing before must not leak into this one.
+    C.LineBlast.reset();
+    C.LineBlast.bindElements(document.getElementById('ls-primary'), overlay);
+    // A word promoted elsewhere (flashcard review, another tab) while this
+    // exact line is still on screen is exactly the kind of external
+    // promotion Line Blast is meant to catch — re-check on every deck sync.
+    C.Deck.onRefresh(() => { if (lastPrimary) C.LineBlast.completeLine(lastPrimary, C.learningLang); });
 
     panelListEl = C.buildPanelShell('Transcript');
     C.buildControls({

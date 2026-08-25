@@ -10,6 +10,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "migrate:linguascripts": "node scripts/apply-linguascripts-migration.js",
+    "build:extension-vendor": "esbuild extension/src/chameleon3d-entry.js --bundle --format=iife --minify --outfile=extension/vendor/chameleon3d.bundle.js && esbuild extension/src/confetti-entry.js --bundle --format=iife --minify --outfile=extension/vendor/confetti.bundle.js",
     "video": "remotion studio src/remotion/index.ts",
     "video:render": "remotion render src/remotion/index.ts GreenTransition out/green-transition.mp4",
     "video:hedgehog": "remotion render src/remotion/index.ts HedgehogGiveaway out/hedgehog-giveaway.mp4"
@@ -87,6 +88,7 @@
     "@types/react-dom": "^18.3.7",
     "@types/three": "^0.169.0",
     "@vitejs/plugin-react-swc": "^3.11.0",
+    "esbuild": "^0.21.5",
     "autoprefixer": "^10.4.21",
     "eslint": "^9.32.0",
     "eslint-plugin-react-hooks": "^5.2.0",

@@ -78,6 +78,7 @@
   // ── Sync + render ─────────────────────────────────────────────────────────────
   let primarySubs = [], secondarySubs = [], currentSubIdx = 0, syncInterval = null, videoEl = null;
   let lastText = null, lastSecondarySource = null, autoPause = false, autoPausedAt = -1, overlayVisible = true;
+  let deckRefreshHookRegistered = false;
 
   function renderPrimary(text) {
     if (text === lastText) return; lastText = text;
@@ -85,6 +86,10 @@
     el.innerHTML = '';
     el.onclick = () => { const sub = primarySubs[currentSubIdx]; if (sub && videoEl) videoEl.currentTime = sub.start; };
     text.split(/\s+/).filter(Boolean).forEach((w) => el.appendChild(C.makeWordSpan(w, text)));
+    // Line Blast only celebrates a line that was still incomplete when it
+    // first appeared — arm it now, before anything can promote its words.
+    C.LineBlast.armLine(text, C.learningLang);
+    C.LineBlast.completeLine(text, C.learningLang);
   }
   function renderSecondary(text) {
     const el = document.getElementById('ls-secondary'); if (!el) return;
@@ -137,7 +142,7 @@
     subs.forEach((sub, i) => {
       const div = document.createElement('div'); div.className = 'ls-panel-line'; div.dataset.idx = i;
       const textEl = document.createElement('div'); textEl.className = 'ls-panel-line-text';
-      textEl.appendChild(C.makeWordSpansFor(sub.text));
+      textEl.appendChild(C.makeWordSpansFor(sub.text, true)); // panelMode: no gold here
       const trEl = document.createElement('div'); trEl.className = 'ls-panel-line-tr'; trEl.textContent = translations[i];
       div.appendChild(textEl); div.appendChild(trEl);
       div.addEventListener('click', () => seekToSub(i));
@@ -159,6 +164,18 @@
     const overlay = document.createElement('div'); overlay.id = 'ls-overlay';
     overlay.innerHTML = `<div id="ls-primary"></div><div id="ls-secondary" style="display:none"></div>`;
     document.body.appendChild(overlay);
+
+    // A new video means a fresh set of lines — reset the combo/armed/blasted
+    // state so it can't leak from whatever was playing before.
+    C.LineBlast.reset();
+    C.LineBlast.bindElements(document.getElementById('ls-primary'), overlay);
+    if (!deckRefreshHookRegistered) {
+      deckRefreshHookRegistered = true;
+      // A word promoted elsewhere (flashcard review, another tab) while this
+      // exact line is still on screen is exactly the kind of external
+      // promotion Line Blast is meant to catch — re-check on every deck sync.
+      C.Deck.onRefresh(() => { if (lastText) C.LineBlast.completeLine(lastText, C.learningLang); });
+    }
 
     const listEl = C.buildPanelShell('Transcript');
     C.buildControls({

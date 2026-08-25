@@ -135,10 +135,6 @@ function coerceState(raw) {
 // entry. Without this, unordered rows let whichever row lands last decide the
 // colour, which is exactly how green words like "le"/"la"/"des" showed red.
 const STATE_RANK = { red: 0, orange: 1, green: 2 };
-function higherState(current, next) {
-  if (!current) return next;
-  return STATE_RANK[next] > STATE_RANK[current] ? next : current;
-}
 
 // Fetch every row of a saved_words query, paging past PostgREST's default
 // 1000-row cap. A heavy learner can have thousands of saved words (this user
@@ -162,20 +158,42 @@ async function fetchAllSavedWords(query, accessToken) {
   return rows;
 }
 
+// True when a word is green in the deck but the learner hasn't seen it turn.
+// Byte-for-byte the same rule as isPendingGreen() in src/lib/goldenReveal.ts —
+// compares green_revealed_at against state_changed_at (falling back to
+// created_at) rather than a boolean, so a word that slips back to orange and
+// is re-promoted re-arms the gold automatically. `undefined` (column not
+// selected / migration not applied) means "no gold", never "gold" — the same
+// safety catch the website relies on.
+function isPendingGreen(row) {
+  if (!row || row.state !== 'green') return false;
+  if (row.green_revealed_at === undefined) return false;
+  if (row.green_revealed_at === null) return true;
+  const promoted = row.state_changed_at || row.created_at;
+  if (!promoted) return false;
+  return new Date(row.green_revealed_at).getTime() < new Date(promoted).getTime();
+}
+
 // Load the user's saved words for one language as a Map keyed by
-// normalizeToken(word) → state ('red' | 'orange' | 'green'). Scoped by
-// language to mirror the app's loadDeckIndex and the DB unique index
-// (user_id, word, language): the same word can legitimately live in two
-// languages, so dedup and colouring are per-language.
+// normalizeToken(word) → { state, id, gold }. Scoped by language to mirror
+// the app's loadDeckIndex and the DB unique index (user_id, word, language):
+// the same word can legitimately live in two languages, so dedup and
+// colouring are per-language.
 async function loadDeckIndex(userId, language, accessToken) {
   const rows = await fetchAllSavedWords(
-    `saved_words?user_id=eq.${userId}&language=eq.${encodeURIComponent(language)}&select=word,state`,
+    `saved_words?user_id=eq.${userId}&language=eq.${encodeURIComponent(language)}&select=id,word,state,state_changed_at,created_at,green_revealed_at`,
     accessToken
   );
   const m = new Map();
   for (const row of rows) {
     const key = normalizeToken(row.word);
-    m.set(key, higherState(m.get(key), coerceState(row.state)));
+    const state = coerceState(row.state);
+    const existing = m.get(key);
+    // Same higher-state-wins rule as before, now carried alongside id/gold so
+    // a duplicate token can't leave a stale id pointing at the wrong row.
+    if (!existing || STATE_RANK[state] > STATE_RANK[existing.state]) {
+      m.set(key, { state, id: row.id, gold: isPendingGreen(row) });
+    }
   }
   return m;
 }
@@ -478,15 +496,183 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         const lang = profileLang || msg.language || 'fr';
         const index = await getDeckIndexCached(session.user.id, lang, session.access_token, { force: !!msg.force });
         // Temporary diagnostic — read in the service-worker console.
-        let r = 0, o = 0, g = 0;
-        index.forEach((s) => (s === 'green' ? g++ : s === 'orange' ? o++ : r++));
-        console.log(`[LinguaScript] GET_DECK: profileLang=${profileLang || '(none)'} → using '${lang}', ${index.size} words {red:${r}, orange:${o}, green:${g}}`);
-        sendResponse({ ok: true, deck: Object.fromEntries(index), language: lang });
+        let r = 0, o = 0, g = 0, gold = 0;
+        index.forEach((v) => { v.state === 'green' ? g++ : v.state === 'orange' ? o++ : r++; if (v.gold) gold++; });
+        console.log(`[LinguaScript] GET_DECK: profileLang=${profileLang || '(none)'} → using '${lang}', ${index.size} words {red:${r}, orange:${o}, green:${g}, gold:${gold}}`);
+        const deck = {};
+        index.forEach((v, word) => { deck[word] = { state: v.state, id: v.id, gold: v.gold }; });
+        sendResponse({ ok: true, deck, language: lang });
       } catch (e) {
         console.warn('[LinguaScript] GET_DECK error:', e?.message || e);
         sendResponse({ ok: false, deck: {} });
       }
     })();
+    return true;
+  }
+
+  // ── Gold word claim / decay — mirrors reveal_green_word() / touch_gold_word()
+  // via the exact same RPCs the website's src/lib/goldenReveal.ts calls. ──────
+  async function callRpc(fnName, args, accessToken) {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fnName}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify(args),
+    });
+    if (!res.ok) throw new Error(`RPC ${fnName} failed (${res.status})`);
+    return res.json();
+  }
+
+  if (msg.type === 'CLAIM_GOLD') {
+    getValidSession()
+      .then(async (session) => {
+        const data = await callRpc('reveal_green_word', { p_word_id: msg.wordId }, session.access_token);
+        sendResponse({ ok: true, revealed: !!data?.revealed, awardedXp: data?.awarded_xp || 0 });
+      })
+      .catch((e) => sendResponse({ ok: false, error: e.message }));
+    return true;
+  }
+
+  if (msg.type === 'TOUCH_GOLD') {
+    getValidSession()
+      .then(async (session) => {
+        const data = await callRpc('touch_gold_word', { p_word_id: msg.wordId, p_decay_at: msg.decayAt || 3 }, session.access_token);
+        sendResponse({ ok: true, seen: data?.seen ?? 0, claimed: !!data?.auto_revealed });
+      })
+      .catch((e) => sendResponse({ ok: false, error: e.message }));
+    return true;
+  }
+
+  // ── Mark known — mirrors markWordKnown() in src/pages/Watch.tsx: an upsert
+  // straight into the green deck, keyed the same way (user_id, word, language)
+  // so it lands on the exact row the website's own "mark known" would touch. ──
+  if (msg.type === 'MARK_KNOWN') {
+    getValidSession()
+      .then(async (session) => {
+        const word = (msg.word || '').trim().toLowerCase();
+        if (!word) return sendResponse({ ok: false, error: 'Empty word' });
+        const lang = (await getLearningLanguage(session.user.id, session.access_token)) || msg.language || 'fr';
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/saved_words?on_conflict=user_id,word,language`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            apikey: SUPABASE_ANON_KEY,
+            Authorization: `Bearer ${session.access_token}`,
+            Prefer: 'resolution=merge-duplicates,return=minimal',
+          },
+          body: JSON.stringify({
+            user_id: session.user.id,
+            word,
+            translation: msg.translation || '',
+            context: msg.context || '',
+            language: lang,
+            state: 'green',
+            state_changed_at: new Date().toISOString(),
+          }),
+        });
+        if (!res.ok) {
+          const err = await res.text();
+          return sendResponse({ ok: false, error: `DB error ${res.status}: ${err}` });
+        }
+        invalidateDeckCache();
+        sendResponse({ ok: true });
+      })
+      .catch((e) => sendResponse({ ok: false, error: e.message }));
+    return true;
+  }
+
+  // ── XP + levelling — mirrors src/lib/xp.ts / XpContext.tsx's award(). ──────
+  // The front-loaded onboarding ramp and endless progression past it are
+  // ported verbatim from xp.ts; drift here would mean an extension learner
+  // levels up on a different total than the website would show for the same
+  // XP, which is exactly the kind of cross-surface inconsistency this whole
+  // pass exists to close.
+  const XP_LEVEL_THRESHOLDS = [0, 20, 50, 95, 160, 250, 380, 560, 820, 1200];
+  const XP_ENDLESS_BASE_GAP = 600;
+  const XP_ENDLESS_GROWTH = 1.08;
+  const XP_ENDLESS_MAX_GAP = 25000;
+  function levelFromXP(xp) {
+    const total = Number.isFinite(xp) ? Math.max(0, Math.floor(xp)) : 0;
+    const thresholds = [...XP_LEVEL_THRESHOLDS];
+    let gap = XP_ENDLESS_BASE_GAP;
+    while (thresholds[thresholds.length - 1] <= total) {
+      thresholds.push(thresholds[thresholds.length - 1] + Math.round(gap));
+      gap = Math.min(gap * XP_ENDLESS_GROWTH, XP_ENDLESS_MAX_GAP);
+    }
+    let lo = 0, hi = thresholds.length - 1;
+    while (lo < hi) {
+      const mid = Math.ceil((lo + hi) / 2);
+      if (thresholds[mid] <= total) lo = mid; else hi = mid - 1;
+    }
+    return { level: lo + 1, current: total - thresholds[lo], nextLevelXP: (thresholds[lo + 1] ?? thresholds[lo]) - thresholds[lo] };
+  }
+  function xpForAction(action) {
+    switch (action) {
+      case 'add_word': return 20;
+      case 'video_watch': return 10;
+      case 'reinforcement': return 5;
+      case 'line_blast': return 15;
+      default: return 0;
+    }
+  }
+  // In-memory per-user XP cache so repeated awards in one session (e.g. every
+  // combo step of a Line Blast) don't each re-fetch the profile — mirrors
+  // XpContext's xpRef. Cold on service-worker restart, which just means the
+  // next award re-syncs from the DB first (harmless: it can only under- not
+  // over-count a level-up).
+  let _xpCache = { userId: null, total: null, level: 1 };
+  async function currentXp(userId, accessToken) {
+    if (_xpCache.userId === userId && _xpCache.total != null) return _xpCache;
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/profiles?user_id=eq.${userId}&select=xp_total`, {
+      headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${accessToken}` },
+    });
+    const rows = await res.json();
+    const total = Array.isArray(rows) && rows[0]?.xp_total != null ? rows[0].xp_total : 0;
+    _xpCache = { userId, total, level: levelFromXP(total).level };
+    return _xpCache;
+  }
+
+  if (msg.type === 'AWARD_XP') {
+    getValidSession()
+      .then(async (session) => {
+        const amount = xpForAction(msg.action);
+        if (amount <= 0) return sendResponse({ ok: true, amount: 0, leveledUp: false });
+        const userId = session.user.id;
+        const before = await currentXp(userId, session.access_token);
+        const newTotal = before.total + amount;
+        const { level: newLevel } = levelFromXP(newTotal);
+        const leveledUp = newLevel > before.level;
+        _xpCache = { userId, total: newTotal, level: newLevel };
+
+        // Persist — same two writes as persistXP() in xp.ts (profile total +
+        // an xp_events row), fired without blocking the response.
+        fetch(`${SUPABASE_URL}/rest/v1/profiles?user_id=eq.${userId}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            apikey: SUPABASE_ANON_KEY,
+            Authorization: `Bearer ${session.access_token}`,
+            Prefer: 'return=minimal',
+          },
+          body: JSON.stringify({ xp_total: newTotal, xp_level: newLevel }),
+        }).catch((e) => console.warn('[LinguaScript] xp_total update failed', e));
+        fetch(`${SUPABASE_URL}/rest/v1/xp_events`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            apikey: SUPABASE_ANON_KEY,
+            Authorization: `Bearer ${session.access_token}`,
+            Prefer: 'return=minimal',
+          },
+          body: JSON.stringify({ user_id: userId, action: msg.action, amount }),
+        }).catch((e) => console.warn('[LinguaScript] xp_events insert failed', e));
+
+        sendResponse({ ok: true, amount, newTotal, newLevel, leveledUp, from: before.level });
+      })
+      .catch((e) => sendResponse({ ok: false, error: e.message }));
     return true;
   }
 
