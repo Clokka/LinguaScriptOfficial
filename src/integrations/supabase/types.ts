@@ -714,6 +714,74 @@ export type Database = {
         }
         Relationships: []
       }
+      pro_chameleon_claims: {
+        Row: {
+          created_at: string
+          email: string | null
+          id: string
+          link_id: string
+          pet_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          link_id: string
+          pet_id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          link_id?: string
+          pet_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pro_chameleon_claims_link_id_fkey"
+            columns: ["link_id"]
+            isOneToOne: false
+            referencedRelation: "pro_chameleon_links"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pro_chameleon_links: {
+        Row: {
+          active: boolean
+          created_at: string
+          created_by: string | null
+          id: string
+          label: string | null
+          pet_id: string
+          token: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          label?: string | null
+          pet_id?: string
+          token: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          label?: string | null
+          pet_id?: string
+          token?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       pro_gift_links: {
         Row: {
           claimed_at: string | null
@@ -1619,6 +1687,18 @@ export type Database = {
         Args: { _days?: number; _user_id: string }
         Returns: boolean
       }
+      admin_list_pro_chameleon_claims: {
+        Args: never
+        Returns: {
+          claimed_at: string
+          display_name: string
+          email: string
+          is_pro: boolean
+          link_label: string
+          user_id: string
+          username: string
+        }[]
+      }
       admin_list_pro_users: {
         Args: never
         Returns: {
@@ -1650,6 +1730,7 @@ export type Database = {
         Returns: number
       }
       claim_gift_link: { Args: { p_token: string }; Returns: Json }
+      claim_pro_chameleon_link: { Args: { _token: string }; Returns: Json }
       claim_pro_gift_link: { Args: { _token: string }; Returns: Json }
       create_daily_linguascript: {
         Args: {
@@ -1682,6 +1763,7 @@ export type Database = {
         }
         Returns: string
       }
+      create_pro_chameleon_link: { Args: { _label?: string }; Returns: Json }
       create_pro_gift_link: {
         Args: { _days?: number; _note?: string }
         Returns: Json
@@ -1812,6 +1894,7 @@ export type Database = {
           slug: string
         }[]
       }
+      preview_pro_chameleon_link: { Args: { _token: string }; Returns: Json }
       preview_pro_gift_link: { Args: { _token: string }; Returns: Json }
       read_email_batch: {
         Args: { batch_size: number; queue_name: string; vt: number }
