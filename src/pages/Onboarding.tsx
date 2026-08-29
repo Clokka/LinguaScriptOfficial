@@ -23,6 +23,7 @@ import { toast } from "sonner";
 import { DailyGoalPicker } from "@/components/DailyGoalPicker";
 import { DEFAULT_WORD_GOAL, videoGoalForWords, wordGoalForVideos } from "@/lib/progressStats";
 import { INTERESTS, MAX_INTERESTS } from "@/lib/interests";
+import { MODE_META, addLanguageProfile, type LearningMode } from "@/lib/languageProfiles";
 
 // LinguaScript targets learners beyond beginner. A1 learners are gated to
 // "below" with a suggestion to start elsewhere; we don't offer A1 or C2.
@@ -51,6 +52,7 @@ const Onboarding = () => {
   const [native, setNative] = useState(initialPersisted?.native ?? "en");
   const [target, setTarget] = useState(initialPersisted?.target ?? "fr");
   const [level, setLevel] = useState<Level | null>(initialPersisted?.level ?? null);
+  const [mode, setMode] = useState<LearningMode>(initialPersisted?.mode ?? "fluency");
   const [school, setSchool] = useState(initialPersisted?.school ?? "");
   const [wordGoal, setWordGoal] = useState<number>(initialPersisted?.wordGoal ?? DEFAULT_WORD_GOAL);
   const [goal, setGoal] = useState(initialPersisted?.goal ?? "");
@@ -126,14 +128,14 @@ const Onboarding = () => {
       // Pre-mark the learner's high-frequency "known" vocabulary based on level
       // so a B1/B2 learner doesn't see a sea of unassessed words on day one.
       if (level && level !== "below") {
-        try {
-          await supabase.rpc("seed_known_vocabulary" as any, {
-            _language: target,
-            _level: level,
-          });
-        } catch (e) {
-          console.warn("seed_known_vocabulary failed", e);
-        }
+        // Creates this learner's per-language profile (mode + level) and seeds
+        // the vocabulary they should already know.
+        await addLanguageProfile({
+          userId: user.id,
+          language: target,
+          mode,
+          level,
+        });
       }
     }
     if (step === 2 && user) {
@@ -261,6 +263,28 @@ const Onboarding = () => {
                         if (v === native) setNative("");
                       }}
                     />
+                  </Field>
+
+                  <Field label="How do you want to learn?">
+                    <div className="grid gap-2">
+                      {(Object.keys(MODE_META) as LearningMode[]).map((m) => (
+                        <button
+                          key={m}
+                          type="button"
+                          onClick={() => setMode(m)}
+                          className={`text-left rounded-2xl border p-4 transition ${
+                            mode === m
+                              ? "bg-[#34C759]/10 border-[#34C759]"
+                              : "bg-[#0E0E11] border-white/10 hover:border-[#34C759]/60"
+                          }`}
+                        >
+                          <p className="text-sm font-medium text-white">
+                            {MODE_META[m].emoji} {MODE_META[m].label}
+                          </p>
+                          <p className="mt-1 text-xs text-white/60 leading-relaxed">{MODE_META[m].blurb}</p>
+                        </button>
+                      ))}
+                    </div>
                   </Field>
 
                   <Field label="My current level">
