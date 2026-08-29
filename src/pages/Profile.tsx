@@ -15,6 +15,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Camera, ArrowLeft, Save, Loader2, LogOut } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { MyLanguagesPanel } from "@/components/MyLanguagesPanel";
 import { PetGallery } from "@/components/pets/PetGallery";
 import { usePet } from "@/contexts/PetContext";
 import { getPetById } from "@/lib/pets";
@@ -231,24 +232,9 @@ const Profile = () => {
             </Select>
           </div>
 
-          {/* Learning Language */}
-          <div>
-            <label className="text-sm font-medium text-foreground mb-2 block">
-              Language You're Learning
-            </label>
-            <Select value={learningLanguage} onValueChange={setLearningLanguage}>
-              <SelectTrigger className="bg-secondary/50 border-border">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {LANGUAGES.filter((l) => l.code !== nativeLanguage).map((lang) => (
-                  <SelectItem key={lang.code} value={lang.code}>
-                    {lang.flag} {lang.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {/* Languages you're learning (up to 5, each with its own mode) */}
+          <MyLanguagesPanel nativeLanguage={nativeLanguage} />
+
 
           {/* School */}
           <div>

@@ -161,6 +161,7 @@ export type Database = {
       core_vocabulary: {
         Row: {
           audio_url: string | null
+          cefr_level: string | null
           created_at: string
           example_en: string | null
           example_fr: string | null
@@ -178,6 +179,7 @@ export type Database = {
         }
         Insert: {
           audio_url?: string | null
+          cefr_level?: string | null
           created_at?: string
           example_en?: string | null
           example_fr?: string | null
@@ -195,6 +197,7 @@ export type Database = {
         }
         Update: {
           audio_url?: string | null
+          cefr_level?: string | null
           created_at?: string
           example_en?: string | null
           example_fr?: string | null
@@ -446,6 +449,60 @@ export type Database = {
           status?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      language_profiles: {
+        Row: {
+          cefr_level: string
+          created_at: string
+          daily_video_goal: number
+          daily_word_goal: number
+          id: string
+          interests: string[]
+          language: string
+          last_active_at: string
+          mode: string
+          seeded_level: string | null
+          seeded_mode: string | null
+          understanding_score: number
+          updated_at: string
+          user_id: string
+          words_known: number
+        }
+        Insert: {
+          cefr_level?: string
+          created_at?: string
+          daily_video_goal?: number
+          daily_word_goal?: number
+          id?: string
+          interests?: string[]
+          language: string
+          last_active_at?: string
+          mode?: string
+          seeded_level?: string | null
+          seeded_mode?: string | null
+          understanding_score?: number
+          updated_at?: string
+          user_id: string
+          words_known?: number
+        }
+        Update: {
+          cefr_level?: string
+          created_at?: string
+          daily_video_goal?: number
+          daily_word_goal?: number
+          id?: string
+          interests?: string[]
+          language?: string
+          last_active_at?: string
+          mode?: string
+          seeded_level?: string | null
+          seeded_mode?: string | null
+          understanding_score?: number
+          updated_at?: string
+          user_id?: string
+          words_known?: number
         }
         Relationships: []
       }
@@ -1729,6 +1786,17 @@ export type Database = {
         Args: { _emails: string[]; _school_id: string }
         Returns: number
       }
+      cefr_cumulative_target: { Args: { _level: string }; Returns: number }
+      cefr_level_progress: {
+        Args: { _language: string }
+        Returns: {
+          can_advance: boolean
+          known_words: number
+          level: string
+          next_level: string
+          total_words: number
+        }[]
+      }
       claim_gift_link: { Args: { p_token: string }; Returns: Json }
       claim_pro_chameleon_link: { Args: { _token: string }; Returns: Json }
       claim_pro_gift_link: { Args: { _token: string }; Returns: Json }
@@ -1934,10 +2002,12 @@ export type Database = {
         Args: { p_linguascript_id: string; p_user_id: string }
         Returns: undefined
       }
-      seed_known_vocabulary: {
-        Args: { _language: string; _level: string }
-        Returns: number
-      }
+      seed_known_vocabulary:
+        | { Args: { _language: string; _level: string }; Returns: number }
+        | {
+            Args: { _language: string; _level: string; _mode?: string }
+            Returns: number
+          }
       set_username: { Args: { _username: string }; Returns: string }
       touch_gold_word: {
         Args: { p_decay_at?: number; p_word_id: string }
