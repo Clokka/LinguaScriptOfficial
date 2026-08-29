@@ -12,7 +12,9 @@
     "migrate:linguascripts": "node scripts/apply-linguascripts-migration.js",
     "video": "remotion studio src/remotion/index.ts",
     "video:render": "remotion render src/remotion/index.ts GreenTransition out/green-transition.mp4",
-    "video:hedgehog": "remotion render src/remotion/index.ts HedgehogGiveaway out/hedgehog-giveaway.mp4"
+    "video:hedgehog": "remotion render src/remotion/index.ts HedgehogGiveaway out/hedgehog-giveaway.mp4",
+    "predev": "bunx tsx scripts/generate-sitemap.ts",
+    "prebuild": "bunx tsx scripts/generate-sitemap.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
