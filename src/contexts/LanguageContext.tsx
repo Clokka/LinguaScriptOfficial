@@ -1,6 +1,12 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  addLanguageProfile,
+  getLanguageProfile,
+  seedForProfile,
+  touchLanguageProfile,
+} from "@/lib/languageProfiles";
 
 // Strict BCP-47 mapping for the Web Speech API.
 // Any language NOT in this map is unsupported by the TTS engine — we refuse to
@@ -16,6 +22,7 @@ const TTS_VOICE_MAP: Record<string, string> = {
   ko: "ko-KR",
   ar: "ar-SA",
   hi: "hi-IN",
+  th: "th-TH",
   ru: "ru-RU",
   tr: "tr-TR",
   nl: "nl-NL",
@@ -23,6 +30,25 @@ const TTS_VOICE_MAP: Record<string, string> = {
   sv: "sv-SE",
   en: "en-US",
 };
+
+
+/**
+ * Make sure the learner has a per-language profile row for `language`, then
+ * seed their known vocabulary for that language's level + mode. Idempotent.
+ */
+async function ensureLanguageProfile(userId: string, language: string, level: string) {
+  try {
+    const existing = await getLanguageProfile(userId, language);
+    if (existing) {
+      await touchLanguageProfile(userId, language);
+      await seedForProfile(language, existing.cefr_level, existing.mode);
+      return;
+    }
+    await addLanguageProfile({ userId, language, mode: "fluency", level });
+  } catch (e) {
+    console.warn("ensureLanguageProfile failed", e);
+  }
+}
 
 interface LanguageContextType {
   /**
@@ -104,10 +130,7 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
           // login and ensures language switches done before this code shipped
           // still get their A1–C1 head-start.
           if (level && level !== "below") {
-            supabase.rpc("seed_known_vocabulary" as any, {
-              _language: lang,
-              _level: level,
-            }).then(() => {});
+            ensureLanguageProfile(user.id, lang, level);
           }
         }
         setIsPro(!!(data as any)?.is_pro);
@@ -141,12 +164,7 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
         .maybeSingle()
         .then(({ data }) => {
           const level = (data as any)?.cef_level;
-          if (level && level !== "below") {
-            supabase.rpc("seed_known_vocabulary" as any, {
-              _language: norm,
-              _level: level,
-            }).then(() => {});
-          }
+          ensureLanguageProfile(user.id, norm, level || "a1");
         });
     }
   };
