@@ -1,12 +1,25 @@
 # Multi-language profiles, accurate CEFR seeding, chameleon default
 
-## 1. Accurate CEFR vocabulary seeding
+## 1. Two learning modes
 
-Today `seed_known_vocabulary` marks a *percentage* of a 3,000-word list green. That is inaccurate: it caps every learner at 3k and treats C2 as 98% of 3k.
+Each language profile picks a mode at setup (changeable later in settings). Both keep the red/orange/green deck model — only the word source and the advancement rule differ.
 
-Change to absolute word-count targets, matching real CEFR sizes:
+### Mode A — Fluency Fast-Track (current 3,000-word methodology, kept as-is)
 
-| Level | Words pre-marked green |
+For travellers and fast learners. Frequency-ordered list, driving towards the 3,000 high-frequency core that already powers the app today. Progress is measured as coverage of that core plus observed comprehension. No exam levels gating anything.
+
+### Mode B — Exam / CEFR track (new)
+
+For students working towards a CEFR exam.
+
+- Words come from **CEFR-tagged level lists**, not raw frequency order. The learner starts at their level and only sees words belonging to that level's list.
+- Everything below the current level is pre-marked green at setup (A1 lists for an A2 starter, A1+A2 for B1, etc.).
+- **Advancement rule:** when every word in the current level's list is green, the learner advances to the next level (A1 → A2 → B1 → B2 → C1 → C2), with a celebration and the next list unlocked.
+- Progress UI shows "412 / 600 A2 words known — 188 to B1" instead of a fluency percentage.
+
+Target sizes per level (used as list sizes in Mode B, and as the pre-green seed when starting mid-ladder):
+
+| Level | Cumulative words known |
 | --- | --- |
 | A1 | 600 |
 | A2 | 1,200 |
@@ -15,20 +28,23 @@ Change to absolute word-count targets, matching real CEFR sizes:
 | C1 | 9,000 |
 | C2 | 16,000 |
 
-- Rewrite the seeding routine to take the top N words by frequency rank for the chosen language, where N is the table above, capped at whatever the language's list actually holds.
-- Expand `core_vocabulary` frequency lists so higher levels are meaningful. Current coverage: pt 4,986 / de 3,000 / es 3,000 / it 3,000 / ru 3,000 / fr 2,889. Import open frequency lists (OpenSubtitles / hermitdave `FrequencyWords`, CC-BY-SA) to reach 20k per language for fr, es, de, it, pt, ru, plus new lists for zh, ja, hi, th, en.
-- Seeding becomes per-language (see §2), so switching languages seeds that language's list only.
-- Store the level that produced the seed so re-levelling top-ups instead of duplicating.
+### Data work shared by both modes
+
+- Add a `cefr_level` tag to `core_vocabulary` rows so the same table serves both modes.
+- Rewrite `seed_known_vocabulary` to take absolute counts (table above) instead of a percentage of 3,000, capped at what a language's list actually holds, and to respect the chosen mode.
+- Expand `core_vocabulary` so higher levels are meaningful. Current coverage: pt 4,986 / de 3,000 / es 3,000 / it 3,000 / ru 3,000 / fr 2,889. Import open frequency lists (OpenSubtitles / hermitdave `FrequencyWords`, CC-BY-SA) to reach 20k per language for fr, es, de, it, pt, ru, plus new lists for zh, ja, hi, th, en. Where official CEFR wordlists exist (e.g. English Vocabulary Profile-style lists), use them for the level tagging; otherwise derive level bands from frequency rank.
+- Seeding is per-language (see §2), and stores the level + mode that produced the seed so re-levelling tops up instead of duplicating.
+
 
 ## 2. A separate learner profile per language (up to 5)
 
 Right now one profile row holds a single `learning_language`, one comprehension score, one streak. Split the per-language state out.
 
-- New `language_profiles` table: one row per user × language, holding CEFR level, seeded level, comprehension/understanding score, words-known counters, daily goals, interests, and last-active timestamp.
+- New `language_profiles` table: one row per user × language, holding learning mode (fluency or CEFR exam), CEFR level, seeded level, comprehension/understanding score, words-known counters, daily goals, interests, and last-active timestamp.
 - Cap at 5 active languages per user. No upgrade prompts anywhere in this flow — all 5 slots are free.
 - `profiles.learning_language` stays as "currently active language" pointer; everything else reads from the active `language_profiles` row.
 - Scope existing per-language data properly: `saved_words`, `video_comprehension`, `watch_sessions`, `linguascripts` already carry a language column — all reads get filtered by the active language so comprehension, vocabulary stats and progress reset cleanly per language.
-- Settings gains a **My languages** section: add a language (pick level → seed vocabulary), switch active language, remove a language (with confirmation, keeps data).
+- Settings gains a **My languages** section: add a language (pick mode → pick level → seed vocabulary), change a language's mode, switch active language, remove a language (with confirmation, keeps data).
 - Remove the free-plan language gating UI (`LanguageSelector` switch/upgrade dialogs and the "Free · 1 language" label).
 
 ## 3. Thai support
@@ -67,5 +83,5 @@ Recorded for later, no implementation in this pass:
 1. Chameleon default pet (smallest, highest priority).
 2. Thai language support.
 3. `language_profiles` table + settings UI + per-language scoping, remove upgrade gating.
-4. CEFR absolute-count seeding + expanded frequency lists.
+4. Two-mode setup (fluency vs CEFR exam), absolute-count seeding + CEFR-tagged/expanded word lists.
 5. LinguaScripts accuracy fixes.
