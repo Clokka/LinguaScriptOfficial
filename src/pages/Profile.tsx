@@ -15,6 +15,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Camera, ArrowLeft, Save, Loader2, LogOut } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { MyLanguagesPanel } from "@/components/MyLanguagesPanel";
 import { PetGallery } from "@/components/pets/PetGallery";
 import { usePet } from "@/contexts/PetContext";
 import { getPetById } from "@/lib/pets";
