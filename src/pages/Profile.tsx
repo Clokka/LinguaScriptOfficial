@@ -231,24 +231,9 @@ const Profile = () => {
             </Select>
           </div>
 
-          {/* Learning Language */}
-          <div>
-            <label className="text-sm font-medium text-foreground mb-2 block">
-              Language You're Learning
-            </label>
-            <Select value={learningLanguage} onValueChange={setLearningLanguage}>
-              <SelectTrigger className="bg-secondary/50 border-border">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {LANGUAGES.filter((l) => l.code !== nativeLanguage).map((lang) => (
-                  <SelectItem key={lang.code} value={lang.code}>
-                    {lang.flag} {lang.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {/* Languages you're learning (up to 5, each with its own mode) */}
+          <MyLanguagesPanel nativeLanguage={nativeLanguage} />
+
 
           {/* School */}
           <div>
