@@ -23,6 +23,7 @@ import { AdminProChameleonGiveaway } from "@/components/AdminProChameleonGiveawa
 import { AdminStripeFallback } from "@/components/AdminStripeFallback";
 import { AdminPaymentLinks } from "@/components/AdminPaymentLinks";
 import { AdminGiftLinks } from "@/components/AdminGiftLinks";
+import { AdminBlogEditor } from "@/components/AdminBlogEditor";
 
 function RowHeader({ row, onRename, onDelete }: { row: { id: string; title: string }; onRename: (id: string, title: string) => void; onDelete: (id: string) => void; }) {
   const [editing, setEditing] = useState(false);
@@ -351,6 +352,8 @@ const Admin = () => {
 
         <h1 className="text-3xl font-bold text-foreground mb-2">Admin Dashboard</h1>
         <p className="text-muted-foreground mb-8">Add films and upload subtitle tracks, or let fetched YouTube captions auto-save here per film.</p>
+
+        <AdminBlogEditor />
 
         <AdminProGrants />
 

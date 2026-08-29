@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
+import { Seo } from "@/components/Seo";
 import { StoreBadges } from "@/components/landing/StoreBadges";
 import { GreenMoment } from "@/components/landing/GreenMoment";
 import { MagneticButton } from "@/components/landing/MagneticButton";
@@ -66,7 +67,14 @@ const Landing5 = () => {
 
   return (
     <div className="min-h-screen bg-[#08080B] text-white antialiased overflow-x-hidden">
+      <Seo
+        title="LinguaScript — The Chameleon Method for learning languages"
+        description="Learn a language by watching what you already love. Dual subtitles, click-to-translate and spaced repetition that turns every word you know green."
+        path="/"
+        rawTitle
+      />
       <LinguaCursor />
+
 
       {/* ── Nav ── */}
       <nav className="sticky top-0 z-50 border-b border-white/[0.06] bg-[#08080B]/85 backdrop-blur-xl">

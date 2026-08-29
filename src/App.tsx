@@ -3,6 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { HelmetProvider } from "react-helmet-async";
 import { lazy, Suspense } from "react";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { XpProvider } from "@/contexts/XpContext";
@@ -54,10 +55,26 @@ import Credits from "./pages/Credits";
 import ChameleonMethod from "./pages/ChameleonMethod";
 import ProGiftClaim from "./pages/ProGiftClaim";
 import ProChameleonClaim from "./pages/ProChameleonClaim";
+import Blog from "./pages/Blog";
+import BlogPostPage from "./pages/BlogPost";
+import {
+  ChameleonMethodPage,
+  DualSubtitlesPage,
+  NetflixSubtitlesPage,
+  YouTubeSubtitlesPage,
+  SpacedRepetitionPage,
+  VsLanguageReactorPage,
+  ChromeExtensionPage,
+  ForSchoolsPage,
+  PolyglotPage,
+  FamilyPage,
+  LearningSciencePage,
+} from "./pages/marketing/pages";
 
 const queryClient = new QueryClient();
 
 const App = () => (
+  <HelmetProvider>
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <LanguageProvider>
@@ -109,6 +126,22 @@ const App = () => (
                 <Route path="/welcome" element={<OnboardingMobile />} />
                 <Route path="/linguascripts" element={<LinguaScripts />} />
                 <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
+                <Route path="/blog" element={<Blog />} />
+                <Route path="/blog/:slug" element={<BlogPostPage />} />
+                <Route path="/the-chameleon-method" element={<ChameleonMethodPage />} />
+                <Route path="/dual-subtitles" element={<DualSubtitlesPage />} />
+                <Route path="/dual-subtitles/netflix" element={<NetflixSubtitlesPage />} />
+                <Route path="/dual-subtitles/youtube" element={<YouTubeSubtitlesPage />} />
+                <Route path="/anki-alternative" element={<SpacedRepetitionPage />} />
+                <Route path="/spaced-repetition" element={<Navigate to="/anki-alternative" replace />} />
+                <Route path="/vs/language-reactor" element={<VsLanguageReactorPage />} />
+                <Route path="/chrome-extension" element={<ChromeExtensionPage />} />
+                <Route path="/language-learning-psychology" element={<LearningSciencePage />} />
+                <Route path="/for-schools" element={<ForSchoolsPage />} />
+                <Route path="/polyglot" element={<PolyglotPage />} />
+                <Route path="/family" element={<FamilyPage />} />
+                <Route path="/lingoscript" element={<Navigate to="/the-chameleon-method" replace />} />
+                <Route path="/language-script" element={<Navigate to="/the-chameleon-method" replace />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
               <TourOverlay />
@@ -124,6 +157,7 @@ const App = () => (
       </LanguageProvider>
     </TooltipProvider>
   </QueryClientProvider>
+  </HelmetProvider>
 );
 
 export default App;
