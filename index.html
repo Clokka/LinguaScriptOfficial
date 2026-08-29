@@ -10,7 +10,7 @@
     <link rel="icon" href="/favicon-32x32.png" type="image/png" sizes="32x32" />
     <link rel="icon" href="/favicon-192x192.png" type="image/png" sizes="192x192" />
     <link rel="apple-touch-icon" href="/favicon-192x192.png" sizes="192x192" />
-    <link rel="canonical" href="https://linguascript.co.uk" />
+    <!-- Canonical URLs are set per route with react-helmet-async (src/components/Seo.tsx). -->
 
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://linguascript.co.uk" />
@@ -29,10 +29,20 @@
         "@context": "https://schema.org",
         "@type": "Organization",
         "name": "LinguaScript",
+        "alternateName": ["Lingoscript", "Language Script", "LinguaScript — The Chameleon Method"],
         "url": "https://linguascript.co.uk",
         "logo": "https://linguascript.co.uk/favicon-512x512.png"
       }
     </script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "name": "LinguaScript",
+        "url": "https://linguascript.co.uk"
+      }
+    </script>
+
 
     <!-- GoAffPro affiliate tracking -->
     <script type="text/javascript" src="https://api.goaffpro.com/loader.js?shop=pyqppuomzx"></script>
