@@ -40,11 +40,11 @@ Target sizes per level (used as list sizes in Mode B, and as the pre-green seed 
 
 Right now one profile row holds a single `learning_language`, one comprehension score, one streak. Split the per-language state out.
 
-- New `language_profiles` table: one row per user × language, holding CEFR level, seeded level, comprehension/understanding score, words-known counters, daily goals, interests, and last-active timestamp.
+- New `language_profiles` table: one row per user × language, holding learning mode (fluency or CEFR exam), CEFR level, seeded level, comprehension/understanding score, words-known counters, daily goals, interests, and last-active timestamp.
 - Cap at 5 active languages per user. No upgrade prompts anywhere in this flow — all 5 slots are free.
 - `profiles.learning_language` stays as "currently active language" pointer; everything else reads from the active `language_profiles` row.
 - Scope existing per-language data properly: `saved_words`, `video_comprehension`, `watch_sessions`, `linguascripts` already carry a language column — all reads get filtered by the active language so comprehension, vocabulary stats and progress reset cleanly per language.
-- Settings gains a **My languages** section: add a language (pick level → seed vocabulary), switch active language, remove a language (with confirmation, keeps data).
+- Settings gains a **My languages** section: add a language (pick mode → pick level → seed vocabulary), change a language's mode, switch active language, remove a language (with confirmation, keeps data).
 - Remove the free-plan language gating UI (`LanguageSelector` switch/upgrade dialogs and the "Free · 1 language" label).
 
 ## 3. Thai support
@@ -83,5 +83,5 @@ Recorded for later, no implementation in this pass:
 1. Chameleon default pet (smallest, highest priority).
 2. Thai language support.
 3. `language_profiles` table + settings UI + per-language scoping, remove upgrade gating.
-4. CEFR absolute-count seeding + expanded frequency lists.
+4. Two-mode setup (fluency vs CEFR exam), absolute-count seeding + CEFR-tagged/expanded word lists.
 5. LinguaScripts accuracy fixes.
