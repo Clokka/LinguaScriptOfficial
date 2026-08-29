@@ -65,10 +65,10 @@ const Onboarding = () => {
   useEffect(() => {
     try {
       localStorage.setItem(ONBOARDING_KEY, JSON.stringify({
-        step, native, target, level, school, wordGoal, goal, goalSaved, showOnLeaderboard, dualClicked, interests,
+        step, native, target, level, mode, school, wordGoal, goal, goalSaved, showOnLeaderboard, dualClicked, interests,
       }));
     } catch { /* ignore */ }
-  }, [step, native, target, level, school, wordGoal, goal, goalSaved, showOnLeaderboard, dualClicked, interests]);
+  }, [step, native, target, level, mode, school, wordGoal, goal, goalSaved, showOnLeaderboard, dualClicked, interests]);
 
   // Load any existing profile values (auth optional — anonymous users see onboarding too)
   useEffect(() => {
