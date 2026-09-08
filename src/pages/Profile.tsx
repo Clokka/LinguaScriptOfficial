@@ -29,7 +29,7 @@ const Profile = () => {
   const [displayName, setDisplayName] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [nativeLanguage, setNativeLanguage] = useState("en");
-  const [learningLanguage, setLearningLanguage] = useState("fr");
+  const [learningLanguage, setLearningLanguage] = useState("");
   const [school, setSchool] = useState("");
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -55,7 +55,7 @@ const Profile = () => {
           const g = JSON.parse(raw);
           setDisplayName(g.displayName ?? "");
           setNativeLanguage(g.nativeLanguage ?? "en");
-          setLearningLanguage(g.learningLanguage ?? "fr");
+          setLearningLanguage(g.learningLanguage ?? "");
           setSchool(g.school ?? "");
         }
       } catch { /* ignore */ }
@@ -74,7 +74,7 @@ const Profile = () => {
       setDisplayName(data.display_name ?? "");
       setAvatarUrl(data.avatar_url);
       setNativeLanguage(data.native_language ?? "en");
-      setLearningLanguage(data.learning_language ?? "fr");
+      setLearningLanguage(data.learning_language ?? "");
       setSchool((data as any).school ?? "");
     }
     setLoadingProfile(false);
@@ -140,7 +140,8 @@ const Profile = () => {
         display_name: displayName,
         avatar_url: avatarUrl,
         native_language: nativeLanguage,
-        learning_language: learningLanguage,
+        // Never write an empty/unknown language back over a real choice.
+        ...(learningLanguage ? { learning_language: learningLanguage } : {}),
         school: school.trim() || null,
       } as any)
       .eq("user_id", user.id);
