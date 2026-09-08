@@ -17,7 +17,7 @@ import brandLockup from "@/assets/brand/linguascript-wordmark.png.asset.json";
 import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTour } from "@/contexts/TourContext";
-import { TOUR_TRAINING_BY_LANG, TOUR_TRAINING_YT_ID } from "@/lib/tourSteps";
+import { getTourTrainingId } from "@/lib/tourSteps";
 import { playDing } from "@/lib/sound";
 import { toast } from "sonner";
 import { DailyGoalPicker } from "@/components/DailyGoalPicker";
@@ -36,6 +36,9 @@ const Onboarding = () => {
   const { setLearningLanguage } = useLanguage();
   const { start: startTour } = useTour();
   const [enteringDemo, setEnteringDemo] = useState(false);
+  // Intro video for the chosen language. Null when we have nothing in that
+  // language — we show the step without a video rather than playing French.
+  const [introVideoId, setIntroVideoId] = useState<string | null>(null);
 
   // Persist onboarding progress so users can never lose their place if they
   // refresh, leave, or skip around — they always end up on the final paste-
@@ -93,6 +96,30 @@ const Onboarding = () => {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
+
+  // Resolve the intro video for the selected learning language: a verified
+  // mapping first, then any public film already in the catalogue for that
+  // language, otherwise nothing.
+  useEffect(() => {
+    let cancelled = false;
+    const mapped = getTourTrainingId(target);
+    if (mapped) { setIntroVideoId(mapped); return; }
+    setIntroVideoId(null);
+    supabase
+      .from("films")
+      .select("url")
+      .eq("language", target)
+      .eq("is_public", true)
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (cancelled) return;
+        const url: string = (data as any)?.url ?? "";
+        const m = url.match(/(?:v=|youtu\.be\/|embed\/)([A-Za-z0-9_-]{11})/);
+        setIntroVideoId(m?.[1] ?? null);
+      });
+    return () => { cancelled = true; };
+  }, [target]);
 
   const totalSteps = 8;
 
@@ -447,16 +474,20 @@ const Onboarding = () => {
                 </Sub>
 
                 {(() => {
-                  const trainingYtId = TOUR_TRAINING_BY_LANG[target] ?? TOUR_TRAINING_YT_ID;
+                  const trainingYtId = introVideoId;
                   const enterDemo = async () => {
                     if (enteringDemo) return;
                     setEnteringDemo(true);
-                    let { data: film } = await supabase
-                      .from("films")
-                      .select("id")
-                      .or(`url.ilike.%${trainingYtId}%`)
-                      .limit(1)
-                      .maybeSingle();
+                    let film: { id: string } | null = null;
+                    if (trainingYtId) {
+                      const { data } = await supabase
+                        .from("films")
+                        .select("id")
+                        .or(`url.ilike.%${trainingYtId}%`)
+                        .limit(1)
+                        .maybeSingle();
+                      film = (data as any) ?? null;
+                    }
                     if (!film?.id) {
                       const { data: anyFilm } = await supabase
                         .from("films")
@@ -481,6 +512,7 @@ const Onboarding = () => {
                   };
                   return (
                     <>
+                      {trainingYtId ? (
                       <div
                         role="button"
                         tabIndex={0}
@@ -497,6 +529,11 @@ const Onboarding = () => {
                         />
                         <div className="absolute inset-0 bg-transparent group-hover:bg-black/10 transition-colors" aria-hidden />
                       </div>
+                      ) : (
+                        <div className="mt-8 rounded-3xl border border-white/10 bg-white/[0.03] p-8 text-center text-sm text-white/60">
+                          We don't have an intro clip in {getLanguageLabel(target)} yet — jump straight into the guided demo below.
+                        </div>
+                      )}
 
                       <div className="mt-6 flex flex-col items-center gap-3">
                         <Button

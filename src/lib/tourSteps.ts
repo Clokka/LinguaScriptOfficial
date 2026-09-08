@@ -273,7 +273,15 @@ export const TOUR_TRAINING_BY_LANG: Record<string, string> = {
   de: "y-sOwSKvTNU",
 };
 
-/** Back-compat default (French). Prefer `TOUR_TRAINING_BY_LANG[lang]`. */
+/**
+ * Look up the intro video for a language. Returns null when we have no
+ * verified video in that language — callers must NOT fall back to another
+ * language's video (that is how everyone ended up watching French).
+ */
+export const getTourTrainingId = (lang?: string | null): string | null =>
+  (lang ? TOUR_TRAINING_BY_LANG[lang.toLowerCase()] : null) ?? null;
+
+/** @deprecated French-only. Use `getTourTrainingId(lang)`. */
 export const TOUR_TRAINING_YT_ID = TOUR_TRAINING_BY_LANG.fr;
 
 export const TOUR_PASTE_DEMO_URL =
