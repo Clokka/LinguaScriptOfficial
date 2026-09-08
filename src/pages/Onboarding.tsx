@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectSeparator } from "@/components/ui/select";
-import { LANGUAGES } from "@/lib/languages";
+import { LANGUAGES, getLanguageLabel } from "@/lib/languages";
 // (InteractiveDemo replaced by the live tour overlay launched from this screen)
 import { useAuth } from "@/hooks/useAuth";
 import brandLockup from "@/assets/brand/linguascript-wordmark.png.asset.json";
@@ -53,7 +53,7 @@ const Onboarding = () => {
 
   const [step, setStep] = useState<number>(initialPersisted?.step ?? 0);
   const [native, setNative] = useState(initialPersisted?.native ?? "en");
-  const [target, setTarget] = useState(initialPersisted?.target ?? "fr");
+  const [target, setTarget] = useState(initialPersisted?.target ?? "");
   const [level, setLevel] = useState<Level | null>(initialPersisted?.level ?? null);
   const [mode, setMode] = useState<LearningMode>(initialPersisted?.mode ?? "fluency");
   const [school, setSchool] = useState(initialPersisted?.school ?? "");
@@ -140,6 +140,11 @@ const Onboarding = () => {
   };
 
   const next = async () => {
+    // Remember the choice even before there is an account, so signing up later
+    // in the flow can never lose it.
+    if (step === 1 && target) {
+      try { localStorage.setItem(PENDING_LANGUAGE_KEY, target); } catch { /* ignore */ }
+    }
     if (step === 1 && user) {
       await supabase.from("profiles").update({
         native_language: native,
