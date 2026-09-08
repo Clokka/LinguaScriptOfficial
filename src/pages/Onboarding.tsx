@@ -15,7 +15,7 @@ import { LANGUAGES, getLanguageLabel } from "@/lib/languages";
 import { useAuth } from "@/hooks/useAuth";
 import brandLockup from "@/assets/brand/linguascript-wordmark.png.asset.json";
 import { supabase } from "@/integrations/supabase/client";
-import { useLanguage } from "@/contexts/LanguageContext";
+import { useLanguage, PENDING_LANGUAGE_KEY } from "@/contexts/LanguageContext";
 import { useTour } from "@/contexts/TourContext";
 import { getTourTrainingId } from "@/lib/tourSteps";
 import { playDing } from "@/lib/sound";
