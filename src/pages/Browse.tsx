@@ -558,7 +558,7 @@ const Browse = () => {
                   onContinueWatching={() => {
                     setActiveTab("discover");
                   }}
-                  onDiscover={() => navigate("/watch/new")}
+                  onDiscover={() => setActiveTab("discover")}
                 />
               )}
 
@@ -582,6 +582,7 @@ const Browse = () => {
                 discoverFilms={discoverFilms}
                 catalogRows={catalogRows}
                 interests={interests}
+                nativeLanguage={nativeLanguage}
                 onWatchYoutube={importYoutubeId}
               />
             </div>
@@ -598,6 +599,7 @@ const Browse = () => {
               discoverFilms={discoverFilms}
               catalogRows={catalogRows}
               interests={interests}
+              nativeLanguage={nativeLanguage}
               onWatchYoutube={importYoutubeId}
             />
           ) : null}
@@ -708,7 +710,7 @@ const CatalogStrip = ({ title, films, navigate }: { title: string; films: any[];
 
 /* ── HOME TAB ── */
 const HomeTab = ({
-  lessons, loading, pasteUrl, setPasteUrl, creating, createLesson, deleteLesson, navigate, discoverFilms, catalogRows, interests, onWatchYoutube,
+  lessons, loading, pasteUrl, setPasteUrl, creating, createLesson, deleteLesson, navigate, discoverFilms, catalogRows, interests, nativeLanguage, onWatchYoutube,
 }: {
   lessons: UserLesson[];
   loading: boolean;
@@ -721,6 +723,7 @@ const HomeTab = ({
   discoverFilms: any[];
   catalogRows: { id: string; title: string; films: any[] }[];
   interests: string[];
+  nativeLanguage: string;
   onWatchYoutube: (ytId: string, titleHint?: string, thumbHint?: string) => Promise<void>;
 }) => {
   const { learningLanguage } = useLanguage();
@@ -731,6 +734,10 @@ const HomeTab = ({
 
       {/* Primary action — pick up the quest. */}
       <ContinueWatchingRail />
+
+      {/* Live YouTube recommendations by onboarding hobby + learning language.
+          Existed as a component but was never mounted anywhere in the app. */}
+      <PersonalizedRails interests={interests} nativeLanguage={nativeLanguage} onWatch={onWatchYoutube} importing={creating} />
 
       {/* Paste YouTube Link */}
       <div className="glass-panel-strong p-6 rounded-2xl">

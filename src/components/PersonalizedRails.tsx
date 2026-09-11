@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { Loader2, Play, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { getLanguageLabel } from "@/lib/languages";
 import { INTERESTS, interestById } from "@/lib/interests";
+import { rankByComprehension } from "@/lib/videoRecommendation";
+import type { LearningZone } from "@/lib/understanding";
 
 interface YTItem {
   videoId: string;
@@ -15,22 +16,28 @@ interface YTItem {
   publishedAt?: string;
   durationSeconds?: number;
   difficulty?: "beginner" | "intermediate" | "advanced";
-}
-
-interface ContinueItem {
-  video_id: string;
-  title: string | null;
-  thumbnail_url: string | null;
-  film_id: string | null;
-  position_seconds: number;
-  duration_seconds: number;
-  completion_pct: number;
+  /** Set once a candidate has been scored against the learner's real deck. */
+  comprehensionPct?: number;
+  zone?: LearningZone;
 }
 
 const DIFF_BADGE: Record<string, string> = {
   beginner: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
   intermediate: "bg-amber-500/15 text-amber-300 border-amber-500/30",
   advanced: "bg-rose-500/15 text-rose-300 border-rose-500/30",
+};
+
+const ZONE_BADGE: Record<LearningZone, string> = {
+  "too-easy": "bg-sky-500/15 text-sky-300 border-sky-500/30",
+  ideal: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
+  stretch: "bg-amber-500/15 text-amber-300 border-amber-500/30",
+  "too-hard": "bg-rose-500/15 text-rose-300 border-rose-500/30",
+};
+const ZONE_LABEL: Record<LearningZone, string> = {
+  "too-easy": "Already know this",
+  ideal: "Ideal for you",
+  stretch: "A stretch",
+  "too-hard": "Very hard",
 };
 
 function fmtDur(s?: number) {
@@ -57,22 +64,28 @@ async function cachedSearch(key: string, q: string, lang: string): Promise<YTIte
 
 export const PersonalizedRails = ({
   interests,
+  nativeLanguage,
   onWatch,
   importing,
 }: {
   interests: string[];
+  /**
+   * Learner's own language — rankByComprehension needs it to fetch a
+   * fallback caption track when the learning-language one is unavailable.
+   * LanguageContext doesn't carry this; it's page-local state elsewhere.
+   */
+  nativeLanguage: string;
   onWatch: (ytId: string, title?: string, thumb?: string) => Promise<void>;
   importing: boolean;
 }) => {
   const { user } = useAuth();
   const { learningLanguage } = useLanguage();
-  const navigate = useNavigate();
 
-  const [continueItems, setContinueItems] = useState<ContinueItem[]>([]);
   const [recommended, setRecommended] = useState<YTItem[]>([]);
   const [trending, setTrending] = useState<YTItem[]>([]);
   const [beginner, setBeginner] = useState<YTItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [scoring, setScoring] = useState(true);
   const [pendingId, setPendingId] = useState<string | null>(null);
 
   const langLabel = useMemo(() => getLanguageLabel(learningLanguage), [learningLanguage]);
@@ -94,18 +107,7 @@ export const PersonalizedRails = ({
     let cancelled = false;
     const load = async () => {
       setLoading(true);
-
-      // Continue Watching from watch_history
-      if (user) {
-        const { data } = await supabase
-          .from("watch_history")
-          .select("video_id,title,thumbnail_url,film_id,position_seconds,duration_seconds,completion_pct")
-          .eq("user_id", user.id)
-          .lt("completion_pct", 95)
-          .order("watched_at", { ascending: false })
-          .limit(10);
-        if (!cancelled) setContinueItems((data as any) || []);
-      }
+      setScoring(true);
 
       // Top-level rec rail uses a broad blend of selected interests so it feels
       // like a personalised homepage rather than a single-topic feed.
@@ -137,21 +139,44 @@ export const PersonalizedRails = ({
         ),
       ]);
       if (cancelled) return;
-      setRecommended(rec.slice(0, 12));
+      // Trending/beginner stay on the fast metadata-only path — they're
+      // generic categories, not matched to this learner's own vocabulary.
       setTrending(tr.slice(0, 12));
       setBeginner(
         bg.filter((x) => x.difficulty === "beginner").slice(0, 12).length > 0
           ? bg.filter((x) => x.difficulty === "beginner").slice(0, 12)
           : bg.slice(0, 12),
       );
-      const perMap: Record<string, YTItem[]> = {};
-      interestRailDefs.forEach((i, idx) => { perMap[i.id] = (perInterest[idx] || []).slice(0, 12); });
-      setInterestRails(perMap);
       setLoading(false);
+
+      // Recommended + per-interest rails are the actual personalized surface:
+      // score each candidate's real captions against the learner's saved-word
+      // deck and keep only the ones near the 95–98%-known "ideal" band,
+      // ranked by closeness to it. This is the whole point — a title-keyword
+      // guess can't know what THIS learner already knows.
+      const nativeLang = nativeLanguage || "en";
+      const [rankedRec, ...rankedInterests] = await Promise.all([
+        rankByComprehension(rec, learningLanguage, nativeLang, user?.id ?? null),
+        ...interestRailDefs.map((_, idx) =>
+          rankByComprehension(perInterest[idx] || [], learningLanguage, nativeLang, user?.id ?? null),
+        ),
+      ]);
+      if (cancelled) return;
+      setRecommended(
+        rankedRec.slice(0, 12).map((r) => ({ ...r.item, comprehensionPct: r.comprehensionPct, zone: r.zone })),
+      );
+      const perMap: Record<string, YTItem[]> = {};
+      interestRailDefs.forEach((i, idx) => {
+        perMap[i.id] = rankedInterests[idx]
+          .slice(0, 12)
+          .map((r) => ({ ...r.item, comprehensionPct: r.comprehensionPct, zone: r.zone }));
+      });
+      setInterestRails(perMap);
+      setScoring(false);
     };
     void load();
     return () => { cancelled = true; };
-  }, [user, learningLanguage, langLabel, interestRailDefs, selectedInterests]);
+  }, [user?.id, learningLanguage, nativeLanguage, langLabel, interestRailDefs, selectedInterests]);
 
   const pick = async (it: YTItem) => {
     if (importing || pendingId) return;
@@ -160,52 +185,21 @@ export const PersonalizedRails = ({
     finally { setPendingId(null); }
   };
 
-  const openContinue = async (c: ContinueItem) => {
-    if (c.film_id) { navigate(`/watch/${c.film_id}`); return; }
-    // Fallback: resolve film by URL
-    const url = `https://www.youtube.com/watch?v=${c.video_id}`;
-    const { data } = await supabase.from("films").select("id").eq("url", url).limit(1).maybeSingle();
-    if (data?.id) navigate(`/watch/${data.id}`);
-  };
-
   return (
     <div className="space-y-10">
-      {continueItems.length > 0 && (
-        <Rail title="Continue Watching">
-          {continueItems.map((c) => (
-            <button
-              key={c.video_id}
-              onClick={() => openContinue(c)}
-              className="group w-56 shrink-0 text-left"
-            >
-              <div className="relative aspect-video rounded-xl overflow-hidden bg-secondary border border-border group-hover:border-primary/50 transition">
-                {c.thumbnail_url ? (
-                  <img src={c.thumbnail_url} alt={c.title || ""} className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center"><Play className="w-8 h-8 text-muted-foreground" /></div>
-                )}
-                <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/50">
-                  <div className="h-full bg-primary" style={{ width: `${Math.min(100, c.completion_pct)}%` }} />
-                </div>
-                {c.duration_seconds > 0 && (
-                  <span className="absolute bottom-2 right-2 text-[10px] bg-black/70 text-white px-1.5 py-0.5 rounded">
-                    {fmtDur(c.duration_seconds - c.position_seconds)} left
-                  </span>
-                )}
-              </div>
-              <p className="text-sm mt-2 line-clamp-2 text-foreground">{c.title || "Untitled"}</p>
-            </button>
-          ))}
-        </Rail>
-      )}
-
       {loading && (
         <div className="flex items-center gap-2 text-muted-foreground text-sm">
           <Loader2 className="w-4 h-4 animate-spin" /> Building recommendations in {langLabel}…
         </div>
       )}
 
-      {recommended.length > 0 && (
+      {!loading && scoring && (
+        <div className="flex items-center gap-2 text-muted-foreground text-sm">
+          <Loader2 className="w-4 h-4 animate-spin" /> Matching videos to what you already know…
+        </div>
+      )}
+
+      {!scoring && recommended.length > 0 && (
         <Rail title={`🎯 Recommended for you in ${langLabel}`}>
           {recommended.map((it) => (
             <YTCard key={it.videoId} it={it} onPick={pick} loading={pendingId === it.videoId} />
@@ -213,7 +207,7 @@ export const PersonalizedRails = ({
         </Rail>
       )}
 
-      {interestRailDefs.map((i) => {
+      {!scoring && interestRailDefs.map((i) => {
         const items = interestRails[i.id] || [];
         if (items.length === 0) return null;
         return (
@@ -276,11 +270,15 @@ const YTCard = ({
           <Clock className="w-2.5 h-2.5" />{fmtDur(it.durationSeconds)}
         </span>
       ) : null}
-      {it.difficulty && (
+      {it.zone ? (
+        <span className={`absolute top-2 left-2 text-[10px] px-1.5 py-0.5 rounded border ${ZONE_BADGE[it.zone]}`}>
+          {typeof it.comprehensionPct === "number" ? `${it.comprehensionPct}% · ` : ""}{ZONE_LABEL[it.zone]}
+        </span>
+      ) : it.difficulty ? (
         <span className={`absolute top-2 left-2 text-[10px] px-1.5 py-0.5 rounded border ${DIFF_BADGE[it.difficulty]}`}>
           {it.difficulty}
         </span>
-      )}
+      ) : null}
       {loading && (
         <div className="absolute inset-0 grid place-items-center bg-black/50">
           <Loader2 className="w-5 h-5 animate-spin text-white" />

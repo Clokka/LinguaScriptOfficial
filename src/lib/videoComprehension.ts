@@ -200,10 +200,11 @@ export async function listYourProgress(userId: string): Promise<ProgressRow[]> {
     .sort((a, b) => b.delta - a.delta);
 }
 
+// Kept in sync with learningZone() in understanding.ts — see the comment there.
 export function zoneMessage(pct: number): string {
-  if (pct >= 96) return "You already understand this video. Push yourself with something harder.";
-  if (pct >= 85) return "Right in your ideal zone — comfortable enough to enjoy, challenging enough to learn.";
-  if (pct >= 70) return "A stretch video. You'll meet new words — perfect for active learning.";
+  if (pct > 98) return "You already understand this video. Push yourself with something harder.";
+  if (pct >= 95) return "Right in your ideal zone — comfortable enough to enjoy, challenging enough to learn.";
+  if (pct >= 85) return "A stretch video. You'll meet new words — perfect for active learning.";
   if (pct >= 40) return "This is above your current level, but you'll pick up high-value vocabulary fast.";
   return "Very challenging right now. Save some words and come back — you'll understand more next time.";
 }
