@@ -117,7 +117,8 @@ const App = () => (
                 <Route path="/mieoframes" element={<MieoFrames />} />
                 <Route path="/onboarding/mobile" element={<OnboardingMobile />} />
                 <Route path="/welcome" element={<OnboardingMobile />} />
-                <Route path="/linguascripts" element={<LinguaScripts />} />
+                <Route path="/linguascript" element={<LinguaScripts />} />
+                <Route path="/linguascripts" element={<Navigate to="/linguascript" replace />} />
                 <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>

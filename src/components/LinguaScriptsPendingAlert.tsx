@@ -17,7 +17,7 @@ export function LinguaScriptsPendingAlert({
   const navigate = useNavigate();
   const start = () => {
     if (onStart) onStart();
-    else navigate("/linguascripts");
+    else navigate("/linguascript");
   };
   return (
     <div className="mb-8 bg-gradient-to-r from-amber-500/20 via-amber-500/10 to-emerald-500/10 border border-amber-500/30 rounded-2xl p-8 backdrop-blur-sm">

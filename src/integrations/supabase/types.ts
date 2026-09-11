@@ -909,6 +909,8 @@ export type Database = {
           gold_seen_count: number
           green_revealed_at: string | null
           id: string
+          image_attribution: string | null
+          image_url: string | null
           interval_days: number
           ipa: string
           is_phrase: boolean
@@ -937,6 +939,8 @@ export type Database = {
           gold_seen_count?: number
           green_revealed_at?: string | null
           id?: string
+          image_attribution?: string | null
+          image_url?: string | null
           interval_days?: number
           ipa?: string
           is_phrase?: boolean
@@ -965,6 +969,8 @@ export type Database = {
           gold_seen_count?: number
           green_revealed_at?: string | null
           id?: string
+          image_attribution?: string | null
+          image_url?: string | null
           interval_days?: number
           ipa?: string
           is_phrase?: boolean

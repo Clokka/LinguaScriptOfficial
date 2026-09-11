@@ -6,6 +6,7 @@ import { SubtitleOverlay } from "@/components/SubtitleOverlay";
 import { GapFillChallenge } from "@/components/GapFillChallenge";
 import { loadDeckIndex, normalizeToken, SavedWordLite } from "@/lib/vocab";
 import { buildExerciseOptions } from "@/lib/linguascripts";
+import { cacheWordImageByWord } from "@/lib/wordImages";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
@@ -338,7 +339,7 @@ const Watch = () => {
       nudgedRef.current = true;
       toast.success(`Daily goal reached — ${dailyGoal.goal} words saved`, {
         description: "Review them now while they're fresh.",
-        action: { label: "Review", onClick: () => navigate("/linguascripts") },
+        action: { label: "Review", onClick: () => navigate("/linguascript") },
         duration: 8000,
       });
     }
@@ -888,6 +889,10 @@ const Watch = () => {
         scheduled_for: new Date().toISOString(),
       } as any).then(({ error }) => { if (error) console.error("Failed to create LinguaScript:", error); });
     }
+
+    // Fire-and-forget: cache an Openverse image for text-to-image flashcards.
+    // The translation is usually the more Openverse-searchable term.
+    void cacheWordImageByWord(user.id, word.text, langCode, translation || word.text);
   };
 
   const savePhrase = async (phrase: string) => {
@@ -971,6 +976,8 @@ const Watch = () => {
         scheduled_for: new Date().toISOString(),
       } as any).then(({ error }) => { if (error) console.error("Failed to create LinguaScript for phrase:", error); });
     }
+
+    void cacheWordImageByWord(user.id, trimmed, langCode, translation || trimmed);
   };
 
   const markWordKnown = async (word: { text: string; translation?: string }) => {
@@ -1025,6 +1032,8 @@ const Watch = () => {
         scheduled_for: new Date().toISOString(),
       } as any).then(({ error }) => { if (error) console.error("Failed to create LinguaScript for known word:", error); });
     }
+
+    void cacheWordImageByWord(user.id, word.text, langCode, word.translation || word.text);
   };
 
   const downloadSrt = (type: "primary" | "secondary") => {

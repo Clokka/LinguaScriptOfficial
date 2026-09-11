@@ -6,11 +6,16 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { DeckState, nextState, applySrsReview } from "@/lib/vocab";
+import { cacheWordImage } from "@/lib/wordImages";
 import { useXp } from "@/contexts/XpContext";
 import { toast } from "sonner";
+import { Image as ImageIcon, Type } from "lucide-react";
 
 type Direction = "learn-to-native" | "native-to-learn";
 const DIR_KEY = "flashcardDirection";
+
+export type CardType = "text" | "image";
+const CARD_TYPE_KEY = "flashcardCardType";
 
 interface FlashcardData {
   id: string;
@@ -27,6 +32,7 @@ interface FlashcardData {
   ease_factor?: number;
   interval_days?: number;
   review_count?: number;
+  image_url?: string | null;
 }
 
 interface FlashcardReviewProps {
@@ -52,6 +58,9 @@ export const FlashcardReview = ({ cards: initialCards, onClose, onCardReviewed, 
   const [direction, setDirection] = useState<Direction>(() => {
     return (localStorage.getItem(DIR_KEY) as Direction) || "native-to-learn";
   });
+  const [cardType, setCardType] = useState<CardType>(() => {
+    return (localStorage.getItem(CARD_TYPE_KEY) as CardType) || "text";
+  });
   // DB writes fire in the background — we never block the UI on them.
   const pendingWrites = useRef<Promise<unknown>[]>([]);
   const handleClose = () => {
@@ -60,10 +69,30 @@ export const FlashcardReview = ({ cards: initialCards, onClose, onCardReviewed, 
   };
 
   useEffect(() => { localStorage.setItem(DIR_KEY, direction); }, [direction]);
+  useEffect(() => { localStorage.setItem(CARD_TYPE_KEY, cardType); }, [cardType]);
 
   const toggleDirection = () => {
     setDirection((d) => (d === "learn-to-native" ? "native-to-learn" : "learn-to-native"));
   };
+
+  const toggleCardType = () => {
+    setCardType((t) => (t === "text" ? "image" : "text"));
+  };
+
+  // Text-to-image mode: backfill an image the first time a card without one
+  // is displayed, so words saved before this feature shipped catch up as
+  // they're reviewed instead of staying permanently image-less.
+  const imageFetchInFlight = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const card = cards[currentIndex];
+    if (!card || cardType !== "image" || card.image_url || card.id.startsWith("guest-")) return;
+    if (imageFetchInFlight.current.has(card.id)) return;
+    imageFetchInFlight.current.add(card.id);
+    cacheWordImage(card.id, card.translation || card.word).then((url) => {
+      if (!url) return;
+      setCards((prev) => prev.map((c) => (c.id === card.id ? { ...c, image_url: url } : c)));
+    });
+  }, [cardType, currentIndex, cards]);
 
   const logReview = async () => {
     if (!user) return;
@@ -258,8 +287,8 @@ export const FlashcardReview = ({ cards: initialCards, onClose, onCardReviewed, 
         </div>
       )}
 
-      {/* Direction toggle */}
-      <div className="flex justify-center mb-6">
+      {/* Direction + card type toggles */}
+      <div className="flex justify-center gap-2 mb-6">
         <Button
           variant="outline"
           size="sm"
@@ -268,6 +297,15 @@ export const FlashcardReview = ({ cards: initialCards, onClose, onCardReviewed, 
         >
           <ArrowLeftRight className="w-3.5 h-3.5" />
           {direction === "native-to-learn" ? "English → French" : "French → English"}
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={toggleCardType}
+          className="gap-2 rounded-full text-xs"
+        >
+          {cardType === "text" ? <Type className="w-3.5 h-3.5" /> : <ImageIcon className="w-3.5 h-3.5" />}
+          {cardType === "text" ? "Text ↔ Text" : "Text ↔ Image"}
         </Button>
       </div>
 
@@ -281,13 +319,15 @@ export const FlashcardReview = ({ cards: initialCards, onClose, onCardReviewed, 
 
       {/* Flashcard */}
       <Flashcard
-        key={currentCard.id + direction}
+        key={currentCard.id + direction + cardType}
         word={currentCard.word}
         translation={currentCard.translation}
         pronunciation={currentCard.pronunciation}
         ipa={currentCard.ipa}
         context={currentCard.context}
         contextTranslation={currentCard.contextTranslation}
+        imageUrl={currentCard.image_url ?? undefined}
+        cardType={cardType}
         language={currentCard.language}
         state={currentCard.state}
 

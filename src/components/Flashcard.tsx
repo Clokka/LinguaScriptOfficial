@@ -27,6 +27,14 @@ interface FlashcardProps {
   /** Deck the card lives in — the word and its pinyin render in this colour. */
   state?: DeckState;
   direction?: "learn-to-native" | "native-to-learn";
+  /**
+   * "text": classic word ↔ translation (the default).
+   * "image": front always shows the learning-language word; the back reveals
+   * a picture instead of the translation, so recall goes word → meaning
+   * without routing through the native-language text. Falls back to the
+   * translation automatically when no image is cached yet for this word.
+   */
+  cardType?: "text" | "image";
   onCorrect: () => void;
   onIncorrect: () => void;
 }
@@ -42,6 +50,7 @@ export const Flashcard = ({
   language,
   state,
   direction = "learn-to-native",
+  cardType = "text",
   onCorrect,
   onIncorrect,
 }: FlashcardProps) => {
@@ -55,15 +64,23 @@ export const Flashcard = ({
   // the character it belongs to — it is the pronunciation, not a footnote.
   const romanisation = isChinese(language) ? (ipa || pronunciation) : "";
 
-  // Determine which side shows what based on direction
-  const showLearningFirst = direction === "learn-to-native";
+  // Image mode always leads with the learning-language word — the point is
+  // recalling the picture from the word, not choosing a translation direction.
+  const imageMode = cardType === "image";
+  const showLearningFirst = imageMode ? true : direction === "learn-to-native";
   const frontLabel = showLearningFirst ? "Learning Language" : "Your Language";
   const frontText = showLearningFirst ? word : translation;
   const frontSub = showLearningFirst ? ipa : pronunciation;
-  const backLabel = showLearningFirst ? "Your Language" : "Learning Language";
+  const backLabel = imageMode ? (imageUrl ? "Picture" : "Your Language") : showLearningFirst ? "Your Language" : "Learning Language";
   const backText = showLearningFirst ? translation : word;
   const backSub = showLearningFirst ? pronunciation : ipa;
-  const frontHint = showLearningFirst ? "Tap to reveal translation" : "Tap to reveal the word";
+  const frontHint = imageMode
+    ? imageUrl
+      ? "Tap to reveal the picture"
+      : "Tap to reveal translation"
+    : showLearningFirst
+      ? "Tap to reveal translation"
+      : "Tap to reveal the word";
 
 
   return (
@@ -77,7 +94,7 @@ export const Flashcard = ({
         {/* Front */}
         <div className="flashcard-face glass-panel-strong p-8 flex flex-col items-center justify-center shadow-float">
           <p className="text-xs uppercase tracking-wider text-muted-foreground/60 mb-2">{frontLabel}</p>
-          {imageUrl && showLearningFirst && (
+          {imageUrl && showLearningFirst && !imageMode && (
             <img src={imageUrl} alt={word} className="w-28 h-28 object-cover rounded-2xl mb-3 shadow-md" />
           )}
           <p
@@ -118,25 +135,34 @@ export const Flashcard = ({
         {/* Back */}
         <div className="flashcard-face flashcard-back glass-panel-strong p-8 flex flex-col items-center justify-center shadow-float">
           <p className="text-xs uppercase tracking-wider text-muted-foreground/60 mb-2">{backLabel}</p>
-          <p
-            className={cn(
-              "mb-2",
-              showLearningFirst ? "text-3xl font-bold text-foreground" : "text-4xl font-bold",
-              !showLearningFirst && !deckColor && "gradient-text",
-            )}
-            style={!showLearningFirst && deckColor ? { color: deckColor } : undefined}
-          >
-            {backText || "—"}
-          </p>
-          {!showLearningFirst && romanisation ? (
-            <p
-              className="text-xl font-semibold"
-              style={deckColor ? { color: deckColor, opacity: 0.85 } : undefined}
-            >
-              {romanisation}
-            </p>
+          {imageMode && imageUrl ? (
+            <>
+              <img src={imageUrl} alt={translation || word} className="w-36 h-36 object-cover rounded-2xl mb-3 shadow-md" />
+              <p className="text-muted-foreground text-sm">{translation}</p>
+            </>
           ) : (
-            <p className="text-muted-foreground">{backSub}</p>
+            <>
+              <p
+                className={cn(
+                  "mb-2",
+                  showLearningFirst ? "text-3xl font-bold text-foreground" : "text-4xl font-bold",
+                  !showLearningFirst && !deckColor && "gradient-text",
+                )}
+                style={!showLearningFirst && deckColor ? { color: deckColor } : undefined}
+              >
+                {backText || "—"}
+              </p>
+              {!showLearningFirst && romanisation ? (
+                <p
+                  className="text-xl font-semibold"
+                  style={deckColor ? { color: deckColor, opacity: 0.85 } : undefined}
+                >
+                  {romanisation}
+                </p>
+              ) : (
+                <p className="text-muted-foreground">{backSub}</p>
+              )}
+            </>
           )}
 
           {context && (
