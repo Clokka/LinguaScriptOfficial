@@ -33,6 +33,10 @@ interface SavedWord {
   ease_factor?: number;
   interval_days?: number;
   image_url?: string | null;
+  lemma?: string | null;
+  lemma_translation?: string | null;
+  is_inflected?: boolean;
+  grammar_note?: string | null;
 }
 
 interface StarterDeck {
@@ -83,7 +87,7 @@ const Flashcards = () => {
       while (true) {
         let q = supabase
           .from("saved_words")
-          .select("id, word, translation, pronunciation, ipa, context, language, next_review, review_count, state, times_correct, is_phrase, ease_factor, interval_days, image_url")
+          .select("id, word, translation, pronunciation, ipa, context, language, next_review, review_count, state, times_correct, is_phrase, ease_factor, interval_days, image_url, lemma, lemma_translation, is_inflected, grammar_note")
           .eq("user_id", user.id)
           .order("next_review", { ascending: true, nullsFirst: true })
           .range(from, from + pageSize - 1);
@@ -194,6 +198,10 @@ const Flashcards = () => {
     interval_days: c.interval_days,
     review_count: c.review_count,
     image_url: c.image_url,
+    lemma: c.lemma,
+    lemma_translation: c.lemma_translation,
+    is_inflected: c.is_inflected,
+    grammar_note: c.grammar_note,
   }));
 
   if (activeDeck && flashcardData.length > 0) {

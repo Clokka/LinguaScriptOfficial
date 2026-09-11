@@ -54,17 +54,27 @@ serve(async (req) => {
     // system the whole language is taught with.
     const isChinese = /chinese|mandarin|中文/i.test(String(from));
 
-    const system = `You are a strict bilingual dictionary API. You ALWAYS return the ${to} meaning of a ${from} word. Never echo the source word back as the translation unless it is a proper noun (person, place, brand). Return only valid JSON — no markdown, no commentary.`;
+    const system = `You are a strict bilingual dictionary API for language learners. You ALWAYS return the ${to} meaning of a ${from} word. Never echo the source word back as the translation unless it is a proper noun (person, place, brand). Crucially: a learner who clicks a conjugated verb, a plural noun, or a declined/agreed adjective must be taught the DICTIONARY (citation/lemma) form, not the inflected surface form — that is the entire point of the "lemma" field below. Return only valid JSON — no markdown, no commentary.`;
 
-    const userPrompt = `Translate the ${from} word "${word}" into ${to}.
-${context ? `It appears in this sentence: "${context}"` : ''}
+    const userPrompt = `A language learner clicked the ${from} word "${word}"${context ? ` in this sentence: "${context}"` : ''}.
+
+First, identify its part of speech and its dictionary (citation/lemma) form:
+- Verb -> the infinitive.
+- Noun -> singular (and, if the source language marks it, the citation gender/case form).
+- Adjective -> the base/uninflected form (not agreed for gender/number, not comparative/superlative).
+- Anything already in its dictionary form (most nouns clicked in singular, adverbs, etc.) -> lemma equals the word itself, isInflected is false.
 
 Return ONLY valid JSON with these exact fields:
 {
-  "translation": "the ${to} word/phrase that means \\"${word}\\" — never the ${from} word itself",
+  "translation": "the ${to} gloss of \\"${word}\\" exactly as it appears here — never the ${from} word itself",
   "pronunciation": ${isChinese ? `"Hanyu Pinyin with tone marks for \\"${word}\\""` : `"approximate pronunciation guide for ${to} speakers"`},
   "ipa": ${isChinese ? `"Hanyu Pinyin with tone marks for \\"${word}\\" (same as pronunciation)"` : `"IPA phonetic transcription of the ${from} word"`},
-  "contextTranslation": "${context ? `the full sentence translated into ${to}` : ''}"
+  "contextTranslation": "${context ? `the full sentence translated into ${to}` : ''}",
+  "lemma": "the ${from} dictionary/citation form — e.g. the infinitive for a verb, singular for a noun",
+  "lemmaTranslation": "the ${to} meaning of the LEMMA on its own, the way a dictionary entry would gloss it (e.g. \\"to eat\\" for an infinitive)",
+  "pos": "one of: noun, verb, adjective, adverb, pronoun, preposition, conjunction, determiner, other",
+  "isInflected": true or false — true only if the clicked word differs from its lemma (a conjugated/declined/agreed form),
+  "grammarNote": "if isInflected, a short label a learner would understand, e.g. \\"2nd person singular, present tense\\" or \\"plural\\" or \\"feminine plural\\" — empty string if not inflected"
 }`;
 
 

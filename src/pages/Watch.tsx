@@ -801,6 +801,15 @@ const Watch = () => {
     const fromLang = getLanguageLabel(langCode);
     const toLang = getLanguageLabel(nativeLanguage);
 
+    // Lemma info: a clicked word is often an inflected surface form (French
+    // "manges" from "manger", German a declined "wissen") — without this, a
+    // learner memorizes "manges = eat" instead of "manger = to eat".
+    let lemma: string | null = null;
+    let lemmaTranslation: string | null = null;
+    let pos: string | null = null;
+    let isInflected = false;
+    let grammarNote: string | null = null;
+
     // If translation is empty, fetch it from AI
     if (!translation) {
       try {
@@ -811,6 +820,11 @@ const Watch = () => {
           translation = data.translation || "";
           pronunciation = data.pronunciation || "";
           ipa = data.ipa || "";
+          lemma = data.lemma || null;
+          lemmaTranslation = data.lemmaTranslation || null;
+          pos = data.pos || null;
+          isInflected = !!data.isInflected;
+          grammarNote = data.grammarNote || null;
         }
       } catch (e) {
         console.error("Word translation failed:", e);
@@ -852,6 +866,11 @@ const Watch = () => {
       state: "red",
       review_count: 0,
       times_correct: 0,
+      lemma,
+      lemma_translation: lemmaTranslation,
+      pos,
+      is_inflected: isInflected,
+      grammar_note: grammarNote,
     }, { onConflict: "user_id,word,language" });
     if (saveError) {
       console.error("Save word failed", saveError);

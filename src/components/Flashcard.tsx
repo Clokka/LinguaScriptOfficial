@@ -35,6 +35,18 @@ interface FlashcardProps {
    * translation automatically when no image is cached yet for this word.
    */
   cardType?: "text" | "image";
+  /**
+   * Dictionary/citation form of `word` — e.g. word="manges", lemma="manger".
+   * When present and different from `word`, the card teaches the LEMMA
+   * (the thing worth memorizing) instead of the inflected surface form a
+   * learner happened to click. `word` still appears via `isInflected`/
+   * `grammarNote` so the real in-context usage isn't hidden, just not
+   * taught as if it were the vocabulary item itself.
+   */
+  lemma?: string;
+  lemmaTranslation?: string;
+  isInflected?: boolean;
+  grammarNote?: string;
   onCorrect: () => void;
   onIncorrect: () => void;
 }
@@ -51,6 +63,10 @@ export const Flashcard = ({
   state,
   direction = "learn-to-native",
   cardType = "text",
+  lemma,
+  lemmaTranslation,
+  isInflected,
+  grammarNote,
   onCorrect,
   onIncorrect,
 }: FlashcardProps) => {
@@ -64,16 +80,27 @@ export const Flashcard = ({
   // the character it belongs to — it is the pronunciation, not a footnote.
   const romanisation = isChinese(language) ? (ipa || pronunciation) : "";
 
+  // Teach the dictionary form, not the inflected surface form the learner
+  // happened to click — "manges" should teach "manger", not "manges = eat".
+  const useLemma = !!isInflected && !!lemma && lemma.toLowerCase() !== word.toLowerCase();
+  const learningWord = useLemma ? lemma! : word;
+  const learningMeaning = useLemma && lemmaTranslation ? lemmaTranslation : translation;
+
   // Image mode always leads with the learning-language word — the point is
   // recalling the picture from the word, not choosing a translation direction.
   const imageMode = cardType === "image";
   const showLearningFirst = imageMode ? true : direction === "learn-to-native";
   const frontLabel = showLearningFirst ? "Learning Language" : "Your Language";
-  const frontText = showLearningFirst ? word : translation;
+  const frontText = showLearningFirst ? learningWord : learningMeaning;
   const frontSub = showLearningFirst ? ipa : pronunciation;
   const backLabel = imageMode ? (imageUrl ? "Picture" : "Your Language") : showLearningFirst ? "Your Language" : "Learning Language";
-  const backText = showLearningFirst ? translation : word;
+  const backText = showLearningFirst ? learningMeaning : learningWord;
   const backSub = showLearningFirst ? pronunciation : ipa;
+  const lemmaNote = useLemma && (
+    <p className="text-xs text-muted-foreground/80 mt-1">
+      Seen here as <span className="italic">"{word}"</span>{grammarNote ? ` — ${grammarNote}` : ""}
+    </p>
+  );
   const frontHint = imageMode
     ? imageUrl
       ? "Tap to reveal the picture"
@@ -95,7 +122,7 @@ export const Flashcard = ({
         <div className="flashcard-face glass-panel-strong p-8 flex flex-col items-center justify-center shadow-float">
           <p className="text-xs uppercase tracking-wider text-muted-foreground/60 mb-2">{frontLabel}</p>
           {imageUrl && showLearningFirst && !imageMode && (
-            <img src={imageUrl} alt={word} className="w-28 h-28 object-cover rounded-2xl mb-3 shadow-md" />
+            <img src={imageUrl} alt={learningWord} className="w-28 h-28 object-cover rounded-2xl mb-3 shadow-md" />
           )}
           <p
             className={cn(
@@ -118,6 +145,7 @@ export const Flashcard = ({
           ) : (
             <p className="text-muted-foreground text-lg">{frontSub}</p>
           )}
+          {showLearningFirst && lemmaNote}
 
           {context && showLearningFirst && (
             <div className="mt-4 text-center space-y-1">
@@ -137,8 +165,8 @@ export const Flashcard = ({
           <p className="text-xs uppercase tracking-wider text-muted-foreground/60 mb-2">{backLabel}</p>
           {imageMode && imageUrl ? (
             <>
-              <img src={imageUrl} alt={translation || word} className="w-36 h-36 object-cover rounded-2xl mb-3 shadow-md" />
-              <p className="text-muted-foreground text-sm">{translation}</p>
+              <img src={imageUrl} alt={learningMeaning || learningWord} className="w-36 h-36 object-cover rounded-2xl mb-3 shadow-md" />
+              <p className="text-muted-foreground text-sm">{learningMeaning}</p>
             </>
           ) : (
             <>
@@ -162,6 +190,7 @@ export const Flashcard = ({
               ) : (
                 <p className="text-muted-foreground">{backSub}</p>
               )}
+              {!showLearningFirst && lemmaNote}
             </>
           )}
 
@@ -180,7 +209,7 @@ export const Flashcard = ({
             className="mt-4"
             onClick={(e) => {
               e.stopPropagation();
-              speak(word, language);
+              speak(learningWord, language);
             }}
           >
             <Volume2 className="w-5 h-5" />

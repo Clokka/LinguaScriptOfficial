@@ -33,6 +33,10 @@ interface FlashcardData {
   interval_days?: number;
   review_count?: number;
   image_url?: string | null;
+  lemma?: string | null;
+  lemma_translation?: string | null;
+  is_inflected?: boolean;
+  grammar_note?: string | null;
 }
 
 interface FlashcardReviewProps {
@@ -328,6 +332,10 @@ export const FlashcardReview = ({ cards: initialCards, onClose, onCardReviewed, 
         contextTranslation={currentCard.contextTranslation}
         imageUrl={currentCard.image_url ?? undefined}
         cardType={cardType}
+        lemma={currentCard.lemma ?? undefined}
+        lemmaTranslation={currentCard.lemma_translation ?? undefined}
+        isInflected={currentCard.is_inflected ?? false}
+        grammarNote={currentCard.grammar_note ?? undefined}
         language={currentCard.language}
         state={currentCard.state}
 
