@@ -6,6 +6,8 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { getLanguageLabel } from "@/lib/languages";
 import { INTERESTS, interestById } from "@/lib/interests";
 import { rankByComprehension } from "@/lib/videoRecommendation";
+import { cefrSearchModifier } from "@/lib/cefrQueryModifiers";
+import { getLanguageProfile } from "@/lib/languageProfiles";
 import type { LearningZone } from "@/lib/understanding";
 
 interface YTItem {
@@ -87,6 +89,11 @@ export const PersonalizedRails = ({
   const [loading, setLoading] = useState(true);
   const [scoring, setScoring] = useState(true);
   const [pendingId, setPendingId] = useState<string | null>(null);
+  const [cefrLevel, setCefrLevel] = useState<string | null>(null);
+  // Picks from an interest rail, past sessions included — a much stronger
+  // taste signal than the onboarding checkbox itself. Reorders which 3
+  // interests get rail slots; never changes the underlying interest list.
+  const [interestWeights, setInterestWeights] = useState<Record<string, number>>({});
 
   const langLabel = useMemo(() => getLanguageLabel(learningLanguage), [learningLanguage]);
 
@@ -98,16 +105,55 @@ export const PersonalizedRails = ({
     return ids.map((id) => interestById(id)).filter(Boolean) as typeof INTERESTS;
   }, [interests]);
 
-  // Per-interest rails: cap to 3 so we don't burn YouTube quota.
-  const interestRailDefs = useMemo(() => selectedInterests.slice(0, 3), [selectedInterests]);
+  // Per-interest rails: cap to 3 so we don't burn YouTube quota. Ordered by
+  // actual pick history (falls back to onboarding order for ties/unpicked).
+  const interestRailDefs = useMemo(() => {
+    return [...selectedInterests]
+      .sort((a, b) => (interestWeights[b.id] || 0) - (interestWeights[a.id] || 0))
+      .slice(0, 3);
+  }, [selectedInterests, interestWeights]);
 
   const [interestRails, setInterestRails] = useState<Record<string, YTItem[]>>({});
+
+  // CEFR level + interest pick history: the base-tier signal for search
+  // candidate generation, loaded once per user/language rather than per rail.
+  useEffect(() => {
+    let cancelled = false;
+    if (!user) {
+      setCefrLevel(null);
+      setInterestWeights({});
+      return;
+    }
+    void (async () => {
+      const [profile, signalsRes] = await Promise.all([
+        getLanguageProfile(user.id, learningLanguage),
+        (supabase as any)
+          .from("user_interest_signals")
+          .select("interest_id, picks")
+          .eq("user_id", user.id)
+          .eq("language", learningLanguage.toLowerCase()),
+      ]);
+      if (cancelled) return;
+      setCefrLevel(profile?.cefr_level || null);
+      const weights: Record<string, number> = {};
+      for (const row of (signalsRes?.data as any[]) || []) weights[row.interest_id] = row.picks;
+      setInterestWeights(weights);
+    })();
+    return () => { cancelled = true; };
+  }, [user, learningLanguage]);
 
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
       setLoading(true);
       setScoring(true);
+
+      // Base tier: CEFR level decides WHAT to search for (candidate
+      // generation); real comprehension scoring below then picks the BEST
+      // specific videos from those candidates. Cache key includes it so a
+      // level-up doesn't serve yesterday's difficulty-tier results.
+      const cefrMod = cefrSearchModifier(cefrLevel);
+      const cefrKey = cefrLevel || "any";
 
       // Top-level rec rail uses a broad blend of selected interests so it feels
       // like a personalised homepage rather than a single-topic feed.
@@ -116,8 +162,8 @@ export const PersonalizedRails = ({
 
       const [rec, tr, bg, ...perInterest] = await Promise.all([
         cachedSearch(
-          `rails:rec:${learningLanguage}:${blendKey}`,
-          `${langLabel} ${blendQuery}`,
+          `rails:rec:${learningLanguage}:${blendKey}:${cefrKey}`,
+          `${langLabel} ${blendQuery}${cefrMod ? ` ${cefrMod}` : ""}`,
           learningLanguage,
         ),
         cachedSearch(
@@ -132,8 +178,8 @@ export const PersonalizedRails = ({
         ),
         ...interestRailDefs.map((i) =>
           cachedSearch(
-            `rails:interest:${learningLanguage}:${i.id}`,
-            `${langLabel} ${i.query}`,
+            `rails:interest:${learningLanguage}:${i.id}:${cefrKey}`,
+            `${langLabel} ${i.query}${cefrMod ? ` ${cefrMod}` : ""}`,
             learningLanguage,
           ),
         ),
@@ -176,13 +222,23 @@ export const PersonalizedRails = ({
     };
     void load();
     return () => { cancelled = true; };
-  }, [user?.id, learningLanguage, nativeLanguage, langLabel, interestRailDefs, selectedInterests]);
+  }, [user?.id, learningLanguage, nativeLanguage, langLabel, interestRailDefs, selectedInterests, cefrLevel]);
 
-  const pick = async (it: YTItem) => {
+  const pick = async (it: YTItem, sourceInterestId?: string) => {
     if (importing || pendingId) return;
     setPendingId(it.videoId);
-    try { await onWatch(it.videoId, it.title, it.thumbnail); }
-    finally { setPendingId(null); }
+    try {
+      await onWatch(it.videoId, it.title, it.thumbnail);
+      // Fire-and-forget: a failed signal write shouldn't block or error the
+      // actual watch action the learner is waiting on.
+      if (sourceInterestId && user?.id) {
+        setInterestWeights((w) => ({ ...w, [sourceInterestId]: (w[sourceInterestId] || 0) + 1 }));
+        void (supabase as any).rpc("record_interest_pick", {
+          _interest_id: sourceInterestId,
+          _language: learningLanguage.toLowerCase(),
+        });
+      }
+    } finally { setPendingId(null); }
   };
 
   return (
@@ -200,7 +256,10 @@ export const PersonalizedRails = ({
       )}
 
       {!scoring && recommended.length > 0 && (
-        <Rail title={`🎯 Recommended for you in ${langLabel}`}>
+        <Rail
+          title={`🎯 Recommended for you in ${langLabel}`}
+          subtitle="Save new words as you watch, then review them — that's what turns a score green, not rewatching alone."
+        >
           {recommended.map((it) => (
             <YTCard key={it.videoId} it={it} onPick={pick} loading={pendingId === it.videoId} />
           ))}
@@ -213,7 +272,7 @@ export const PersonalizedRails = ({
         return (
           <Rail key={i.id} title={`${i.emoji} Because you like ${i.label}`}>
             {items.map((it) => (
-              <YTCard key={it.videoId} it={it} onPick={pick} loading={pendingId === it.videoId} />
+              <YTCard key={it.videoId} it={it} onPick={(x) => pick(x, i.id)} loading={pendingId === it.videoId} />
             ))}
           </Rail>
         );
@@ -238,10 +297,13 @@ export const PersonalizedRails = ({
   );
 };
 
-const Rail = ({ title, children }: { title: string; children: React.ReactNode }) => (
+const Rail = ({
+  title, subtitle, children,
+}: { title: string; subtitle?: string; children: React.ReactNode }) => (
   <section>
-    <h3 className="text-sm font-semibold text-foreground mb-3">{title}</h3>
-    <div className="flex gap-4 overflow-x-auto pb-2 -mx-2 px-2 snap-x">
+    <h3 className="text-sm font-semibold text-foreground mb-1">{title}</h3>
+    {subtitle && <p className="text-xs text-muted-foreground mb-3">{subtitle}</p>}
+    <div className={`flex gap-4 overflow-x-auto pb-2 -mx-2 px-2 snap-x ${subtitle ? "" : "mt-3"}`}>
       {children}
     </div>
   </section>

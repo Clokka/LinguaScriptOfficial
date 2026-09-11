@@ -158,6 +158,10 @@ export const DailyBriefing = () => {
                     </>
                   )}
                 </p>
+                <p className="mt-2 text-center text-xs leading-relaxed text-white/40">
+                  Watch one video, save what's new, review it — that combination is what
+                  moves your comprehension score. Rewatching alone won't.
+                </p>
 
                 <div className="mt-5 flex items-center gap-3">
                   <button

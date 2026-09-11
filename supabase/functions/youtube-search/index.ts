@@ -29,6 +29,76 @@ function estimateDifficulty(title: string, channel: string, seconds: number): "b
   return "advanced";
 }
 
+// YouTube's own video category taxonomy — "Music" (10) is what let songs
+// slip past every other filter (captions = lyrics, engagement is high,
+// duration can land in-band). None of that makes a song a listening lesson.
+const EXCLUDED_CATEGORY_IDS = new Set(["10"]);
+
+// "Comprehensible input" is a real pedagogical genre (Krashen's input
+// hypothesis) but not a real YouTube taxonomy field — there's no tag to
+// query. Creators in this genre consistently self-label it in the title/
+// channel name, so a keyword match is the practical proxy.
+const CI_KEYWORD_RE = /(comprehensible input|comprehensible |input hypothesis|krashen|niveau facile|langsam gesprochen)/i;
+
+// Starter allowlist of known comprehensible-input-style channels, matched
+// case-insensitively as a substring of the channel title. UNVERIFIED — a
+// best-effort list from general knowledge of the genre, not confirmed
+// against current live channel names. Swap/extend freely; this is meant to
+// be edited, not treated as authoritative.
+const CI_CHANNELS: Record<string, string[]> = {
+  es: ["dreaming spanish", "spanishland school", "comprehensible spanish"],
+  fr: ["french mornings with elisa", "comprehensible french"],
+  de: ["easy german", "deutsch für euch", "comprehensible german"],
+  ja: ["comprehensible japanese", "japanese immersion"],
+  ru: ["comprehensible russian"],
+  it: ["comprehensible italian", "italiano automatico"],
+  pt: ["comprehensible portuguese"],
+  zh: ["comprehensible chinese", "mandarin corner"],
+};
+
+function isComprehensibleInput(title: string, channel: string, lang: string): boolean {
+  const t = `${title} ${channel}`.toLowerCase();
+  if (CI_KEYWORD_RE.test(t)) return true;
+  const known = CI_CHANNELS[(lang || "").toLowerCase()] || [];
+  return known.some((name) => channel.toLowerCase().includes(name));
+}
+
+// Duration band: 8–15 minutes. Long enough to be a real lesson (not a
+// vlog fragment), short enough to finish in one sitting — "one video a
+// day" only works as a habit if that video is a 10-ish minute commitment,
+// not a 40-minute lecture. Center of the band (~600s) scores best.
+const MIN_DURATION_SECONDS = 8 * 60;
+const MAX_DURATION_SECONDS = 15 * 60;
+const IDEAL_DURATION_SECONDS = 10 * 60;
+
+// Below this, a video's "popularity" is noise, not signal — could be brand
+// new or just obscure. Raised from 500: that floor let real junk through.
+const MIN_VIEW_COUNT = 5000;
+
+// Raw view count rewards whatever language already has the most YouTube
+// content (English, Spanish) over well-made niche content in a smaller
+// language. Like/view ratio is a much fairer quality signal: it asks "did
+// the people who watched this actually rate it," not "is this language
+// popular." A ratio this low is a real spam/low-effort signal in either case.
+const MIN_ENGAGEMENT_RATIO = 0.004;
+
+function qualityScore(it: {
+  title: string;
+  channel: string;
+  viewCount: number;
+  likeCount: number;
+  durationSeconds: number;
+  audioLang: string;
+}, lang: string): number {
+  const engagementRatio = it.viewCount > 0 ? it.likeCount / it.viewCount : 0;
+  const durationCloseness = 1 - Math.min(1, Math.abs(it.durationSeconds - IDEAL_DURATION_SECONDS) / IDEAL_DURATION_SECONDS);
+  const ciBoost = isComprehensibleInput(it.title || "", it.channel || "", lang) ? 1 : 0;
+  // Weighted so CI content wins ties decisively, engagement quality matters
+  // more than exact duration, and nothing so extreme one factor alone
+  // dominates every other signal.
+  return engagementRatio * 100 + durationCloseness * 3 + ciBoost * 5;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
@@ -89,6 +159,7 @@ Deno.serve(async (req) => {
       likeCount: number;
       madeForKids: boolean;
       definition: string;
+      categoryId: string;
     }>();
     if (base.length) {
       const idsCsv = base.map((b: any) => b.videoId).join(",");
@@ -110,6 +181,7 @@ Deno.serve(async (req) => {
               likeCount: parseInt(item.statistics?.likeCount || "0", 10),
               madeForKids: !!item.status?.madeForKids,
               definition: item.contentDetails?.definition || "sd",
+              categoryId: item.snippet?.categoryId || "",
             });
           }
         }
@@ -130,6 +202,7 @@ Deno.serve(async (req) => {
         likeCount: m?.likeCount ?? 0,
         madeForKids: m?.madeForKids ?? false,
         definition: m?.definition || "sd",
+        categoryId: m?.categoryId || "",
         difficulty: estimateDifficulty(b.title || "", b.channel || "", seconds),
       };
     });
@@ -143,15 +216,29 @@ Deno.serve(async (req) => {
 
     // Quality floor, applied server-side so quota isn't wasted scoring junk:
     //  - no captions at all -> can't be scored or dual-subtitled, drop it
-    //  - under 3 minutes -> almost certainly a Short, not a lesson
+    //  - outside the 8-15 min band -> not a Short, but also not a one-sitting
+    //    daily-habit video (too short = fragment, too long = lecture)
     //  - made-for-kids -> wrong register/pacing for an adult learner
-    //  - essentially no engagement -> spam/low-effort filter
+    //  - Music category -> a song, not a listening lesson, however well it
+    //    otherwise scores (captions=lyrics, high engagement, in-band length)
+    //  - below the view floor, OR essentially no engagement relative to its
+    //    view count -> spam/low-effort filter that doesn't penalize niche
+    //    languages the way a raw view-count filter would
     items = items.filter((it: any) =>
       it.hasCaptions &&
-      it.durationSeconds >= 180 &&
+      it.durationSeconds >= MIN_DURATION_SECONDS &&
+      it.durationSeconds <= MAX_DURATION_SECONDS &&
       !it.madeForKids &&
-      it.viewCount >= 500,
+      !EXCLUDED_CATEGORY_IDS.has(it.categoryId) &&
+      it.viewCount >= MIN_VIEW_COUNT &&
+      (it.viewCount > 0 ? it.likeCount / it.viewCount >= MIN_ENGAGEMENT_RATIO : false),
     );
+
+    // Best candidates first: only the top `maxToScore` (10, in
+    // rankByComprehension) ever get their captions fetched for real
+    // comprehension scoring, so quality/CI/duration-fit needs to decide
+    // what makes that cut, not just search relevance order.
+    items.sort((a: any, b: any) => qualityScore(b, lang) - qualityScore(a, lang));
 
     return new Response(JSON.stringify({ items }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
