@@ -23,5 +23,3 @@ project_id = "ffephracinqeylfhqkiz"
     verify_jwt = false
   [functions.create-portal-session]
     verify_jwt = false
-  [functions.admin-pro]
-    verify_jwt = false
