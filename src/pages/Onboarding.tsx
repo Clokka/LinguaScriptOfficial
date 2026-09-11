@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowRight, ArrowLeft, Check, Sparkles, Languages, Subtitles,
   BookOpen, Brain, Mic, MousePointer2, Trophy, Flame,
-  Headphones, MessageCircle, RefreshCw,
+  Headphones, RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,9 +25,12 @@ import { DEFAULT_WORD_GOAL, videoGoalForWords, wordGoalForVideos } from "@/lib/p
 import { INTERESTS, MAX_INTERESTS } from "@/lib/interests";
 import { MODE_META, addLanguageProfile, type LearningMode } from "@/lib/languageProfiles";
 
-// LinguaScript targets learners beyond beginner. A1 learners are gated to
-// "below" with a suggestion to start elsewhere; we don't offer A1 or C2.
-const LEVELS = ["below", "A2", "B1", "B2", "C1"] as const;
+// "beginner" is a true zero-knowledge start — not a CEFR level, a signal
+// that nothing should be pre-marked as already known. See addLanguageProfile's
+// totalBeginner path and the seed_priority_words migration comment for why
+// that distinction matters: a beginner's red queue must start at the most
+// frequent words, not skip past them.
+const LEVELS = ["beginner", "A2", "B1", "B2", "C1"] as const;
 type Level = typeof LEVELS[number];
 
 const Onboarding = () => {
@@ -125,7 +128,7 @@ const Onboarding = () => {
 
   const canContinue = useMemo(() => {
     if (step === 0) return true; // 3-pillars intro
-    if (step === 1) return !!native && !!target && native !== target && !!level && level !== "below";
+    if (step === 1) return !!native && !!target && native !== target && !!level;
     if (step === 2) return interests.length >= 1;
     if (step === 3) return goalSaved;
     if (step === 4) return dualClicked;
@@ -146,10 +149,16 @@ const Onboarding = () => {
       try { localStorage.setItem(PENDING_LANGUAGE_KEY, target); } catch { /* ignore */ }
     }
     if (step === 1 && user) {
+      const isTotalBeginner = level === "beginner";
+      // "beginner" isn't a real CEFR value — store A1 as the nominal level
+      // so every other CEFR-tier feature (progress tracking, advancement,
+      // Fast Track) works normally; totalBeginner below is what actually
+      // stops any vocabulary being pre-marked as known.
+      const storedLevel = isTotalBeginner ? "a1" : (level as string);
       await supabase.from("profiles").update({
         native_language: native,
         learning_language: target,
-        cef_level: level,
+        cef_level: storedLevel,
         school: school.trim() || null,
         daily_word_goal: wordGoal,
         // Still written because the watch-time stat reads it, but it is now
@@ -157,16 +166,17 @@ const Onboarding = () => {
         daily_video_goal: videoGoalForWords(wordGoal),
       } as any).eq("user_id", user.id);
       setLearningLanguage(target);
-      // Pre-mark the learner's high-frequency "known" vocabulary based on level
-      // so a B1/B2 learner doesn't see a sea of unassessed words on day one.
-      if (level && level !== "below") {
-        // Creates this learner's per-language profile (mode + level) and seeds
-        // the vocabulary they should already know.
+      if (level) {
+        // Creates this learner's per-language profile (mode + level), seeds
+        // the vocabulary they should already know (skipped entirely for a
+        // total beginner — see totalBeginner), and tops up their Fast
+        // Track red queue.
         await addLanguageProfile({
           userId: user.id,
           language: target,
           mode,
-          level,
+          level: storedLevel,
+          totalBeginner: isTotalBeginner,
         });
       }
     }
@@ -237,31 +247,28 @@ const Onboarding = () => {
           >
             {step === 0 && (
               <Card>
-                <Eyebrow icon={<Sparkles className="w-3.5 h-3.5" />}>How fluency works</Eyebrow>
-                <Title>The 3 pillars of language learning.</Title>
-                <Sub>Every fluent speaker balances these three. LinguaScript is built around them.</Sub>
+                <Eyebrow icon={<Sparkles className="w-3.5 h-3.5" />}>Welcome</Eyebrow>
+                <Title>How LinguaScript works.</Title>
+                <Sub>Three simple habits. That's the whole app.</Sub>
 
                 <div className="mt-8 space-y-4">
                   <PillarCard
                     icon={<Headphones className="w-5 h-5" />}
-                    pillar="Input"
-                    aliases="Comprehension · Immersion"
-                    title="Soak it in"
-                    body="Videos, podcasts, books, real conversations. Linguascript turns YouTube into your daily input feed."
+                    pillar="1. Watch"
+                    title="Real videos, subtitles in both languages"
+                    body="Pick a video. Subtitles show up in your new language and your own, side by side, so you're never lost."
                   />
                   <PillarCard
-                    icon={<MessageCircle className="w-5 h-5" />}
-                    pillar="Output"
-                    aliases="Fluency · Interaction · Practice"
-                    title="Use the language"
-                    body="Speaking, journaling, shadowing, exchanges. Click any subtitle word, hear it, repeat it out loud."
+                    icon={<MousePointer2 className="w-5 h-5" />}
+                    pillar="2. Tap a word"
+                    title="Don't know it? Save it in one tap"
+                    body="See what it means, hear it said correctly, and it's saved for you — no typing, no looking it up elsewhere."
                   />
                   <PillarCard
                     icon={<RefreshCw className="w-5 h-5" />}
-                    pillar="Study & Review"
-                    aliases="Retention · Feedback · Consistency"
-                    title="Make it stick"
-                    body="Spaced-repetition flashcards, grammar nudges and corrections. The boring bit done painlessly."
+                    pillar="3. Review"
+                    title="We bring words back right on time"
+                    body="A quick flashcard review, timed to hit just as you'd start to forget — that's what makes words stick."
                   />
                 </div>
               </Card>
@@ -331,14 +338,14 @@ const Onboarding = () => {
                               : "bg-[#0E0E11] border-white/10 text-white/75 hover:border-[#34C759]/60"
                           }`}
                         >
-                          {l === "below" ? "Below A1" : l}
+                          {l === "beginner" ? "I'm a total beginner" : l}
                         </button>
                       ))}
                     </div>
-                    {level === "below" && (
-                      <div className="mt-4 rounded-2xl bg-white/[0.04] border border-white/15 p-4 text-sm text-white/75 leading-relaxed">
-                        Linguascript works best for learners with basic foundations.
-                        We recommend starting with <span className="font-medium">Duolingo</span> and returning when you reach A2. 🌱
+                    {level === "beginner" && (
+                      <div className="mt-4 rounded-2xl bg-[#34C759]/10 border border-[#34C759]/30 p-4 text-sm text-white/75 leading-relaxed">
+                        Perfect — we'll start you on the single most useful {getLanguageLabel(target) || "language"}{" "}
+                        words first, in the order native speakers actually use them, and build up from there.
                       </div>
                     )}
                   </Field>
@@ -724,8 +731,8 @@ const InfoTile = ({ icon, title, body }: { icon: React.ReactNode; title: string;
 );
 
 const PillarCard = ({
-  icon, pillar, aliases, title, body,
-}: { icon: React.ReactNode; pillar: string; aliases: string; title: string; body: string }) => (
+  icon, pillar, title, body,
+}: { icon: React.ReactNode; pillar: string; title: string; body: string }) => (
   <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 flex gap-4">
     <div className="shrink-0 w-12 h-12 rounded-2xl bg-gradient-to-br from-[#34C759] to-[#FF8A00] text-white flex items-center justify-center shadow-[0_8px_20px_-8px_rgba(52,199,89,0.6)]">
       {icon}
@@ -733,7 +740,6 @@ const PillarCard = ({
     <div className="min-w-0">
       <div className="flex items-baseline gap-2 flex-wrap">
         <p className="font-semibold text-white">{pillar}</p>
-        <p className="text-[11px] text-[#34C759] font-medium uppercase tracking-wide">{aliases}</p>
       </div>
       <p className="text-[13px] text-white/50 mt-0.5">{title}</p>
       <p className="mt-1.5 text-sm text-white/75 leading-relaxed">{body}</p>
