@@ -5,7 +5,7 @@ import { X, ChevronLeft, ChevronRight, Trophy, ArrowLeftRight } from "lucide-rea
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { DeckState, nextState, applySrsReview } from "@/lib/vocab";
+import { DeckState, nextState, applySrsReview, syncLemmaState } from "@/lib/vocab";
 import { cacheWordImage } from "@/lib/wordImages";
 import { useXp } from "@/contexts/XpContext";
 import { toast } from "sonner";
@@ -173,6 +173,24 @@ export const FlashcardReview = ({ cards: initialCards, onClose, onCardReviewed, 
       p.finally(() => {
         pendingWrites.current = pendingWrites.current.filter((write) => write !== p);
       });
+
+      // Every conjugation of a verb (or declined form of a noun/adjective) is
+      // the same piece of knowledge — "manges" reaching green should bring
+      // "mangeons"/"mangerons" up with it, not leave them stranded in red.
+      if (card.lemma && card.language) {
+        const sync = syncLemmaState(user.id, card.language, card.lemma, card.id, newState)
+          .then((result) => {
+            if (!result || result.updatedIds.length === 0) return;
+            setCards((prev) =>
+              prev.map((c) => (result.updatedIds.includes(c.id) ? { ...c, state: result.target } : c)),
+            );
+          })
+          .catch((error) => console.error("[SRS] failed to sync lemma siblings", error));
+        pendingWrites.current.push(sync);
+        sync.finally(() => {
+          pendingWrites.current = pendingWrites.current.filter((write) => write !== sync);
+        });
+      }
     }
   };
 

@@ -4,7 +4,7 @@ import { ArrowLeft, Loader2, Download, Maximize, Minimize, X } from "lucide-reac
 import { Button } from "@/components/ui/button";
 import { SubtitleOverlay } from "@/components/SubtitleOverlay";
 import { GapFillChallenge } from "@/components/GapFillChallenge";
-import { loadDeckIndex, normalizeToken, SavedWordLite } from "@/lib/vocab";
+import { loadDeckIndex, normalizeToken, SavedWordLite, DeckState, coerceDeckState, maxState, bestStateForLemma } from "@/lib/vocab";
 import { buildExerciseOptions } from "@/lib/linguascripts";
 import { cacheWordImageByWord } from "@/lib/wordImages";
 import { supabase } from "@/integrations/supabase/client";
@@ -852,7 +852,34 @@ const Watch = () => {
     }
 
     if (!film) return;
-    const today = new Date().toISOString().split("T")[0];
+
+    // Don't restart a lemma's progress at red: (1) re-saving a word the
+    // learner already knows shouldn't reset its state or SRS progress, and
+    // (2) a freshly-clicked conjugation of an already-mastered verb
+    // ("mangeons" when "manger" is green via "manges") should start out
+    // green, not as if it were a new, unrelated word.
+    let initialState: DeckState = "red";
+    let initialReviewCount = 0;
+    let initialTimesCorrect = 0;
+    let initialNextReview = new Date().toISOString().split("T")[0];
+    const { data: existingSame } = await supabase
+      .from("saved_words")
+      .select("state, review_count, times_correct, next_review")
+      .eq("user_id", user.id)
+      .eq("language", langCode)
+      .eq("word", word.text)
+      .maybeSingle();
+    if (existingSame) {
+      initialState = coerceDeckState(existingSame.state);
+      initialReviewCount = existingSame.review_count ?? 0;
+      initialTimesCorrect = existingSame.times_correct ?? 0;
+      initialNextReview = existingSame.next_review ?? initialNextReview;
+    }
+    if (lemma) {
+      const lemmaBest = await bestStateForLemma(user.id, langCode, lemma);
+      if (lemmaBest) initialState = maxState(initialState, lemmaBest);
+    }
+
     const { error: saveError } = await supabase.from("saved_words").upsert({
       user_id: user.id,
       word: word.text,
@@ -862,10 +889,10 @@ const Watch = () => {
       context,
       film_id: film.id,
       language: langCode,
-      next_review: today,
-      state: "red",
-      review_count: 0,
-      times_correct: 0,
+      next_review: initialNextReview,
+      state: initialState,
+      review_count: initialReviewCount,
+      times_correct: initialTimesCorrect,
       lemma,
       lemma_translation: lemmaTranslation,
       pos,
