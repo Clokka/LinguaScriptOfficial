@@ -23,3 +23,7 @@ project_id = "ffephracinqeylfhqkiz"
     verify_jwt = false
   [functions.create-portal-session]
     verify_jwt = false
+  [functions.youtube-store-connection]
+    verify_jwt = true
+  [functions.youtube-subscribe]
+    verify_jwt = true

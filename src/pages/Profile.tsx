@@ -1,8 +1,17 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { LANGUAGES } from "@/lib/languages";
+import { LANGUAGES, getLanguageLabel } from "@/lib/languages";
+import {
+  startYouTubeConnect,
+  captureYouTubeConnection,
+  getYouTubeConnectionStatus,
+  subscribeToLanguageChannels,
+  YT_CONNECT_RETURN_PARAM,
+  YT_CONNECT_RETURN_VALUE,
+  type YouTubeConnectionStatus,
+} from "@/lib/youtubeConnect";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -38,6 +47,11 @@ const Profile = () => {
   const [showPetGallery, setShowPetGallery] = useState(false);
   const { activePet, petCollection } = usePet();
   const activePetMeta = activePet ? getPetById(activePet) : null;
+  const [interests, setInterests] = useState<string[]>([]);
+  const [ytStatus, setYtStatus] = useState<YouTubeConnectionStatus>({ connected: false, connectedAt: null, channelCount: 0 });
+  const [ytConnecting, setYtConnecting] = useState(false);
+  const [ytSubscribing, setYtSubscribing] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const hasGoogleLinked = !!user?.identities?.some((i) => i.provider === "google");
 
@@ -76,8 +90,64 @@ const Profile = () => {
       setNativeLanguage(data.native_language ?? "en");
       setLearningLanguage(data.learning_language ?? "");
       setSchool((data as any).school ?? "");
+      setInterests(Array.isArray((data as any).interests) ? (data as any).interests : []);
     }
     setLoadingProfile(false);
+  };
+
+  // Landing back from the YouTube OAuth round trip: capture the provider
+  // token this specific redirect carries (Supabase doesn't persist it) and
+  // kick off the actual channel subscriptions right away, so "Connect" is
+  // one action for the learner, not connect-then-remember-to-subscribe.
+  useEffect(() => {
+    if (!user || searchParams.get(YT_CONNECT_RETURN_PARAM) !== YT_CONNECT_RETURN_VALUE) return;
+    setSearchParams((p) => { p.delete(YT_CONNECT_RETURN_PARAM); return p; }, { replace: true });
+    void (async () => {
+      const captured = await captureYouTubeConnection();
+      if (!captured.ok) {
+        toast({ title: "YouTube connection failed", description: captured.error, variant: "destructive" });
+        return;
+      }
+      toast({ title: "YouTube connected!" });
+      setYtStatus(await getYouTubeConnectionStatus());
+      if (learningLanguage) await runYoutubeSubscribe();
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, searchParams]);
+
+  useEffect(() => {
+    if (!user) return;
+    void getYouTubeConnectionStatus().then(setYtStatus);
+  }, [user]);
+
+  const handleConnectYoutube = async () => {
+    setYtConnecting(true);
+    const { error } = await startYouTubeConnect(hasGoogleLinked);
+    if (error) {
+      toast({ title: "Couldn't connect YouTube", description: error, variant: "destructive" });
+      setYtConnecting(false);
+    }
+    // On success the page navigates away to Google, so nothing else to do here.
+  };
+
+  const runYoutubeSubscribe = async () => {
+    if (!learningLanguage) {
+      toast({ title: "Pick a learning language first", variant: "destructive" });
+      return;
+    }
+    setYtSubscribing(true);
+    const { results, errors, error } = await subscribeToLanguageChannels(learningLanguage, interests);
+    setYtSubscribing(false);
+    if (error) {
+      toast({ title: "Couldn't subscribe channels", description: error, variant: "destructive" });
+      return;
+    }
+    const newlySubscribed = results.filter((r) => r.subscribed).length;
+    toast({
+      title: newlySubscribed > 0 ? `Subscribed to ${newlySubscribed} channel${newlySubscribed === 1 ? "" : "s"}` : "Already subscribed to everything",
+      description: errors.length > 0 ? `${errors.length} couldn't be resolved — try again later.` : undefined,
+    });
+    setYtStatus(await getYouTubeConnectionStatus());
   };
 
   const handleLinkGoogle = async () => {
@@ -350,6 +420,40 @@ const Profile = () => {
               </>
             )}
           </div>
+
+          {user && (
+            <div className="pt-4 border-t border-border/50">
+              <p className="text-sm font-medium text-foreground mb-1">YouTube</p>
+              <p className="text-xs text-muted-foreground mb-3">
+                {ytStatus.connected
+                  ? `Connected — subscribed to ${ytStatus.channelCount} ${learningLanguage ? getLanguageLabel(learningLanguage) : ""} channel${ytStatus.channelCount === 1 ? "" : "s"}.`
+                  : "Connect your YouTube account and we'll subscribe you to real channels in your learning language — a few core language-learning ones, plus one matched to each hobby you picked (a German cars channel for a German learner into cars)."}
+              </p>
+              {!ytStatus.connected ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="lg"
+                  className="w-full bg-background/60"
+                  onClick={handleConnectYoutube}
+                  disabled={ytConnecting}
+                >
+                  {ytConnecting ? "Connecting…" : "Connect YouTube"}
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="lg"
+                  className="w-full bg-background/60"
+                  onClick={runYoutubeSubscribe}
+                  disabled={ytSubscribing}
+                >
+                  {ytSubscribing ? "Subscribing…" : "Refresh channel subscriptions"}
+                </Button>
+              )}
+            </div>
+          )}
         </div>
 
       </div>
