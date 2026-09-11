@@ -29,7 +29,7 @@ export interface XpMeta {
   videoId?: string;
 }
 
-// Front-loaded onboarding ramp.
+// Front-loaded onboarding ramp — levels 1-5, unchanged.
 //
 // The old curve started at 100 XP for level 2. A first session — save one word
 // (20) and review three cards (30) — totalled 50, so a new learner finished
@@ -39,25 +39,52 @@ export interface XpMeta {
 // These thresholds are tuned against the real action values in xpForAction:
 //   save first word            20  -> level 2   (instant, before they scroll)
 //   + three correct reviews    50  -> level 3
-//   a couple more sessions          -> level 10
+const EARLY_RAMP = [0, 20, 50, 95, 160];
+
+// The 30-day "hooked" ramp — levels 6-30.
 //
-// Deliberately generous to 10, then the endless curve takes over so later
-// levels still mean something. Past level 10 the table grows forever (see
-// extendThresholds) — a fixed table used to cap heavy learners at 10 with a
-// progress bar running past 100% and no level-up able to fire again.
+// Baseline persona: a learner doing nothing but hitting the Recommended
+// 5-word/day goal (5 x 20 XP = 100 XP/day guaranteed, before any reviews or
+// session bonus). Gaps grow gently — 4%/level, 100 XP to ~256 XP — so a
+// level-up lands roughly once a day across the whole 30-day window for a
+// learner near that baseline, faster for anyone reviewing cards too. This
+// is the actual retention lever: dense reinforcement while the habit is
+// still forming, not a flat "everyone gets a level every N XP" grind.
 //
-// NOTE: lowering these means existing accounts jump several levels the next
-// time they load. That is a pleasant surprise rather than a regression, and
+// Also lines up level 25 (a milestoneTier "grand" — +250 bonus gems, see
+// levelRewards.ts) right near the end of this window, not buried decades
+// away like it would be under the endless curve alone.
+//
+// After level 30 the endless curve below takes over and progression
+// deliberately slows down — dense to build the habit, a real climb once
+// it's established. That's the "then slow down" half of the design, not
+// an accident of the math running out.
+const DENSE_RAMP_LEVELS = 25; // levels 6 through 30
+const DENSE_RAMP_BASE_GAP = 100;
+const DENSE_RAMP_GROWTH = 1.04;
+
+function buildFrontRamp(): number[] {
+  const thresholds = [...EARLY_RAMP];
+  let gap = DENSE_RAMP_BASE_GAP;
+  for (let i = 0; i < DENSE_RAMP_LEVELS; i++) {
+    thresholds.push(thresholds[thresholds.length - 1] + Math.round(gap));
+    gap *= DENSE_RAMP_GROWTH;
+  }
+  return thresholds;
+}
+
+// NOTE: changing this ramp means existing accounts jump (or, if ever made
+// stingier, don't retroactively drop) several levels the next time they
+// load. A jump is a pleasant surprise rather than a regression, and
 // sync_level_rewards is idempotent server-side so the gems for those levels
 // are granted once, not re-granted.
-export const LEVEL_THRESHOLDS = [
-  0, 20, 50, 95, 160, 250, 380, 560, 820, 1200,
-];
+export const LEVEL_THRESHOLDS = buildFrontRamp();
 
 // Endless progression past the ramp: each level costs a little more than the
-// last, easing to a flat cost so high levels stay reachable. The base gap is
-// deliberately close to the level 9->10 step (380) so leaving the ramp feels
-// like a gear change, not a wall.
+// last, easing to a flat cost so high levels stay reachable. The final dense-
+// ramp gap (level 29->30) lands around 256 XP; starting endless at 600 is a
+// deliberate step up — leaving the ramp should read as "this is the real
+// climb now," not go unnoticed.
 const ENDLESS_BASE_GAP = 600;
 const ENDLESS_GROWTH = 1.08;
 const ENDLESS_MAX_GAP = 25000;
