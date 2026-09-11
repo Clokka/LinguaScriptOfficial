@@ -5,7 +5,7 @@ import { X, ChevronLeft, ChevronRight, Trophy, ArrowLeftRight } from "lucide-rea
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { DeckState, nextState } from "@/lib/vocab";
+import { DeckState, nextState, applySrsReview } from "@/lib/vocab";
 import { useXp } from "@/contexts/XpContext";
 import { toast } from "sonner";
 
@@ -24,6 +24,9 @@ interface FlashcardData {
   state?: DeckState;
   times_correct?: number;
   is_phrase?: boolean;
+  ease_factor?: number;
+  interval_days?: number;
+  review_count?: number;
 }
 
 interface FlashcardReviewProps {
@@ -95,8 +98,19 @@ export const FlashcardReview = ({ cards: initialCards, onClose, onCardReviewed, 
     const newTimes = prevTimes + (wasCorrect ? 1 : 0);
     const newState = nextState(prevState, newTimes, wasCorrect);
     if (newState === "green" && prevState !== "green") promotedToGreenRef.current += 1;
+
+    // Real spaced-repetition scheduling: grows/shrinks the review interval
+    // via SM-2 instead of leaving next_review frozen at whatever it was set
+    // to when the word was first saved.
+    const srs = applySrsReview(
+      { ease_factor: card.ease_factor, interval_days: card.interval_days, review_count: card.review_count },
+      wasCorrect,
+    );
+
     // Optimistic local update — React is only a temporary UI cache.
-    setCards((prev) => prev.map((c, i) => (i === currentIndex ? { ...c, state: newState, times_correct: newTimes } : c)));
+    setCards((prev) =>
+      prev.map((c, i) => (i === currentIndex ? { ...c, state: newState, times_correct: newTimes, ...srs } : c)),
+    );
     onCardReviewed?.(card.id, { state: newState, times_correct: newTimes });
 
     // Persist the SRS transition immediately. Supabase saved_words.state is the source of truth.
@@ -104,6 +118,7 @@ export const FlashcardReview = ({ cards: initialCards, onClose, onCardReviewed, 
       const patch: Record<string, unknown> = {
         state: newState,
         times_correct: newTimes,
+        ...srs,
       };
       if (newState !== prevState) patch.state_changed_at = new Date().toISOString();
 

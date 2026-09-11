@@ -197,7 +197,12 @@ export function buildExerciseOptions(
 /** ===== DATABASE: Create LinguaScript Records ===== */
 
 /**
- * Create a LinguaScript exercise from a saved word
+ * Create a LinguaScript exercise from a saved word.
+ *
+ * Persists the gap-fill/MCQ scaffolding (via buildExerciseOptions) on the
+ * row itself. Every caller used to compute this and then discard it before
+ * inserting, so LinguaScriptExercise crashed on `exercise.gap_options.correct`
+ * the moment a row was reloaded from the database.
  */
 export async function createLinguaScriptFromSavedWord(
   userId: string,
@@ -206,10 +211,12 @@ export async function createLinguaScriptFromSavedWord(
   translation: string,
   wordState: "red" | "orange" | "green",
   language: string,
-  interests: string[]
+  interests: string[],
+  distractorPool: string[] = [],
+  scheduledFor: Date = getNextReviewDate(wordState),
 ): Promise<LinguaScript | null> {
   try {
-    const scheduledFor = getNextReviewDate(wordState);
+    const { gapPosition, gapOptions, mcqOptions } = buildExerciseOptions(sentence, word, distractorPool);
 
     const { data, error } = await supabase
       .from("linguascripts")
@@ -223,6 +230,9 @@ export async function createLinguaScriptFromSavedWord(
         interests,
         cef_level: "B1",
         exercise_type: "gap-fill",
+        gap_position: gapPosition,
+        gap_options: gapOptions,
+        mcq_options: mcqOptions,
         status: "pending",
         attempts: 0,
         combo_multiplier: 1,

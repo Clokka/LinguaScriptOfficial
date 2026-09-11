@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { SubtitleOverlay } from "@/components/SubtitleOverlay";
 import { GapFillChallenge } from "@/components/GapFillChallenge";
 import { loadDeckIndex, normalizeToken, SavedWordLite } from "@/lib/vocab";
+import { buildExerciseOptions } from "@/lib/linguascripts";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
@@ -864,19 +865,29 @@ const Watch = () => {
     playDing("success");
     maybeTriggerLearningBreak({ word: word.text, translation });
 
-    // Create LinguaScript record immediately (scheduled for now, not tomorrow)
-    supabase.from("linguascripts").insert({
-      user_id: user.id,
-      language: langCode,
-      target_word: word.text,
-      sentence: context || word.text,
-      translation: translation,
-      word_state: "red",
-      status: "pending",
-      attempts: 0,
-      combo_multiplier: 1,
-      scheduled_for: new Date().toISOString(),
-    } as any).then(({ error }) => { if (error) console.error("Failed to create LinguaScript:", error); });
+    // Create LinguaScript record immediately (scheduled for now, not tomorrow).
+    // Must include gap_options/mcq_options — LinguaScriptExercise crashes
+    // reading exercise.gap_options.correct when a row lacks them.
+    {
+      const sentence = context || word.text;
+      const { gapPosition, gapOptions, mcqOptions } = buildExerciseOptions(sentence, word.text, []);
+      supabase.from("linguascripts").insert({
+        user_id: user.id,
+        language: langCode,
+        target_word: word.text,
+        sentence,
+        translation: translation,
+        word_state: "red",
+        exercise_type: "gap-fill",
+        gap_position: gapPosition,
+        gap_options: gapOptions,
+        mcq_options: mcqOptions,
+        status: "pending",
+        attempts: 0,
+        combo_multiplier: 1,
+        scheduled_for: new Date().toISOString(),
+      } as any).then(({ error }) => { if (error) console.error("Failed to create LinguaScript:", error); });
+    }
   };
 
   const savePhrase = async (phrase: string) => {
@@ -940,18 +951,26 @@ const Watch = () => {
     playDing("success");
 
     // Create LinguaScript record for phrase (scheduled for now, not tomorrow)
-    supabase.from("linguascripts").insert({
-      user_id: user.id,
-      language: langCode,
-      target_word: trimmed,
-      sentence: context || trimmed,
-      translation: translation,
-      word_state: "red",
-      status: "pending",
-      attempts: 0,
-      combo_multiplier: 1,
-      scheduled_for: new Date().toISOString(),
-    } as any).then(({ error }) => { if (error) console.error("Failed to create LinguaScript for phrase:", error); });
+    {
+      const phraseSentence = context || trimmed;
+      const { gapPosition, gapOptions, mcqOptions } = buildExerciseOptions(phraseSentence, trimmed, []);
+      supabase.from("linguascripts").insert({
+        user_id: user.id,
+        language: langCode,
+        target_word: trimmed,
+        sentence: phraseSentence,
+        translation: translation,
+        word_state: "red",
+        exercise_type: "gap-fill",
+        gap_position: gapPosition,
+        gap_options: gapOptions,
+        mcq_options: mcqOptions,
+        status: "pending",
+        attempts: 0,
+        combo_multiplier: 1,
+        scheduled_for: new Date().toISOString(),
+      } as any).then(({ error }) => { if (error) console.error("Failed to create LinguaScript for phrase:", error); });
+    }
   };
 
   const markWordKnown = async (word: { text: string; translation?: string }) => {
@@ -986,18 +1005,26 @@ const Watch = () => {
     toast.success("Marked as known: " + word.text);
 
     // Create LinguaScript record for known word (scheduled for now, not 7 days from now)
-    supabase.from("linguascripts").insert({
-      user_id: user.id,
-      language: langCode,
-      target_word: word.text,
-      sentence: currentSubtitle?.primary || word.text,
-      translation: word.translation || "",
-      word_state: "green",
-      status: "pending",
-      attempts: 0,
-      combo_multiplier: 1,
-      scheduled_for: new Date().toISOString(),
-    } as any).then(({ error }) => { if (error) console.error("Failed to create LinguaScript for known word:", error); });
+    {
+      const knownSentence = currentSubtitle?.primary || word.text;
+      const { gapPosition, gapOptions, mcqOptions } = buildExerciseOptions(knownSentence, word.text, []);
+      supabase.from("linguascripts").insert({
+        user_id: user.id,
+        language: langCode,
+        target_word: word.text,
+        sentence: knownSentence,
+        translation: word.translation || "",
+        word_state: "green",
+        exercise_type: "gap-fill",
+        gap_position: gapPosition,
+        gap_options: gapOptions,
+        mcq_options: mcqOptions,
+        status: "pending",
+        attempts: 0,
+        combo_multiplier: 1,
+        scheduled_for: new Date().toISOString(),
+      } as any).then(({ error }) => { if (error) console.error("Failed to create LinguaScript for known word:", error); });
+    }
   };
 
   const downloadSrt = (type: "primary" | "secondary") => {

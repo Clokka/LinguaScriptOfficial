@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import {
   generateLinguaScriptFromWord,
   createLinguaScriptFromSavedWord,
-  buildExerciseOptions,
   type LinguaScript,
 } from "@/lib/linguascripts";
 import { supabase } from "@/integrations/supabase/client";
@@ -99,12 +98,9 @@ export function TodaysMission({ language, onStartExercise }: TodaysMissionProps)
             continue;
           }
 
-          const { gapPosition, gapOptions, mcqOptions } = buildExerciseOptions(
-            generated.sentence,
-            savedWord.word,
-            distractorPool,
-          );
-
+          // createLinguaScriptFromSavedWord now builds and persists the
+          // gap-fill/MCQ scaffolding itself (via buildExerciseOptions), so
+          // the created row already carries everything the exercise needs.
           const created = await createLinguaScriptFromSavedWord(
             user.id,
             savedWord.word,
@@ -113,6 +109,7 @@ export function TodaysMission({ language, onStartExercise }: TodaysMissionProps)
             wordState,
             language,
             [],
+            distractorPool,
           );
 
           if (!created) {
@@ -120,12 +117,7 @@ export function TodaysMission({ language, onStartExercise }: TodaysMissionProps)
             continue;
           }
 
-          generatedScripts.push({
-            ...created,
-            gap_position: gapPosition,
-            gap_options: gapOptions,
-            mcq_options: mcqOptions,
-          });
+          generatedScripts.push(created);
         } catch (err) {
           failures.push(savedWord.word);
           console.error(`Failed to generate exercise for "${savedWord.word}":`, err);

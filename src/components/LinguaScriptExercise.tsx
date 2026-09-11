@@ -87,6 +87,13 @@ export function LinguaScriptExercise({
             ? "Exercise not found. It may have been deleted."
             : `No exercise found for "${targetWord}". Save words first to create exercises.`
         );
+      } else if (mode === "gap-fill" && !data.gap_options?.correct) {
+        // Rows created before the gap_options/mcq_options persistence fix
+        // (or any future write path that forgets them) would otherwise
+        // crash handleSubmitGapFill on exercise.gap_options.correct.
+        setError("This flashcard needs to be regenerated — try saving the word again.");
+      } else if (mode === "mcq" && !data.mcq_options?.options?.length) {
+        setError("This flashcard needs to be regenerated — try saving the word again.");
       } else {
         setExercise(data);
       }

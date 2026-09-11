@@ -179,6 +179,10 @@ export async function loadDeckIndex(
  *
  * LinguaScript mission: Turn the Language Green. Every successful interaction
  * is forward progress; a single forgotten word never undoes prior effort.
+ *
+ * This colour is a motivational layer, kept deliberately separate from the
+ * real review schedule below (`applySrsReview`) — a lapse reschedules the
+ * card sooner without taking away the green badge the learner already earned.
  */
 export function nextState(
   current: DeckState,
@@ -191,13 +195,69 @@ export function nextState(
   return "green";
 }
 
-/** Log a flashcard review without controlling SRS deck transitions. */
-export async function recordReview(
-  savedWordId: string,
-  current: DeckState,
-  _currentTimesCorrect: number,
-  _correct: boolean,
-): Promise<DeckState> {
-  console.debug("[recordReview] analytics-only no-op", savedWordId);
-  return current;
+/** The saved_words columns a real review cycle needs to read and rewrite. */
+export interface SrsInput {
+  ease_factor?: number | null;
+  interval_days?: number | null;
+  review_count?: number | null;
+}
+
+export interface SrsResult {
+  ease_factor: number;
+  interval_days: number;
+  review_count: number;
+  /** `saved_words.next_review` is a `date` column (YYYY-MM-DD). */
+  next_review: string;
+  last_reviewed_at: string;
+  last_correct_at?: string;
+}
+
+/**
+ * A simplified SM-2: the same algorithm Anki's default scheduler is built
+ * on, adapted for a binary correct/incorrect grade instead of a 0-5 quality
+ * score.
+ *
+ *  - Incorrect ("Again"): interval resets to 1 day and the ease factor dips
+ *    slightly (floor 1.3), so a forgotten word resurfaces tomorrow instead
+ *    of drifting back onto whatever interval it was previously on.
+ *  - Correct: interval grows 1 → 6 → previous×ease, and the ease factor
+ *    nudges up — successive correct answers space reviews further apart,
+ *    which is the entire point of spaced repetition and the thing the old
+ *    no-op `recordReview` never did.
+ *
+ * Deliberately does not touch `state` (red/orange/green) — see `nextState`.
+ */
+export function applySrsReview(current: SrsInput, correct: boolean): SrsResult {
+  const prevEase = current.ease_factor ?? 2.5;
+  const prevInterval = current.interval_days ?? 1;
+  const prevReviewCount = current.review_count ?? 0;
+  const now = new Date();
+  const nowIso = now.toISOString();
+
+  let easeFactor: number;
+  let intervalDays: number;
+  let reviewCount: number;
+
+  if (!correct) {
+    easeFactor = Math.max(1.3, prevEase - 0.2);
+    intervalDays = 1;
+    reviewCount = 0;
+  } else {
+    easeFactor = Math.max(1.3, Math.min(3.0, prevEase + 0.1));
+    reviewCount = prevReviewCount + 1;
+    if (reviewCount === 1) intervalDays = 1;
+    else if (reviewCount === 2) intervalDays = 6;
+    else intervalDays = Math.round(prevInterval * easeFactor);
+  }
+
+  const nextReview = new Date(now.getTime() + intervalDays * 24 * 60 * 60 * 1000);
+
+  return {
+    ease_factor: easeFactor,
+    interval_days: intervalDays,
+    review_count: reviewCount,
+    next_review: nextReview.toISOString().split("T")[0],
+    last_reviewed_at: nowIso,
+    ...(correct ? { last_correct_at: nowIso } : {}),
+  };
 }

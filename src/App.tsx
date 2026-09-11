@@ -14,47 +14,58 @@ import { XpToast } from "@/components/XpToast";
 import { InterestsPromptModal } from "@/components/InterestsPromptModal";
 import { PetProvider } from "@/contexts/PetContext";
 import { PetCompanion } from "@/components/pets/PetCompanion";
-import Landing from "./pages/Landing";
-import LandingPage2 from "./pages/LandingPage2";
-import LandingPage3 from "./pages/LandingPage3";
-import LandingPage4 from "./pages/LandingPage4";
-import Landing5 from "./pages/Landing5";
-import GapDemo from "./pages/GapDemo";
-import Demo from "./pages/Demo";
-import Browse from "./pages/Browse";
-import Browse1 from "./pages/Browse1";
-const Browse2 = lazy(() => import("./pages/Browse2"));
-import Auth from "./pages/Auth";
-import Profile from "./pages/Profile";
-import Watch from "./pages/Watch";
-import Flashcards from "./pages/Flashcards";
-import StarterDeck from "./pages/StarterDeck";
-import Vocabulary from "./pages/Vocabulary";
-import Admin from "./pages/Admin";
-import Story from "./pages/Story";
-import Friends from "./pages/Friends";
-import Onboarding from "./pages/Onboarding";
-import Unsubscribe from "./pages/Unsubscribe";
-import Index from "./pages/Index";
-import NotFound from "./pages/NotFound";
-import Pricing from "./pages/Pricing";
-import Upgrade from "./pages/Upgrade";
-import CheckoutReturn from "./pages/CheckoutReturn";
-import Privacy from "./pages/Privacy";
-import PrivacyExtension from "./pages/PrivacyExtension";
-import Terms from "./pages/Terms";
-import Teacher from "./pages/Teacher";
-import Progress from "./pages/Progress";
-import GiftClaim from "./pages/GiftClaim";
-import MieoFrames from "./pages/MieoFrames";
-import OnboardingMobile from "./pages/OnboardingMobile";
-import OAuthConsent from "./pages/OAuthConsent";
-import LinguaScripts from "./pages/LinguaScripts";
-import Credits from "./pages/Credits";
-import ChameleonMethod from "./pages/ChameleonMethod";
-import ProGiftClaim from "./pages/ProGiftClaim";
+import { Loader2 } from "lucide-react";
+
+// Every route used to be a static import, so visiting ANY page — including
+// /auth, which should be the fastest thing in the app — forced the browser
+// to download and parse one ~2.8MB bundle containing Watch, Admin, Teacher,
+// the Remotion studio pages, etc. before it could render anything. Splitting
+// each route into its own lazy chunk means a page only pays for its own code.
+const Landing = lazy(() => import("./pages/Landing"));
+const LandingPage2 = lazy(() => import("./pages/LandingPage2"));
+const LandingPage3 = lazy(() => import("./pages/LandingPage3"));
+const LandingPage4 = lazy(() => import("./pages/LandingPage4"));
+const Landing5 = lazy(() => import("./pages/Landing5"));
+const GapDemo = lazy(() => import("./pages/GapDemo"));
+const Demo = lazy(() => import("./pages/Demo"));
+const Browse = lazy(() => import("./pages/Browse"));
+const Auth = lazy(() => import("./pages/Auth"));
+const Profile = lazy(() => import("./pages/Profile"));
+const Watch = lazy(() => import("./pages/Watch"));
+const Flashcards = lazy(() => import("./pages/Flashcards"));
+const StarterDeck = lazy(() => import("./pages/StarterDeck"));
+const Vocabulary = lazy(() => import("./pages/Vocabulary"));
+const Admin = lazy(() => import("./pages/Admin"));
+const Story = lazy(() => import("./pages/Story"));
+const Friends = lazy(() => import("./pages/Friends"));
+const Onboarding = lazy(() => import("./pages/Onboarding"));
+const Unsubscribe = lazy(() => import("./pages/Unsubscribe"));
+const Index = lazy(() => import("./pages/Index"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+const Pricing = lazy(() => import("./pages/Pricing"));
+const Upgrade = lazy(() => import("./pages/Upgrade"));
+const CheckoutReturn = lazy(() => import("./pages/CheckoutReturn"));
+const Privacy = lazy(() => import("./pages/Privacy"));
+const PrivacyExtension = lazy(() => import("./pages/PrivacyExtension"));
+const Terms = lazy(() => import("./pages/Terms"));
+const Teacher = lazy(() => import("./pages/Teacher"));
+const Progress = lazy(() => import("./pages/Progress"));
+const GiftClaim = lazy(() => import("./pages/GiftClaim"));
+const MieoFrames = lazy(() => import("./pages/MieoFrames"));
+const OnboardingMobile = lazy(() => import("./pages/OnboardingMobile"));
+const OAuthConsent = lazy(() => import("./pages/OAuthConsent"));
+const LinguaScripts = lazy(() => import("./pages/LinguaScripts"));
+const Credits = lazy(() => import("./pages/Credits"));
+const ChameleonMethod = lazy(() => import("./pages/ChameleonMethod"));
+const ProGiftClaim = lazy(() => import("./pages/ProGiftClaim"));
 
 const queryClient = new QueryClient();
+
+const RouteFallback = () => (
+  <div className="min-h-screen flex items-center justify-center bg-background">
+    <Loader2 className="w-8 h-8 animate-spin text-primary" />
+  </div>
+);
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -66,6 +77,7 @@ const App = () => (
           <XpProvider>
             <PetProvider>
             <TourProvider>
+              <Suspense fallback={<RouteFallback />}>
               <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/landing" element={<Landing />} />
@@ -109,6 +121,7 @@ const App = () => (
                 <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
+              </Suspense>
               <TourOverlay />
               <DailyBriefing />
               <StreakCelebrationModal />

@@ -284,6 +284,7 @@ export function LinguaScriptSessionFlow({
         {currentWord && (
           <LinguaScriptExercise
             key={`${currentWord.id}-${currentIndex}`}
+            exerciseId={currentWord.id}
             targetWord={currentWord.word}
             language={learningLanguage}
             mode="gap-fill"

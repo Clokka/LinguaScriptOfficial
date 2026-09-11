@@ -30,6 +30,8 @@ interface SavedWord {
   state: DeckState;
   times_correct: number;
   is_phrase?: boolean;
+  ease_factor?: number;
+  interval_days?: number;
 }
 
 interface StarterDeck {
@@ -80,7 +82,7 @@ const Flashcards = () => {
       while (true) {
         let q = supabase
           .from("saved_words")
-          .select("id, word, translation, pronunciation, ipa, context, language, next_review, review_count, state, times_correct, is_phrase")
+          .select("id, word, translation, pronunciation, ipa, context, language, next_review, review_count, state, times_correct, is_phrase, ease_factor, interval_days")
           .eq("user_id", user.id)
           .order("next_review", { ascending: true, nullsFirst: true })
           .range(from, from + pageSize - 1);
@@ -187,6 +189,9 @@ const Flashcards = () => {
     state: (c.state ?? "red") as DeckState,
     times_correct: c.times_correct ?? 0,
     is_phrase: !!c.is_phrase,
+    ease_factor: c.ease_factor,
+    interval_days: c.interval_days,
+    review_count: c.review_count,
   }));
 
   if (activeDeck && flashcardData.length > 0) {
