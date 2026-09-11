@@ -18,7 +18,13 @@ interface PetContextValue {
 
 export const PetContext = createContext<PetContextValue | null>(null);
 
-const FREE_PET_IDS = PETS.filter((p) => p.unlock.type === "free").map((p) => p.id);
+const DEFAULT_PET_ID = "chameleon";
+
+// Chameleon first — it is every learner's default companion.
+const FREE_PET_IDS = [
+  DEFAULT_PET_ID,
+  ...PETS.filter((p) => p.unlock.type === "free" && p.id !== DEFAULT_PET_ID).map((p) => p.id),
+];
 
 // How long "perfect" lasts in total (3 chained animations × 3s each)
 const PERFECT_DURATION = 9000;
@@ -37,14 +43,14 @@ export function PetProvider({ children }: { children: ReactNode }) {
       if (stored) {
         try {
           const data = JSON.parse(stored);
-          setActivePetState(data.activePet ?? FREE_PET_IDS[0]);
+          setActivePetState(data.activePet ?? DEFAULT_PET_ID);
           setPetCollection(data.collection ?? FREE_PET_IDS);
         } catch {
-          setActivePetState(FREE_PET_IDS[0]);
+          setActivePetState(DEFAULT_PET_ID);
           setPetCollection(FREE_PET_IDS);
         }
       } else {
-        setActivePetState(FREE_PET_IDS[0]);
+        setActivePetState(DEFAULT_PET_ID);
         setPetCollection(FREE_PET_IDS);
       }
       return;
@@ -78,10 +84,15 @@ export function PetProvider({ children }: { children: ReactNode }) {
       }
 
       setPetCollection(ownedIds);
-      setActivePetState(currentActivePet ?? ownedIds[0] ?? null);
-      if (currentActivePet || ownedIds.length > 0) {
-        setIsCompanionVisible(true);
+      setActivePetState(currentActivePet ?? DEFAULT_PET_ID);
+      if (!currentActivePet) {
+        // Persist the chameleon as the default so every account has a pet.
+        await supabase
+          .from("profiles")
+          .update({ active_pet: DEFAULT_PET_ID } as any)
+          .eq("user_id", user.id);
       }
+      setIsCompanionVisible(true);
     };
 
     loadPets();

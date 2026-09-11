@@ -1,6 +1,12 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  addLanguageProfile,
+  getLanguageProfile,
+  seedForProfile,
+  touchLanguageProfile,
+} from "@/lib/languageProfiles";
 
 // Strict BCP-47 mapping for the Web Speech API.
 // Any language NOT in this map is unsupported by the TTS engine — we refuse to
@@ -16,6 +22,7 @@ const TTS_VOICE_MAP: Record<string, string> = {
   ko: "ko-KR",
   ar: "ar-SA",
   hi: "hi-IN",
+  th: "th-TH",
   ru: "ru-RU",
   tr: "tr-TR",
   nl: "nl-NL",
@@ -23,6 +30,25 @@ const TTS_VOICE_MAP: Record<string, string> = {
   sv: "sv-SE",
   en: "en-US",
 };
+
+
+/**
+ * Make sure the learner has a per-language profile row for `language`, then
+ * seed their known vocabulary for that language's level + mode. Idempotent.
+ */
+async function ensureLanguageProfile(userId: string, language: string, level: string) {
+  try {
+    const existing = await getLanguageProfile(userId, language);
+    if (existing) {
+      await touchLanguageProfile(userId, language);
+      await seedForProfile(language, existing.cefr_level, existing.mode);
+      return;
+    }
+    await addLanguageProfile({ userId, language, mode: "fluency", level });
+  } catch (e) {
+    console.warn("ensureLanguageProfile failed", e);
+  }
+}
 
 interface LanguageContextType {
   /**
@@ -67,20 +93,29 @@ export const LanguageContext = createContext<LanguageContextType>({
 
 export const useLanguage = () => useContext(LanguageContext);
 
+/**
+ * The language the learner picked during onboarding, stored before they have
+ * an account. Applied to the profile the moment they sign in / sign up so the
+ * choice can never be lost (and silently replaced with a default).
+ */
+export const PENDING_LANGUAGE_KEY = "ls.pendingLearningLanguage";
+
 export const LanguageProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth();
   const [activeLanguage, setActiveLanguage] = useState(() => {
-    return (localStorage.getItem("learningLanguage") || "fr").toLowerCase();
+    // NEVER default to a hard-coded language here. An unknown language stays
+    // empty until the profile resolves — guessing "fr" is what used to
+    // overwrite people's real choice.
+    const stored = localStorage.getItem("learningLanguage");
+    const pending = localStorage.getItem(PENDING_LANGUAGE_KEY);
+    return (stored || pending || "").toLowerCase();
   });
   // Becomes true once we've resolved the language from the user's profile (or
-  // confirmed there is no signed-in user). Until then we MUST NOT lock any
-  // content — otherwise a freshly signed-up Spanish learner sees their Spanish
-  // film blocked against the stale "fr" localStorage default during the
-  // profile-fetch race.
+  // confirmed there is no signed-in user).
   const [ready, setReady] = useState(false);
 
   const languageContext = activeLanguage;
-  const ttsLang = TTS_VOICE_MAP[languageContext] || "fr-FR";
+  const ttsLang = TTS_VOICE_MAP[languageContext] || "";
 
   const [isPro, setIsPro] = useState(false);
 
@@ -94,20 +129,32 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
       .eq("user_id", user.id)
       .maybeSingle()
       .then(({ data }) => {
-        const lang = (data as any)?.learning_language?.toLowerCase();
+        const profileLang = (data as any)?.learning_language?.toLowerCase();
+        const pending = (localStorage.getItem(PENDING_LANGUAGE_KEY) || "").toLowerCase();
         const level = (data as any)?.cef_level;
+
+        // A pending onboarding choice always wins: it is the most recent thing
+        // the learner actually told us, and the profile row may still carry the
+        // database default from account creation.
+        const lang = pending || profileLang;
+
+        if (pending) {
+          localStorage.removeItem(PENDING_LANGUAGE_KEY);
+          if (pending !== profileLang) {
+            supabase
+              .from("profiles")
+              .update({ learning_language: pending })
+              .eq("user_id", user.id)
+              .then(() => {});
+          }
+        }
+
         if (lang) {
           setActiveLanguage(lang);
           localStorage.setItem("learningLanguage", lang);
-          // Backfill green seed for the active language. Idempotent — only
-          // inserts words not already saved, so it's safe to run on every
-          // login and ensures language switches done before this code shipped
-          // still get their A1–C1 head-start.
+          // Backfill green seed for the active language. Idempotent.
           if (level && level !== "below") {
-            supabase.rpc("seed_known_vocabulary" as any, {
-              _language: lang,
-              _level: level,
-            }).then(() => {});
+            ensureLanguageProfile(user.id, lang, level);
           }
         }
         setIsPro(!!(data as any)?.is_pro);
@@ -123,32 +170,32 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
 
   const setLearningLanguage = (lang: string) => {
     const norm = (lang || "").toLowerCase();
+    if (!norm) return; // never persist "unknown"
     setActiveLanguage(norm);
     localStorage.setItem("learningLanguage", norm);
-    if (user) {
-      supabase
-        .from("profiles")
-        .update({ learning_language: norm })
-        .eq("user_id", user.id)
-        .then(() => {});
-      // Seed known vocabulary for the newly-selected language based on the
-      // user's CEFR level so switching to a new language doesn't drop them
-      // back to 0% green. Idempotent server-side (ON CONFLICT DO NOTHING).
-      supabase
-        .from("profiles")
-        .select("cef_level")
-        .eq("user_id", user.id)
-        .maybeSingle()
-        .then(({ data }) => {
-          const level = (data as any)?.cef_level;
-          if (level && level !== "below") {
-            supabase.rpc("seed_known_vocabulary" as any, {
-              _language: norm,
-              _level: level,
-            }).then(() => {});
-          }
-        });
+    if (!user) {
+      // Signed-out learner (mid-onboarding): remember the choice so it can be
+      // written to the account as soon as they sign up.
+      localStorage.setItem(PENDING_LANGUAGE_KEY, norm);
+      return;
     }
+    localStorage.removeItem(PENDING_LANGUAGE_KEY);
+    supabase
+      .from("profiles")
+      .update({ learning_language: norm })
+      .eq("user_id", user.id)
+      .then(() => {});
+    // Seed known vocabulary for the newly-selected language based on the
+    // user's CEFR level. Idempotent server-side (ON CONFLICT DO NOTHING).
+    supabase
+      .from("profiles")
+      .select("cef_level")
+      .eq("user_id", user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        const level = (data as any)?.cef_level;
+        ensureLanguageProfile(user.id, norm, level || "a1");
+      });
   };
 
   const getVoicesAsync = (): Promise<SpeechSynthesisVoice[]> => {

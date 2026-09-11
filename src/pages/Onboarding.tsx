@@ -10,19 +10,20 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectSeparator } from "@/components/ui/select";
-import { LANGUAGES } from "@/lib/languages";
+import { LANGUAGES, getLanguageLabel } from "@/lib/languages";
 // (InteractiveDemo replaced by the live tour overlay launched from this screen)
 import { useAuth } from "@/hooks/useAuth";
 import brandLockup from "@/assets/brand/linguascript-wordmark.png.asset.json";
 import { supabase } from "@/integrations/supabase/client";
-import { useLanguage } from "@/contexts/LanguageContext";
+import { useLanguage, PENDING_LANGUAGE_KEY } from "@/contexts/LanguageContext";
 import { useTour } from "@/contexts/TourContext";
-import { TOUR_TRAINING_BY_LANG, TOUR_TRAINING_YT_ID } from "@/lib/tourSteps";
+import { getTourTrainingId } from "@/lib/tourSteps";
 import { playDing } from "@/lib/sound";
 import { toast } from "sonner";
 import { DailyGoalPicker } from "@/components/DailyGoalPicker";
 import { DEFAULT_WORD_GOAL, videoGoalForWords, wordGoalForVideos } from "@/lib/progressStats";
 import { INTERESTS, MAX_INTERESTS } from "@/lib/interests";
+import { MODE_META, addLanguageProfile, type LearningMode } from "@/lib/languageProfiles";
 
 // LinguaScript targets learners beyond beginner. A1 learners are gated to
 // "below" with a suggestion to start elsewhere; we don't offer A1 or C2.
@@ -35,6 +36,9 @@ const Onboarding = () => {
   const { setLearningLanguage } = useLanguage();
   const { start: startTour } = useTour();
   const [enteringDemo, setEnteringDemo] = useState(false);
+  // Intro video for the chosen language. Null when we have nothing in that
+  // language — we show the step without a video rather than playing French.
+  const [introVideoId, setIntroVideoId] = useState<string | null>(null);
 
   // Persist onboarding progress so users can never lose their place if they
   // refresh, leave, or skip around — they always end up on the final paste-
@@ -49,8 +53,9 @@ const Onboarding = () => {
 
   const [step, setStep] = useState<number>(initialPersisted?.step ?? 0);
   const [native, setNative] = useState(initialPersisted?.native ?? "en");
-  const [target, setTarget] = useState(initialPersisted?.target ?? "fr");
+  const [target, setTarget] = useState(initialPersisted?.target ?? "");
   const [level, setLevel] = useState<Level | null>(initialPersisted?.level ?? null);
+  const [mode, setMode] = useState<LearningMode>(initialPersisted?.mode ?? "fluency");
   const [school, setSchool] = useState(initialPersisted?.school ?? "");
   const [wordGoal, setWordGoal] = useState<number>(initialPersisted?.wordGoal ?? DEFAULT_WORD_GOAL);
   const [goal, setGoal] = useState(initialPersisted?.goal ?? "");
@@ -63,10 +68,10 @@ const Onboarding = () => {
   useEffect(() => {
     try {
       localStorage.setItem(ONBOARDING_KEY, JSON.stringify({
-        step, native, target, level, school, wordGoal, goal, goalSaved, showOnLeaderboard, dualClicked, interests,
+        step, native, target, level, mode, school, wordGoal, goal, goalSaved, showOnLeaderboard, dualClicked, interests,
       }));
     } catch { /* ignore */ }
-  }, [step, native, target, level, school, wordGoal, goal, goalSaved, showOnLeaderboard, dualClicked, interests]);
+  }, [step, native, target, level, mode, school, wordGoal, goal, goalSaved, showOnLeaderboard, dualClicked, interests]);
 
   // Load any existing profile values (auth optional — anonymous users see onboarding too)
   useEffect(() => {
@@ -92,6 +97,30 @@ const Onboarding = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
+  // Resolve the intro video for the selected learning language: a verified
+  // mapping first, then any public film already in the catalogue for that
+  // language, otherwise nothing.
+  useEffect(() => {
+    let cancelled = false;
+    const mapped = getTourTrainingId(target);
+    if (mapped) { setIntroVideoId(mapped); return; }
+    setIntroVideoId(null);
+    supabase
+      .from("films")
+      .select("url")
+      .eq("language", target)
+      .eq("is_public", true)
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (cancelled) return;
+        const url: string = (data as any)?.url ?? "";
+        const m = url.match(/(?:v=|youtu\.be\/|embed\/)([A-Za-z0-9_-]{11})/);
+        setIntroVideoId(m?.[1] ?? null);
+      });
+    return () => { cancelled = true; };
+  }, [target]);
+
   const totalSteps = 8;
 
   const canContinue = useMemo(() => {
@@ -111,6 +140,11 @@ const Onboarding = () => {
   };
 
   const next = async () => {
+    // Remember the choice even before there is an account, so signing up later
+    // in the flow can never lose it.
+    if (step === 1 && target) {
+      try { localStorage.setItem(PENDING_LANGUAGE_KEY, target); } catch { /* ignore */ }
+    }
     if (step === 1 && user) {
       await supabase.from("profiles").update({
         native_language: native,
@@ -126,14 +160,14 @@ const Onboarding = () => {
       // Pre-mark the learner's high-frequency "known" vocabulary based on level
       // so a B1/B2 learner doesn't see a sea of unassessed words on day one.
       if (level && level !== "below") {
-        try {
-          await supabase.rpc("seed_known_vocabulary" as any, {
-            _language: target,
-            _level: level,
-          });
-        } catch (e) {
-          console.warn("seed_known_vocabulary failed", e);
-        }
+        // Creates this learner's per-language profile (mode + level) and seeds
+        // the vocabulary they should already know.
+        await addLanguageProfile({
+          userId: user.id,
+          language: target,
+          mode,
+          level,
+        });
       }
     }
     if (step === 2 && user) {
@@ -261,6 +295,28 @@ const Onboarding = () => {
                         if (v === native) setNative("");
                       }}
                     />
+                  </Field>
+
+                  <Field label="How do you want to learn?">
+                    <div className="grid gap-2">
+                      {(Object.keys(MODE_META) as LearningMode[]).map((m) => (
+                        <button
+                          key={m}
+                          type="button"
+                          onClick={() => setMode(m)}
+                          className={`text-left rounded-2xl border p-4 transition ${
+                            mode === m
+                              ? "bg-[#34C759]/10 border-[#34C759]"
+                              : "bg-[#0E0E11] border-white/10 hover:border-[#34C759]/60"
+                          }`}
+                        >
+                          <p className="text-sm font-medium text-white">
+                            {MODE_META[m].emoji} {MODE_META[m].label}
+                          </p>
+                          <p className="mt-1 text-xs text-white/60 leading-relaxed">{MODE_META[m].blurb}</p>
+                        </button>
+                      ))}
+                    </div>
                   </Field>
 
                   <Field label="My current level">
@@ -423,16 +479,20 @@ const Onboarding = () => {
                 </Sub>
 
                 {(() => {
-                  const trainingYtId = TOUR_TRAINING_BY_LANG[target] ?? TOUR_TRAINING_YT_ID;
+                  const trainingYtId = introVideoId;
                   const enterDemo = async () => {
                     if (enteringDemo) return;
                     setEnteringDemo(true);
-                    let { data: film } = await supabase
-                      .from("films")
-                      .select("id")
-                      .or(`url.ilike.%${trainingYtId}%`)
-                      .limit(1)
-                      .maybeSingle();
+                    let film: { id: string } | null = null;
+                    if (trainingYtId) {
+                      const { data } = await supabase
+                        .from("films")
+                        .select("id")
+                        .or(`url.ilike.%${trainingYtId}%`)
+                        .limit(1)
+                        .maybeSingle();
+                      film = (data as any) ?? null;
+                    }
                     if (!film?.id) {
                       const { data: anyFilm } = await supabase
                         .from("films")
@@ -457,6 +517,7 @@ const Onboarding = () => {
                   };
                   return (
                     <>
+                      {trainingYtId ? (
                       <div
                         role="button"
                         tabIndex={0}
@@ -473,6 +534,11 @@ const Onboarding = () => {
                         />
                         <div className="absolute inset-0 bg-transparent group-hover:bg-black/10 transition-colors" aria-hidden />
                       </div>
+                      ) : (
+                        <div className="mt-8 rounded-3xl border border-white/10 bg-white/[0.03] p-8 text-center text-sm text-white/60">
+                          We don't have an intro clip in {getLanguageLabel(target)} yet — jump straight into the guided demo below.
+                        </div>
+                      )}
 
                       <div className="mt-6 flex flex-col items-center gap-3">
                         <Button

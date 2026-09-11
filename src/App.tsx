@@ -3,6 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { HelmetProvider } from "react-helmet-async";
 import { lazy, Suspense } from "react";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { XpProvider } from "@/contexts/XpContext";
@@ -15,6 +16,22 @@ import { InterestsPromptModal } from "@/components/InterestsPromptModal";
 import { PetProvider } from "@/contexts/PetContext";
 import { PetCompanion } from "@/components/pets/PetCompanion";
 import { Loader2 } from "lucide-react";
+// Marketing pages stay statically imported (unlike everything below) —
+// they're a small shared chunk and not worth the added indirection of
+// lazy-loading named exports out of a barrel file.
+import {
+  ChameleonMethodPage,
+  DualSubtitlesPage,
+  NetflixSubtitlesPage,
+  YouTubeSubtitlesPage,
+  SpacedRepetitionPage,
+  VsLanguageReactorPage,
+  ChromeExtensionPage,
+  ForSchoolsPage,
+  PolyglotPage,
+  FamilyPage,
+  LearningSciencePage,
+} from "./pages/marketing/pages";
 
 // Every route used to be a static import, so visiting ANY page — including
 // /auth, which should be the fastest thing in the app — forced the browser
@@ -58,6 +75,9 @@ const LinguaScripts = lazy(() => import("./pages/LinguaScripts"));
 const Credits = lazy(() => import("./pages/Credits"));
 const ChameleonMethod = lazy(() => import("./pages/ChameleonMethod"));
 const ProGiftClaim = lazy(() => import("./pages/ProGiftClaim"));
+const ProChameleonClaim = lazy(() => import("./pages/ProChameleonClaim"));
+const Blog = lazy(() => import("./pages/Blog"));
+const BlogPostPage = lazy(() => import("./pages/BlogPost"));
 
 const queryClient = new QueryClient();
 
@@ -68,6 +88,7 @@ const RouteFallback = () => (
 );
 
 const App = () => (
+  <HelmetProvider>
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <LanguageProvider>
@@ -112,6 +133,7 @@ const App = () => (
                 <Route path="/progress" element={<Progress />} />
                 <Route path="/gift" element={<GiftClaim />} />
                 <Route path="/pro-gift" element={<ProGiftClaim />} />
+                <Route path="/pro-chameleon" element={<ProChameleonClaim />} />
                 <Route path="/thechameleonmethod" element={<ChameleonMethod />} />
                 <Route path="/credits" element={<Credits />} />
                 <Route path="/mieoframes" element={<MieoFrames />} />
@@ -120,6 +142,22 @@ const App = () => (
                 <Route path="/linguascript" element={<LinguaScripts />} />
                 <Route path="/linguascripts" element={<Navigate to="/linguascript" replace />} />
                 <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
+                <Route path="/blog" element={<Blog />} />
+                <Route path="/blog/:slug" element={<BlogPostPage />} />
+                <Route path="/the-chameleon-method" element={<ChameleonMethodPage />} />
+                <Route path="/dual-subtitles" element={<DualSubtitlesPage />} />
+                <Route path="/dual-subtitles/netflix" element={<NetflixSubtitlesPage />} />
+                <Route path="/dual-subtitles/youtube" element={<YouTubeSubtitlesPage />} />
+                <Route path="/anki-alternative" element={<SpacedRepetitionPage />} />
+                <Route path="/spaced-repetition" element={<Navigate to="/anki-alternative" replace />} />
+                <Route path="/vs/language-reactor" element={<VsLanguageReactorPage />} />
+                <Route path="/chrome-extension" element={<ChromeExtensionPage />} />
+                <Route path="/language-learning-psychology" element={<LearningSciencePage />} />
+                <Route path="/for-schools" element={<ForSchoolsPage />} />
+                <Route path="/polyglot" element={<PolyglotPage />} />
+                <Route path="/family" element={<FamilyPage />} />
+                <Route path="/lingoscript" element={<Navigate to="/the-chameleon-method" replace />} />
+                <Route path="/language-script" element={<Navigate to="/the-chameleon-method" replace />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
               </Suspense>
@@ -136,6 +174,7 @@ const App = () => (
       </LanguageProvider>
     </TooltipProvider>
   </QueryClientProvider>
+  </HelmetProvider>
 );
 
 export default App;

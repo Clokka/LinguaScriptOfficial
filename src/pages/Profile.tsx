@@ -15,6 +15,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Camera, ArrowLeft, Save, Loader2, LogOut } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { MyLanguagesPanel } from "@/components/MyLanguagesPanel";
 import { PetGallery } from "@/components/pets/PetGallery";
 import { usePet } from "@/contexts/PetContext";
 import { getPetById } from "@/lib/pets";
@@ -28,7 +29,7 @@ const Profile = () => {
   const [displayName, setDisplayName] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [nativeLanguage, setNativeLanguage] = useState("en");
-  const [learningLanguage, setLearningLanguage] = useState("fr");
+  const [learningLanguage, setLearningLanguage] = useState("");
   const [school, setSchool] = useState("");
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -54,7 +55,7 @@ const Profile = () => {
           const g = JSON.parse(raw);
           setDisplayName(g.displayName ?? "");
           setNativeLanguage(g.nativeLanguage ?? "en");
-          setLearningLanguage(g.learningLanguage ?? "fr");
+          setLearningLanguage(g.learningLanguage ?? "");
           setSchool(g.school ?? "");
         }
       } catch { /* ignore */ }
@@ -73,7 +74,7 @@ const Profile = () => {
       setDisplayName(data.display_name ?? "");
       setAvatarUrl(data.avatar_url);
       setNativeLanguage(data.native_language ?? "en");
-      setLearningLanguage(data.learning_language ?? "fr");
+      setLearningLanguage(data.learning_language ?? "");
       setSchool((data as any).school ?? "");
     }
     setLoadingProfile(false);
@@ -139,7 +140,8 @@ const Profile = () => {
         display_name: displayName,
         avatar_url: avatarUrl,
         native_language: nativeLanguage,
-        learning_language: learningLanguage,
+        // Never write an empty/unknown language back over a real choice.
+        ...(learningLanguage ? { learning_language: learningLanguage } : {}),
         school: school.trim() || null,
       } as any)
       .eq("user_id", user.id);
@@ -231,24 +233,9 @@ const Profile = () => {
             </Select>
           </div>
 
-          {/* Learning Language */}
-          <div>
-            <label className="text-sm font-medium text-foreground mb-2 block">
-              Language You're Learning
-            </label>
-            <Select value={learningLanguage} onValueChange={setLearningLanguage}>
-              <SelectTrigger className="bg-secondary/50 border-border">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {LANGUAGES.filter((l) => l.code !== nativeLanguage).map((lang) => (
-                  <SelectItem key={lang.code} value={lang.code}>
-                    {lang.flag} {lang.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {/* Languages you're learning (up to 5, each with its own mode) */}
+          <MyLanguagesPanel nativeLanguage={nativeLanguage} />
+
 
           {/* School */}
           <div>

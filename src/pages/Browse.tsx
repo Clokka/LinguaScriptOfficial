@@ -186,7 +186,7 @@ const Browse = () => {
     const { data } = await supabase.from("profiles").select("*").eq("user_id", user.id).single();
     if (data) {
       setNativeLanguage(data.native_language || "en");
-      setSettingsLearning(data.learning_language || "fr");
+      setSettingsLearning(data.learning_language || "");
       setDisplayName(data.display_name || "");
       setIsPublic(!!(data as any).is_public);
       setInterests(Array.isArray((data as any).interests) ? (data as any).interests : []);
@@ -436,11 +436,11 @@ const Browse = () => {
     setSavingSettings(true);
     await supabase.from("profiles").update({
       native_language: nativeLanguage,
-      learning_language: settingsLearning,
+      ...(settingsLearning ? { learning_language: settingsLearning } : {}),
       display_name: displayName,
       is_public: isPublic,
     } as any).eq("user_id", user.id);
-    setLearningLanguage(settingsLearning);
+    if (settingsLearning) setLearningLanguage(settingsLearning);
     toast({ title: "Settings saved!" });
     setSavingSettings(false);
   };

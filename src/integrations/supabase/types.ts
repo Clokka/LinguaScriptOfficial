@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.4"
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
@@ -47,6 +47,60 @@ export type Database = {
           videos_watched?: number | null
           words_learned?: number | null
           words_reviewed?: number
+        }
+        Relationships: []
+      }
+      blog_posts: {
+        Row: {
+          author_id: string | null
+          author_name: string | null
+          body: string
+          cover_image_url: string | null
+          created_at: string
+          excerpt: string | null
+          id: string
+          meta_description: string | null
+          meta_title: string | null
+          published_at: string | null
+          slug: string
+          status: string
+          tags: string[]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          author_id?: string | null
+          author_name?: string | null
+          body?: string
+          cover_image_url?: string | null
+          created_at?: string
+          excerpt?: string | null
+          id?: string
+          meta_description?: string | null
+          meta_title?: string | null
+          published_at?: string | null
+          slug: string
+          status?: string
+          tags?: string[]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          author_id?: string | null
+          author_name?: string | null
+          body?: string
+          cover_image_url?: string | null
+          created_at?: string
+          excerpt?: string | null
+          id?: string
+          meta_description?: string | null
+          meta_title?: string | null
+          published_at?: string | null
+          slug?: string
+          status?: string
+          tags?: string[]
+          title?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -161,6 +215,7 @@ export type Database = {
       core_vocabulary: {
         Row: {
           audio_url: string | null
+          cefr_level: string | null
           created_at: string
           example_en: string | null
           example_fr: string | null
@@ -178,6 +233,7 @@ export type Database = {
         }
         Insert: {
           audio_url?: string | null
+          cefr_level?: string | null
           created_at?: string
           example_en?: string | null
           example_fr?: string | null
@@ -195,6 +251,7 @@ export type Database = {
         }
         Update: {
           audio_url?: string | null
+          cefr_level?: string | null
           created_at?: string
           example_en?: string | null
           example_fr?: string | null
@@ -446,6 +503,60 @@ export type Database = {
           status?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      language_profiles: {
+        Row: {
+          cefr_level: string
+          created_at: string
+          daily_video_goal: number
+          daily_word_goal: number
+          id: string
+          interests: string[]
+          language: string
+          last_active_at: string
+          mode: string
+          seeded_level: string | null
+          seeded_mode: string | null
+          understanding_score: number
+          updated_at: string
+          user_id: string
+          words_known: number
+        }
+        Insert: {
+          cefr_level?: string
+          created_at?: string
+          daily_video_goal?: number
+          daily_word_goal?: number
+          id?: string
+          interests?: string[]
+          language: string
+          last_active_at?: string
+          mode?: string
+          seeded_level?: string | null
+          seeded_mode?: string | null
+          understanding_score?: number
+          updated_at?: string
+          user_id: string
+          words_known?: number
+        }
+        Update: {
+          cefr_level?: string
+          created_at?: string
+          daily_video_goal?: number
+          daily_word_goal?: number
+          id?: string
+          interests?: string[]
+          language?: string
+          last_active_at?: string
+          mode?: string
+          seeded_level?: string | null
+          seeded_mode?: string | null
+          understanding_score?: number
+          updated_at?: string
+          user_id?: string
+          words_known?: number
         }
         Relationships: []
       }
@@ -711,6 +822,74 @@ export type Database = {
           recipient_id?: string
           sender_id?: string | null
           sent_at?: string | null
+        }
+        Relationships: []
+      }
+      pro_chameleon_claims: {
+        Row: {
+          created_at: string
+          email: string | null
+          id: string
+          link_id: string
+          pet_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          link_id: string
+          pet_id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          link_id?: string
+          pet_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pro_chameleon_claims_link_id_fkey"
+            columns: ["link_id"]
+            isOneToOne: false
+            referencedRelation: "pro_chameleon_links"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pro_chameleon_links: {
+        Row: {
+          active: boolean
+          created_at: string
+          created_by: string | null
+          id: string
+          label: string | null
+          pet_id: string
+          token: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          label?: string | null
+          pet_id?: string
+          token: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          label?: string | null
+          pet_id?: string
+          token?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -1640,6 +1819,18 @@ export type Database = {
         Args: { _days?: number; _user_id: string }
         Returns: boolean
       }
+      admin_list_pro_chameleon_claims: {
+        Args: never
+        Returns: {
+          claimed_at: string
+          display_name: string
+          email: string
+          is_pro: boolean
+          link_label: string
+          user_id: string
+          username: string
+        }[]
+      }
       admin_list_pro_users: {
         Args: never
         Returns: {
@@ -1670,7 +1861,19 @@ export type Database = {
         Args: { _emails: string[]; _school_id: string }
         Returns: number
       }
+      cefr_cumulative_target: { Args: { _level: string }; Returns: number }
+      cefr_level_progress: {
+        Args: { _language: string }
+        Returns: {
+          can_advance: boolean
+          known_words: number
+          level: string
+          next_level: string
+          total_words: number
+        }[]
+      }
       claim_gift_link: { Args: { p_token: string }; Returns: Json }
+      claim_pro_chameleon_link: { Args: { _token: string }; Returns: Json }
       claim_pro_gift_link: { Args: { _token: string }; Returns: Json }
       create_daily_linguascript: {
         Args: {
@@ -1703,6 +1906,7 @@ export type Database = {
         }
         Returns: string
       }
+      create_pro_chameleon_link: { Args: { _label?: string }; Returns: Json }
       create_pro_gift_link: {
         Args: { _days?: number; _note?: string }
         Returns: Json
@@ -1833,6 +2037,7 @@ export type Database = {
           slug: string
         }[]
       }
+      preview_pro_chameleon_link: { Args: { _token: string }; Returns: Json }
       preview_pro_gift_link: { Args: { _token: string }; Returns: Json }
       read_email_batch: {
         Args: { batch_size: number; queue_name: string; vt: number }
@@ -1872,10 +2077,12 @@ export type Database = {
         Args: { p_linguascript_id: string; p_user_id: string }
         Returns: undefined
       }
-      seed_known_vocabulary: {
-        Args: { _language: string; _level: string }
-        Returns: number
-      }
+      seed_known_vocabulary:
+        | { Args: { _language: string; _level: string }; Returns: number }
+        | {
+            Args: { _language: string; _level: string; _mode?: string }
+            Returns: number
+          }
       set_username: { Args: { _username: string }; Returns: string }
       touch_gold_word: {
         Args: { p_decay_at?: number; p_word_id: string }
@@ -1926,12 +2133,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1955,11 +2162,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1980,11 +2187,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2005,11 +2212,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2022,11 +2229,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
