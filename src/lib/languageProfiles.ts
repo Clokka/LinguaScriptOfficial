@@ -88,12 +88,19 @@ export async function getLanguageProfile(
 /**
  * Create (or fetch) the profile for a language and seed the learner's known
  * vocabulary for the chosen level + mode. Safe to call repeatedly.
+ *
+ * `totalBeginner` is for a learner starting from zero: it skips
+ * seed_known_vocabulary entirely so nothing is falsely pre-marked "known"
+ * (leaving language_profiles.seeded_level NULL), which is exactly the
+ * signal seed_priority_words uses to target the learner's OWN level first
+ * instead of the tier above it — see the migration comment.
  */
 export async function addLanguageProfile(opts: {
   userId: string;
   language: string;
   mode: LearningMode;
   level: string;
+  totalBeginner?: boolean;
 }): Promise<{ profile: LanguageProfile | null; error?: string }> {
   const language = opts.language.toLowerCase();
   const existing = await getLanguageProfile(opts.userId, language);
@@ -113,7 +120,10 @@ export async function addLanguageProfile(opts: {
     if (error) return { profile: null, error: error.message };
   }
 
-  await seedForProfile(language, opts.level, opts.mode);
+  if (!opts.totalBeginner) {
+    await seedForProfile(language, opts.level, opts.mode);
+  }
+  await topUpPriorityWords(language);
   return { profile: await getLanguageProfile(opts.userId, language) };
 }
 
@@ -127,6 +137,23 @@ export async function seedForProfile(language: string, level: string, mode: Lear
     });
   } catch (e) {
     console.warn("seed_known_vocabulary failed", e);
+  }
+}
+
+/** Populate/top up the Fluency Fast Track red queue for a language. */
+export async function topUpPriorityWords(language: string): Promise<number> {
+  try {
+    const { data, error } = await (supabase as any).rpc("seed_priority_words", {
+      _language: language.toLowerCase(),
+    });
+    if (error) {
+      console.warn("seed_priority_words failed", error);
+      return 0;
+    }
+    return typeof data === "number" ? data : 0;
+  } catch (e) {
+    console.warn("seed_priority_words failed", e);
+    return 0;
   }
 }
 
