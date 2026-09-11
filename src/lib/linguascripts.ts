@@ -171,26 +171,37 @@ export function buildExerciseOptions(
   const target = norm(targetWord);
 
   let gapPosition = tokens.findIndex((t) => norm(t) === target);
-  // Fall back to a prefix match ("échappé" inside "échappé,") then to 0 so a
-  // conjugated form never produces a -1 gap.
+  // Fall back to a prefix match ("échappé" inside "échappé,") so a
+  // conjugated/inflected form is still found rather than producing a -1 gap.
+  let matched = gapPosition !== -1;
   if (gapPosition === -1) {
     gapPosition = tokens.findIndex((t) => norm(t).startsWith(target.slice(0, 4)));
+    matched = gapPosition !== -1;
   }
   if (gapPosition === -1) gapPosition = 0;
+
+  // Grade against the word as it actually appears in the sentence, not the
+  // dictionary form passed in. The generated sentence routinely inflects the
+  // target ("manger" saved, "mange"/"mangez" in the sentence) — grading
+  // against the saved infinitive marked a learner wrong for correctly typing
+  // exactly what was in the blank. Only trust the surface form when the gap
+  // was genuinely located (matched); the last-resort default-to-0 token is
+  // an unrelated word, not a usable answer.
+  const surfaceForm = matched ? tokens[gapPosition].replace(/[.,!?;:'"«»…]/g, "") : targetWord;
 
   const distractors = distractorPool
     .filter((w) => norm(w) !== target)
     .slice(0, 3);
 
-  const options = [targetWord, ...distractors];
+  const options = [surfaceForm, ...distractors];
   // Deterministic shuffle would be nicer for tests; a plain sort keeps the
   // correct answer off position 0 without needing a seed.
   options.sort((a, b) => a.localeCompare(b));
 
   return {
     gapPosition,
-    gapOptions: { correct: targetWord, distractors },
-    mcqOptions: { correct: options.indexOf(targetWord), options },
+    gapOptions: { correct: surfaceForm, distractors },
+    mcqOptions: { correct: options.indexOf(surfaceForm), options },
   };
 }
 
@@ -211,13 +222,17 @@ export async function createLinguaScriptFromSavedWord(
   translation: string,
   wordState: "red" | "orange" | "green",
   language: string,
-  interests: string[],
   distractorPool: string[] = [],
   scheduledFor: Date = getNextReviewDate(wordState),
 ): Promise<LinguaScript | null> {
   try {
     const { gapPosition, gapOptions, mcqOptions } = buildExerciseOptions(sentence, word, distractorPool);
 
+    // NOTE: the live `linguascripts` table has no exercise_type, interests,
+    // or cef_level columns (see the generated Database types) — PostgREST
+    // rejects an insert containing an unknown column outright, so writing
+    // any of those three silently failed every call. Do not add them back
+    // without a migration that actually creates the column first.
     const { data, error } = await supabase
       .from("linguascripts")
       .insert({
@@ -227,9 +242,6 @@ export async function createLinguaScriptFromSavedWord(
         sentence,
         translation,
         word_state: wordState,
-        interests,
-        cef_level: "B1",
-        exercise_type: "gap-fill",
         gap_position: gapPosition,
         gap_options: gapOptions,
         mcq_options: mcqOptions,

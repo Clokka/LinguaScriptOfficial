@@ -108,7 +108,6 @@ export function TodaysMission({ language, onStartExercise }: TodaysMissionProps)
             generated.translation || savedWord.translation,
             wordState,
             language,
-            [],
             distractorPool,
           );
 
