@@ -200,6 +200,55 @@ export async function listYourProgress(userId: string): Promise<ProgressRow[]> {
     .sort((a, b) => b.delta - a.delta);
 }
 
+export interface HistoryRow extends ComprehensionRecord {
+  title: string | null;
+  thumbnail_url: string | null;
+  language: string | null;
+}
+
+/**
+ * Plain chronological watch history — every video, most recent first, no
+ * "not yet mastered" filter and no re-sorting by improvement. Those are
+ * both things ContinueWatchingRail/YourProgressSection already do; this is
+ * the un-curated list for someone who just wants to find something they
+ * watched before. Paginated rather than a single capped fetch — a history
+ * genuinely grows without bound the longer someone uses the app.
+ */
+export async function listWatchHistory(
+  userId: string,
+  page = 0,
+  pageSize = 20,
+): Promise<{ rows: HistoryRow[]; hasMore: boolean }> {
+  const from = page * pageSize;
+  const { data } = await supabase
+    .from("video_comprehension")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("content_type", "film")
+    .order("last_watched_at", { ascending: false })
+    .range(from, from + pageSize); // one extra row, used only to detect "more"
+  const rows = (data as any[]) || [];
+  const hasMore = rows.length > pageSize;
+  const page_rows = hasMore ? rows.slice(0, pageSize) : rows;
+  if (page_rows.length === 0) return { rows: [], hasMore: false };
+
+  const filmIds = Array.from(new Set(page_rows.map((r) => r.content_id)));
+  const filmMap = new Map<string, { title: string | null; thumbnail_url: string | null; language: string | null }>();
+  const { data: films } = await supabase
+    .from("films")
+    .select("id, title, thumbnail_url, language")
+    .in("id", filmIds);
+  for (const f of (films as any[]) || []) {
+    filmMap.set(f.id, { title: f.title, thumbnail_url: f.thumbnail_url, language: f.language });
+  }
+
+  const out: HistoryRow[] = page_rows.map((r) => {
+    const meta = filmMap.get(r.content_id) || { title: null, thumbnail_url: null, language: null };
+    return { ...(r as ComprehensionRecord), ...meta };
+  });
+  return { rows: out, hasMore };
+}
+
 // Kept in sync with learningZone() in understanding.ts — see the comment there.
 export function zoneMessage(pct: number): string {
   if (pct > 98) return "You already understand this video. Push yourself with something harder.";
