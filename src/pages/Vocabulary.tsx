@@ -71,16 +71,29 @@ export default function Vocabulary() {
         }
         return;
       }
-      const { data } = await supabase
-        .from("saved_words")
-        .select("id, word, translation, state, state_changed_at, created_at")
-        .eq("user_id", user.id)
-        .eq("language", lang)
-        .order("created_at", { ascending: false });
+      // Unpaged, this silently truncated at PostgREST's 1000-row default —
+      // easy to hit here specifically, since CEFR-level seeding
+      // (seed_known_vocabulary) can pre-populate thousands of green words
+      // for a single language in one shot, not just organic saves over time.
+      const pageSize = 1000;
+      let from = 0;
+      const rows: DeckWord[] = [];
+      while (true) {
+        const { data, error } = await supabase
+          .from("saved_words")
+          .select("id, word, translation, state, state_changed_at, created_at")
+          .eq("user_id", user.id)
+          .eq("language", lang)
+          .order("created_at", { ascending: false })
+          .range(from, from + pageSize - 1);
+        if (error) { console.error("Vocabulary fetch failed", error); break; }
+        const batch = ((data as any[]) || []).map((w) => ({ ...w, state: coerceDeckState(w.state) })) as DeckWord[];
+        rows.push(...batch);
+        if (batch.length < pageSize) break;
+        from += pageSize;
+      }
       if (!alive) return;
-      setWords(
-        ((data as any[]) || []).map((w) => ({ ...w, state: coerceDeckState(w.state) })) as DeckWord[],
-      );
+      setWords(rows);
       setLoading(false);
     })();
     return () => { alive = false; };

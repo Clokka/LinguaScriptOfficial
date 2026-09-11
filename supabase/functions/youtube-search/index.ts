@@ -76,13 +76,24 @@ Deno.serve(async (req) => {
       }))
       .filter((x: any) => x.videoId);
 
-    // 2) videos.list for contentDetails (duration) + snippet (language metadata).
-    let durations = new Map<string, number>();
-    let audioLangs = new Map<string, string>();
+    // 2) videos.list for contentDetails (duration + caption availability),
+    // statistics (view/like counts) and status (madeForKids) — everything
+    // needed to filter Shorts, junk and caption-less videos without ever
+    // fetching a caption track (that step is scored client-side, for free,
+    // against the specific learner's own vocabulary).
+    let meta = new Map<string, {
+      seconds: number;
+      audioLang: string;
+      hasCaptions: boolean;
+      viewCount: number;
+      likeCount: number;
+      madeForKids: boolean;
+      definition: string;
+    }>();
     if (base.length) {
       const idsCsv = base.map((b: any) => b.videoId).join(",");
       const vidUrl = new URL("https://www.googleapis.com/youtube/v3/videos");
-      vidUrl.searchParams.set("part", "contentDetails,snippet");
+      vidUrl.searchParams.set("part", "contentDetails,snippet,statistics,status");
       vidUrl.searchParams.set("id", idsCsv);
       vidUrl.searchParams.set("key", apiKey);
       try {
@@ -90,9 +101,16 @@ Deno.serve(async (req) => {
         if (vidRes.ok) {
           const vidData = await vidRes.json();
           for (const item of vidData.items || []) {
-            durations.set(item.id, isoDurationToSeconds(item.contentDetails?.duration));
             const al = item.snippet?.defaultAudioLanguage || item.snippet?.defaultLanguage || "";
-            if (al) audioLangs.set(item.id, String(al).toLowerCase());
+            meta.set(item.id, {
+              seconds: isoDurationToSeconds(item.contentDetails?.duration),
+              audioLang: al ? String(al).toLowerCase() : "",
+              hasCaptions: item.contentDetails?.caption === "true",
+              viewCount: parseInt(item.statistics?.viewCount || "0", 10),
+              likeCount: parseInt(item.statistics?.likeCount || "0", 10),
+              madeForKids: !!item.status?.madeForKids,
+              definition: item.contentDetails?.definition || "sd",
+            });
           }
         }
       } catch (_) { /* non-fatal */ }
@@ -101,12 +119,17 @@ Deno.serve(async (req) => {
     const langPrefix = (lang || "").toLowerCase().slice(0, 2);
 
     let items = base.map((b: any) => {
-      const seconds = durations.get(b.videoId) || 0;
-      const audioLang = audioLangs.get(b.videoId) || "";
+      const m = meta.get(b.videoId);
+      const seconds = m?.seconds || 0;
       return {
         ...b,
         durationSeconds: seconds,
-        audioLang,
+        audioLang: m?.audioLang || "",
+        hasCaptions: m?.hasCaptions ?? false,
+        viewCount: m?.viewCount ?? 0,
+        likeCount: m?.likeCount ?? 0,
+        madeForKids: m?.madeForKids ?? false,
+        definition: m?.definition || "sd",
         difficulty: estimateDifficulty(b.title || "", b.channel || "", seconds),
       };
     });
@@ -115,11 +138,20 @@ Deno.serve(async (req) => {
     // doesn't match the learner's target, drop it. We keep videos with no
     // declared language (most of YouTube) and rely on relevanceLanguage there.
     if (langPrefix) {
-      items = items.filter((it: any) => {
-        if (!it.audioLang) return true;
-        return it.audioLang.startsWith(langPrefix);
-      });
+      items = items.filter((it: any) => !it.audioLang || it.audioLang.startsWith(langPrefix));
     }
+
+    // Quality floor, applied server-side so quota isn't wasted scoring junk:
+    //  - no captions at all -> can't be scored or dual-subtitled, drop it
+    //  - under 3 minutes -> almost certainly a Short, not a lesson
+    //  - made-for-kids -> wrong register/pacing for an adult learner
+    //  - essentially no engagement -> spam/low-effort filter
+    items = items.filter((it: any) =>
+      it.hasCaptions &&
+      it.durationSeconds >= 180 &&
+      !it.madeForKids &&
+      it.viewCount >= 500,
+    );
 
     return new Response(JSON.stringify({ items }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

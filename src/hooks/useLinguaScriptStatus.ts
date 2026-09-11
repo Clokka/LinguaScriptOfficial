@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -96,6 +96,17 @@ export function useLinguaScriptStatus() {
     loadStatus();
   }, [loadStatus]);
 
+  // Realtime events (a burst-sync from the extension can fire dozens in a
+  // row), tab focus, and visibilitychange can all land within the same
+  // tick — debounce them into one refetch instead of one query set per
+  // trigger. The initial mount load above stays immediate/undebounced.
+  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const debouncedLoadStatus = useCallback(() => {
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    debounceTimer.current = setTimeout(() => { loadStatus(); }, 300);
+  }, [loadStatus]);
+  useEffect(() => () => { if (debounceTimer.current) clearTimeout(debounceTimer.current); }, []);
+
   // Realtime: any change to this user's exercises or saved words refreshes the count.
   useEffect(() => {
     if (!user?.id) return;
@@ -105,24 +116,24 @@ export function useLinguaScriptStatus() {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "linguascripts", filter: `user_id=eq.${user.id}` },
-        () => loadStatus()
+        () => debouncedLoadStatus()
       )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "saved_words", filter: `user_id=eq.${user.id}` },
-        () => loadStatus()
+        () => debouncedLoadStatus()
       )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user?.id, loadStatus]);
+  }, [user?.id, debouncedLoadStatus]);
 
   // Safety net: refetch when the tab regains focus, in case a realtime frame was missed.
   useEffect(() => {
     const refresh = () => {
-      if (document.visibilityState === "visible") loadStatus();
+      if (document.visibilityState === "visible") debouncedLoadStatus();
     };
     window.addEventListener("focus", refresh);
     document.addEventListener("visibilitychange", refresh);
@@ -130,7 +141,7 @@ export function useLinguaScriptStatus() {
       window.removeEventListener("focus", refresh);
       document.removeEventListener("visibilitychange", refresh);
     };
-  }, [loadStatus]);
+  }, [debouncedLoadStatus]);
 
   return { status, loading, error, refetch: loadStatus };
 }

@@ -4,7 +4,9 @@ import { ArrowLeft, Loader2, Download, Maximize, Minimize, X } from "lucide-reac
 import { Button } from "@/components/ui/button";
 import { SubtitleOverlay } from "@/components/SubtitleOverlay";
 import { GapFillChallenge } from "@/components/GapFillChallenge";
-import { loadDeckIndex, normalizeToken, SavedWordLite } from "@/lib/vocab";
+import { loadDeckIndex, normalizeToken, SavedWordLite, DeckState, coerceDeckState, maxState, bestStateForLemma } from "@/lib/vocab";
+import { buildExerciseOptions } from "@/lib/linguascripts";
+import { cacheWordImageByWord } from "@/lib/wordImages";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
@@ -337,7 +339,7 @@ const Watch = () => {
       nudgedRef.current = true;
       toast.success(`Daily goal reached — ${dailyGoal.goal} words saved`, {
         description: "Review them now while they're fresh.",
-        action: { label: "Review", onClick: () => navigate("/linguascripts") },
+        action: { label: "Review", onClick: () => navigate("/linguascript") },
         duration: 8000,
       });
     }
@@ -799,6 +801,15 @@ const Watch = () => {
     const fromLang = getLanguageLabel(langCode);
     const toLang = getLanguageLabel(nativeLanguage);
 
+    // Lemma info: a clicked word is often an inflected surface form (French
+    // "manges" from "manger", German a declined "wissen") — without this, a
+    // learner memorizes "manges = eat" instead of "manger = to eat".
+    let lemma: string | null = null;
+    let lemmaTranslation: string | null = null;
+    let pos: string | null = null;
+    let isInflected = false;
+    let grammarNote: string | null = null;
+
     // If translation is empty, fetch it from AI
     if (!translation) {
       try {
@@ -809,6 +820,11 @@ const Watch = () => {
           translation = data.translation || "";
           pronunciation = data.pronunciation || "";
           ipa = data.ipa || "";
+          lemma = data.lemma || null;
+          lemmaTranslation = data.lemmaTranslation || null;
+          pos = data.pos || null;
+          isInflected = !!data.isInflected;
+          grammarNote = data.grammarNote || null;
         }
       } catch (e) {
         console.error("Word translation failed:", e);
@@ -836,7 +852,34 @@ const Watch = () => {
     }
 
     if (!film) return;
-    const today = new Date().toISOString().split("T")[0];
+
+    // Don't restart a lemma's progress at red: (1) re-saving a word the
+    // learner already knows shouldn't reset its state or SRS progress, and
+    // (2) a freshly-clicked conjugation of an already-mastered verb
+    // ("mangeons" when "manger" is green via "manges") should start out
+    // green, not as if it were a new, unrelated word.
+    let initialState: DeckState = "red";
+    let initialReviewCount = 0;
+    let initialTimesCorrect = 0;
+    let initialNextReview = new Date().toISOString().split("T")[0];
+    const { data: existingSame } = await supabase
+      .from("saved_words")
+      .select("state, review_count, times_correct, next_review")
+      .eq("user_id", user.id)
+      .eq("language", langCode)
+      .eq("word", word.text)
+      .maybeSingle();
+    if (existingSame) {
+      initialState = coerceDeckState(existingSame.state);
+      initialReviewCount = existingSame.review_count ?? 0;
+      initialTimesCorrect = existingSame.times_correct ?? 0;
+      initialNextReview = existingSame.next_review ?? initialNextReview;
+    }
+    if (lemma) {
+      const lemmaBest = await bestStateForLemma(user.id, langCode, lemma);
+      if (lemmaBest) initialState = maxState(initialState, lemmaBest);
+    }
+
     const { error: saveError } = await supabase.from("saved_words").upsert({
       user_id: user.id,
       word: word.text,
@@ -846,10 +889,15 @@ const Watch = () => {
       context,
       film_id: film.id,
       language: langCode,
-      next_review: today,
-      state: "red",
-      review_count: 0,
-      times_correct: 0,
+      next_review: initialNextReview,
+      state: initialState,
+      review_count: initialReviewCount,
+      times_correct: initialTimesCorrect,
+      lemma,
+      lemma_translation: lemmaTranslation,
+      pos,
+      is_inflected: isInflected,
+      grammar_note: grammarNote,
     }, { onConflict: "user_id,word,language" });
     if (saveError) {
       console.error("Save word failed", saveError);
@@ -864,19 +912,32 @@ const Watch = () => {
     playDing("success");
     maybeTriggerLearningBreak({ word: word.text, translation });
 
-    // Create LinguaScript record immediately (scheduled for now, not tomorrow)
-    supabase.from("linguascripts").insert({
-      user_id: user.id,
-      language: langCode,
-      target_word: word.text,
-      sentence: context || word.text,
-      translation: translation,
-      word_state: "red",
-      status: "pending",
-      attempts: 0,
-      combo_multiplier: 1,
-      scheduled_for: new Date().toISOString(),
-    } as any).then(({ error }) => { if (error) console.error("Failed to create LinguaScript:", error); });
+    // Create LinguaScript record immediately (scheduled for now, not tomorrow).
+    // Must include gap_options/mcq_options — LinguaScriptExercise crashes
+    // reading exercise.gap_options.correct when a row lacks them.
+    {
+      const sentence = context || word.text;
+      const { gapPosition, gapOptions, mcqOptions } = buildExerciseOptions(sentence, word.text, []);
+      supabase.from("linguascripts").insert({
+        user_id: user.id,
+        language: langCode,
+        target_word: word.text,
+        sentence,
+        translation: translation,
+        word_state: "red",
+        gap_position: gapPosition,
+        gap_options: gapOptions,
+        mcq_options: mcqOptions,
+        status: "pending",
+        attempts: 0,
+        combo_multiplier: 1,
+        scheduled_for: new Date().toISOString(),
+      } as any).then(({ error }) => { if (error) console.error("Failed to create LinguaScript:", error); });
+    }
+
+    // Fire-and-forget: cache an Openverse image for text-to-image flashcards.
+    // The translation is usually the more Openverse-searchable term.
+    void cacheWordImageByWord(user.id, word.text, langCode, translation || word.text);
   };
 
   const savePhrase = async (phrase: string) => {
@@ -940,18 +1001,27 @@ const Watch = () => {
     playDing("success");
 
     // Create LinguaScript record for phrase (scheduled for now, not tomorrow)
-    supabase.from("linguascripts").insert({
-      user_id: user.id,
-      language: langCode,
-      target_word: trimmed,
-      sentence: context || trimmed,
-      translation: translation,
-      word_state: "red",
-      status: "pending",
-      attempts: 0,
-      combo_multiplier: 1,
-      scheduled_for: new Date().toISOString(),
-    } as any).then(({ error }) => { if (error) console.error("Failed to create LinguaScript for phrase:", error); });
+    {
+      const phraseSentence = context || trimmed;
+      const { gapPosition, gapOptions, mcqOptions } = buildExerciseOptions(phraseSentence, trimmed, []);
+      supabase.from("linguascripts").insert({
+        user_id: user.id,
+        language: langCode,
+        target_word: trimmed,
+        sentence: phraseSentence,
+        translation: translation,
+        word_state: "red",
+        gap_position: gapPosition,
+        gap_options: gapOptions,
+        mcq_options: mcqOptions,
+        status: "pending",
+        attempts: 0,
+        combo_multiplier: 1,
+        scheduled_for: new Date().toISOString(),
+      } as any).then(({ error }) => { if (error) console.error("Failed to create LinguaScript for phrase:", error); });
+    }
+
+    void cacheWordImageByWord(user.id, trimmed, langCode, translation || trimmed);
   };
 
   const markWordKnown = async (word: { text: string; translation?: string }) => {
@@ -986,18 +1056,27 @@ const Watch = () => {
     toast.success("Marked as known: " + word.text);
 
     // Create LinguaScript record for known word (scheduled for now, not 7 days from now)
-    supabase.from("linguascripts").insert({
-      user_id: user.id,
-      language: langCode,
-      target_word: word.text,
-      sentence: currentSubtitle?.primary || word.text,
-      translation: word.translation || "",
-      word_state: "green",
-      status: "pending",
-      attempts: 0,
-      combo_multiplier: 1,
-      scheduled_for: new Date().toISOString(),
-    } as any).then(({ error }) => { if (error) console.error("Failed to create LinguaScript for known word:", error); });
+    {
+      const knownSentence = currentSubtitle?.primary || word.text;
+      const { gapPosition, gapOptions, mcqOptions } = buildExerciseOptions(knownSentence, word.text, []);
+      supabase.from("linguascripts").insert({
+        user_id: user.id,
+        language: langCode,
+        target_word: word.text,
+        sentence: knownSentence,
+        translation: word.translation || "",
+        word_state: "green",
+        gap_position: gapPosition,
+        gap_options: gapOptions,
+        mcq_options: mcqOptions,
+        status: "pending",
+        attempts: 0,
+        combo_multiplier: 1,
+        scheduled_for: new Date().toISOString(),
+      } as any).then(({ error }) => { if (error) console.error("Failed to create LinguaScript for known word:", error); });
+    }
+
+    void cacheWordImageByWord(user.id, word.text, langCode, word.translation || word.text);
   };
 
   const downloadSrt = (type: "primary" | "secondary") => {

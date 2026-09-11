@@ -10,6 +10,32 @@ import confetti from "canvas-confetti";
 
 type ExerciseMode = "gap-fill" | "mcq" | "speaking";
 
+/**
+ * Forgiving answer comparison: case, surrounding whitespace, trailing
+ * punctuation and accents/diacritics never turn a correct answer into a
+ * false negative. Accents are graded loosely on purpose — the alternative
+ * (an exact match) means one missed accent on a mobile keyboard fails an
+ * otherwise-correct answer, which reads as the app being wrong more than
+ * the learner.
+ */
+function normalizeAnswer(s: string): string {
+  return s
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[.,!?;:'"«»…]/g, "");
+}
+
+/** Renders the sentence with the target word blanked at gap_position. */
+function blankSentence(sentence: string, gapPosition?: number): string {
+  if (gapPosition === undefined || gapPosition === null) return sentence;
+  const tokens = sentence.split(/\s+/);
+  if (gapPosition < 0 || gapPosition >= tokens.length) return sentence;
+  tokens[gapPosition] = "_____";
+  return tokens.join(" ");
+}
+
 interface LinguaScriptExerciseProps {
   targetWord?: string;
   exerciseId?: string; // Load exercise by ID instead of word lookup
@@ -87,6 +113,13 @@ export function LinguaScriptExercise({
             ? "Exercise not found. It may have been deleted."
             : `No exercise found for "${targetWord}". Save words first to create exercises.`
         );
+      } else if (mode === "gap-fill" && !data.gap_options?.correct) {
+        // Rows created before the gap_options/mcq_options persistence fix
+        // (or any future write path that forgets them) would otherwise
+        // crash handleSubmitGapFill on exercise.gap_options.correct.
+        setError("This flashcard needs to be regenerated — try saving the word again.");
+      } else if (mode === "mcq" && !data.mcq_options?.options?.length) {
+        setError("This flashcard needs to be regenerated — try saving the word again.");
       } else {
         setExercise(data);
       }
@@ -99,9 +132,7 @@ export function LinguaScriptExercise({
   }
 
   function handleSubmitGapFill() {
-    const isCorrect =
-      userAnswer.toLowerCase().trim() ===
-      exercise.gap_options.correct.toLowerCase();
+    const isCorrect = normalizeAnswer(userAnswer) === normalizeAnswer(exercise.gap_options.correct);
     const baseXp = isCorrect ? 15 : 5;
     const xpWithCombo = Math.floor(baseXp * (1 + combo * 0.1));
 
@@ -304,9 +335,11 @@ export function LinguaScriptExercise({
       <div className="mb-8 p-6 bg-slate-800/50 rounded-lg border border-slate-700">
         {mode === "gap-fill" ? (
           <>
-            {/* Gap-Fill Mode */}
+            {/* Gap-Fill Mode — the target word is actually blanked out here;
+                showing the full sentence let a learner just read the answer
+                off the screen instead of recalling it. */}
             <p className="text-lg text-slate-300 mb-6 leading-relaxed">
-              {exercise.sentence}
+              {blankSentence(exercise.sentence, exercise.gap_position)}
             </p>
             <Input
               placeholder="Type the missing word..."

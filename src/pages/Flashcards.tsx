@@ -30,6 +30,13 @@ interface SavedWord {
   state: DeckState;
   times_correct: number;
   is_phrase?: boolean;
+  ease_factor?: number;
+  interval_days?: number;
+  image_url?: string | null;
+  lemma?: string | null;
+  lemma_translation?: string | null;
+  is_inflected?: boolean;
+  grammar_note?: string | null;
 }
 
 interface StarterDeck {
@@ -80,7 +87,7 @@ const Flashcards = () => {
       while (true) {
         let q = supabase
           .from("saved_words")
-          .select("id, word, translation, pronunciation, ipa, context, language, next_review, review_count, state, times_correct, is_phrase")
+          .select("id, word, translation, pronunciation, ipa, context, language, next_review, review_count, state, times_correct, is_phrase, ease_factor, interval_days, image_url, lemma, lemma_translation, is_inflected, grammar_note")
           .eq("user_id", user.id)
           .order("next_review", { ascending: true, nullsFirst: true })
           .range(from, from + pageSize - 1);
@@ -100,19 +107,22 @@ const Flashcards = () => {
       setAllCards(rows);
     }
 
-    // Starter decks with counts
+    // Starter decks with counts — one batched query for every deck's card
+    // count instead of one round trip per deck (this ran on every visit to
+    // this page, for every user).
     const { data: decks } = await supabase.from("starter_decks").select("id, slug, name, emoji, description, language").order("sort_order");
-    if (decks) {
-      const withCounts = await Promise.all(
-        decks.map(async (d: any) => {
-          const { count } = await supabase
-            .from("starter_deck_cards")
-            .select("id", { count: "exact", head: true })
-            .eq("deck_id", d.id);
-          return { ...d, card_count: count ?? 0 } as StarterDeck;
-        }),
-      );
-      setStarterDecks(withCounts);
+    if (decks && decks.length > 0) {
+      const { data: cardRows } = await supabase
+        .from("starter_deck_cards")
+        .select("deck_id")
+        .in("deck_id", decks.map((d: any) => d.id));
+      const counts = new Map<string, number>();
+      for (const row of (cardRows as { deck_id: string }[]) || []) {
+        counts.set(row.deck_id, (counts.get(row.deck_id) ?? 0) + 1);
+      }
+      setStarterDecks(decks.map((d: any) => ({ ...d, card_count: counts.get(d.id) ?? 0 } as StarterDeck)));
+    } else {
+      setStarterDecks([]);
     }
     setLoading(false);
   }, [user, learningLanguage]);
@@ -187,6 +197,14 @@ const Flashcards = () => {
     state: (c.state ?? "red") as DeckState,
     times_correct: c.times_correct ?? 0,
     is_phrase: !!c.is_phrase,
+    ease_factor: c.ease_factor,
+    interval_days: c.interval_days,
+    review_count: c.review_count,
+    image_url: c.image_url,
+    lemma: c.lemma,
+    lemma_translation: c.lemma_translation,
+    is_inflected: c.is_inflected,
+    grammar_note: c.grammar_note,
   }));
 
   if (activeDeck && flashcardData.length > 0) {

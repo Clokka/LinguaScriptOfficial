@@ -105,11 +105,21 @@ export function estimateLanguageUnderstanding(greenCount: number): number {
   return Math.max(0, Math.min(99, pct));
 }
 
-/** Bucket a video's comprehension % into a learning zone label. */
+/**
+ * Bucket a video's comprehension % into a learning zone label.
+ *
+ * "ideal" = 95–98% known (2–5% unknown) — the smooth-comprehension range
+ * established by Hu & Nation (2000) for reading and van Zeeland & Schmitt
+ * (2013) for listening, and the target the YouTube recommendation ranking
+ * in videoRecommendation.ts sorts toward. Keep this in sync with
+ * IDEAL_MIN/IDEAL_MAX there — two different "ideal" definitions in the same
+ * app would label the same video differently depending on which code path
+ * scored it.
+ */
 export type LearningZone = "too-easy" | "ideal" | "stretch" | "too-hard";
 export function learningZone(pct: number): LearningZone {
-  if (pct >= 96) return "too-easy";
-  if (pct >= 85) return "ideal";
-  if (pct >= 70) return "stretch";
+  if (pct > 98) return "too-easy";
+  if (pct >= 95) return "ideal";
+  if (pct >= 85) return "stretch";
   return "too-hard";
 }

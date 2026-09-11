@@ -201,6 +201,21 @@ async function processMonthly() {
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders })
+
+  // verify_jwt is off for this function (pg_cron can only attach the public
+  // anon key, not a real user session), which means anyone could otherwise
+  // POST here directly and trigger real emails to real users ahead of
+  // schedule. Require a private shared secret the cron job passes as a
+  // custom header instead — see the accompanying migration for how it's
+  // provisioned via Supabase Vault.
+  const cronSecret = Deno.env.get('RETENTION_DISPATCH_SECRET')
+  if (!cronSecret || req.headers.get('x-cron-secret') !== cronSecret) {
+    return new Response(JSON.stringify({ ok: false, error: 'Unauthorized' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
+  }
+
   try {
     await processFriendEvents()
     await processReviewReminders()

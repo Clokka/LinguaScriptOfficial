@@ -7,6 +7,11 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
+const supabase = createClient(
+  Deno.env.get("SUPABASE_URL")!,
+  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+);
+
 async function resolveOrCreateCustomer(
   stripe: ReturnType<typeof createStripeClient>,
   options: { email?: string; userId?: string },
@@ -47,7 +52,20 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { priceId, quantity, customerEmail, userId, returnUrl, environment } = await req.json();
+    const { priceId, quantity, customerEmail, returnUrl, environment } = await req.json();
+
+    // A client-supplied userId is never trustworthy on its own — anyone can
+    // call this function directly with an arbitrary id and bind a Stripe
+    // subscription to an account they don't own (the payments webhook trusts
+    // this metadata to flip profiles.is_pro). Derive it from the caller's own
+    // verified JWT instead; no valid token means no userId at all, so
+    // anonymous email-only checkout still works exactly as before.
+    let userId: string | undefined;
+    const token = req.headers.get("Authorization")?.replace("Bearer ", "");
+    if (token) {
+      const { data: { user } } = await supabase.auth.getUser(token);
+      if (user) userId = user.id;
+    }
 
     if (!priceId || !/^[a-zA-Z0-9_-]+$/.test(priceId)) throw new Error("Invalid priceId");
     const env: StripeEnv = environment === "live" ? "live" : "sandbox";

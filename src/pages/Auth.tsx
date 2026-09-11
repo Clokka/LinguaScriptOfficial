@@ -42,20 +42,36 @@ const Auth = () => {
   // existing user -> /discover) is handled by the root route (Index.tsx).
   const handleGoogleFallback = async () => {
     setGoogleLoading(true);
+    // Safety valve: if nothing navigates away within 10s (e.g. a popup
+    // blocker silently ate the redirect), stop showing "Signing in…" forever.
+    const stuckTimer = setTimeout(() => setGoogleLoading(false), 10000);
     try {
       if (inviteToken) localStorage.setItem("pendingSchoolInvite", inviteToken);
       if (next && next !== "/discover") localStorage.setItem("pendingAuthNext", next);
 
-      const { error } = await supabase.auth.signInWithOAuth({
+      // Google's accounts.google.com actively refuses to render inside an
+      // iframe (it sends X-Frame-Options/CSP frame-ancestors headers), so
+      // when this page is embedded — e.g. the Lovable editor preview — a
+      // same-window redirect to the consent screen silently does nothing:
+      // no popup, no error, just a dead click. Ask Supabase for the URL
+      // without letting it navigate, then push the TOP window there so the
+      // OAuth screen always breaks out of any frame it's running in.
+      const framed = window.top !== window.self;
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
           redirectTo: window.location.origin,
           queryParams: { prompt: "select_account" },
+          skipBrowserRedirect: framed,
         },
       });
       if (error) throw error;
-      // Browser navigates to Google from here.
+      if (framed && data?.url) {
+        window.top!.location.href = data.url;
+      }
+      // Unframed: supabase-js already navigated this window to Google.
     } catch (e) {
+      clearTimeout(stuckTimer);
       toast({
         title: "Google sign-in failed",
         description: e instanceof Error ? e.message : "Please try again",
