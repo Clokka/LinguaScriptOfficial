@@ -107,19 +107,22 @@ const Flashcards = () => {
       setAllCards(rows);
     }
 
-    // Starter decks with counts
+    // Starter decks with counts — one batched query for every deck's card
+    // count instead of one round trip per deck (this ran on every visit to
+    // this page, for every user).
     const { data: decks } = await supabase.from("starter_decks").select("id, slug, name, emoji, description, language").order("sort_order");
-    if (decks) {
-      const withCounts = await Promise.all(
-        decks.map(async (d: any) => {
-          const { count } = await supabase
-            .from("starter_deck_cards")
-            .select("id", { count: "exact", head: true })
-            .eq("deck_id", d.id);
-          return { ...d, card_count: count ?? 0 } as StarterDeck;
-        }),
-      );
-      setStarterDecks(withCounts);
+    if (decks && decks.length > 0) {
+      const { data: cardRows } = await supabase
+        .from("starter_deck_cards")
+        .select("deck_id")
+        .in("deck_id", decks.map((d: any) => d.id));
+      const counts = new Map<string, number>();
+      for (const row of (cardRows as { deck_id: string }[]) || []) {
+        counts.set(row.deck_id, (counts.get(row.deck_id) ?? 0) + 1);
+      }
+      setStarterDecks(decks.map((d: any) => ({ ...d, card_count: counts.get(d.id) ?? 0 } as StarterDeck)));
+    } else {
+      setStarterDecks([]);
     }
     setLoading(false);
   }, [user, learningLanguage]);
