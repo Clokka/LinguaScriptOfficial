@@ -3,6 +3,7 @@ import { GreenTransition } from "./GreenTransition";
 import { HedgehogGiveaway } from "./HedgehogGiveaway";
 import { Chameleon3DSmokeTest } from "./Chameleon3DSmokeTest";
 import { FeatureShowcase } from "./FeatureShowcase";
+import { VideoDecodeTest } from "./VideoDecodeTest";
 
 /**
  * Remotion composition registry.
@@ -58,6 +59,16 @@ export const RemotionRoot = () => (
       id="FeatureShowcase"
       component={FeatureShowcase}
       durationInFrames={900}
+      fps={30}
+      width={1080}
+      height={1920}
+    />
+
+    {/* Throwaway: confirms the uploaded HEVC phone clip decodes. */}
+    <Composition
+      id="VideoDecodeTest"
+      component={VideoDecodeTest}
+      durationInFrames={216}
       fps={30}
       width={1080}
       height={1920}
