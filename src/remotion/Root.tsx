@@ -1,6 +1,7 @@
 import { Composition } from "remotion";
 import { GreenTransition } from "./GreenTransition";
 import { HedgehogGiveaway } from "./HedgehogGiveaway";
+import { Chameleon3DSmokeTest } from "./Chameleon3DSmokeTest";
 
 /**
  * Remotion composition registry.
@@ -36,6 +37,17 @@ export const RemotionRoot = () => (
       fps={30}
       width={1080}
       height={1920}
+    />
+
+    {/* Throwaway: validates the 3D chameleon pipeline renders in this
+        environment before it's wired into the full FeatureShowcase reel. */}
+    <Composition
+      id="Chameleon3DSmokeTest"
+      component={Chameleon3DSmokeTest}
+      durationInFrames={90}
+      fps={30}
+      width={720}
+      height={720}
     />
   </>
 );
