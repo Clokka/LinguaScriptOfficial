@@ -2,6 +2,7 @@ import { Composition } from "remotion";
 import { GreenTransition } from "./GreenTransition";
 import { HedgehogGiveaway } from "./HedgehogGiveaway";
 import { Chameleon3DSmokeTest } from "./Chameleon3DSmokeTest";
+import { FeatureShowcase } from "./FeatureShowcase";
 
 /**
  * Remotion composition registry.
@@ -48,6 +49,18 @@ export const RemotionRoot = () => (
       fps={30}
       width={720}
       height={720}
+    />
+
+    {/* Hand-timed proof-of-concept reel for socials — the "save a word ->
+        review -> level up" loop, real UI throughout, no 3D (see
+        Chameleon3D.tsx STATUS note). 900 frames @ 30fps = 30s. */}
+    <Composition
+      id="FeatureShowcase"
+      component={FeatureShowcase}
+      durationInFrames={900}
+      fps={30}
+      width={1080}
+      height={1920}
     />
   </>
 );
