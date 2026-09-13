@@ -1088,21 +1088,14 @@ export type Database = {
           gold_seen_count: number
           green_revealed_at: string | null
           id: string
-          image_attribution: string | null
-          image_url: string | null
           interval_days: number
           ipa: string
           is_phrase: boolean
-          is_inflected: boolean
-          grammar_note: string | null
           language: string
-          lemma: string | null
-          lemma_translation: string | null
           last_correct_at: string | null
           last_reviewed_at: string | null
           next_review: string
           next_review_at: string | null
-          pos: string | null
           pronunciation: string
           review_count: number
           state: string
@@ -1123,21 +1116,14 @@ export type Database = {
           gold_seen_count?: number
           green_revealed_at?: string | null
           id?: string
-          image_attribution?: string | null
-          image_url?: string | null
           interval_days?: number
           ipa?: string
           is_phrase?: boolean
-          is_inflected?: boolean
-          grammar_note?: string | null
           language?: string
-          lemma?: string | null
-          lemma_translation?: string | null
           last_correct_at?: string | null
           last_reviewed_at?: string | null
           next_review?: string
           next_review_at?: string | null
-          pos?: string | null
           pronunciation?: string
           review_count?: number
           state?: string
@@ -1158,21 +1144,14 @@ export type Database = {
           gold_seen_count?: number
           green_revealed_at?: string | null
           id?: string
-          image_attribution?: string | null
-          image_url?: string | null
           interval_days?: number
           ipa?: string
           is_phrase?: boolean
-          is_inflected?: boolean
-          grammar_note?: string | null
           language?: string
-          lemma?: string | null
-          lemma_translation?: string | null
           last_correct_at?: string | null
           last_reviewed_at?: string | null
           next_review?: string
           next_review_at?: string | null
-          pos?: string | null
           pronunciation?: string
           review_count?: number
           state?: string
