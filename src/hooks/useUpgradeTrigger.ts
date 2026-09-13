@@ -30,6 +30,14 @@ const FREE_DAILY_SAVE_LIMIT = 10;
 const STORAGE_KEY = 'ls_upgrade_trigger';
 const DAY_MS = 86_400_000;
 
+// TEMPORARY — upgrade nagging disabled app-wide (word-save cap, 3rd-word
+// nudge, post-video, XP milestones) so free users are never interrupted or
+// blocked while Pro monetization is being reworked. Flip back to `true` to
+// re-enable every trigger below at once. Nothing about a user's actual
+// is_pro status or the /upgrade page itself changes — this only stops the
+// automatic navigate() nags.
+const UPGRADE_TRIGGERS_ENABLED = false;
+
 interface StoredTriggers {
   [reason: string]: number; // timestamp of last fire
 }
@@ -72,6 +80,7 @@ export function useUpgradeTrigger(isPro: boolean) {
   const navigate = useNavigate();
 
   const fire = useCallback((reason: UpgradeTriggerReason) => {
+    if (!UPGRADE_TRIGGERS_ENABLED) return; // TEMPORARY — see flag above
     if (isPro) return;                   // already subscribed — never interrupt
     if (wasShownToday(reason)) return;   // already nagged today for this reason
     markShown(reason);
