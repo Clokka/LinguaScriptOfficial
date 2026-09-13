@@ -264,7 +264,10 @@ export default function Upgrade() {
     if (plan === 'family' && currentPlan === 'family') return;
     if (!user) { navigate('/auth?next=/upgrade'); return; }
 
-    const activeStripePlan = isAnnual ? stripeYearly : stripeMonthly;
+    // Fall back to whichever plan is actually configured — with only the
+    // monthly price set up, the annual toggle otherwise dead-ends.
+    const activeStripePlan = (isAnnual ? stripeYearly : stripeMonthly)
+      ?? stripeMonthly ?? stripeYearly;
     if (!activeStripePlan) {
       toast.error("Payments aren't configured yet. Please check back soon.");
       return;
