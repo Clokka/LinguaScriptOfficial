@@ -12,6 +12,32 @@ const supabase = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
 );
 
+const STUDENT_COUPON_ID = "student50";
+
+function isAcademicEmail(email: string | undefined | null): boolean {
+  const domain = email?.split("@")[1]?.toLowerCase() ?? "";
+  if (!domain) return false;
+  if (/\.(ac\.uk|edu|edu\.au|edu\.in|ac\.nz|edu\.sg|ac\.th|edu\.hk|ac\.jp)$/.test(domain)) return true;
+  const sub = domain.split(".")[0];
+  return ["uni", "university", "college", "students", "student"].includes(sub);
+}
+
+// 50% student discount, created once per environment and reused after that.
+async function ensureStudentCoupon(stripe: ReturnType<typeof createStripeClient>): Promise<string> {
+  try {
+    const existing = await stripe.coupons.retrieve(STUDENT_COUPON_ID);
+    return existing.id;
+  } catch {
+    const created = await stripe.coupons.create({
+      id: STUDENT_COUPON_ID,
+      percent_off: 50,
+      duration: "forever",
+      name: "Student 50% off",
+    });
+    return created.id;
+  }
+}
+
 async function resolveOrCreateCustomer(
   stripe: ReturnType<typeof createStripeClient>,
   options: { email?: string; userId?: string },
