@@ -124,6 +124,11 @@ Deno.serve(async (req) => {
       productDescription = product.name;
     }
 
+    // Student pricing is applied from the account's own verified email —
+    // never from an address typed into the checkout form.
+    const isStudent = isAcademicEmail(verifiedEmail);
+    const studentCoupon = isStudent ? await ensureStudentCoupon(stripe) : null;
+
     const session = await stripe.checkout.sessions.create({
       line_items: [{ price: stripePrice.id, quantity: quantity || 1 }],
       mode: isRecurring ? "subscription" : "payment",
@@ -131,9 +136,15 @@ Deno.serve(async (req) => {
       return_url: returnUrl,
       ...(customerId && { customer: customerId }),
       ...(!isRecurring && { payment_intent_data: { description: productDescription } }),
+      // `discounts` and `allow_promotion_codes` are mutually exclusive.
+      ...(studentCoupon
+        ? { discounts: [{ coupon: studentCoupon }] }
+        : { allow_promotion_codes: true }),
       ...(userId && {
-        metadata: { userId },
-        ...(isRecurring && { subscription_data: { metadata: { userId } } }),
+        metadata: { userId, ...(isStudent ? { student: "true" } : {}) },
+        ...(isRecurring && {
+          subscription_data: { metadata: { userId, ...(isStudent ? { student: "true" } : {}) } },
+        }),
       }),
       managed_payments: { enabled: true },
     } as any);
