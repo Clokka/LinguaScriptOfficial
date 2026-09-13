@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link2, Copy, Check, Loader2, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,13 +12,21 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { getStripeFallbackConfig, type StripePlanKey } from "@/lib/stripeFallback";
+import { getStripeFallbackConfig, type StripeFallbackConfig, type StripePlanKey } from "@/lib/stripeFallback";
 
 const PLAN_KEYS: StripePlanKey[] = ["monthly", "yearly", "lifetime"];
 
+const EMPTY_PLAN = { priceId: "", label: "", priceDisplay: "", enabled: false };
+
 export function AdminPaymentLinks() {
   const { toast } = useToast();
-  const cfg = getStripeFallbackConfig();
+  const [cfg, setCfg] = useState<StripeFallbackConfig | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    getStripeFallbackConfig().then((c) => { if (alive) setCfg(c); });
+    return () => { alive = false; };
+  }, []);
   const [plan, setPlan] = useState<StripePlanKey>("monthly");
   const [customPriceId, setCustomPriceId] = useState("");
   const [email, setEmail] = useState("");
@@ -29,7 +37,7 @@ export function AdminPaymentLinks() {
   const [copied, setCopied] = useState(false);
 
   const generate = async () => {
-    const priceId = customPriceId.trim() || cfg[plan].priceId.trim();
+    const priceId = customPriceId.trim() || (cfg?.[plan].priceId ?? "").trim();
     if (!priceId) {
       toast({
         title: "Missing price ID",
@@ -101,11 +109,14 @@ export function AdminPaymentLinks() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {PLAN_KEYS.map((k) => (
-                <SelectItem key={k} value={k} className="capitalize">
-                  {cfg[k].label} {cfg[k].priceDisplay ? `— ${cfg[k].priceDisplay}` : ""}
-                </SelectItem>
-              ))}
+              {PLAN_KEYS.map((k) => {
+                const p = cfg?.[k] ?? EMPTY_PLAN;
+                return (
+                  <SelectItem key={k} value={k} className="capitalize">
+                    {p.label || k} {p.priceDisplay ? `— ${p.priceDisplay}` : ""}
+                  </SelectItem>
+                );
+              })}
             </SelectContent>
           </Select>
         </div>

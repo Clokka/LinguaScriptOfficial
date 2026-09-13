@@ -1,16 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Check, Sparkles, ArrowLeft, Loader2, CreditCard } from "lucide-react";
+import { Check, Sparkles, ArrowLeft, CreditCard, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
-import { getCurrentOffering, purchasePackage, configureRevenueCat, type Package } from "@/lib/revenuecat";
-import { trackGoAffProConversion } from "@/lib/goaffpro";
-import { getEnabledFallbackPlans } from "@/lib/stripeFallback";
+import { getEnabledFallbackPlans, type StripeFallbackPlan, type StripePlanKey } from "@/lib/stripeFallback";
 import { StripeEmbeddedCheckout } from "@/components/StripeEmbeddedCheckout";
 import { isPaymentsConfigured } from "@/lib/stripe";
-import { toast } from "@/hooks/use-toast";
 
 const FEATURES = [
   "Unlimited learning languages — switch freely between French, Spanish, German, Italian and more",
@@ -20,96 +17,29 @@ const FEATURES = [
   "Support an indie team building for language learners",
 ];
 
-const PACKAGE_LABELS: Record<string, { label: string; note?: string; badge?: string }> = {
-  $rc_monthly: { label: "Monthly", note: "Cancel anytime" },
-  $rc_annual: { label: "Yearly", note: "Save with annual billing", badge: "Best value" },
-  $rc_lifetime: { label: "Lifetime", note: "One-time payment, yours forever", badge: "Lifetime access" },
-  monthly: { label: "Monthly", note: "Cancel anytime" },
-  yearly: { label: "Yearly", note: "Save with annual billing", badge: "Best value" },
-  lifetime: { label: "Lifetime", note: "One-time payment, yours forever", badge: "Lifetime access" },
+const PLAN_BADGES: Record<string, string | undefined> = {
+  yearly: "Best value",
+  lifetime: "Pay once",
 };
 
-function formatPrice(pkg: Package): string {
-  const price = pkg.rcBillingProduct?.currentPrice;
-  if (price?.formattedPrice) return price.formattedPrice;
-  return "—";
-}
-
-function suffix(pkg: Package): string {
-  const period = pkg.rcBillingProduct?.normalPeriodDuration;
-  if (!period) return "";
-  if (period === "P1M") return "/ month";
-  if (period === "P1Y") return "/ year";
-  if (period === "P1W") return "/ week";
-  return "";
-}
-
+// RevenueCat is not wired to a real product catalog in this build (its
+// configured key is a placeholder, not a live RC project), so Stripe — via
+// the existing create-checkout edge function — is the one real paywall
+// here rather than a "backup" shown only when RC fails.
 export default function Pricing() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { isPro, source, loading: subLoading, expiresAt, refresh } = useSubscription();
-  const [packages, setPackages] = useState<Package[]>([]);
-  const [loadingOfferings, setLoadingOfferings] = useState(true);
-  const [purchasing, setPurchasing] = useState<string | null>(null);
-  const [rcFailed, setRcFailed] = useState(false);
+  const { isPro, source, loading: subLoading, expiresAt } = useSubscription();
   const [stripePriceId, setStripePriceId] = useState<string | null>(null);
-  const fallbackPlans = useMemo(() => getEnabledFallbackPlans(), []);
+  const [plans, setPlans] = useState<Array<{ key: StripePlanKey } & StripeFallbackPlan>>([]);
+  const [loadingPlans, setLoadingPlans] = useState(true);
   const stripeAvailable = isPaymentsConfigured();
-  const showFallback = fallbackPlans.length > 0 && stripeAvailable && (rcFailed || packages.length === 0 || !loadingOfferings);
 
   useEffect(() => {
-    configureRevenueCat(user?.id ?? null);
-    let cancelled = false;
-    (async () => {
-      setLoadingOfferings(true);
-      try {
-        const offering = await getCurrentOffering();
-        if (cancelled) return;
-        const pkgs = offering?.availablePackages ?? [];
-        setPackages(pkgs);
-        if (pkgs.length === 0) setRcFailed(true);
-      } catch {
-        if (!cancelled) setRcFailed(true);
-      } finally {
-        if (!cancelled) setLoadingOfferings(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [user?.id]);
-
-  const handlePurchase = async (pkg: Package) => {
-    if (!user) {
-      navigate("/auth?next=/pricing");
-      return;
-    }
-    setPurchasing(pkg.identifier);
-    try {
-      const info = await purchasePackage(pkg);
-      // Fire GoAffPro conversion using the latest transaction as the order reference.
-      const txns = (info as any)?.nonSubscriptionTransactions ?? [];
-      const latestTxn = txns[txns.length - 1];
-      const orderNumber =
-        latestTxn?.transactionIdentifier ||
-        (info as any)?.originalAppUserId ||
-        `${user.id}-${pkg.identifier}-${Date.now()}`;
-      const price = pkg.rcBillingProduct?.currentPrice;
-      trackGoAffProConversion({
-        number: orderNumber,
-        total: Number(price?.amountMicros ? price.amountMicros / 1_000_000 : 0),
-        currency: price?.currency,
-      });
-      await refresh();
-      toast({ title: "Welcome to Pro 🎉", description: "All languages unlocked." });
-      navigate("/discover");
-    } catch (e: any) {
-      if (e?.errorCode !== 1) {
-        // 1 = user cancelled
-        toast({ title: "Purchase failed", description: e?.message ?? "Please try again.", variant: "destructive" });
-      }
-    } finally {
-      setPurchasing(null);
-    }
-  };
+    let alive = true;
+    getEnabledFallbackPlans().then((p) => { if (alive) { setPlans(p); setLoadingPlans(false); } });
+    return () => { alive = false; };
+  }, []);
 
   return (
     <div className="min-h-screen bg-background">
@@ -142,50 +72,51 @@ export default function Pricing() {
                   ? `Granted by the LinguaScript team${expiresAt ? ` · expires ${new Date(expiresAt).toLocaleDateString()}` : " · lifetime"}`
                   : expiresAt
                     ? `Renews ${new Date(expiresAt).toLocaleDateString()}`
-                    : "Active subscription"}
+                    : "Active — thanks for supporting LinguaScript!"}
               </p>
             </div>
           </div>
         )}
 
         <div className="grid sm:grid-cols-3 gap-4 mb-10">
-          {loadingOfferings ? (
+          {!stripeAvailable ? (
+            <div className="col-span-full text-center text-muted-foreground py-12 text-sm">
+              Payments aren't configured yet. Please check back soon.
+            </div>
+          ) : loadingPlans ? (
             <div className="col-span-full flex justify-center py-12">
               <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
             </div>
-          ) : packages.length === 0 ? (
+          ) : plans.length === 0 ? (
             <div className="col-span-full text-center text-muted-foreground py-12 text-sm">
               No plans are available right now. Please check back soon.
             </div>
           ) : (
-            packages.map((pkg) => {
-              const meta = PACKAGE_LABELS[pkg.identifier] ?? { label: pkg.identifier };
-              const isLoading = purchasing === pkg.identifier;
-              return (
-                <button
-                  key={pkg.identifier}
-                  onClick={() => handlePurchase(pkg)}
-                  disabled={!!purchasing || (isPro && source === "subscription")}
-                  className="relative text-left glass-panel-strong p-6 rounded-2xl border border-border hover:border-primary/40 transition disabled:opacity-60"
-                >
-                  {meta.badge && (
-                    <span className="absolute top-3 right-3 text-[10px] uppercase tracking-wider bg-accent text-accent-foreground px-2 py-0.5 rounded-full">
-                      {meta.badge}
-                    </span>
-                  )}
-                  <div className="text-sm text-muted-foreground mb-2">{meta.label}</div>
-                  <div className="flex items-baseline gap-1 mb-1">
-                    <span className="text-3xl font-bold text-foreground">{formatPrice(pkg)}</span>
-                    <span className="text-sm text-muted-foreground">{suffix(pkg)}</span>
-                  </div>
-                  <div className="text-xs text-muted-foreground mb-4">{meta.note}</div>
-                  <div className="text-sm font-medium text-primary inline-flex items-center gap-2">
-                    {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                    {isLoading ? "Opening checkout…" : isPro ? "Already Pro" : "Get Pro"}
-                  </div>
-                </button>
-              );
-            })
+            plans.map((p) => (
+              <button
+                key={p.key}
+                onClick={() => {
+                  if (!user) { navigate("/auth?next=/pricing"); return; }
+                  setStripePriceId(p.priceId);
+                }}
+                disabled={isPro}
+                className="relative text-left glass-panel-strong p-6 rounded-2xl border border-border hover:border-primary/40 transition disabled:opacity-60"
+              >
+                {PLAN_BADGES[p.key] && (
+                  <span className="absolute top-3 right-3 text-[10px] uppercase tracking-wider bg-accent text-accent-foreground px-2 py-0.5 rounded-full">
+                    {PLAN_BADGES[p.key]}
+                  </span>
+                )}
+                <div className="text-sm text-muted-foreground mb-2 capitalize">{p.label}</div>
+                <div className="flex items-baseline gap-1 mb-4">
+                  <span className="text-3xl font-bold text-foreground">{p.priceDisplay}</span>
+                </div>
+                <div className="text-sm font-medium text-primary inline-flex items-center gap-2">
+                  <CreditCard className="w-4 h-4" />
+                  {isPro ? "Already Pro" : "Pay with card"}
+                </div>
+              </button>
+            ))
           )}
         </div>
 
@@ -200,38 +131,6 @@ export default function Pricing() {
             ))}
           </ul>
         </div>
-
-        {showFallback && (
-          <div className="glass-panel p-6 rounded-2xl mb-8">
-            <div className="flex items-center gap-2 mb-2">
-              <CreditCard className="w-4 h-4 text-primary" />
-              <h3 className="font-semibold text-foreground">
-                {rcFailed ? "Having trouble checking out?" : "Prefer paying with card?"}
-              </h3>
-            </div>
-            <p className="text-sm text-muted-foreground mb-4">
-              Use our Stripe checkout as a backup option.
-            </p>
-            <div className="grid sm:grid-cols-3 gap-3">
-              {fallbackPlans.map((p) => (
-                <button
-                  key={p.key}
-                  onClick={() => {
-                    if (!user) { navigate("/auth?next=/pricing"); return; }
-                    setStripePriceId(p.priceId);
-                  }}
-                  className="text-left p-4 rounded-xl border border-border hover:border-primary/40 transition"
-                >
-                  <div className="text-xs text-muted-foreground capitalize mb-1">{p.label}</div>
-                  <div className="text-base font-semibold text-foreground mb-2">{p.priceDisplay}</div>
-                  <div className="text-xs text-primary inline-flex items-center gap-1">
-                    <CreditCard className="w-3 h-3" /> Pay with Stripe
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
 
         {!user && (
           <Button variant="hero" size="lg" className="w-full" onClick={() => navigate("/auth?next=/pricing")}>

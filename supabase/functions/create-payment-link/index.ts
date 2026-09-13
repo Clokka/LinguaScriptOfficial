@@ -1,5 +1,6 @@
 // Generates a shareable Stripe Payment Link (one-time or subscription) the
 // admin can send to a user. Uses the Lovable-managed Stripe gateway.
+import { createClient } from "npm:@supabase/supabase-js@2";
 import { createStripeClient, type StripeEnv } from "../_shared/stripe.ts";
 
 const corsHeaders = {
@@ -8,6 +9,11 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
+const supabase = createClient(
+  Deno.env.get("SUPABASE_URL")!,
+  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+);
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") {
@@ -15,6 +21,28 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // This mints real Stripe payment links — previously reachable by any
+    // authenticated caller who found the function name, relying entirely on
+    // the Admin UI to gate access. Require the same 'admin' role every DB-side
+    // admin RPC already checks (has_role), not just UI-level hiding.
+    const token = req.headers.get("Authorization")?.replace("Bearer ", "");
+    const { data: { user } } = token
+      ? await supabase.auth.getUser(token)
+      : { data: { user: null } };
+    if (!user) {
+      return new Response(JSON.stringify({ error: "Sign in required" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const { data: isAdmin } = await supabase.rpc("has_role", { _user_id: user.id, _role: "admin" });
+    if (!isAdmin) {
+      return new Response(JSON.stringify({ error: "Admin access required" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const body = await req.json();
     const priceId = String(body?.priceId || "").trim();
     const environment = (body?.environment === "live" ? "live" : "sandbox") as StripeEnv;

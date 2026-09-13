@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { CreditCard, Save, ExternalLink } from "lucide-react";
+import { useEffect, useState } from "react";
+import { CreditCard, Save, ExternalLink, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -15,25 +15,47 @@ const PLAN_ORDER: StripePlanKey[] = ["monthly", "yearly", "lifetime"];
 
 export function AdminStripeFallback() {
   const { toast } = useToast();
-  const [cfg, setCfg] = useState<StripeFallbackConfig>(() => getStripeFallbackConfig());
+  const [cfg, setCfg] = useState<StripeFallbackConfig | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    getStripeFallbackConfig().then((c) => { if (alive) setCfg(c); });
+    return () => { alive = false; };
+  }, []);
 
   const update = (key: StripePlanKey, patch: Partial<StripeFallbackConfig[StripePlanKey]>) => {
-    setCfg((prev) => ({ ...prev, [key]: { ...prev[key], ...patch } }));
+    setCfg((prev) => (prev ? { ...prev, [key]: { ...prev[key], ...patch } } : prev));
   };
 
-  const save = () => {
-    saveStripeFallbackConfig(cfg);
+  const save = async () => {
+    if (!cfg) return;
+    setSaving(true);
+    const { error } = await saveStripeFallbackConfig(cfg);
+    setSaving(false);
+    if (error) {
+      toast({ title: "Failed to save", description: error, variant: "destructive" });
+      return;
+    }
     toast({
-      title: "Stripe fallback saved",
-      description: "Users will now see these plans on /pricing as a backup to RevenueCat.",
+      title: "Stripe plans saved",
+      description: "Every visitor's /pricing page now reads these plans directly from the database.",
     });
   };
+
+  if (!cfg) {
+    return (
+      <div className="glass-panel-strong p-6 rounded-2xl mb-8 flex justify-center">
+        <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="glass-panel-strong p-6 rounded-2xl mb-8">
       <div className="flex items-center justify-between mb-1">
         <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-          <CreditCard className="w-5 h-5 text-primary" /> Stripe Fallback Plans
+          <CreditCard className="w-5 h-5 text-primary" /> Stripe Plans
         </h2>
         <a
           href="https://dashboard.stripe.com/products"
@@ -46,7 +68,7 @@ export function AdminStripeFallback() {
       </div>
       <p className="text-sm text-muted-foreground mb-4">
         Paste your Stripe Price IDs (e.g. <code className="text-xs">price_1Q...</code>). When enabled,
-        these appear on <code className="text-xs">/pricing</code> as a fallback if RevenueCat fails to load.
+        these are the plans every visitor sees on <code className="text-xs">/pricing</code>.
       </p>
 
       <div className="space-y-3">
@@ -80,8 +102,8 @@ export function AdminStripeFallback() {
       </div>
 
       <div className="flex justify-end mt-4">
-        <Button variant="hero" onClick={save} className="gap-2">
-          <Save className="w-4 h-4" /> Save fallback plans
+        <Button variant="hero" onClick={save} disabled={saving} className="gap-2">
+          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Save plans
         </Button>
       </div>
     </div>
