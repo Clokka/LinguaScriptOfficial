@@ -6,6 +6,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { getEnabledFallbackPlans, type StripeFallbackPlan, type StripePlanKey } from '@/lib/stripeFallback';
 import { StripeEmbeddedCheckout } from '@/components/StripeEmbeddedCheckout';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { useSubscription } from '@/hooks/useSubscription';
+import { ManageBillingButton } from '@/components/ManageBillingButton';
 
 // model-viewer types are declared globally elsewhere in the project.
 
@@ -15,33 +17,13 @@ type ModelViewerEl = HTMLElement & {
   pause: () => void;
 };
 
-// ── Plan config ──────────────────────────────────────────────────
-// Display-only pricing for the cards below. What a click actually charges
-// comes from the real Stripe plan config (payment_plans table, read via
-// getEnabledFallbackPlans) — see handlePurchase.
-const PLANS = {
-  pro: {
-    annual:  { display: '£3.25', label: 'billed annually · save 35%', total: '£39/yr', rcId: 'pro_annual'  },
-    monthly: { display: '£4.99', label: 'per month',                   total: '£4.99/mo', rcId: 'pro_monthly' },
-  },
-  family: {
-    annual:  { display: '£6.58', label: 'billed annually · save 35%', total: '£79/yr', rcId: 'family_annual'  },
-    monthly: { display: '£9.99', label: 'per month',                   total: '£9.99/mo', rcId: 'family_monthly' },
-  },
-} as const;
+// Prices are never hardcoded here any more: the cards render whatever the
+// payment_plans table says, which is the same config the checkout charges.
+// Previously this page advertised £3.25/£4.99 and a Family tier while every
+// button charged the single configured monthly price.
 
-// ── Student email check ──────────────────────────────────────────
-function isStudentEmail(email: string): boolean {
-  const domain = email.split('@')[1]?.toLowerCase() ?? '';
-  if (!domain) return false;
-  if (domain.endsWith('.ac.uk') || domain.endsWith('.edu') ||
-      domain.endsWith('.edu.au') || domain.endsWith('.edu.in')) return true;
-  const sub = domain.split('.')[0];
-  return ['uni', 'university', 'college', 'students', 'student'].includes(sub);
-}
-
-type CurrentPlan = 'free' | 'pro' | 'family';
-type HoveredCard = 'free' | 'pro' | 'family' | null;
+type CurrentPlan = 'free' | 'pro';
+type HoveredCard = 'free' | 'pro' | 'lifetime' | null;
 
 // ── All 8 pets ───────────────────────────────────────────────────
 const PETS = [
@@ -59,7 +41,7 @@ function PetShowcase({ currentPlan, onUpgradeClick }: {
   currentPlan: CurrentPlan;
   onUpgradeClick: () => void;
 }) {
-  const isPro = currentPlan === 'pro' || currentPlan === 'family';
+  const isPro = currentPlan === 'pro';
   return (
     <div className="mt-14 mb-2">
       {/* Section heading */}
@@ -164,20 +146,17 @@ export default function Upgrade() {
   const idleTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const isHovering = useRef(false);
 
+  const { isPro, source, expiresAt, cancelAtPeriodEnd, hasBillingAccount, isLifetime } = useSubscription();
+
   const [isAnnual, setIsAnnual]           = useState(true);
   const [hoveredCard, setHoveredCard]     = useState<HoveredCard>(null);
-  const [currentPlan, setCurrentPlan]     = useState<CurrentPlan>('free');
   const [studentOpen, setStudentOpen]     = useState(false);
-  const [studentEmail, setStudentEmail]   = useState('');
-  const [studentError, setStudentError]   = useState('');
-  const [studentSent, setStudentSent]     = useState(false);
+  const [studentResult, setStudentResult] = useState<{ eligible: boolean; email?: string } | null>(null);
   const [studentLoading, setStudentLoading] = useState(false);
 
-  // ── Real Stripe plans (same source /pricing reads from) ──────
-  // The RevenueCat purchase() call below never actually charged anyone — no
-  // VITE_RC_PUBLIC_KEY is configured, so it always threw and was swallowed.
-  // Clicking Pro/Family now opens the same Stripe embedded checkout /pricing
-  // uses, backed by the payment_plans table's real price IDs.
+  const currentPlan: CurrentPlan = isPro ? 'pro' : 'free';
+
+  // ── Real plans (same source /pricing reads from) ─────────────
   const [stripePlans, setStripePlans]     = useState<Array<{ key: StripePlanKey } & StripeFallbackPlan>>([]);
   const [checkoutPriceId, setCheckoutPriceId] = useState<string | null>(null);
 
@@ -189,6 +168,7 @@ export default function Upgrade() {
 
   const stripeMonthly = stripePlans.find((p) => p.key === 'monthly');
   const stripeYearly = stripePlans.find((p) => p.key === 'yearly');
+  const stripeLifetime = stripePlans.find((p) => p.key === 'lifetime');
 
   // ── Animation helpers ────────────────────────────────────────
   // model-viewer upgrades to a real custom element asynchronously (it loads
@@ -212,27 +192,8 @@ export default function Upgrade() {
     }, 6000);
   }, [playAnim]);
 
-  // ── Init RevenueCat (entitlement display only) + idle ─────────
+  // ── Idle animation ───────────────────────────────────────────
   useEffect(() => {
-    const init = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
-        const { Purchases } = await import('@revenuecat/purchases-js');
-        const rcKey = (import.meta as any).env?.VITE_RC_PUBLIC_KEY;
-        if (rcKey) {
-          Purchases.configure({ apiKey: rcKey, appUserId: user.id });
-          const info = await Purchases.getSharedInstance().getCustomerInfo();
-          const active = info.entitlements.active;
-          if (active['family_pro']) setCurrentPlan('family');
-          else if (active['student_pro'] || active['pro']) setCurrentPlan('pro');
-        }
-      } catch {
-        // RC not yet installed — page renders without purchase logic
-      }
-    };
-    init();
-
     const t = setTimeout(startIdle, 1000);
     return () => {
       clearTimeout(t);
@@ -244,7 +205,7 @@ export default function Upgrade() {
   const onCardEnter = (card: HoveredCard) => {
     isHovering.current = true;
     setHoveredCard(card);
-    const map: Record<string, string> = { free: 'Sit', pro: 'Bounce', family: 'Spin' };
+    const map: Record<string, string> = { free: 'Sit', pro: 'Bounce', lifetime: 'Spin' };
     if (card) playAnim(map[card], Infinity);
   };
 
@@ -254,26 +215,20 @@ export default function Upgrade() {
     startIdle();
   };
 
-  // ── Purchase — opens the real Stripe embedded checkout ────────
-  // Note: there's no distinct Stripe product for the Family tier yet (the
-  // payment_plans table only has monthly/yearly/lifetime keys), so Family
-  // checks out against the same Pro price for now until a Family price is
-  // configured.
-  const handlePurchase = (plan: 'pro' | 'family') => {
-    if (plan === 'pro' && (currentPlan === 'pro' || currentPlan === 'family')) return;
-    if (plan === 'family' && currentPlan === 'family') return;
+  // ── Purchase — opens the real embedded checkout ───────────────
+  const handlePurchase = (plan: 'pro' | 'lifetime') => {
+    if (isPro) return;
     if (!user) { navigate('/auth?next=/upgrade'); return; }
 
-    // Fall back to whichever plan is actually configured — with only the
-    // monthly price set up, the annual toggle otherwise dead-ends.
-    const activeStripePlan = (isAnnual ? stripeYearly : stripeMonthly)
-      ?? stripeMonthly ?? stripeYearly;
-    if (!activeStripePlan) {
-      toast.error("Payments aren't configured yet. Please check back soon.");
+    const chosen = plan === 'lifetime'
+      ? stripeLifetime
+      : (isAnnual ? stripeYearly : stripeMonthly);
+    if (!chosen) {
+      toast.error("That plan isn't available yet. Please try another option.");
       return;
     }
     playAnim('Jump', 1);
-    setCheckoutPriceId(activeStripePlan.priceId);
+    setCheckoutPriceId(chosen.priceId);
   };
 
   const onCheckoutOpenChange = (open: boolean) => {
@@ -282,26 +237,34 @@ export default function Upgrade() {
     startIdle();
   };
 
-  // ── Student modal submit ─────────────────────────────────────
-  const handleStudentSubmit = async () => {
-    setStudentError('');
-    if (!isStudentEmail(studentEmail)) {
-      setStudentError('Please use your official university email address (.ac.uk, .edu, etc.)');
-      return;
-    }
+  // ── Student discount — checked against the signed-in account ──
+  const handleStudentCheck = async () => {
+    if (!user) { navigate('/auth?next=/upgrade'); return; }
     setStudentLoading(true);
+    setStudentResult(null);
     try {
-      await supabase.functions.invoke('verify-student-email', { body: { email: studentEmail } });
-      setStudentSent(true);
+      const { data, error } = await supabase.functions.invoke('verify-student-email', { body: {} });
+      if (error) throw error;
+      setStudentResult({ eligible: !!data?.eligible, email: data?.email });
     } catch {
-      setStudentError('Failed to send verification. Please try again.');
+      toast.error("Couldn't check your student status. Please try again.");
     } finally {
       setStudentLoading(false);
     }
   };
 
-  const pro = PLANS.pro[isAnnual ? 'annual' : 'monthly'];
-  const fam = PLANS.family[isAnnual ? 'annual' : 'monthly'];
+  // Display copy comes from the configured plans, so what's shown is what's charged.
+  const proPlan = isAnnual ? (stripeYearly ?? stripeMonthly) : (stripeMonthly ?? stripeYearly);
+  const pro = {
+    display: proPlan?.priceDisplay ?? '—',
+    label: proPlan?.key === 'yearly' ? 'billed yearly' : 'per month',
+    total: proPlan?.priceDisplay ?? '',
+  };
+  const life = {
+    display: stripeLifetime?.priceDisplay ?? '—',
+    label: 'one-time payment',
+    total: stripeLifetime?.priceDisplay ?? '',
+  };
 
   // ── Render ───────────────────────────────────────────────────
   return (
@@ -356,7 +319,7 @@ export default function Upgrade() {
           <p className="text-[#52525b] text-xs mt-1 z-10 transition-opacity">
             {hoveredCard === 'free' && 'My Sparrow can sit and wait…'}
             {hoveredCard === 'pro'  && 'Bounce! All 8 pets unlocked with Pro!'}
-            {hoveredCard === 'family' && 'Every family member gets their own pet!'}
+            {hoveredCard === 'lifetime' && 'Spin! Yours forever with Lifetime.'}
           </p>
         )}
       </section>
@@ -374,7 +337,7 @@ export default function Upgrade() {
                   : 'text-[#a1a1aa] hover:text-white'
               }`}
             >
-              {mode === 'annual' ? '📅 Annual · save 35%' : 'Monthly'}
+              {mode === 'annual' ? '📅 Yearly' : 'Monthly'}
             </button>
           ))}
         </div>
@@ -422,15 +385,13 @@ export default function Upgrade() {
 
               <button
                 onClick={() => handlePurchase('pro')}
-                disabled={currentPlan === 'pro' || currentPlan === 'family'}
+                disabled={currentPlan === 'pro'}
                 className={`w-full py-3.5 rounded-full font-bold text-sm transition-all duration-200 flex items-center justify-center gap-2
-                  ${currentPlan === 'pro' || currentPlan === 'family'
+                  ${currentPlan === 'pro'
                     ? 'bg-[#4ade80]/20 text-[#4ade80] cursor-default'
                     : 'bg-[#4ade80] text-[#09090b] hover:brightness-110 active:scale-95 disabled:opacity-60 cursor-pointer'}`}
               >
-                {currentPlan === 'pro' ? '✓ Current Plan' :
-                 currentPlan === 'family' ? '✓ Family includes Pro' :
-                 'Upgrade to Pro'}
+                {currentPlan === 'pro' ? '✓ Current Plan' : 'Upgrade to Pro'}
               </button>
             </div>
           </div>
@@ -467,47 +428,64 @@ export default function Upgrade() {
             </div>
           </div>
 
-          {/* FAMILY */}
-          <div className="md:order-3 order-3">
-            <div
-              onMouseEnter={() => onCardEnter('family')}
-              onMouseLeave={onCardLeave}
-              className="bg-[#18181b] border border-[#6c3ff5] rounded-2xl p-6 flex flex-col
-                         transition-all duration-200 hover:shadow-[0_0_40px_rgba(108,63,245,0.12)]"
-            >
-              <p className="text-[10px] font-black tracking-[0.2em] text-[#6c3ff5] mb-3">FAMILY</p>
-              <div className="flex items-end gap-1 mb-0.5">
-                <span className="text-4xl font-black">{fam.display}</span>
-                <span className="text-[#a1a1aa] text-sm mb-1">/mo</span>
-              </div>
-              <p className="text-[#52525b] text-xs mb-0.5">{fam.label}</p>
-              <p className="text-[#6c3ff5] text-xs font-bold mb-6">Up to 5 members</p>
-
-              <div className="flex flex-col flex-1 mb-6">
-                <Feature label="Everything in Pro for all members"  checked color="#6c3ff5" />
-                <Feature label="Shared family dashboard"            checked color="#6c3ff5" />
-                <Feature label="Each member's own pet & progress"   checked color="#6c3ff5" />
-                <Feature label="Invite members by email"            checked color="#6c3ff5" />
-                <Feature label="One subscription, five learners"    checked color="#6c3ff5" />
-              </div>
-
-              <button
-                onClick={() => handlePurchase('family')}
-                disabled={currentPlan === 'family'}
-                className={`w-full py-3.5 rounded-full font-bold text-sm transition-all duration-200 flex items-center justify-center gap-2
-                  ${currentPlan === 'family'
-                    ? 'bg-[#6c3ff5]/20 text-[#6c3ff5] cursor-default'
-                    : 'bg-[#6c3ff5] text-white hover:brightness-110 active:scale-95 disabled:opacity-60 cursor-pointer'}`}
+          {/* LIFETIME — only shown when a lifetime price is actually configured */}
+          {stripeLifetime && (
+            <div className="md:order-3 order-3">
+              <div
+                onMouseEnter={() => onCardEnter('lifetime')}
+                onMouseLeave={onCardLeave}
+                className="bg-[#18181b] border border-[#6c3ff5] rounded-2xl p-6 flex flex-col
+                           transition-all duration-200 hover:shadow-[0_0_40px_rgba(108,63,245,0.12)]"
               >
-                {currentPlan === 'family' ? '✓ Current Plan' : 'Get Family Plan'}
-              </button>
+                <p className="text-[10px] font-black tracking-[0.2em] text-[#6c3ff5] mb-3">LIFETIME</p>
+                <div className="flex items-end gap-1 mb-0.5">
+                  <span className="text-4xl font-black">{life.display}</span>
+                </div>
+                <p className="text-[#52525b] text-xs mb-0.5">{life.label}</p>
+                <p className="text-[#6c3ff5] text-xs font-bold mb-6">Pay once, keep Pro forever</p>
+
+                <div className="flex flex-col flex-1 mb-6">
+                  <Feature label="Everything in Pro, permanently"   checked color="#6c3ff5" />
+                  <Feature label="No renewals, no expiry"           checked color="#6c3ff5" />
+                  <Feature label="All future Pro features included" checked color="#6c3ff5" />
+                  <Feature label="All 8 animated pet companions"    checked color="#6c3ff5" />
+                </div>
+
+                <button
+                  onClick={() => handlePurchase('lifetime')}
+                  disabled={isPro}
+                  className={`w-full py-3.5 rounded-full font-bold text-sm transition-all duration-200 flex items-center justify-center gap-2
+                    ${isPro
+                      ? 'bg-[#6c3ff5]/20 text-[#6c3ff5] cursor-default'
+                      : 'bg-[#6c3ff5] text-white hover:brightness-110 active:scale-95 disabled:opacity-60 cursor-pointer'}`}
+                >
+                  {isPro ? '✓ You already have Pro' : 'Get Lifetime'}
+                </button>
+              </div>
             </div>
-          </div>
+          )}
 
         </div>
 
         {/* ── Pet showcase ─────────────────────────────────────── */}
         <PetShowcase currentPlan={currentPlan} onUpgradeClick={() => handlePurchase('pro')} />
+
+        {/* ── Your plan / billing ──────────────────────────────── */}
+        {isPro && (
+          <div className="mt-10 rounded-2xl border border-[#3f3f46] bg-[#18181b] p-6 text-center">
+            <p className="text-[#4ade80] font-bold mb-1">
+              You're on Pro{source === 'admin_grant' ? ' (gifted)' : ''}
+            </p>
+            <p className="text-[#a1a1aa] text-sm">
+              {isLifetime
+                ? 'Lifetime access — nothing to renew.'
+                : cancelAtPeriodEnd
+                  ? `Access ends ${expiresAt ? new Date(expiresAt).toLocaleDateString() : 'at the end of this period'}.`
+                  : `Renews ${expiresAt ? new Date(expiresAt).toLocaleDateString() : 'automatically'}.`}
+            </p>
+            {hasBillingAccount && <ManageBillingButton className="mt-4" />}
+          </div>
+        )}
 
         {/* ── Student CTA ──────────────────────────────────────── */}
         <p className="text-center mt-8 text-[#a1a1aa] text-sm">
@@ -516,24 +494,12 @@ export default function Upgrade() {
             onClick={() => setStudentOpen(true)}
             className="underline underline-offset-2 hover:text-[#4ade80] transition-colors font-medium"
           >
-            Get Pro completely free →
+            Get 50% off Pro →
           </button>
         </p>
 
         {/* ── Footer links ─────────────────────────────────────── */}
         <div className="flex flex-wrap justify-center gap-5 mt-10 text-[#52525b] text-xs">
-          <button
-            onClick={async () => {
-              try {
-                const { Purchases } = await import('@revenuecat/purchases-js');
-                await (Purchases.getSharedInstance() as any).restorePurchases();
-                toast.success('Purchases restored.');
-              } catch { toast.error('Could not restore purchases.'); }
-            }}
-            className="hover:text-[#a1a1aa] transition-colors"
-          >
-            Restore Purchases
-          </button>
           <a href="/privacy" className="hover:text-[#a1a1aa] transition-colors">Privacy</a>
           <a href="/terms"   className="hover:text-[#a1a1aa] transition-colors">Terms</a>
         </div>
@@ -563,61 +529,39 @@ export default function Upgrade() {
           onClick={e => {
             if (e.target === e.currentTarget) {
               setStudentOpen(false);
-              setStudentSent(false);
-              setStudentEmail('');
-              setStudentError('');
+              setStudentResult(null);
             }
           }}
         >
           <div className="bg-[#18181b] border border-[#3f3f46] rounded-2xl p-8 w-full max-w-md shadow-2xl">
-            {studentSent ? (
-              <div className="text-center py-4">
-                <div className="text-5xl mb-4">📬</div>
-                <p className="text-[#4ade80] font-bold text-lg mb-2">Verification email sent!</p>
-                <p className="text-[#a1a1aa] text-sm">
-                  Check your university inbox — we've sent you a verification link. Once verified, your Pro access activates automatically.
-                </p>
-                <button
-                  onClick={() => { setStudentOpen(false); setStudentSent(false); setStudentEmail(''); }}
-                  className="mt-6 text-[#52525b] text-sm hover:text-white underline"
-                >
-                  Close
-                </button>
-              </div>
-            ) : (
-              <>
-                <h2 className="text-xl font-bold mb-1">Student verification</h2>
-                <p className="text-[#a1a1aa] text-sm mb-6">
-                  Enter your university email and we'll send a verification link. Once verified, Pro is yours — free.
-                </p>
-                <input
-                  type="email"
-                  value={studentEmail}
-                  onChange={e => { setStudentEmail(e.target.value); setStudentError(''); }}
-                  onKeyDown={e => e.key === 'Enter' && handleStudentSubmit()}
-                  placeholder="you@university.ac.uk"
-                  className="w-full bg-[#09090b] border border-[#3f3f46] rounded-xl px-4 py-3 text-white
-                             placeholder-[#52525b] text-sm outline-none focus:border-[#4ade80] transition-colors mb-2"
-                />
-                {studentError && (
-                  <p className="text-red-400 text-xs mb-3">{studentError}</p>
-                )}
-                <button
-                  onClick={handleStudentSubmit}
-                  disabled={!studentEmail.trim() || studentLoading}
-                  className="w-full bg-[#4ade80] text-[#09090b] font-bold py-3 rounded-full mt-1
-                             disabled:opacity-50 hover:brightness-110 transition-all flex items-center justify-center gap-2"
-                >
-                  {studentLoading ? <><Spinner /> Sending…</> : 'Verify my student email'}
-                </button>
-                <button
-                  onClick={() => { setStudentOpen(false); setStudentEmail(''); setStudentError(''); }}
-                  className="w-full mt-3 text-[#52525b] text-sm hover:text-white transition-colors py-1"
-                >
-                  Cancel
-                </button>
-              </>
+            <h2 className="text-xl font-bold mb-1">Student discount</h2>
+            <p className="text-[#a1a1aa] text-sm mb-6">
+              Sign in with your university email address and we'll take 50% off Pro automatically at
+              checkout — no forms, no waiting.
+            </p>
+
+            {studentResult && (
+              <p className={`text-sm mb-4 ${studentResult.eligible ? 'text-[#4ade80]' : 'text-red-400'}`}>
+                {studentResult.eligible
+                  ? `${studentResult.email} qualifies — your 50% discount will be applied at checkout.`
+                  : `${studentResult.email ?? 'This account'} isn't a recognised university address. Create your account with your .ac.uk or .edu email to qualify.`}
+              </p>
             )}
+
+            <button
+              onClick={handleStudentCheck}
+              disabled={studentLoading}
+              className="w-full bg-[#4ade80] text-[#09090b] font-bold py-3 rounded-full mt-1
+                         disabled:opacity-50 hover:brightness-110 transition-all flex items-center justify-center gap-2"
+            >
+              {studentLoading ? <><Spinner /> Checking…</> : 'Check my account'}
+            </button>
+            <button
+              onClick={() => { setStudentOpen(false); setStudentResult(null); }}
+              className="w-full mt-3 text-[#52525b] text-sm hover:text-white transition-colors py-1"
+            >
+              Close
+            </button>
           </div>
         </div>
       )}

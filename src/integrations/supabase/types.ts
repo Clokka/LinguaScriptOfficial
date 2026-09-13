@@ -1951,6 +1951,7 @@ export type Database = {
         Args: { payload: Json; queue_name: string }
         Returns: number
       }
+      expire_lapsed_pro: { Args: never; Returns: number }
       gen_friend_code: { Args: never; Returns: string }
       get_daily_linguascripts: {
         Args: { p_language: string; p_user_id: string }

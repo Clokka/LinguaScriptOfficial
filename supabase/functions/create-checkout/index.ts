@@ -12,6 +12,32 @@ const supabase = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
 );
 
+const STUDENT_COUPON_ID = "student50";
+
+function isAcademicEmail(email: string | undefined | null): boolean {
+  const domain = email?.split("@")[1]?.toLowerCase() ?? "";
+  if (!domain) return false;
+  if (/\.(ac\.uk|edu|edu\.au|edu\.in|ac\.nz|edu\.sg|ac\.th|edu\.hk|ac\.jp)$/.test(domain)) return true;
+  const sub = domain.split(".")[0];
+  return ["uni", "university", "college", "students", "student"].includes(sub);
+}
+
+// 50% student discount, created once per environment and reused after that.
+async function ensureStudentCoupon(stripe: ReturnType<typeof createStripeClient>): Promise<string> {
+  try {
+    const existing = await stripe.coupons.retrieve(STUDENT_COUPON_ID);
+    return existing.id;
+  } catch {
+    const created = await stripe.coupons.create({
+      id: STUDENT_COUPON_ID,
+      percent_off: 50,
+      duration: "forever",
+      name: "Student 50% off",
+    });
+    return created.id;
+  }
+}
+
 async function resolveOrCreateCustomer(
   stripe: ReturnType<typeof createStripeClient>,
   options: { email?: string; userId?: string },
@@ -61,10 +87,14 @@ Deno.serve(async (req) => {
     // verified JWT instead; no valid token means no userId at all, so
     // anonymous email-only checkout still works exactly as before.
     let userId: string | undefined;
+    let verifiedEmail: string | undefined;
     const token = req.headers.get("Authorization")?.replace("Bearer ", "");
     if (token) {
       const { data: { user } } = await supabase.auth.getUser(token);
-      if (user) userId = user.id;
+      if (user) {
+        userId = user.id;
+        verifiedEmail = user.email ?? undefined;
+      }
     }
 
     if (!priceId || !/^[a-zA-Z0-9_-]+$/.test(priceId)) throw new Error("Invalid priceId");
@@ -94,6 +124,11 @@ Deno.serve(async (req) => {
       productDescription = product.name;
     }
 
+    // Student pricing is applied from the account's own verified email —
+    // never from an address typed into the checkout form.
+    const isStudent = isAcademicEmail(verifiedEmail);
+    const studentCoupon = isStudent ? await ensureStudentCoupon(stripe) : null;
+
     const session = await stripe.checkout.sessions.create({
       line_items: [{ price: stripePrice.id, quantity: quantity || 1 }],
       mode: isRecurring ? "subscription" : "payment",
@@ -101,9 +136,15 @@ Deno.serve(async (req) => {
       return_url: returnUrl,
       ...(customerId && { customer: customerId }),
       ...(!isRecurring && { payment_intent_data: { description: productDescription } }),
+      // `discounts` and `allow_promotion_codes` are mutually exclusive.
+      ...(studentCoupon
+        ? { discounts: [{ coupon: studentCoupon }] }
+        : { allow_promotion_codes: true }),
       ...(userId && {
-        metadata: { userId },
-        ...(isRecurring && { subscription_data: { metadata: { userId } } }),
+        metadata: { userId, ...(isStudent ? { student: "true" } : {}) },
+        ...(isRecurring && {
+          subscription_data: { metadata: { userId, ...(isStudent ? { student: "true" } : {}) } },
+        }),
       }),
       managed_payments: { enabled: true },
     } as any);
