@@ -37,7 +37,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { ProgressDashboard } from "@/components/ProgressDashboard";
 import { ActivityCalendarDark } from "@/components/ActivityCalendarDark";
@@ -126,11 +125,13 @@ const Browse = () => {
   const [pasteUrl, setPasteUrl] = useState("");
   const [creating, setCreating] = useState(false);
 
-  // Settings state
+  // Settings state — this tab is deliberately just the quick language
+  // switcher the onboarding tour points new users at (see tourSteps.ts
+  // "browse-settings"/"settings-native"/"settings-learning"). Everything
+  // else about the account (photo, hobbies, per-language level, privacy,
+  // pet) lives on the full Profile page so there's one place for each.
   const [nativeLanguage, setNativeLanguage] = useState("en");
   const [settingsLearning, setSettingsLearning] = useState(learningLanguage);
-  const [displayName, setDisplayName] = useState("");
-  const [isPublic, setIsPublic] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
   const [interests, setInterests] = useState<string[]>([]);
 
@@ -188,8 +189,6 @@ const Browse = () => {
     if (data) {
       setNativeLanguage(data.native_language || "en");
       setSettingsLearning(data.learning_language || "");
-      setDisplayName(data.display_name || "");
-      setIsPublic(!!(data as any).is_public);
       setInterests(Array.isArray((data as any).interests) ? (data as any).interests : []);
     }
   }, [user]);
@@ -438,8 +437,6 @@ const Browse = () => {
     await supabase.from("profiles").update({
       native_language: nativeLanguage,
       ...(settingsLearning ? { learning_language: settingsLearning } : {}),
-      display_name: displayName,
-      is_public: isPublic,
     } as any).eq("user_id", user.id);
     if (settingsLearning) setLearningLanguage(settingsLearning);
     toast({ title: "Settings saved!" });
@@ -628,10 +625,6 @@ const Browse = () => {
                   setTimeout(() => tour.advance(), 350);
                 }
               }}
-              displayName={displayName}
-              setDisplayName={setDisplayName}
-              isPublic={isPublic}
-              setIsPublic={setIsPublic}
               saving={savingSettings}
               onSave={saveSettings}
               user={user}
@@ -1239,18 +1232,12 @@ const CalendarTab = ({
 const SettingsTab = ({
   nativeLanguage, setNativeLanguage,
   learningLanguage, setLearningLanguage,
-  displayName, setDisplayName,
-  isPublic, setIsPublic,
   saving, onSave, user, authLoading, navigate,
 }: {
   nativeLanguage: string;
   setNativeLanguage: (v: string) => void;
   learningLanguage: string;
   setLearningLanguage: (v: string) => void;
-  displayName: string;
-  setDisplayName: (v: string) => void;
-  isPublic: boolean;
-  setIsPublic: (v: boolean) => void;
   saving: boolean;
   onSave: () => void;
   user: any;
@@ -1294,20 +1281,22 @@ const SettingsTab = ({
     <div className="space-y-8 max-w-2xl">
       <div>
         <h2 className="text-3xl font-semibold tracking-tight text-foreground mb-1">Settings</h2>
-        <p className="text-muted-foreground">A friendly little control panel for your learning.</p>
+        <p className="text-muted-foreground">Quick language switcher — powers translations and pronunciation voices.</p>
       </div>
 
-      {/* Profile */}
-      <SettingsSection title="Profile" subtitle="How you appear to others.">
-        <div>
-          <label className="text-sm font-medium text-foreground mb-2 block">Display name</label>
-          <Input
-            value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
-            className="rounded-xl border-orange-100 focus-visible:ring-orange-300"
-          />
-        </div>
-      </SettingsSection>
+      {/* Everything else about the account (photo, hobbies, per-language
+          level, privacy, pet) lives on the full Profile page — one place
+          for each, instead of two settings screens doing overlapping things. */}
+      <button
+        type="button"
+        onClick={() => navigate("/profile")}
+        className="w-full text-left rounded-2xl border border-orange-100 bg-orange-50/50 p-4 flex items-center justify-between gap-3 hover:bg-orange-50 transition-colors"
+      >
+        <span className="text-sm text-neutral-700">
+          Looking for your photo, hobbies, CEFR level or privacy settings? Those live on your full <span className="font-semibold">Profile</span>.
+        </span>
+        <span className="text-orange-600 text-sm font-medium shrink-0">Go to Profile →</span>
+      </button>
 
       {/* Languages */}
       <SettingsSection title="Languages" subtitle="Powers translations and pronunciation voices.">
@@ -1333,24 +1322,6 @@ const SettingsTab = ({
         </div>
       </SettingsSection>
 
-      {/* Privacy */}
-      <SettingsSection title="Privacy" subtitle="Control who can see your progress.">
-        <ToggleRow
-          title="Public account"
-          subtitle="Allow others to view your profile and stats."
-          checked={isPublic}
-          onChange={setIsPublic}
-        />
-        <ToggleRow
-          title="Leaderboard"
-          subtitle="Coming soon — climb the ranks against friends."
-          checked={false}
-          onChange={() => {}}
-          disabled
-          badge="Soon"
-        />
-      </SettingsSection>
-
       <Button
         onClick={onSave}
         disabled={saving}
@@ -1370,24 +1341,6 @@ const SettingsSection = ({ title, subtitle, children }: { title: string; subtitl
       {subtitle && <p className="text-sm text-muted-foreground mt-0.5">{subtitle}</p>}
     </div>
     {children}
-  </div>
-);
-
-const ToggleRow = ({
-  title, subtitle, checked, onChange, disabled, badge,
-}: {
-  title: string; subtitle?: string; checked: boolean; onChange: (v: boolean) => void;
-  disabled?: boolean; badge?: string;
-}) => (
-  <div className={cn("flex items-center justify-between gap-4 py-2", disabled && "opacity-70")}>
-    <div>
-      <div className="flex items-center gap-2">
-        <p className="text-sm font-medium text-foreground">{title}</p>
-        {badge && <span className="text-[10px] font-semibold uppercase tracking-wider text-orange-600 bg-orange-50 border border-orange-200/70 rounded-full px-2 py-0.5">{badge}</span>}
-      </div>
-      {subtitle && <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>}
-    </div>
-    <Switch checked={checked} onCheckedChange={onChange} disabled={disabled} />
   </div>
 );
 

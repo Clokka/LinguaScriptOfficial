@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { LANGUAGES, getLanguageLabel } from "@/lib/languages";
 import {
   startYouTubeConnect,
@@ -30,6 +31,7 @@ import { PetGallery } from "@/components/pets/PetGallery";
 import { usePet } from "@/contexts/PetContext";
 import { getPetById } from "@/lib/pets";
 import { PetViewer } from "@/components/pets/PetViewer";
+import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 
 const Profile = () => {
@@ -42,6 +44,7 @@ const Profile = () => {
   const [nativeLanguage, setNativeLanguage] = useState("en");
   const [learningLanguage, setLearningLanguage] = useState("");
   const [school, setSchool] = useState("");
+  const [isPublic, setIsPublic] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [loadingProfile, setLoadingProfile] = useState(true);
@@ -50,6 +53,14 @@ const Profile = () => {
   const { activePet, petCollection } = usePet();
   const activePetMeta = activePet ? getPetById(activePet) : null;
   const [interests, setInterests] = useState<string[]>([]);
+  // The active learning language can change from the "Switch" button inside
+  // MyLanguagesPanel below (a context write), not just this page's own
+  // fetch-on-mount — without this sync, clicking Save Changes afterward
+  // would write the STALE pre-switch language straight back over it.
+  const { learningLanguage: activeLearningLanguage } = useLanguage();
+  useEffect(() => {
+    if (activeLearningLanguage) setLearningLanguage(activeLearningLanguage);
+  }, [activeLearningLanguage]);
   const [ytStatus, setYtStatus] = useState<YouTubeConnectionStatus>({ connected: false, connectedAt: null, channelCount: 0 });
   const [ytConnecting, setYtConnecting] = useState(false);
   const [ytSubscribing, setYtSubscribing] = useState(false);
@@ -94,6 +105,7 @@ const Profile = () => {
       setLearningLanguage(data.learning_language ?? "");
       setSchool((data as any).school ?? "");
       setInterests(Array.isArray((data as any).interests) ? (data as any).interests : []);
+      setIsPublic(!!(data as any).is_public);
     }
     setLoadingProfile(false);
   };
@@ -221,6 +233,7 @@ const Profile = () => {
         ...(learningLanguage ? { learning_language: learningLanguage } : {}),
         school: school.trim() || null,
         interests,
+        is_public: isPublic,
       } as any)
       .eq("user_id", user.id);
 
@@ -346,6 +359,18 @@ const Profile = () => {
             <p className="mt-2 text-xs text-muted-foreground">
               {interests.length === 0 ? "Pick at least one." : `${interests.length} selected — saved with the button below.`}
             </p>
+          </div>
+
+          {/* Privacy */}
+          <div className="pt-4 border-t border-border/50">
+            <p className="text-sm font-medium text-foreground mb-3">Privacy</p>
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium text-foreground">Public account</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Allow others to view your profile and stats.</p>
+              </div>
+              <Switch checked={isPublic} onCheckedChange={setIsPublic} />
+            </div>
           </div>
 
           {/* School */}
