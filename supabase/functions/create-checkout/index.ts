@@ -87,10 +87,14 @@ Deno.serve(async (req) => {
     // verified JWT instead; no valid token means no userId at all, so
     // anonymous email-only checkout still works exactly as before.
     let userId: string | undefined;
+    let verifiedEmail: string | undefined;
     const token = req.headers.get("Authorization")?.replace("Bearer ", "");
     if (token) {
       const { data: { user } } = await supabase.auth.getUser(token);
-      if (user) userId = user.id;
+      if (user) {
+        userId = user.id;
+        verifiedEmail = user.email ?? undefined;
+      }
     }
 
     if (!priceId || !/^[a-zA-Z0-9_-]+$/.test(priceId)) throw new Error("Invalid priceId");
