@@ -146,20 +146,17 @@ export default function Upgrade() {
   const idleTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const isHovering = useRef(false);
 
+  const { isPro, source, expiresAt, cancelAtPeriodEnd, hasBillingAccount, isLifetime } = useSubscription();
+
   const [isAnnual, setIsAnnual]           = useState(true);
   const [hoveredCard, setHoveredCard]     = useState<HoveredCard>(null);
-  const [currentPlan, setCurrentPlan]     = useState<CurrentPlan>('free');
   const [studentOpen, setStudentOpen]     = useState(false);
-  const [studentEmail, setStudentEmail]   = useState('');
-  const [studentError, setStudentError]   = useState('');
-  const [studentSent, setStudentSent]     = useState(false);
+  const [studentResult, setStudentResult] = useState<{ eligible: boolean; email?: string } | null>(null);
   const [studentLoading, setStudentLoading] = useState(false);
 
-  // ── Real Stripe plans (same source /pricing reads from) ──────
-  // The RevenueCat purchase() call below never actually charged anyone — no
-  // VITE_RC_PUBLIC_KEY is configured, so it always threw and was swallowed.
-  // Clicking Pro/Family now opens the same Stripe embedded checkout /pricing
-  // uses, backed by the payment_plans table's real price IDs.
+  const currentPlan: CurrentPlan = isPro ? 'pro' : 'free';
+
+  // ── Real plans (same source /pricing reads from) ─────────────
   const [stripePlans, setStripePlans]     = useState<Array<{ key: StripePlanKey } & StripeFallbackPlan>>([]);
   const [checkoutPriceId, setCheckoutPriceId] = useState<string | null>(null);
 
@@ -171,6 +168,7 @@ export default function Upgrade() {
 
   const stripeMonthly = stripePlans.find((p) => p.key === 'monthly');
   const stripeYearly = stripePlans.find((p) => p.key === 'yearly');
+  const stripeLifetime = stripePlans.find((p) => p.key === 'lifetime');
 
   // ── Animation helpers ────────────────────────────────────────
   // model-viewer upgrades to a real custom element asynchronously (it loads
