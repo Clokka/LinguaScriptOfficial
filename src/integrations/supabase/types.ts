@@ -1086,20 +1086,20 @@ export type Database = {
           ease_factor: number
           film_id: string | null
           gold_seen_count: number
+          grammar_note: string | null
           green_revealed_at: string | null
           id: string
           image_attribution: string | null
           image_url: string | null
           interval_days: number
           ipa: string
+          is_inflected: boolean | null
           is_phrase: boolean
-          is_inflected: boolean
-          grammar_note: string | null
           language: string
-          lemma: string | null
-          lemma_translation: string | null
           last_correct_at: string | null
           last_reviewed_at: string | null
+          lemma: string | null
+          lemma_translation: string | null
           next_review: string
           next_review_at: string | null
           pos: string | null
@@ -1121,20 +1121,20 @@ export type Database = {
           ease_factor?: number
           film_id?: string | null
           gold_seen_count?: number
+          grammar_note?: string | null
           green_revealed_at?: string | null
           id?: string
           image_attribution?: string | null
           image_url?: string | null
           interval_days?: number
           ipa?: string
+          is_inflected?: boolean | null
           is_phrase?: boolean
-          is_inflected?: boolean
-          grammar_note?: string | null
           language?: string
-          lemma?: string | null
-          lemma_translation?: string | null
           last_correct_at?: string | null
           last_reviewed_at?: string | null
+          lemma?: string | null
+          lemma_translation?: string | null
           next_review?: string
           next_review_at?: string | null
           pos?: string | null
@@ -1156,20 +1156,20 @@ export type Database = {
           ease_factor?: number
           film_id?: string | null
           gold_seen_count?: number
+          grammar_note?: string | null
           green_revealed_at?: string | null
           id?: string
           image_attribution?: string | null
           image_url?: string | null
           interval_days?: number
           ipa?: string
+          is_inflected?: boolean | null
           is_phrase?: boolean
-          is_inflected?: boolean
-          grammar_note?: string | null
           language?: string
-          lemma?: string | null
-          lemma_translation?: string | null
           last_correct_at?: string | null
           last_reviewed_at?: string | null
+          lemma?: string | null
+          lemma_translation?: string | null
           next_review?: string
           next_review_at?: string | null
           pos?: string | null
