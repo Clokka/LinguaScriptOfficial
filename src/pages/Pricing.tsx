@@ -195,20 +195,25 @@ export default function Pricing() {
       </div>
 
       <Dialog open={!!stripePriceId} onOpenChange={(o) => { if (!o) setStripePriceId(null); }}>
-        <DialogContent className="max-w-2xl border-white/10 bg-[#0f1714] text-white">
-          <DialogHeader>
+        <DialogContent className="h-[100dvh] max-h-[100dvh] max-w-none grid-rows-[auto_minmax(0,1fr)] gap-0 overflow-hidden rounded-none border-x-0 border-white/10 bg-[#0f1714] p-0 text-white sm:h-auto sm:max-h-[calc(100dvh-2rem)] sm:max-w-2xl sm:rounded-lg sm:border sm:p-0">
+          <DialogHeader className="relative z-10 border-b border-white/10 bg-[#0f1714] px-5 py-4 pr-12 sm:px-6">
             <DialogTitle className="flex items-center gap-2 text-white">
               <BrandMark variant="pin" size={22} />
               Complete your purchase
             </DialogTitle>
           </DialogHeader>
-          {stripePriceId && (
-            <StripeEmbeddedCheckout
-              priceId={stripePriceId}
-              customerEmail={user?.email ?? undefined}
-              userId={user?.id}
-            />
-          )}
+          <div
+            className="min-h-0 overflow-y-auto overscroll-contain px-2 pb-[calc(env(safe-area-inset-bottom,0px)+1rem)] pt-2 sm:px-4"
+            style={{ WebkitOverflowScrolling: 'touch' }}
+          >
+            {stripePriceId && (
+              <StripeEmbeddedCheckout
+                priceId={stripePriceId}
+                customerEmail={user?.email ?? undefined}
+                userId={user?.id}
+              />
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>
