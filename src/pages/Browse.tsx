@@ -53,6 +53,7 @@ import { LinguaScriptsCompleteCard } from "@/components/LinguaScriptsCompleteCar
 import { FlashcardsDueAlert } from "@/components/FlashcardsDueAlert";
 import { LinguaScriptSessionFlow } from "@/components/LinguaScriptSessionFlow";
 import { LevelBadge } from "@/components/LevelBadge";
+import { passesContentLengthPolicy } from "@/lib/contentLengthPolicy";
 import { BrandMark } from "@/components/BrandMark";
 import { DailyGoalTally } from "@/components/DailyGoalTally";
 import { useDailyWordGoal } from "@/hooks/useDailyWordGoal";
@@ -199,7 +200,7 @@ const Browse = () => {
     fetchProfile();
     // Public films only (RLS now also enforces this)
     supabase.from("films").select("*").eq("is_public", true).order("created_at", { ascending: false }).then(({ data }) => {
-      setDiscoverFilms(data || []);
+      setDiscoverFilms((data || []).filter(passesContentLengthPolicy));
     });
     // Curated catalog rows with their pinned films — filter to user's learning language (or global rows where language IS NULL)
     (async () => {
@@ -218,7 +219,7 @@ const Browse = () => {
             .order("sort_order");
           const films = (pins || [])
             .map((p: any) => p.films)
-            .filter((f: any) => f && f.is_public);
+            .filter((f: any) => f && f.is_public && passesContentLengthPolicy(f));
           return { id: row.id, title: row.title, films };
         })
       );

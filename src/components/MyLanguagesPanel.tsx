@@ -111,6 +111,17 @@ export const MyLanguagesPanel = ({ nativeLanguage }: { nativeLanguage?: string }
     await updateLanguageProfile(user.id, language, { mode });
   };
 
+  // Manual level override — e.g. a learner who placed themselves too low/high
+  // at onboarding. Just updates cefr_level; recommendation search (see
+  // cefrSearchModifier) and the Discover CEFR filter both read this field
+  // fresh on next load, so the feed adapts immediately without a reseed.
+  const handleLevel = async (language: string, cefr_level: string) => {
+    if (!user) return;
+    setProfiles((prev) => prev.map((p) => (p.language === language ? { ...p, cefr_level } : p)));
+    await updateLanguageProfile(user.id, language, { cefr_level });
+    toast({ title: `Level updated to ${cefr_level.toUpperCase()}`, description: "Your recommended videos will adjust to match." });
+  };
+
   return (
     <div className="pt-4 border-t border-border/50">
       <div className="flex items-center justify-between mb-3">
@@ -150,8 +161,7 @@ export const MyLanguagesPanel = ({ nativeLanguage }: { nativeLanguage?: string }
                       )}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {MODE_META[p.mode]?.emoji} {MODE_META[p.mode]?.label} ·{" "}
-                      {p.cefr_level.toUpperCase()}
+                      {MODE_META[p.mode]?.emoji} {MODE_META[p.mode]?.label}
                     </p>
                   </div>
                   {!active && (
@@ -190,6 +200,20 @@ export const MyLanguagesPanel = ({ nativeLanguage }: { nativeLanguage?: string }
                       {MODE_META[m].emoji} {MODE_META[m].label}
                     </button>
                   ))}
+                </div>
+
+                <div className="mt-2 flex items-center gap-2">
+                  <span className="text-[11px] text-muted-foreground shrink-0">Level</span>
+                  <Select value={p.cefr_level} onValueChange={(v) => handleLevel(p.language, v)}>
+                    <SelectTrigger className="h-8 text-xs bg-secondary/40 border-border/50">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CEFR_LEVELS.map((l) => (
+                        <SelectItem key={l} value={l}>{l.toUpperCase()}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             );

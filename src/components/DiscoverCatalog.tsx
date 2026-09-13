@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { getLanguageLabel, getLanguageFlag, LANGUAGES } from "@/lib/languages";
 import { computeVideoComprehension } from "@/lib/videoComprehension";
+import { passesContentLengthPolicy } from "@/lib/contentLengthPolicy";
 import { cn } from "@/lib/utils";
 
 export interface DiscoverFilm {
@@ -95,6 +96,7 @@ export function DiscoverCatalog({ defaultLanguage }: { defaultLanguage: string }
     if (!films) return [];
     const q = query.trim().toLowerCase();
     return films.filter((f) => {
+      if (!passesContentLengthPolicy(f)) return false;
       if (langFilter !== "__all__" && (f.language || "") !== langFilter) return false;
       if (cefrFilter !== "__all__" && (f.cefr_level || "").toUpperCase() !== cefrFilter) return false;
       if (catFilter !== "__all__" && (f.category || "") !== catFilter) return false;

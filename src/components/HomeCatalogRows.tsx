@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { ContentCard, type ContentCardFilm } from "@/components/ContentCard";
 import { estimateFilms, type FilmEstimate } from "@/lib/contentEstimate";
+import { passesContentLengthPolicy } from "@/lib/contentLengthPolicy";
 
 interface Row {
   id: string;
@@ -39,7 +40,7 @@ export function HomeCatalogRows() {
             .order("sort_order");
           const films = (pins || [])
             .map((p: any) => p.films)
-            .filter((f: any) => f && f.is_public && (!f.language || f.language === learningLanguage));
+            .filter((f: any) => f && f.is_public && (!f.language || f.language === learningLanguage) && passesContentLengthPolicy(f));
           return { id: r.id, title: r.title, films } as Row;
         }),
       );
