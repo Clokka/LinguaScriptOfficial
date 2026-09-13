@@ -2,6 +2,12 @@ import { useRef, useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useAuth } from '@/hooks/useAuth';
+import { useSubscription } from '@/hooks/useSubscription';
+import { getEnabledFallbackPlans, type StripeFallbackPlan, type StripePlanKey } from '@/lib/stripeFallback';
+import { StripeEmbeddedCheckout } from '@/components/StripeEmbeddedCheckout';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { getPetById, PETS as PET_CATALOG, unlockLabel } from '@/lib/pets';
 
 // model-viewer types are declared globally elsewhere in the project.
 
@@ -11,17 +17,14 @@ type ModelViewerEl = HTMLElement & {
   pause: () => void;
 };
 
-// ── Plan config ──────────────────────────────────────────────────
-const PLANS = {
-  pro: {
-    annual:  { display: '£3.25', label: 'billed annually · save 35%', total: '£39/yr', rcId: 'pro_annual'  },
-    monthly: { display: '£4.99', label: 'per month',                   total: '£4.99/mo', rcId: 'pro_monthly' },
-  },
-  family: {
-    annual:  { display: '£6.58', label: 'billed annually · save 35%', total: '£79/yr', rcId: 'family_annual'  },
-    monthly: { display: '£9.99', label: 'per month',                   total: '£9.99/mo', rcId: 'family_monthly' },
-  },
-} as const;
+type CurrentPlan = 'free' | 'pro';
+type HoveredCard = 'free' | 'pro' | null;
+
+// The real chameleon pet — src/lib/pets.ts is the single catalog every other
+// pet surface in the app reads from (GapFillChallenge, ChameleonColorDemo,
+// the landing pages). This page used to hardcode Sparrow as the hero pet
+// instead, which is why it never matched the mascot everywhere else.
+const CHAMELEON = getPetById('chameleon')!;
 
 // ── Student email check ──────────────────────────────────────────
 function isStudentEmail(email: string): boolean {
@@ -33,97 +36,67 @@ function isStudentEmail(email: string): boolean {
   return ['uni', 'university', 'college', 'students', 'student'].includes(sub);
 }
 
-type CurrentPlan = 'free' | 'pro' | 'family';
-type HoveredCard = 'free' | 'pro' | 'family' | null;
+/**
+ * The companion pets, shown below the plans as a preview of what's earnable —
+ * not a purchase incentive. src/lib/pets.ts unlocks every one of these by
+ * gems, streak length, videos watched, or an achievement; none of them are
+ * gated by a subscription. This page used to claim otherwise ("8 living pets,
+ * all yours with Pro", greyed out and padlocked for free users), which
+ * directly contradicted the real unlock system — a learner who paid for Pro
+ * still had to earn Muskrat with a 7-day streak like everyone else.
+ *
+ * The chameleon itself is excluded here since it's already the hero pet above
+ * (also free, per pets.ts — it was never a paid unlock either).
+ */
+const SHOWCASE_PETS = PET_CATALOG.filter((p) => p.id !== 'chameleon');
 
-// ── All 8 pets ───────────────────────────────────────────────────
-const PETS = [
-  { name: 'Sparrow',  file: 'Sparrow_Animations.glb',  anim: 'Idle_A' },
-  { name: 'Gecko',    file: 'Gecko_Animations.glb',    anim: 'Idle_B' },
-  { name: 'Colobus',  file: 'Colobus_Animations.glb',  anim: 'Idle_C' },
-  { name: 'Inkfish',  file: 'Inkfish_Animations.glb',  anim: 'Bounce' },
-  { name: 'Pudu',     file: 'Pudu_Animations.glb',     anim: 'Sit'    },
-  { name: 'Muskrat',  file: 'Muskrat_Animations.glb',  anim: 'Idle_A' },
-  { name: 'Herring',  file: 'Herring_Animations.glb',  anim: 'Idle_B' },
-  { name: 'Taipan',   file: 'Taipan_Animations.glb',   anim: 'Idle_C' },
-] as const;
-
-function PetShowcase({ currentPlan, onUpgradeClick }: {
-  currentPlan: CurrentPlan;
-  onUpgradeClick: () => void;
-}) {
-  const isPro = currentPlan === 'pro' || currentPlan === 'family';
+function PetShowcase() {
   return (
     <div className="mt-14 mb-2">
-      {/* Section heading */}
       <div className="text-center mb-8">
-        <p className="text-[10px] font-black tracking-[0.2em] text-[#4ade80] mb-2">PRO COMPANIONS</p>
+        <p className="text-[10px] font-black tracking-[0.2em] text-[#4ade80] mb-2">COMPANIONS</p>
         <h2 className="text-2xl md:text-3xl font-black text-white mb-2">
-          8 living pets, all yours with Pro
+          More pets to earn as you learn
         </h2>
         <p className="text-[#a1a1aa] text-sm max-w-md mx-auto">
-          Each one animates, reacts to your progress, and greets you every time you log in.
-          Free plan includes Sparrow only.
+          Every companion below is unlocked by playing, not by paying — gems, streaks,
+          watched videos, and achievements. Your chameleon is free from day one.
         </p>
       </div>
 
-      {/* Pet grid */}
+      {/* Static poses: no autoplay, no animation-name — these are a preview
+          grid, not eight looping idle clips fighting for attention at once.
+          The hero pet above is where the personality lives. */}
       <div className="grid grid-cols-4 md:grid-cols-8 gap-3 md:gap-2 max-w-4xl mx-auto px-2">
-        {PETS.map((pet, i) => {
-          const locked = !isPro && i > 0;
-          return (
-            <div key={pet.name} className="flex flex-col items-center gap-1 group">
-              <div
-                className={`relative rounded-2xl overflow-hidden transition-all duration-200
-                  ${locked
-                    ? 'opacity-40 grayscale'
-                    : 'opacity-100 hover:scale-105'}`}
+        {SHOWCASE_PETS.map((pet) => (
+          <div key={pet.id} className="flex flex-col items-center gap-1 group">
+            <div
+              className="relative rounded-2xl overflow-hidden transition-all duration-200 opacity-100 hover:scale-105"
+              style={{
+                background: 'radial-gradient(circle at 50% 60%, rgba(74,222,128,0.08), transparent 70%)',
+                border: '1px solid rgba(74,222,128,0.2)',
+              }}
+            >
+              <model-viewer
+                src={pet.glbFile}
+                environment-image="neutral"
+                shadow-intensity="0"
                 style={{
-                  background: locked ? '#18181b' : 'radial-gradient(circle at 50% 60%, rgba(74,222,128,0.08), transparent 70%)',
-                  border: locked ? '1px solid #27272a' : '1px solid rgba(74,222,128,0.2)',
-                }}
-              >
-                <model-viewer
-                  src={`/pets/${pet.file}`}
-                  animation-name={pet.anim}
-                  autoplay
-                  environment-image="neutral"
-                  shadow-intensity="0"
-                  style={{
-                    width: '100%',
-                    aspectRatio: '1/1',
-                    background: 'transparent',
-                    display: 'block',
-                    minWidth: '72px',
-                  } as React.CSSProperties}
-                />
-                {locked && (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-xl">🔒</span>
-                  </div>
-                )}
-              </div>
-              <span className={`text-[10px] font-semibold tracking-wide
-                ${locked ? 'text-[#3f3f46]' : 'text-[#a1a1aa] group-hover:text-white'} transition-colors`}>
-                {pet.name}
-              </span>
+                  width: '100%',
+                  aspectRatio: '1/1',
+                  background: 'transparent',
+                  display: 'block',
+                  minWidth: '72px',
+                } as React.CSSProperties}
+              />
             </div>
-          );
-        })}
+            <span className="text-[10px] font-semibold tracking-wide text-[#a1a1aa] group-hover:text-white transition-colors">
+              {pet.name}
+            </span>
+            <span className="text-[9px] text-[#52525b]">{unlockLabel(pet.unlock)}</span>
+          </div>
+        ))}
       </div>
-
-      {/* Unlock CTA — only shown to free users */}
-      {!isPro && (
-        <div className="text-center mt-8">
-          <button
-            onClick={onUpgradeClick}
-            className="inline-flex items-center gap-2 bg-[#4ade80] text-[#09090b] font-bold
-                       px-7 py-3 rounded-full hover:brightness-110 active:scale-95 transition-all text-sm"
-          >
-            Unlock all 8 pets with Pro →
-          </button>
-        </div>
-      )}
     </div>
   );
 }
@@ -152,24 +125,53 @@ function Spinner({ color = '#09090b' }: { color?: string }) {
 // ── Main page ────────────────────────────────────────────────────
 export default function Upgrade() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { isPro } = useSubscription();
   const mvRef = useRef<ModelViewerEl | null>(null);
   const idleTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const isHovering = useRef(false);
 
   const [isAnnual, setIsAnnual]           = useState(true);
   const [hoveredCard, setHoveredCard]     = useState<HoveredCard>(null);
-  const [loadingPlan, setLoadingPlan]     = useState<'pro' | 'family' | null>(null);
-  const [currentPlan, setCurrentPlan]     = useState<CurrentPlan>('free');
+  const [plans, setPlans]                 = useState<Array<{ key: StripePlanKey } & StripeFallbackPlan>>([]);
+  const [loadingPlans, setLoadingPlans]   = useState(true);
+  const [checkoutPriceId, setCheckoutPriceId] = useState<string | null>(null);
   const [studentOpen, setStudentOpen]     = useState(false);
   const [studentEmail, setStudentEmail]   = useState('');
   const [studentError, setStudentError]   = useState('');
   const [studentSent, setStudentSent]     = useState(false);
   const [studentLoading, setStudentLoading] = useState(false);
 
+  const currentPlan: CurrentPlan = isPro ? 'pro' : 'free';
+
+  useEffect(() => {
+    let alive = true;
+    getEnabledFallbackPlans().then((p) => { if (alive) { setPlans(p); setLoadingPlans(false); } });
+    return () => { alive = false; };
+  }, []);
+
+  const monthly = plans.find((p) => p.key === 'monthly');
+  const yearly = plans.find((p) => p.key === 'yearly');
+  const activePlan = isAnnual ? yearly : monthly;
+
+  // Real savings, not an asserted number — only shown when both plans are
+  // actually configured, so this can't claim a discount that isn't real.
+  const yearlySavingsPct = (() => {
+    if (!monthly || !yearly) return null;
+    const m = parseFloat(monthly.priceDisplay.replace(/[^0-9.]/g, ''));
+    const y = parseFloat(yearly.priceDisplay.replace(/[^0-9.]/g, ''));
+    if (!m || !y) return null;
+    const pct = Math.round((1 - y / (m * 12)) * 100);
+    return pct > 0 ? pct : null;
+  })();
+
   // ── Animation helpers ────────────────────────────────────────
+  // model-viewer upgrades to a real custom element asynchronously (it loads
+  // from a CDN script) — .play only exists once that's done. Calling it
+  // before then throws, so guard the same way PetViewer.tsx does.
   const playAnim = useCallback((name: string, repetitions = 1) => {
     const mv = mvRef.current;
-    if (!mv) return;
+    if (!mv || typeof mv.play !== 'function') return;
     mv.animationName = name;
     mv.play({ repetitions });
   }, []);
@@ -185,27 +187,7 @@ export default function Upgrade() {
     }, 6000);
   }, [playAnim]);
 
-  // ── Init RevenueCat + idle ───────────────────────────────────
   useEffect(() => {
-    const init = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
-        const { Purchases } = await import('@revenuecat/purchases-js');
-        const rcKey = (import.meta as any).env?.VITE_RC_PUBLIC_KEY;
-        if (rcKey) {
-          Purchases.configure({ apiKey: rcKey, appUserId: user.id });
-          const info = await Purchases.getSharedInstance().getCustomerInfo();
-          const active = info.entitlements.active;
-          if (active['family_pro']) setCurrentPlan('family');
-          else if (active['student_pro'] || active['pro']) setCurrentPlan('pro');
-        }
-      } catch {
-        // RC not yet installed — page renders without purchase logic
-      }
-    };
-    init();
-
     const t = setTimeout(startIdle, 1000);
     return () => {
       clearTimeout(t);
@@ -217,7 +199,7 @@ export default function Upgrade() {
   const onCardEnter = (card: HoveredCard) => {
     isHovering.current = true;
     setHoveredCard(card);
-    const map: Record<string, string> = { free: 'Sit', pro: 'Bounce', family: 'Spin' };
+    const map: Record<string, string> = { free: 'Sit', pro: 'Bounce' };
     if (card) playAnim(map[card], Infinity);
   };
 
@@ -227,42 +209,17 @@ export default function Upgrade() {
     startIdle();
   };
 
-  // ── Purchase ─────────────────────────────────────────────────
-  const handlePurchase = async (plan: 'pro' | 'family') => {
-    setLoadingPlan(plan);
+  // ── Purchase — real Stripe checkout, same flow as /pricing ───
+  const handlePurchase = () => {
+    if (!user) { navigate('/auth?next=/upgrade'); return; }
+    if (!activePlan) return;
     playAnim('Jump', 1);
-    try {
-      const { Purchases } = await import('@revenuecat/purchases-js');
-      const offerings = await Purchases.getSharedInstance().getOfferings();
-      const rcId = PLANS[plan][isAnnual ? 'annual' : 'monthly'].rcId;
-      const pkg = offerings.current?.availablePackages.find(p => p.identifier === rcId);
-      if (!pkg) throw new Error('Package not found');
+    setCheckoutPriceId(activePlan.priceId);
+  };
 
-      await Purchases.getSharedInstance().purchase({ rcPackage: pkg });
-      setCurrentPlan(plan);
-
-      // celebrate
-      playAnim('Spin', 1);
-      setTimeout(() => playAnim('Jump', 1), 1500);
-      try {
-        const confetti = (await import('canvas-confetti')).default;
-        confetti({ particleCount: 160, spread: 80, origin: { y: 0.4 },
-          colors: ['#4ade80', '#6c3ff5', '#ffffff'] });
-      } catch { /* canvas-confetti not installed */ }
-
-      const { data: { user } } = await supabase.auth.getUser();
-      const name = user?.email?.split('@')[0] ?? 'there';
-      toast.success(`Welcome to ${plan === 'pro' ? 'Pro' : 'Family'}, ${name}! 🎉`);
-      setTimeout(() => navigate('/discover'), 3000);
-    } catch (err: any) {
-      const msg = String(err?.message ?? '').toLowerCase();
-      if (!msg.includes('cancel') && !msg.includes('cancelled')) {
-        toast.error('Something went wrong. Please try again.');
-      }
-      startIdle();
-    } finally {
-      setLoadingPlan(null);
-    }
+  const onCheckoutClose = (open: boolean) => {
+    if (open) return;
+    setCheckoutPriceId(null);
   };
 
   // ── Student modal submit ─────────────────────────────────────
@@ -282,9 +239,6 @@ export default function Upgrade() {
       setStudentLoading(false);
     }
   };
-
-  const pro = PLANS.pro[isAnnual ? 'annual' : 'monthly'];
-  const fam = PLANS.family[isAnnual ? 'annual' : 'monthly'];
 
   // ── Render ───────────────────────────────────────────────────
   return (
@@ -311,9 +265,9 @@ export default function Upgrade() {
           <span className="text-white">Lingua</span>
           <span className="text-[#4ade80]">Script</span>
         </div>
-        <p className="text-[#a1a1aa] text-base z-10 mb-2">Unlock everything. Bring your pet to life.</p>
+        <p className="text-[#a1a1aa] text-base z-10 mb-2">Unlock everything. Bring your chameleon to life.</p>
 
-        {/* Pet */}
+        {/* Pet — the chameleon, the actual mascot, not Sparrow */}
         <div
           className="ls-float z-10 cursor-pointer select-none"
           style={{ filter: 'drop-shadow(0 20px 40px rgba(74,222,128,0.15))' }}
@@ -322,7 +276,7 @@ export default function Upgrade() {
         >
           <model-viewer
             ref={(el: HTMLElement | null) => { mvRef.current = el as ModelViewerEl | null; }}
-            src="/pets/Sparrow_Animations.glb"
+            src={CHAMELEON.glbFile}
             animation-name="Idle_A"
             autoplay
             environment-image="neutral"
@@ -337,9 +291,8 @@ export default function Upgrade() {
 
         {hoveredCard && (
           <p className="text-[#52525b] text-xs mt-1 z-10 transition-opacity">
-            {hoveredCard === 'free' && 'My Sparrow can sit and wait…'}
-            {hoveredCard === 'pro'  && 'Bounce! All 8 pets unlocked with Pro!'}
-            {hoveredCard === 'family' && 'Every family member gets their own pet!'}
+            {hoveredCard === 'free' && 'My chameleon can sit and wait…'}
+            {hoveredCard === 'pro'  && 'Bounce! Unlimited saves and reviews with Pro!'}
           </p>
         )}
       </section>
@@ -357,70 +310,20 @@ export default function Upgrade() {
                   : 'text-[#a1a1aa] hover:text-white'
               }`}
             >
-              {mode === 'annual' ? '📅 Annual · save 35%' : 'Monthly'}
+              {mode === 'annual'
+                ? yearlySavingsPct ? `📅 Annual · save ${yearlySavingsPct}%` : '📅 Annual'
+                : 'Monthly'}
             </button>
           ))}
         </div>
       </div>
 
       {/* ── PLAN CARDS ────────────────────────────────────────── */}
-      <section className="px-4 pb-6 max-w-5xl mx-auto">
-        {/*
-          Mobile layout: Pro first (order-first), then Free, then Family.
-          Desktop: Free | Pro | Family in a 3-col grid.
-        */}
-        <div className="flex flex-col md:grid md:grid-cols-3 gap-5 md:gap-4 md:items-start">
-
-          {/* PRO — order-first on mobile so it leads */}
-          <div className="md:order-2 order-first">
-            <div
-              onMouseEnter={() => onCardEnter('pro')}
-              onMouseLeave={onCardLeave}
-              className="relative bg-[#18181b] border-2 border-[#4ade80] rounded-2xl p-6 flex flex-col
-                         shadow-[0_0_50px_rgba(74,222,128,0.13)] md:scale-105 transition-all duration-200
-                         hover:shadow-[0_0_60px_rgba(74,222,128,0.2)]"
-            >
-              <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 whitespace-nowrap">
-                <span className="bg-[#4ade80] text-[#09090b] text-[10px] font-black tracking-widest px-3 py-1 rounded-full">
-                  MOST POPULAR
-                </span>
-              </div>
-
-              <p className="text-[10px] font-black tracking-[0.2em] text-[#4ade80] mb-3 mt-2">PRO</p>
-              <div className="flex items-end gap-1 mb-0.5">
-                <span className="text-4xl font-black">{pro.display}</span>
-                <span className="text-[#a1a1aa] text-sm mb-1">/mo</span>
-              </div>
-              <p className="text-[#52525b] text-xs mb-6">{pro.label}</p>
-
-              <div className="flex flex-col flex-1 mb-6">
-                <Feature label="Everything in Free"                  checked color="#4ade80" />
-                <Feature label="Unlimited word saves"                checked color="#4ade80" />
-                <Feature label="Unlimited transcript analyses"       checked color="#4ade80" />
-                <Feature label="Full SRS flashcard system"           checked color="#4ade80" />
-                <Feature label="Comprehension history & analytics"   checked color="#4ade80" />
-                <Feature label="All 8 animated pet companions"       checked color="#4ade80" />
-                <Feature label="Priority access to new features"     checked color="#4ade80" />
-              </div>
-
-              <button
-                onClick={() => currentPlan !== 'pro' && currentPlan !== 'family' && handlePurchase('pro')}
-                disabled={currentPlan === 'pro' || currentPlan === 'family' || loadingPlan === 'pro'}
-                className={`w-full py-3.5 rounded-full font-bold text-sm transition-all duration-200 flex items-center justify-center gap-2
-                  ${currentPlan === 'pro' || currentPlan === 'family'
-                    ? 'bg-[#4ade80]/20 text-[#4ade80] cursor-default'
-                    : 'bg-[#4ade80] text-[#09090b] hover:brightness-110 active:scale-95 disabled:opacity-60 cursor-pointer'}`}
-              >
-                {loadingPlan === 'pro' ? <><Spinner /> Processing…</> :
-                 currentPlan === 'pro' ? '✓ Current Plan' :
-                 currentPlan === 'family' ? '✓ Family includes Pro' :
-                 'Upgrade to Pro'}
-              </button>
-            </div>
-          </div>
+      <section className="px-4 pb-6 max-w-3xl mx-auto">
+        <div className="flex flex-col md:grid md:grid-cols-2 gap-5 md:gap-4 md:items-start">
 
           {/* FREE */}
-          <div className="md:order-1 order-2">
+          <div className="order-2 md:order-1">
             <div
               onMouseEnter={() => onCardEnter('free')}
               onMouseLeave={onCardLeave}
@@ -438,10 +341,10 @@ export default function Upgrade() {
                 <Feature label="Subtitle colour-coding"             checked color="#52525b" />
                 <Feature label="10 word saves per day"              checked color="#52525b" />
                 <Feature label="3 transcript analyses per day"      checked color="#52525b" />
-                <Feature label="1 starter pet companion"            checked color="#52525b" />
+                <Feature label="Your chameleon companion, free"     checked color="#52525b" />
                 <Feature label="Unlimited word saves"               checked={false} color="#52525b" />
                 <Feature label="Full SRS flashcards"                checked={false} color="#52525b" />
-                <Feature label="All 8 pet companions"               checked={false} color="#52525b" />
+                <Feature label="Priority AI translations"           checked={false} color="#52525b" />
               </div>
 
               <div className={`text-center text-sm font-semibold py-3.5 rounded-full
@@ -451,49 +354,67 @@ export default function Upgrade() {
             </div>
           </div>
 
-          {/* FAMILY */}
-          <div className="md:order-3 order-3">
+          {/* PRO */}
+          <div className="order-first md:order-2">
             <div
-              onMouseEnter={() => onCardEnter('family')}
+              onMouseEnter={() => onCardEnter('pro')}
               onMouseLeave={onCardLeave}
-              className="bg-[#18181b] border border-[#6c3ff5] rounded-2xl p-6 flex flex-col
-                         transition-all duration-200 hover:shadow-[0_0_40px_rgba(108,63,245,0.12)]"
+              className="relative bg-[#18181b] border-2 border-[#4ade80] rounded-2xl p-6 flex flex-col
+                         shadow-[0_0_50px_rgba(74,222,128,0.13)] md:scale-105 transition-all duration-200
+                         hover:shadow-[0_0_60px_rgba(74,222,128,0.2)]"
             >
-              <p className="text-[10px] font-black tracking-[0.2em] text-[#6c3ff5] mb-3">FAMILY</p>
-              <div className="flex items-end gap-1 mb-0.5">
-                <span className="text-4xl font-black">{fam.display}</span>
-                <span className="text-[#a1a1aa] text-sm mb-1">/mo</span>
+              <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 whitespace-nowrap">
+                <span className="bg-[#4ade80] text-[#09090b] text-[10px] font-black tracking-widest px-3 py-1 rounded-full">
+                  MOST POPULAR
+                </span>
               </div>
-              <p className="text-[#52525b] text-xs mb-0.5">{fam.label}</p>
-              <p className="text-[#6c3ff5] text-xs font-bold mb-6">Up to 5 members</p>
+
+              <p className="text-[10px] font-black tracking-[0.2em] text-[#4ade80] mb-3 mt-2">PRO</p>
+              {loadingPlans ? (
+                <div className="flex items-center gap-2 mb-6 text-[#52525b] text-sm">
+                  <Spinner color="#4ade80" /> Loading plans…
+                </div>
+              ) : activePlan ? (
+                <>
+                  <div className="flex items-end gap-1 mb-0.5">
+                    <span className="text-4xl font-black">{activePlan.priceDisplay}</span>
+                  </div>
+                  <p className="text-[#52525b] text-xs mb-6">
+                    {isAnnual ? 'billed annually' : 'billed monthly'}
+                  </p>
+                </>
+              ) : (
+                <p className="text-[#52525b] text-xs mb-6">
+                  Plans aren't configured yet. Please check back soon.
+                </p>
+              )}
 
               <div className="flex flex-col flex-1 mb-6">
-                <Feature label="Everything in Pro for all members"  checked color="#6c3ff5" />
-                <Feature label="Shared family dashboard"            checked color="#6c3ff5" />
-                <Feature label="Each member's own pet & progress"   checked color="#6c3ff5" />
-                <Feature label="Invite members by email"            checked color="#6c3ff5" />
-                <Feature label="One subscription, five learners"    checked color="#6c3ff5" />
+                <Feature label="Everything in Free"                  checked color="#4ade80" />
+                <Feature label="Unlimited word saves"                checked color="#4ade80" />
+                <Feature label="Unlimited transcript analyses"       checked color="#4ade80" />
+                <Feature label="Full SRS flashcard system"           checked color="#4ade80" />
+                <Feature label="Priority AI translations"            checked color="#4ade80" />
+                <Feature label="Comprehension history & analytics"   checked color="#4ade80" />
+                <Feature label="Early access to every new feature"   checked color="#4ade80" />
               </div>
 
               <button
-                onClick={() => currentPlan !== 'family' && handlePurchase('family')}
-                disabled={currentPlan === 'family' || loadingPlan === 'family'}
+                onClick={handlePurchase}
+                disabled={currentPlan === 'pro' || !activePlan}
                 className={`w-full py-3.5 rounded-full font-bold text-sm transition-all duration-200 flex items-center justify-center gap-2
-                  ${currentPlan === 'family'
-                    ? 'bg-[#6c3ff5]/20 text-[#6c3ff5] cursor-default'
-                    : 'bg-[#6c3ff5] text-white hover:brightness-110 active:scale-95 disabled:opacity-60 cursor-pointer'}`}
+                  ${currentPlan === 'pro'
+                    ? 'bg-[#4ade80]/20 text-[#4ade80] cursor-default'
+                    : 'bg-[#4ade80] text-[#09090b] hover:brightness-110 active:scale-95 disabled:opacity-60 cursor-pointer'}`}
               >
-                {loadingPlan === 'family' ? <><Spinner color="#ffffff" /> Processing…</> :
-                 currentPlan === 'family' ? '✓ Current Plan' :
-                 'Get Family Plan'}
+                {currentPlan === 'pro' ? '✓ Current Plan' : 'Upgrade to Pro'}
               </button>
             </div>
           </div>
-
         </div>
 
         {/* ── Pet showcase ─────────────────────────────────────── */}
-        <PetShowcase currentPlan={currentPlan} onUpgradeClick={() => !loadingPlan && handlePurchase('pro')} />
+        <PetShowcase />
 
         {/* ── Student CTA ──────────────────────────────────────── */}
         <p className="text-center mt-8 text-[#a1a1aa] text-sm">
@@ -508,22 +429,26 @@ export default function Upgrade() {
 
         {/* ── Footer links ─────────────────────────────────────── */}
         <div className="flex flex-wrap justify-center gap-5 mt-10 text-[#52525b] text-xs">
-          <button
-            onClick={async () => {
-              try {
-                const { Purchases } = await import('@revenuecat/purchases-js');
-                await (Purchases.getSharedInstance() as any).restorePurchases();
-                toast.success('Purchases restored.');
-              } catch { toast.error('Could not restore purchases.'); }
-            }}
-            className="hover:text-[#a1a1aa] transition-colors"
-          >
-            Restore Purchases
-          </button>
           <a href="/privacy" className="hover:text-[#a1a1aa] transition-colors">Privacy</a>
           <a href="/terms"   className="hover:text-[#a1a1aa] transition-colors">Terms</a>
         </div>
       </section>
+
+      {/* ── STRIPE CHECKOUT ──────────────────────────────────── */}
+      <Dialog open={!!checkoutPriceId} onOpenChange={onCheckoutClose}>
+        <DialogContent className="max-w-2xl border-white/10 bg-[#18181b] text-white">
+          <DialogHeader>
+            <DialogTitle className="text-white">Complete your purchase</DialogTitle>
+          </DialogHeader>
+          {checkoutPriceId && (
+            <StripeEmbeddedCheckout
+              priceId={checkoutPriceId}
+              customerEmail={user?.email ?? undefined}
+              userId={user?.id}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* ── STUDENT MODAL ─────────────────────────────────────── */}
       {studentOpen && (
