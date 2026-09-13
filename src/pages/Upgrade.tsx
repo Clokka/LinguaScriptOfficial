@@ -1,11 +1,12 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { getEnabledFallbackPlans, type StripeFallbackPlan, type StripePlanKey } from '@/lib/stripeFallback';
 import { StripeEmbeddedCheckout } from '@/components/StripeEmbeddedCheckout';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 import { useSubscription } from '@/hooks/useSubscription';
 import { ManageBillingButton } from '@/components/ManageBillingButton';
 
@@ -266,6 +267,34 @@ export default function Upgrade() {
     total: stripeLifetime?.priceDisplay ?? '',
   };
 
+  if (checkoutPriceId) {
+    return (
+      <div className="min-h-screen bg-[#18181b] text-white">
+        <header className="sticky top-0 z-20 border-b border-white/10 bg-[#18181b]">
+          <div className="mx-auto flex max-w-2xl items-center gap-3 px-4 py-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Back to plans"
+              onClick={() => onCheckoutOpenChange(false)}
+              className="shrink-0 text-white/70 hover:bg-white/10 hover:text-white"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <h1 className="text-lg font-semibold">Complete your purchase</h1>
+          </div>
+        </header>
+        <main className="mx-auto max-w-2xl px-2 pb-[calc(env(safe-area-inset-bottom,0px)+2rem)] pt-2 sm:px-4">
+          <StripeEmbeddedCheckout
+            priceId={checkoutPriceId}
+            customerEmail={user?.email ?? undefined}
+            userId={user?.id}
+          />
+        </main>
+      </div>
+    );
+  }
+
   // ── Render ───────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-[#09090b] text-white selection:bg-[#4ade80]/30">
@@ -504,27 +533,6 @@ export default function Upgrade() {
           <a href="/terms"   className="hover:text-[#a1a1aa] transition-colors">Terms</a>
         </div>
       </section>
-
-      {/* ── STRIPE CHECKOUT ──────────────────────────────────── */}
-      <Dialog open={!!checkoutPriceId} onOpenChange={onCheckoutOpenChange}>
-        <DialogContent className="h-[100dvh] max-h-[100dvh] max-w-none grid-rows-[auto_minmax(0,1fr)] gap-0 overflow-hidden rounded-none border-x-0 border-white/10 bg-[#18181b] p-0 text-white sm:h-auto sm:max-h-[calc(100dvh-2rem)] sm:max-w-2xl sm:rounded-lg sm:border sm:p-0">
-          <DialogHeader className="relative z-10 border-b border-white/10 bg-[#18181b] px-5 py-4 pr-12 sm:px-6">
-            <DialogTitle className="text-white">Complete your purchase</DialogTitle>
-          </DialogHeader>
-          <div
-            className="min-h-0 overflow-y-auto overscroll-contain px-2 pb-[calc(env(safe-area-inset-bottom,0px)+1rem)] pt-2 sm:px-4"
-            style={{ WebkitOverflowScrolling: 'touch' }}
-          >
-            {checkoutPriceId && (
-              <StripeEmbeddedCheckout
-                priceId={checkoutPriceId}
-                customerEmail={user?.email ?? undefined}
-                userId={user?.id}
-              />
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* ── STUDENT MODAL ─────────────────────────────────────── */}
       {studentOpen && (
