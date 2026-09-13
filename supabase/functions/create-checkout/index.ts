@@ -71,9 +71,16 @@ Deno.serve(async (req) => {
     const env: StripeEnv = environment === "live" ? "live" : "sandbox";
     const stripe = createStripeClient(env);
 
-    const prices = await stripe.prices.list({ lookup_keys: [priceId] });
-    if (!prices.data.length) throw new Error("Price not found");
-    const stripePrice = prices.data[0];
+    // Accept either a raw Stripe Price ID (what the admin UI's own
+    // placeholder text tells people to paste, e.g. "price_1Q...") or a
+    // lookup_key — this only ever resolved lookup_keys before, so a plan
+    // configured with a real Price ID (the common/intuitive case) would
+    // fail here with "Price not found" while working fine in the sibling
+    // create-payment-link function, which already handled both forms.
+    const stripePrice = priceId.startsWith("price_")
+      ? await stripe.prices.retrieve(priceId)
+      : (await stripe.prices.list({ lookup_keys: [priceId] })).data[0];
+    if (!stripePrice) throw new Error("Price not found");
     const isRecurring = stripePrice.type === "recurring";
 
     const customerId = (customerEmail || userId)

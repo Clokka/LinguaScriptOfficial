@@ -20,7 +20,10 @@ export interface ProStatus {
 /**
  * Pro status is the union of:
  *   1. RevenueCat "linguascript Pro" entitlement (paid users)
- *   2. profiles.is_pro with pro_source='admin_grant' (admin-granted)
+ *   2. profiles.is_pro (any source: admin_grant, Stripe subscription, or a
+ *      Stripe one-time/lifetime purchase — all three write is_pro server-
+ *      side via a trigger/webhook and are equally authoritative), so long
+ *      as pro_expires_at hasn't passed
  */
 export function useSubscription(): ProStatus {
   const { user } = useAuth();
@@ -64,13 +67,22 @@ export function useSubscription(): ProStatus {
 
   const rcPro = hasProEntitlement(customerInfo);
   const rcExpires = customerInfo?.entitlements.active["linguascript Pro"]?.expirationDate ?? null;
-  const adminPro = !!profileRow?.is_pro
-    && profileRow.pro_source === "admin_grant"
+  // profiles.is_pro is the DB's own settled answer for every non-RevenueCat
+  // grant (Stripe subscriptions via sync_pro_from_subscription, Stripe
+  // one-time/lifetime purchases via the payments webhook, and admin grants)
+  // — trust the flag itself rather than filtering to one specific
+  // pro_source, which previously meant a paying Stripe subscriber was never
+  // recognized as Pro by the app at all.
+  const dbPro = !!profileRow?.is_pro
     && (!profileRow.pro_expires_at || new Date(profileRow.pro_expires_at) > new Date());
 
-  const isPro = rcPro || adminPro;
-  const source: ProStatus["source"] = adminPro ? "admin_grant" : rcPro ? "subscription" : "none";
-  const expiresAt = adminPro
+  const isPro = rcPro || dbPro;
+  const source: ProStatus["source"] = rcPro
+    ? "subscription"
+    : dbPro
+      ? (profileRow?.pro_source === "admin_grant" ? "admin_grant" : "subscription")
+      : "none";
+  const expiresAt = dbPro
     ? profileRow?.pro_expires_at ?? null
     : rcExpires
       ? (rcExpires instanceof Date ? rcExpires.toISOString() : String(rcExpires))

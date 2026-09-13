@@ -58,6 +58,27 @@ async function markCanceled(subscription: any, env: StripeEnv) {
     .eq("environment", env);
 }
 
+// Subscriptions grant Pro via sync_pro_from_subscription (a DB trigger on the
+// subscriptions table, fired by upsertSubscription above). A one-time/
+// "lifetime" Checkout Session has no subscription object at all, so nothing
+// upstream ever wrote is_pro for it — the charge succeeded in Stripe but the
+// buyer was never actually granted Pro in the app. Grant it here directly,
+// the same way admin/lifetime grants already work (a permanent flag, no
+// expiry), guarded so it only fires for a completed, paid, non-recurring
+// session with a known userId.
+async function grantOneTimePro(session: any) {
+  if (session.mode !== "payment" || session.payment_status !== "paid") return;
+  const userId = session.metadata?.userId;
+  if (!userId) {
+    console.error("checkout.session.completed (payment) with no userId in metadata", session.id);
+    return;
+  }
+  await getSupabase()
+    .from("profiles")
+    .update({ is_pro: true, pro_source: "stripe_one_time", pro_expires_at: null })
+    .eq("user_id", userId);
+}
+
 Deno.serve(async (req) => {
   if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
   const rawEnv = new URL(req.url).searchParams.get("env");
@@ -74,6 +95,9 @@ Deno.serve(async (req) => {
         break;
       case "customer.subscription.deleted":
         await markCanceled(event.data.object, env);
+        break;
+      case "checkout.session.completed":
+        await grantOneTimePro(event.data.object);
         break;
       default:
         console.log("Unhandled event:", event.type);
