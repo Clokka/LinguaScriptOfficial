@@ -711,6 +711,36 @@ export type Database = {
           },
         ]
       }
+      payment_plans: {
+        Row: {
+          enabled: boolean
+          label: string
+          plan_key: string
+          price_display: string
+          price_id: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          enabled?: boolean
+          label: string
+          plan_key: string
+          price_display: string
+          price_id?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          enabled?: boolean
+          label?: string
+          plan_key?: string
+          price_display?: string
+          price_id?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       pet_collection: {
         Row: {
           gifted_from: string | null
