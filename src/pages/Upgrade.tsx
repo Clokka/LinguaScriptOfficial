@@ -6,6 +6,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { getEnabledFallbackPlans, type StripeFallbackPlan, type StripePlanKey } from '@/lib/stripeFallback';
 import { StripeEmbeddedCheckout } from '@/components/StripeEmbeddedCheckout';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { useSubscription } from '@/hooks/useSubscription';
+import { ManageBillingButton } from '@/components/ManageBillingButton';
 
 // model-viewer types are declared globally elsewhere in the project.
 
@@ -15,33 +17,13 @@ type ModelViewerEl = HTMLElement & {
   pause: () => void;
 };
 
-// ── Plan config ──────────────────────────────────────────────────
-// Display-only pricing for the cards below. What a click actually charges
-// comes from the real Stripe plan config (payment_plans table, read via
-// getEnabledFallbackPlans) — see handlePurchase.
-const PLANS = {
-  pro: {
-    annual:  { display: '£3.25', label: 'billed annually · save 35%', total: '£39/yr', rcId: 'pro_annual'  },
-    monthly: { display: '£4.99', label: 'per month',                   total: '£4.99/mo', rcId: 'pro_monthly' },
-  },
-  family: {
-    annual:  { display: '£6.58', label: 'billed annually · save 35%', total: '£79/yr', rcId: 'family_annual'  },
-    monthly: { display: '£9.99', label: 'per month',                   total: '£9.99/mo', rcId: 'family_monthly' },
-  },
-} as const;
+// Prices are never hardcoded here any more: the cards render whatever the
+// payment_plans table says, which is the same config the checkout charges.
+// Previously this page advertised £3.25/£4.99 and a Family tier while every
+// button charged the single configured monthly price.
 
-// ── Student email check ──────────────────────────────────────────
-function isStudentEmail(email: string): boolean {
-  const domain = email.split('@')[1]?.toLowerCase() ?? '';
-  if (!domain) return false;
-  if (domain.endsWith('.ac.uk') || domain.endsWith('.edu') ||
-      domain.endsWith('.edu.au') || domain.endsWith('.edu.in')) return true;
-  const sub = domain.split('.')[0];
-  return ['uni', 'university', 'college', 'students', 'student'].includes(sub);
-}
-
-type CurrentPlan = 'free' | 'pro' | 'family';
-type HoveredCard = 'free' | 'pro' | 'family' | null;
+type CurrentPlan = 'free' | 'pro';
+type HoveredCard = 'free' | 'pro' | 'lifetime' | null;
 
 // ── All 8 pets ───────────────────────────────────────────────────
 const PETS = [
