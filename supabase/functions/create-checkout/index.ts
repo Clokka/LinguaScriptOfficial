@@ -137,7 +137,6 @@ Deno.serve(async (req) => {
       billing_address_collection: "auto",
       phone_number_collection: { enabled: false },
       automatic_tax: { enabled: false },
-      allow_promotion_codes: false,
       submit_type: "auto",
       ...(isRecurring && { payment_method_collection: "always" }),
       ...(customerId && { customer: customerId }),

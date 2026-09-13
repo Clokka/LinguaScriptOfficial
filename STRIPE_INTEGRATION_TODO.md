@@ -31,9 +31,10 @@ These parameters were added from the Checkout Studio config and are now set on e
 | `billing_address_collection` | `"auto"` |
 | `phone_number_collection` | `{ enabled: false }` |
 | `automatic_tax` | `{ enabled: false }` |
-| `allow_promotion_codes` | `false` |
 | `submit_type` | `"auto"` |
 | `payment_method_collection` | `"always"` (only when `mode` is `"subscription"`, per the spec's own rule) |
+
+`allow_promotion_codes` was **not** added as a fixed `false`, despite the Checkout Studio config specifying it. A separate, concurrently-shipped feature (student 50%-off coupons) already sets `allow_promotion_codes: true` for non-student buyers and `discounts: [...]` for verified students — and Stripe's API rejects a session that includes both `discounts` and `allow_promotion_codes` at all (regardless of the boolean's value). Adding a blanket `false` would have made every student checkout hard-fail. The existing mutually-exclusive logic was left as the source of truth for this field.
 
 ## Setup notes
 
