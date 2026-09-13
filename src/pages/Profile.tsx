@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { LANGUAGES, getLanguageLabel } from "@/lib/languages";
 import {
   startYouTubeConnect,
@@ -22,13 +23,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Camera, ArrowLeft, Save, Loader2, LogOut } from "lucide-react";
+import { Camera, ArrowLeft, Save, Loader2, LogOut, Check } from "lucide-react";
+import { INTERESTS } from "@/lib/interests";
 import { useToast } from "@/hooks/use-toast";
 import { MyLanguagesPanel } from "@/components/MyLanguagesPanel";
 import { PetGallery } from "@/components/pets/PetGallery";
 import { usePet } from "@/contexts/PetContext";
 import { getPetById } from "@/lib/pets";
 import { PetViewer } from "@/components/pets/PetViewer";
+import { Switch } from "@/components/ui/switch";
+import { cn } from "@/lib/utils";
 
 const Profile = () => {
   const { user, loading: authLoading, signOut } = useAuth();
@@ -40,6 +44,7 @@ const Profile = () => {
   const [nativeLanguage, setNativeLanguage] = useState("en");
   const [learningLanguage, setLearningLanguage] = useState("");
   const [school, setSchool] = useState("");
+  const [isPublic, setIsPublic] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [loadingProfile, setLoadingProfile] = useState(true);
@@ -48,6 +53,14 @@ const Profile = () => {
   const { activePet, petCollection } = usePet();
   const activePetMeta = activePet ? getPetById(activePet) : null;
   const [interests, setInterests] = useState<string[]>([]);
+  // The active learning language can change from the "Switch" button inside
+  // MyLanguagesPanel below (a context write), not just this page's own
+  // fetch-on-mount — without this sync, clicking Save Changes afterward
+  // would write the STALE pre-switch language straight back over it.
+  const { learningLanguage: activeLearningLanguage } = useLanguage();
+  useEffect(() => {
+    if (activeLearningLanguage) setLearningLanguage(activeLearningLanguage);
+  }, [activeLearningLanguage]);
   const [ytStatus, setYtStatus] = useState<YouTubeConnectionStatus>({ connected: false, connectedAt: null, channelCount: 0 });
   const [ytConnecting, setYtConnecting] = useState(false);
   const [ytSubscribing, setYtSubscribing] = useState(false);
@@ -71,6 +84,7 @@ const Profile = () => {
           setNativeLanguage(g.nativeLanguage ?? "en");
           setLearningLanguage(g.learningLanguage ?? "");
           setSchool(g.school ?? "");
+          setInterests(Array.isArray(g.interests) ? g.interests : []);
         }
       } catch { /* ignore */ }
       setLoadingProfile(false);
@@ -91,6 +105,7 @@ const Profile = () => {
       setLearningLanguage(data.learning_language ?? "");
       setSchool((data as any).school ?? "");
       setInterests(Array.isArray((data as any).interests) ? (data as any).interests : []);
+      setIsPublic(!!(data as any).is_public);
     }
     setLoadingProfile(false);
   };
@@ -186,6 +201,10 @@ const Profile = () => {
     setUploading(false);
   };
 
+  const toggleInterest = (id: string) => {
+    setInterests((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  };
+
   const handleSave = async () => {
     setSaving(true);
 
@@ -194,7 +213,7 @@ const Profile = () => {
       try {
         localStorage.setItem(
           GUEST_KEY,
-          JSON.stringify({ displayName, nativeLanguage, learningLanguage, school: school.trim() }),
+          JSON.stringify({ displayName, nativeLanguage, learningLanguage, school: school.trim(), interests }),
         );
         toast({ title: "Saved locally", description: "Sign in to sync across devices." });
       } catch (e: any) {
@@ -213,6 +232,8 @@ const Profile = () => {
         // Never write an empty/unknown language back over a real choice.
         ...(learningLanguage ? { learning_language: learningLanguage } : {}),
         school: school.trim() || null,
+        interests,
+        is_public: isPublic,
       } as any)
       .eq("user_id", user.id);
 
@@ -306,6 +327,51 @@ const Profile = () => {
           {/* Languages you're learning (up to 5, each with its own mode) */}
           <MyLanguagesPanel nativeLanguage={nativeLanguage} />
 
+          {/* Hobbies — drives the "Because you like X" rails and interest-matched
+              YouTube channel subscriptions, so changing these reshapes the feed. */}
+          <div className="pt-4 border-t border-border/50">
+            <p className="text-sm font-medium text-foreground mb-1">Your hobbies</p>
+            <p className="text-xs text-muted-foreground mb-3">
+              Powers your personalized video recommendations. Pick what you actually enjoy watching.
+            </p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {INTERESTS.map((interest) => {
+                const active = interests.includes(interest.id);
+                return (
+                  <button
+                    key={interest.id}
+                    type="button"
+                    onClick={() => toggleInterest(interest.id)}
+                    className={cn(
+                      "relative rounded-xl border px-3 py-2.5 flex items-center gap-2 text-sm transition-colors text-left",
+                      active
+                        ? "border-primary/60 bg-primary/10 text-foreground"
+                        : "border-border/50 bg-secondary/30 text-muted-foreground hover:border-border hover:text-foreground",
+                    )}
+                  >
+                    <span>{interest.emoji}</span>
+                    <span className="truncate">{interest.label}</span>
+                    {active && <Check className="w-3.5 h-3.5 text-primary ml-auto shrink-0" />}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground">
+              {interests.length === 0 ? "Pick at least one." : `${interests.length} selected — saved with the button below.`}
+            </p>
+          </div>
+
+          {/* Privacy */}
+          <div className="pt-4 border-t border-border/50">
+            <p className="text-sm font-medium text-foreground mb-3">Privacy</p>
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium text-foreground">Public account</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Allow others to view your profile and stats.</p>
+              </div>
+              <Switch checked={isPublic} onCheckedChange={setIsPublic} />
+            </div>
+          </div>
 
           {/* School */}
           <div>

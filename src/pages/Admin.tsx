@@ -24,6 +24,7 @@ import { AdminStripeFallback } from "@/components/AdminStripeFallback";
 import { AdminPaymentLinks } from "@/components/AdminPaymentLinks";
 import { AdminGiftLinks } from "@/components/AdminGiftLinks";
 import { AdminBlogEditor } from "@/components/AdminBlogEditor";
+import { isMusicCategory, isWithinLessonLength, MAX_LESSON_SECONDS } from "@/lib/contentLengthPolicy";
 
 function RowHeader({ row, onRename, onDelete }: { row: { id: string; title: string }; onRename: (id: string, title: string) => void; onDelete: (id: string) => void; }) {
   const [editing, setEditing] = useState(false);
@@ -288,6 +289,28 @@ const Admin = () => {
       .map((t) => t.trim().toLowerCase())
       .filter(Boolean);
     const durationSeconds = durationMinutes ? Math.max(0, Math.round(parseFloat(durationMinutes) * 60)) : null;
+
+    // Same policy Discover/Home enforce when displaying catalog films — reject
+    // here too so a music video or hour-long lecture never makes it into the
+    // table in the first place (it used to slip straight onto Discover).
+    if (isMusicCategory(category, tags)) {
+      toast({
+        title: "Music content isn't allowed",
+        description: "Songs test lyrics recall, not listening comprehension — pick a talk, vlog or documentary instead.",
+        variant: "destructive",
+      });
+      setAdding(false);
+      return;
+    }
+    if (!isWithinLessonLength(durationSeconds)) {
+      toast({
+        title: "Video is too long",
+        description: `Catalog videos must be under ${MAX_LESSON_SECONDS / 60} minutes — 10-15 min is the sweet spot for a daily lesson. Longer videos cause learners to bounce.`,
+        variant: "destructive",
+      });
+      setAdding(false);
+      return;
+    }
 
     const { data, error } = await supabase.from("films").insert({
       title,

@@ -6,6 +6,7 @@
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { GLTFLoader, GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { clone as cloneSkinnedModel } from "three/examples/jsm/utils/SkeletonUtils.js";
 import confetti from "canvas-confetti";
 import { getPetById } from "@/lib/pets";
 import { celebrationForLevel } from "@/lib/levelCelebrations";
@@ -50,11 +51,17 @@ function makeStage(canvasSize: number) {
 }
 
 function fitModel(gltf: GLTF) {
-  const model = gltf.scene;
-  // the model object is shared across celebrations — detach it from any
-  // previous (possibly scaled-out) wrapper and reset its transform BEFORE
-  // measuring, or the fit compensates for stale parent/self scale
-  if (model.parent) model.parent.remove(model);
+  // gltf.scene is cached and shared (loadPetModel reuses one loaded GLTF per
+  // glbFile) — a level-up and the word-saved toast routinely fire from the
+  // same action, so two stages can be mounting off the same cached GLTF at
+  // once. Operating on gltf.scene directly meant whichever stage's fitModel
+  // ran second would rip the model out of the first stage's scene (still
+  // the same Object3D, now reparented), leaving that canvas rendering an
+  // empty scene — invisible pet, confetti/text still fine. SkeletonUtils
+  // clone (not a plain Object3D.clone, which doesn't rebind skinned-mesh
+  // skeletons) gives every stage its own independent copy, animatable
+  // completely independently of any other concurrent stage.
+  const model = cloneSkinnedModel(gltf.scene) as THREE.Object3D;
   model.scale.setScalar(1);
   model.position.set(0, 0, 0);
   const box = new THREE.Box3().setFromObject(model);
