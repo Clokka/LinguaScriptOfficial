@@ -1,13 +1,16 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Check, Sparkles, ArrowLeft, CreditCard, Loader2 } from "lucide-react";
+import { Check, ArrowLeft, CreditCard, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { BrandMark } from "@/components/BrandMark";
+import { ChameleonMascot } from "@/components/ChameleonMascot";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
 import { getEnabledFallbackPlans, type StripeFallbackPlan, type StripePlanKey } from "@/lib/stripeFallback";
 import { StripeEmbeddedCheckout } from "@/components/StripeEmbeddedCheckout";
 import { isPaymentsConfigured } from "@/lib/stripe";
+import { cn } from "@/lib/utils";
 
 const FEATURES = [
   "Unlimited learning languages — switch freely between French, Spanish, German, Italian and more",
@@ -22,10 +25,24 @@ const PLAN_BADGES: Record<string, string | undefined> = {
   lifetime: "Pay once",
 };
 
+/**
+ * Chameleon colours as brand accents, not deck state. `red` is deliberately
+ * absent here — on a paywall it would read as "wrong answer" rather than
+ * "buy this", carrying its learning-UI meaning somewhere it doesn't apply.
+ */
+const GREEN = "#34C759";
+const ORANGE = "#FF8A00";
+
 // RevenueCat is not wired to a real product catalog in this build (its
 // configured key is a placeholder, not a live RC project), so Stripe — via
 // the existing create-checkout edge function — is the one real paywall
 // here rather than a "backup" shown only when RC fails.
+//
+// Everything below this comment is presentation only. The purchase logic —
+// useSubscription, getEnabledFallbackPlans, isPaymentsConfigured, and
+// StripeEmbeddedCheckout — is untouched from the fix that made Stripe the
+// real paywall and corrected three bugs where a payment could succeed and
+// the buyer still got nothing. This pass only changes how it looks.
 export default function Pricing() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -42,32 +59,47 @@ export default function Pricing() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-5xl mx-auto px-4 py-8">
-        <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="mb-6">
-          <ArrowLeft className="w-4 h-4 mr-2" /> Back
+    <div className="min-h-screen bg-[#0a0f0d] text-white">
+      <div className="mx-auto max-w-5xl px-4 py-8">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => navigate(-1)}
+          className="mb-6 text-white/60 hover:bg-white/5 hover:text-white"
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" /> Back
         </Button>
 
-        <div className="text-center mb-10">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-medium mb-4">
-            <Sparkles className="w-3 h-3" /> LinguaScript Pro
+        <div className="mb-10 text-center">
+          <div className="mb-5 flex justify-center">
+            <BrandMark size={44} />
           </div>
-          <h1 className="text-4xl sm:text-5xl font-bold text-foreground mb-3">
+
+          <div className="mx-auto -mb-4 h-28 w-40" aria-hidden="true">
+            <ChameleonMascot tier="green" party={isPro} className="h-full w-full" />
+          </div>
+
+          <h1 className="mb-3 text-4xl font-bold tracking-tight sm:text-5xl">
             Learn every language you want.
           </h1>
-          <p className="text-muted-foreground max-w-xl mx-auto">
+          <p className="mx-auto max-w-xl text-white/50">
             Unlock the whole library and switch between languages freely without losing your streak.
           </p>
         </div>
 
         {!subLoading && isPro && (
-          <div className="glass-panel-strong p-6 rounded-2xl mb-8 flex flex-col sm:flex-row items-start sm:items-center gap-4 justify-between">
+          <div className="mb-8 flex flex-col items-start justify-between gap-4 rounded-2xl border border-[#34C759]/30 bg-[#34C759]/10 p-6 sm:flex-row sm:items-center">
             <div>
-              <div className="flex items-center gap-2 mb-1">
-                <Sparkles className="w-4 h-4 text-amber-400" />
-                <h2 className="font-semibold text-foreground">You're on Pro</h2>
+              <div className="mb-1 flex items-center gap-2">
+                <span
+                  className="inline-flex h-5 w-5 items-center justify-center rounded-full"
+                  style={{ backgroundColor: GREEN }}
+                >
+                  <Check className="h-3.5 w-3.5 text-[#0a0f0d]" strokeWidth={3} />
+                </span>
+                <h2 className="font-semibold text-white">You're on Pro</h2>
               </div>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-white/60">
                 {source === "admin_grant"
                   ? `Granted by the LinguaScript team${expiresAt ? ` · expires ${new Date(expiresAt).toLocaleDateString()}` : " · lifetime"}`
                   : expiresAt
@@ -78,54 +110,72 @@ export default function Pricing() {
           </div>
         )}
 
-        <div className="grid sm:grid-cols-3 gap-4 mb-10">
+        <div className="mb-10 grid gap-4 sm:grid-cols-3">
           {!stripeAvailable ? (
-            <div className="col-span-full text-center text-muted-foreground py-12 text-sm">
+            <div className="col-span-full rounded-2xl border border-white/10 bg-white/[0.03] py-12 text-center text-sm text-white/40">
               Payments aren't configured yet. Please check back soon.
             </div>
           ) : loadingPlans ? (
             <div className="col-span-full flex justify-center py-12">
-              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+              <Loader2 className="h-6 w-6 animate-spin text-white/40" />
             </div>
           ) : plans.length === 0 ? (
-            <div className="col-span-full text-center text-muted-foreground py-12 text-sm">
+            <div className="col-span-full rounded-2xl border border-white/10 bg-white/[0.03] py-12 text-center text-sm text-white/40">
               No plans are available right now. Please check back soon.
             </div>
           ) : (
-            plans.map((p) => (
-              <button
-                key={p.key}
-                onClick={() => {
-                  if (!user) { navigate("/auth?next=/pricing"); return; }
-                  setStripePriceId(p.priceId);
-                }}
-                disabled={isPro}
-                className="relative text-left glass-panel-strong p-6 rounded-2xl border border-border hover:border-primary/40 transition disabled:opacity-60"
-              >
-                {PLAN_BADGES[p.key] && (
-                  <span className="absolute top-3 right-3 text-[10px] uppercase tracking-wider bg-accent text-accent-foreground px-2 py-0.5 rounded-full">
-                    {PLAN_BADGES[p.key]}
-                  </span>
-                )}
-                <div className="text-sm text-muted-foreground mb-2 capitalize">{p.label}</div>
-                <div className="flex items-baseline gap-1 mb-4">
-                  <span className="text-3xl font-bold text-foreground">{p.priceDisplay}</span>
-                </div>
-                <div className="text-sm font-medium text-primary inline-flex items-center gap-2">
-                  <CreditCard className="w-4 h-4" />
-                  {isPro ? "Already Pro" : "Pay with card"}
-                </div>
-              </button>
-            ))
+            plans.map((p) => {
+              const badge = PLAN_BADGES[p.key];
+              const highlighted = badge === "Best value";
+              return (
+                <button
+                  key={p.key}
+                  onClick={() => {
+                    if (!user) { navigate("/auth?next=/pricing"); return; }
+                    setStripePriceId(p.priceId);
+                  }}
+                  disabled={isPro}
+                  className={cn(
+                    "relative rounded-2xl border p-6 text-left transition disabled:opacity-50",
+                    highlighted
+                      ? "border-[#FF8A00]/50 bg-[#FF8A00]/[0.07] hover:border-[#FF8A00]"
+                      : "border-white/10 bg-white/[0.03] hover:border-[#34C759]/50",
+                  )}
+                >
+                  {badge && (
+                    <span
+                      className="absolute right-3 top-3 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider"
+                      style={{
+                        backgroundColor: highlighted ? ORANGE : GREEN,
+                        color: "#0a0f0d",
+                      }}
+                    >
+                      {badge}
+                    </span>
+                  )}
+                  <div className="mb-2 text-sm capitalize text-white/50">{p.label}</div>
+                  <div className="mb-4 flex items-baseline gap-1">
+                    <span className="text-3xl font-bold text-white">{p.priceDisplay}</span>
+                  </div>
+                  <div
+                    className="inline-flex items-center gap-2 text-sm font-medium"
+                    style={{ color: highlighted ? ORANGE : GREEN }}
+                  >
+                    <CreditCard className="h-4 w-4" />
+                    {isPro ? "Already Pro" : "Pay with card"}
+                  </div>
+                </button>
+              );
+            })
           )}
         </div>
 
-        <div className="glass-panel p-6 rounded-2xl mb-8">
-          <h3 className="font-semibold text-foreground mb-4">Everything in Pro</h3>
+        <div className="mb-8 rounded-2xl border border-white/10 bg-white/[0.03] p-6">
+          <h3 className="mb-4 font-semibold text-white">Everything in Pro</h3>
           <ul className="space-y-2">
             {FEATURES.map((f) => (
-              <li key={f} className="flex items-start gap-2 text-sm text-foreground">
-                <Check className="w-4 h-4 text-success mt-0.5 shrink-0" />
+              <li key={f} className="flex items-start gap-2 text-sm text-white/70">
+                <Check className="mt-0.5 h-4 w-4 shrink-0" style={{ color: GREEN }} />
                 <span>{f}</span>
               </li>
             ))}
@@ -133,16 +183,24 @@ export default function Pricing() {
         </div>
 
         {!user && (
-          <Button variant="hero" size="lg" className="w-full" onClick={() => navigate("/auth?next=/pricing")}>
+          <Button
+            size="lg"
+            className="w-full font-bold text-[#0a0f0d] hover:opacity-90"
+            style={{ backgroundColor: GREEN }}
+            onClick={() => navigate("/auth?next=/pricing")}
+          >
             Sign in to upgrade
           </Button>
         )}
       </div>
 
       <Dialog open={!!stripePriceId} onOpenChange={(o) => { if (!o) setStripePriceId(null); }}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl border-white/10 bg-[#0f1714] text-white">
           <DialogHeader>
-            <DialogTitle>Complete your purchase</DialogTitle>
+            <DialogTitle className="flex items-center gap-2 text-white">
+              <BrandMark variant="pin" size={22} />
+              Complete your purchase
+            </DialogTitle>
           </DialogHeader>
           {stripePriceId && (
             <StripeEmbeddedCheckout
