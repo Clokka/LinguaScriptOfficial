@@ -192,27 +192,8 @@ export default function Upgrade() {
     }, 6000);
   }, [playAnim]);
 
-  // ── Init RevenueCat (entitlement display only) + idle ─────────
+  // ── Idle animation ───────────────────────────────────────────
   useEffect(() => {
-    const init = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
-        const { Purchases } = await import('@revenuecat/purchases-js');
-        const rcKey = (import.meta as any).env?.VITE_RC_PUBLIC_KEY;
-        if (rcKey) {
-          Purchases.configure({ apiKey: rcKey, appUserId: user.id });
-          const info = await Purchases.getSharedInstance().getCustomerInfo();
-          const active = info.entitlements.active;
-          if (active['family_pro']) setCurrentPlan('family');
-          else if (active['student_pro'] || active['pro']) setCurrentPlan('pro');
-        }
-      } catch {
-        // RC not yet installed — page renders without purchase logic
-      }
-    };
-    init();
-
     const t = setTimeout(startIdle, 1000);
     return () => {
       clearTimeout(t);
@@ -224,7 +205,7 @@ export default function Upgrade() {
   const onCardEnter = (card: HoveredCard) => {
     isHovering.current = true;
     setHoveredCard(card);
-    const map: Record<string, string> = { free: 'Sit', pro: 'Bounce', family: 'Spin' };
+    const map: Record<string, string> = { free: 'Sit', pro: 'Bounce', lifetime: 'Spin' };
     if (card) playAnim(map[card], Infinity);
   };
 
@@ -234,26 +215,20 @@ export default function Upgrade() {
     startIdle();
   };
 
-  // ── Purchase — opens the real Stripe embedded checkout ────────
-  // Note: there's no distinct Stripe product for the Family tier yet (the
-  // payment_plans table only has monthly/yearly/lifetime keys), so Family
-  // checks out against the same Pro price for now until a Family price is
-  // configured.
-  const handlePurchase = (plan: 'pro' | 'family') => {
-    if (plan === 'pro' && (currentPlan === 'pro' || currentPlan === 'family')) return;
-    if (plan === 'family' && currentPlan === 'family') return;
+  // ── Purchase — opens the real embedded checkout ───────────────
+  const handlePurchase = (plan: 'pro' | 'lifetime') => {
+    if (isPro) return;
     if (!user) { navigate('/auth?next=/upgrade'); return; }
 
-    // Fall back to whichever plan is actually configured — with only the
-    // monthly price set up, the annual toggle otherwise dead-ends.
-    const activeStripePlan = (isAnnual ? stripeYearly : stripeMonthly)
-      ?? stripeMonthly ?? stripeYearly;
-    if (!activeStripePlan) {
-      toast.error("Payments aren't configured yet. Please check back soon.");
+    const chosen = plan === 'lifetime'
+      ? stripeLifetime
+      : (isAnnual ? stripeYearly : stripeMonthly);
+    if (!chosen) {
+      toast.error("That plan isn't available yet. Please try another option.");
       return;
     }
     playAnim('Jump', 1);
-    setCheckoutPriceId(activeStripePlan.priceId);
+    setCheckoutPriceId(chosen.priceId);
   };
 
   const onCheckoutOpenChange = (open: boolean) => {
@@ -262,26 +237,34 @@ export default function Upgrade() {
     startIdle();
   };
 
-  // ── Student modal submit ─────────────────────────────────────
-  const handleStudentSubmit = async () => {
-    setStudentError('');
-    if (!isStudentEmail(studentEmail)) {
-      setStudentError('Please use your official university email address (.ac.uk, .edu, etc.)');
-      return;
-    }
+  // ── Student discount — checked against the signed-in account ──
+  const handleStudentCheck = async () => {
+    if (!user) { navigate('/auth?next=/upgrade'); return; }
     setStudentLoading(true);
+    setStudentResult(null);
     try {
-      await supabase.functions.invoke('verify-student-email', { body: { email: studentEmail } });
-      setStudentSent(true);
+      const { data, error } = await supabase.functions.invoke('verify-student-email', { body: {} });
+      if (error) throw error;
+      setStudentResult({ eligible: !!data?.eligible, email: data?.email });
     } catch {
-      setStudentError('Failed to send verification. Please try again.');
+      toast.error("Couldn't check your student status. Please try again.");
     } finally {
       setStudentLoading(false);
     }
   };
 
-  const pro = PLANS.pro[isAnnual ? 'annual' : 'monthly'];
-  const fam = PLANS.family[isAnnual ? 'annual' : 'monthly'];
+  // Display copy comes from the configured plans, so what's shown is what's charged.
+  const proPlan = isAnnual ? (stripeYearly ?? stripeMonthly) : (stripeMonthly ?? stripeYearly);
+  const pro = {
+    display: proPlan?.priceDisplay ?? '—',
+    label: proPlan?.key === 'yearly' ? 'billed yearly' : 'per month',
+    total: proPlan?.priceDisplay ?? '',
+  };
+  const life = {
+    display: stripeLifetime?.priceDisplay ?? '—',
+    label: 'one-time payment',
+    total: stripeLifetime?.priceDisplay ?? '',
+  };
 
   // ── Render ───────────────────────────────────────────────────
   return (
