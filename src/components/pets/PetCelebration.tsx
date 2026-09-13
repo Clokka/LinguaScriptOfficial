@@ -38,6 +38,11 @@ const easeOutBack = (t: number) => {
 function makeStage(canvasSize: number) {
   const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
   renderer.setSize(canvasSize, canvasSize);
+  // Keep the render buffer sharp while allowing the celebration host to
+  // choose a smaller responsive presentation size on narrow screens.
+  renderer.domElement.style.width = "100%";
+  renderer.domElement.style.height = "100%";
+  renderer.domElement.style.display = "block";
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 100);
@@ -288,7 +293,7 @@ export function LevelUpCelebration({ petId, level, onDone }: LevelUpCelebrationP
     return runStage({
       host: hostRef.current,
       glbFile: pet.glbFile,
-      canvasSize: 320,
+      canvasSize: 280,
       timings: { spawn: 0.5, hold: cel.hold, exit: 0.3 },
       clips: { intro: cel.intro, loop: cel.loop },
       onExit: () => rootRef.current?.classList.remove("opacity-100"),
@@ -303,7 +308,7 @@ export function LevelUpCelebration({ petId, level, onDone }: LevelUpCelebrationP
       ref={rootRef}
       className="pointer-events-none fixed inset-0 z-[110] flex flex-col items-center justify-center bg-background/60 opacity-0 backdrop-blur-sm transition-opacity duration-300"
     >
-      <div className="relative h-[320px] w-[320px]">
+      <div className="relative h-[240px] w-[240px] sm:h-[280px] sm:w-[280px]">
         <div
           className="absolute inset-[10%] animate-pulse rounded-full"
           style={{
@@ -311,7 +316,7 @@ export function LevelUpCelebration({ petId, level, onDone }: LevelUpCelebrationP
               "radial-gradient(circle, hsl(48 96% 53% / 0.28), hsl(27 96% 61% / 0.12) 55%, transparent 72%)",
           }}
         />
-        <div ref={hostRef} className="relative h-[320px] w-[320px]" />
+        <div ref={hostRef} className="relative h-full w-full" />
       </div>
       <div
         className="bg-gradient-to-br from-orange-400 to-yellow-400 bg-clip-text text-4xl font-extrabold tracking-tight text-transparent"

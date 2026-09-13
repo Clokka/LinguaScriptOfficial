@@ -754,6 +754,7 @@ const AVAILABLE_LEARNING_LANGS = [
   { code: "de", label: "German", flag: "🇩🇪" },
   { code: "it", label: "Italian", flag: "🇮🇹" },
   { code: "pt", label: "Portuguese", flag: "🇵🇹" },
+  { code: "zh", label: "Chinese", flag: "🇨🇳" },
   { code: "ja", label: "Japanese", flag: "🇯🇵" },
   { code: "en", label: "English", flag: "🇬🇧" },
 ];

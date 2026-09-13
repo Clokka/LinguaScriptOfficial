@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Check, ArrowLeft, CreditCard, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { BrandMark } from "@/components/BrandMark";
 import { ChameleonMascot } from "@/components/ChameleonMascot";
 import { useAuth } from "@/hooks/useAuth";
@@ -57,6 +56,35 @@ export default function Pricing() {
     getEnabledFallbackPlans().then((p) => { if (alive) { setPlans(p); setLoadingPlans(false); } });
     return () => { alive = false; };
   }, []);
+
+  if (stripePriceId) {
+    return (
+      <div className="min-h-screen bg-[#0f1714] text-white">
+        <header className="sticky top-0 z-20 border-b border-white/10 bg-[#0f1714]">
+          <div className="mx-auto flex max-w-2xl items-center gap-3 px-4 py-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Back to plans"
+              onClick={() => setStripePriceId(null)}
+              className="shrink-0 text-white/70 hover:bg-white/10 hover:text-white"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <BrandMark variant="pin" size={22} />
+            <h1 className="text-lg font-semibold">Complete your purchase</h1>
+          </div>
+        </header>
+        <main className="mx-auto max-w-2xl px-2 pb-[calc(env(safe-area-inset-bottom,0px)+2rem)] pt-2 sm:px-4">
+          <StripeEmbeddedCheckout
+            priceId={stripePriceId}
+            customerEmail={user?.email ?? undefined}
+            userId={user?.id}
+          />
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#0a0f0d] text-white">
@@ -194,23 +222,6 @@ export default function Pricing() {
         )}
       </div>
 
-      <Dialog open={!!stripePriceId} onOpenChange={(o) => { if (!o) setStripePriceId(null); }}>
-        <DialogContent className="max-w-2xl border-white/10 bg-[#0f1714] text-white">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-white">
-              <BrandMark variant="pin" size={22} />
-              Complete your purchase
-            </DialogTitle>
-          </DialogHeader>
-          {stripePriceId && (
-            <StripeEmbeddedCheckout
-              priceId={stripePriceId}
-              customerEmail={user?.email ?? undefined}
-              userId={user?.id}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

@@ -1,51 +1,76 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import {
-  configureRevenueCat,
-  getCustomerInfo,
-  hasProEntitlement,
-  type CustomerInfo,
-} from "@/lib/revenuecat";
+import { getStripeEnvironment, isPaymentsConfigured } from "@/lib/stripe";
 
 export interface ProStatus {
   isPro: boolean;
   source: "subscription" | "admin_grant" | "none";
   expiresAt: string | null;
-  customerInfo: CustomerInfo | null;
+  /** Stripe subscription state, when the user pays by card subscription. */
+  status: string | null;
+  cancelAtPeriodEnd: boolean;
+  /** True when the user has a Stripe customer record we can open a portal for. */
+  hasBillingAccount: boolean;
+  /** A one-off/lifetime purchase or admin grant — nothing to renew. */
+  isLifetime: boolean;
   loading: boolean;
   refresh: () => Promise<void>;
 }
 
 /**
- * Pro status is the union of:
- *   1. RevenueCat "linguascript Pro" entitlement (paid users)
- *   2. profiles.is_pro (any source: admin_grant, Stripe subscription, or a
- *      Stripe one-time/lifetime purchase — all three write is_pro server-
- *      side via a trigger/webhook and are equally authoritative), so long
- *      as pro_expires_at hasn't passed
+ * Single source of truth for Pro access. Card payments (Stripe) are the only
+ * paid route on the web app; RevenueCat was removed because its placeholder
+ * key meant it could report a conflicting entitlement that no payment backed.
+ *
+ * Pro is true when profiles.is_pro is set (written server-side by the payments
+ * webhook, the subscription sync trigger, or an admin grant) AND the stored
+ * expiry, if any, hasn't passed.
  */
 export function useSubscription(): ProStatus {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
-  const [profileRow, setProfileRow] = useState<{ is_pro: boolean; pro_source: string; pro_expires_at: string | null } | null>(null);
-  const [customerInfo, setCustomerInfo] = useState<CustomerInfo | null>(null);
+  const [profileRow, setProfileRow] = useState<{
+    is_pro: boolean;
+    pro_source: string;
+    pro_expires_at: string | null;
+  } | null>(null);
+  const [sub, setSub] = useState<{
+    status: string;
+    current_period_end: string | null;
+    cancel_at_period_end: boolean | null;
+    stripe_customer_id: string | null;
+  } | null>(null);
 
   const refresh = useCallback(async () => {
+    if (!user) {
+      setProfileRow(null);
+      setSub(null);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
-    configureRevenueCat(user?.id ?? null);
 
-    const profilePromise = user
-      ? supabase
-          .from("profiles")
-          .select("is_pro, pro_source, pro_expires_at")
-          .eq("user_id", user.id)
-          .maybeSingle()
-      : Promise.resolve({ data: null } as any);
+    const env = isPaymentsConfigured() ? getStripeEnvironment() : "sandbox";
 
-    const [{ data: prof }, info] = await Promise.all([profilePromise, getCustomerInfo()]);
+    const [{ data: prof }, { data: subRow }] = await Promise.all([
+      supabase
+        .from("profiles")
+        .select("is_pro, pro_source, pro_expires_at")
+        .eq("user_id", user.id)
+        .maybeSingle(),
+      supabase
+        .from("subscriptions")
+        .select("status, current_period_end, cancel_at_period_end, stripe_customer_id")
+        .eq("user_id", user.id)
+        .eq("environment", env)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ]);
+
     setProfileRow((prof as any) ?? null);
-    setCustomerInfo(info);
+    setSub((subRow as any) ?? null);
     setLoading(false);
   }, [user?.id]);
 
@@ -59,34 +84,36 @@ export function useSubscription(): ProStatus {
         { event: "UPDATE", schema: "public", table: "profiles", filter: `user_id=eq.${user.id}` },
         () => void refresh(),
       )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "subscriptions", filter: `user_id=eq.${user.id}` },
+        () => void refresh(),
+      )
       .subscribe();
     return () => {
       void supabase.removeChannel(channel);
     };
   }, [user?.id, refresh]);
 
-  const rcPro = hasProEntitlement(customerInfo);
-  const rcExpires = customerInfo?.entitlements.active["linguascript Pro"]?.expirationDate ?? null;
-  // profiles.is_pro is the DB's own settled answer for every non-RevenueCat
-  // grant (Stripe subscriptions via sync_pro_from_subscription, Stripe
-  // one-time/lifetime purchases via the payments webhook, and admin grants)
-  // — trust the flag itself rather than filtering to one specific
-  // pro_source, which previously meant a paying Stripe subscriber was never
-  // recognized as Pro by the app at all.
-  const dbPro = !!profileRow?.is_pro
-    && (!profileRow.pro_expires_at || new Date(profileRow.pro_expires_at) > new Date());
+  const notExpired =
+    !profileRow?.pro_expires_at || new Date(profileRow.pro_expires_at) > new Date();
+  const isPro = !!profileRow?.is_pro && notExpired;
 
-  const isPro = rcPro || dbPro;
-  const source: ProStatus["source"] = rcPro
-    ? "subscription"
-    : dbPro
-      ? (profileRow?.pro_source === "admin_grant" ? "admin_grant" : "subscription")
-      : "none";
-  const expiresAt = dbPro
-    ? profileRow?.pro_expires_at ?? null
-    : rcExpires
-      ? (rcExpires instanceof Date ? rcExpires.toISOString() : String(rcExpires))
-      : null;
+  const source: ProStatus["source"] = !isPro
+    ? "none"
+    : profileRow?.pro_source === "admin_grant"
+      ? "admin_grant"
+      : "subscription";
 
-  return { isPro, source, expiresAt, customerInfo, loading, refresh };
+  return {
+    isPro,
+    source,
+    expiresAt: profileRow?.pro_expires_at ?? sub?.current_period_end ?? null,
+    status: sub?.status ?? null,
+    cancelAtPeriodEnd: !!sub?.cancel_at_period_end,
+    hasBillingAccount: !!sub?.stripe_customer_id,
+    isLifetime: isPro && !profileRow?.pro_expires_at,
+    loading,
+    refresh,
+  };
 }

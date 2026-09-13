@@ -711,6 +711,36 @@ export type Database = {
           },
         ]
       }
+      payment_plans: {
+        Row: {
+          enabled: boolean
+          label: string
+          plan_key: string
+          price_display: string
+          price_id: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          enabled?: boolean
+          label: string
+          plan_key: string
+          price_display: string
+          price_id?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          enabled?: boolean
+          label?: string
+          plan_key?: string
+          price_display?: string
+          price_id?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       pet_collection: {
         Row: {
           gifted_from: string | null
@@ -1086,20 +1116,20 @@ export type Database = {
           ease_factor: number
           film_id: string | null
           gold_seen_count: number
+          grammar_note: string | null
           green_revealed_at: string | null
           id: string
           image_attribution: string | null
           image_url: string | null
           interval_days: number
           ipa: string
+          is_inflected: boolean | null
           is_phrase: boolean
-          is_inflected: boolean
-          grammar_note: string | null
           language: string
-          lemma: string | null
-          lemma_translation: string | null
           last_correct_at: string | null
           last_reviewed_at: string | null
+          lemma: string | null
+          lemma_translation: string | null
           next_review: string
           next_review_at: string | null
           pos: string | null
@@ -1121,20 +1151,20 @@ export type Database = {
           ease_factor?: number
           film_id?: string | null
           gold_seen_count?: number
+          grammar_note?: string | null
           green_revealed_at?: string | null
           id?: string
           image_attribution?: string | null
           image_url?: string | null
           interval_days?: number
           ipa?: string
+          is_inflected?: boolean | null
           is_phrase?: boolean
-          is_inflected?: boolean
-          grammar_note?: string | null
           language?: string
-          lemma?: string | null
-          lemma_translation?: string | null
           last_correct_at?: string | null
           last_reviewed_at?: string | null
+          lemma?: string | null
+          lemma_translation?: string | null
           next_review?: string
           next_review_at?: string | null
           pos?: string | null
@@ -1156,20 +1186,20 @@ export type Database = {
           ease_factor?: number
           film_id?: string | null
           gold_seen_count?: number
+          grammar_note?: string | null
           green_revealed_at?: string | null
           id?: string
           image_attribution?: string | null
           image_url?: string | null
           interval_days?: number
           ipa?: string
+          is_inflected?: boolean | null
           is_phrase?: boolean
-          is_inflected?: boolean
-          grammar_note?: string | null
           language?: string
-          lemma?: string | null
-          lemma_translation?: string | null
           last_correct_at?: string | null
           last_reviewed_at?: string | null
+          lemma?: string | null
+          lemma_translation?: string | null
           next_review?: string
           next_review_at?: string | null
           pos?: string | null
@@ -1921,6 +1951,7 @@ export type Database = {
         Args: { payload: Json; queue_name: string }
         Returns: number
       }
+      expire_lapsed_pro: { Args: never; Returns: number }
       gen_friend_code: { Args: never; Returns: string }
       get_daily_linguascripts: {
         Args: { p_language: string; p_user_id: string }

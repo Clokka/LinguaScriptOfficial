@@ -33,6 +33,37 @@ import { getPetById } from "@/lib/pets";
 import { PetViewer } from "@/components/pets/PetViewer";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
+import { useSubscription } from "@/hooks/useSubscription";
+import { ManageBillingButton } from "@/components/ManageBillingButton";
+
+function BillingSection() {
+  const navigate = useNavigate();
+  const { isPro, source, expiresAt, cancelAtPeriodEnd, hasBillingAccount, isLifetime, loading } = useSubscription();
+  if (loading) return null;
+  return (
+    <div className="pt-4 border-t border-border/50">
+      <p className="text-sm font-medium text-foreground mb-1">Your plan</p>
+      <p className="text-xs text-muted-foreground mb-3">
+        {!isPro
+          ? "You're on the free plan."
+          : isLifetime
+            ? source === "admin_grant"
+              ? "Pro — gifted to you, with no expiry."
+              : "Pro — lifetime access, nothing to renew."
+            : cancelAtPeriodEnd
+              ? `Pro — access ends ${expiresAt ? new Date(expiresAt).toLocaleDateString() : "at the end of this billing period"}.`
+              : `Pro — renews ${expiresAt ? new Date(expiresAt).toLocaleDateString() : "automatically"}.`}
+      </p>
+      {isPro && hasBillingAccount ? (
+        <ManageBillingButton className="border-border text-foreground" />
+      ) : !isPro ? (
+        <Button type="button" variant="outline" size="lg" className="w-full bg-background/60" onClick={() => navigate("/upgrade")}>
+          See Pro plans
+        </Button>
+      ) : null}
+    </div>
+  );
+}
 
 const Profile = () => {
   const { user, loading: authLoading, signOut } = useAuth();
@@ -520,6 +551,8 @@ const Profile = () => {
               )}
             </div>
           )}
+
+          <BillingSection />
         </div>
 
       </div>
