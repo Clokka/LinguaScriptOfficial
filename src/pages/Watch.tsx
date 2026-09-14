@@ -33,6 +33,7 @@ import {
   type VideoComprehension,
 } from "@/lib/videoComprehension";
 import { recordWatchSession, type RecordResult } from "@/lib/watchSessions";
+import { tryAdvanceCefrLevel, CEFR_ADVANCE_COMPREHENSION_PCT } from "@/lib/languageProfiles";
 import { WatchResultsModal } from "@/components/WatchResultsModal";
 import { LearningBreakModal, type QuizWord } from "@/components/LearningBreakModal";
 import { PronunciationJudge } from "@/components/PronunciationJudge";
@@ -720,6 +721,16 @@ const Watch = () => {
                   setSessionResult(r);
                   if (r && r.prev_pct !== null && r.delta >= 5) {
                     toast.success(`You now understand ${Math.round(r.delta)}% more of this video! 🎉`);
+                  }
+                  // Basic progression: coasting through a video at this level
+                  // (high first-watch comprehension) means it's time for
+                  // something harder. Discover already sorts toward
+                  // cefr_level, so this is the only step needed.
+                  if (r && r.new_pct >= CEFR_ADVANCE_COMPREHENSION_PCT) {
+                    const leveledTo = await tryAdvanceCefrLevel(user.id, lang);
+                    if (leveledTo) {
+                      toast.success(`Leveled up to ${leveledTo.toUpperCase()}! Harder videos unlocked. 🚀`);
+                    }
                   }
                 } else {
                   setSessionResult({ watch_number: 1, prev_pct: null, new_pct: comp.pct, delta: 0, first_pct: comp.pct, best_pct: comp.pct });
