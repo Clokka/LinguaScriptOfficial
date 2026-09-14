@@ -79,6 +79,38 @@ async function grantOneTimePro(session: any) {
     .eq("user_id", userId);
 }
 
+// A subscription's renewal invoices are generated automatically, outside the
+// checkout flow — if the customer's saved address ever becomes insufficient
+// for Stripe Tax to calculate tax, the invoice can't finalize and the
+// subscription just silently stops being billed. Flag it so it shows up in
+// /admin instead of only in function logs nobody watches.
+async function flagTaxIssue(invoice: any) {
+  const subscriptionId = invoice.subscription;
+  if (!subscriptionId) return;
+  if (invoice.automatic_tax?.status !== "requires_location_inputs") return;
+
+  console.error(
+    "Tax finalization failed — customer's address is insufficient for tax calculation",
+    { invoiceId: invoice.id, subscriptionId },
+  );
+  await getSupabase()
+    .from("subscriptions")
+    .update({ tax_location_invalid: true, tax_issue_detected_at: new Date().toISOString() })
+    .eq("stripe_subscription_id", subscriptionId);
+}
+
+// A paid invoice on a previously-flagged subscription means the address (or
+// whatever else was blocking finalization) has since been fixed — clear it.
+async function clearTaxIssue(invoice: any) {
+  const subscriptionId = invoice.subscription;
+  if (!subscriptionId) return;
+  await getSupabase()
+    .from("subscriptions")
+    .update({ tax_location_invalid: false })
+    .eq("stripe_subscription_id", subscriptionId)
+    .eq("tax_location_invalid", true);
+}
+
 Deno.serve(async (req) => {
   if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
   const rawEnv = new URL(req.url).searchParams.get("env");
@@ -98,6 +130,12 @@ Deno.serve(async (req) => {
         break;
       case "checkout.session.completed":
         await grantOneTimePro(event.data.object);
+        break;
+      case "invoice.finalization_failed":
+        await flagTaxIssue(event.data.object);
+        break;
+      case "invoice.paid":
+        await clearTaxIssue(event.data.object);
         break;
       default:
         console.log("Unhandled event:", event.type);

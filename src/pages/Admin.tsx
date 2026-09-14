@@ -21,6 +21,7 @@ import { AdminProGrants } from "@/components/AdminProGrants";
 import { AdminProGiftLinks } from "@/components/AdminProGiftLinks";
 import { AdminProChameleonGiveaway } from "@/components/AdminProChameleonGiveaway";
 import { AdminStripeFallback } from "@/components/AdminStripeFallback";
+import { AdminTaxIssues } from "@/components/AdminTaxIssues";
 import { AdminPaymentLinks } from "@/components/AdminPaymentLinks";
 import { AdminGiftLinks } from "@/components/AdminGiftLinks";
 import { AdminBlogEditor } from "@/components/AdminBlogEditor";
@@ -383,6 +384,7 @@ const Admin = () => {
         <AdminProGiftLinks />
         <AdminProChameleonGiveaway />
         <AdminStripeFallback />
+        <AdminTaxIssues />
         <AdminPaymentLinks />
         <AdminGiftLinks />
 
