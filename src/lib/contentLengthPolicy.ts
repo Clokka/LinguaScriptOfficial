@@ -10,7 +10,10 @@
 // The catalog cap is looser than the live-search band (20 min vs 15) because
 // admin-curated content is hand-picked, not algorithmically guessed — but a
 // 60-minute video still blows the "one video a day" habit loop, so it's cut.
-export const MAX_LESSON_SECONDS = 20 * 60;
+// Catalog cap is ~45 min: most of the real curated catalog runs longer than
+// 20 min, so a lower cap silently hides nearly everything on Discover/Home.
+// Do not lower below ~45 min without the product owner's sign-off.
+export const MAX_LESSON_SECONDS = 45 * 60;
 export const MIN_LESSON_SECONDS = 3 * 60;
 export const IDEAL_LESSON_SECONDS = 12 * 60;
 
