@@ -54,23 +54,14 @@ function BillingSection() {
               ? `Pro — access ends ${expiresAt ? new Date(expiresAt).toLocaleDateString() : "at the end of this billing period"}.`
               : `Pro — renews ${expiresAt ? new Date(expiresAt).toLocaleDateString() : "automatically"}.`}
       </p>
+      {/* Manage billing must show whenever a billing account exists, even if
+          Pro lapsed — Stripe still has the customer on file. Never gate on isPro. */}
       {hasBillingAccount ? (
-        // Available whenever Stripe has a customer record on file — not
-        // gated on isPro — so a subscription that already lapsed (access
-        // ended, but there's still billing history/an invoice to see, or
-        // the learner wants to resubscribe) doesn't lose the portal link.
         <ManageBillingButton className="border-border text-foreground" />
       ) : !isPro ? (
         <Button type="button" variant="outline" size="lg" className="w-full bg-background/60" onClick={() => navigate("/upgrade")}>
           See Pro plans
         </Button>
-      ) : !isLifetime ? (
-        // isPro but no Stripe customer on file and not a lifetime/gifted
-        // grant is unexpected — surface it instead of rendering nothing, so
-        // it's visible rather than looking like the button just vanished.
-        <p className="text-xs text-muted-foreground">
-          We can't find a billing record for this Pro subscription. If you were charged, contact support.
-        </p>
       ) : null}
     </div>
   );

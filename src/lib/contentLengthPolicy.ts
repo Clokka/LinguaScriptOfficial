@@ -7,16 +7,14 @@
 // dashboard instead and was never filtered — so a 60-minute lecture or a
 // song added there would slip straight onto Discover/Home.
 //
-// The catalog cap is looser than the live-search band because admin-curated
-// content is hand-picked, not algorithmically guessed. The original 20-minute
-// cap turned out to be far stricter than the real catalog: most of the
-// existing admin-curated library (vlogs, interviews, documentary-style
-// lessons) already ran longer than that, so the very first rollout of this
-// filter silently emptied Discover and the Home rows on every page that uses
-// it. A 60-minute lecture or a full movie is still cut, but the cap now
-// leaves normal-length lesson content alone.
+// The catalog cap is looser than the live-search band (20 min vs 15) because
+// admin-curated content is hand-picked, not algorithmically guessed — but a
+// 60-minute video still blows the "one video a day" habit loop, so it's cut.
+// Catalog cap is ~45 min: most of the real curated catalog runs longer than
+// 20 min, so a lower cap silently hides nearly everything on Discover/Home.
+// Do not lower below ~45 min without the product owner's sign-off.
 export const MAX_LESSON_SECONDS = 45 * 60;
-export const MIN_LESSON_SECONDS = 2 * 60;
+export const MIN_LESSON_SECONDS = 3 * 60;
 export const IDEAL_LESSON_SECONDS = 12 * 60;
 
 export function isMusicCategory(category?: string | null, tags?: string[] | null): boolean {
