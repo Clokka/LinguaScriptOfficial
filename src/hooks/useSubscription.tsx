@@ -90,8 +90,23 @@ export function useSubscription(): ProStatus {
         () => void refresh(),
       )
       .subscribe();
+
+    // The realtime channel above depends on the Stripe webhook having
+    // already landed. Cancelling happens in the hosted billing portal
+    // (a separate tab) — when the user comes back to this tab, refetch
+    // immediately instead of trusting the websocket update to have won
+    // the race, so "renews" flips to "cancels" without a manual reload.
+    const onFocus = () => void refresh();
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") void refresh();
+    };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibility);
+
     return () => {
       void supabase.removeChannel(channel);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibility);
     };
   }, [user?.id, refresh]);
 

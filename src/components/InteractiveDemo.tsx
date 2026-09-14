@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Check, MousePointer2, Plus, Sparkles, Volume2, Maximize2, Library, Layers,
@@ -65,7 +65,29 @@ export const InteractiveDemo = ({ onComplete }: { onComplete: () => void }) => {
     if (stage === "done") onComplete();
   }, [stage, onComplete]);
 
+  // Every stage handler below schedules one or more setTimeouts. None of
+  // them were ever cleared, so a stray timer from an earlier stage (e.g. a
+  // fast double-tap re-triggering a handler before its first timer fired)
+  // could still fire after the user had moved on, quietly re-toggling state
+  // like fakeFullscreen or calling advance() a second time — which is what
+  // made the fullscreen button occasionally look "stuck": its disabled
+  // state briefly went out of sync with what was on screen. Track every
+  // timer here so a new stage always clears whatever the previous one left
+  // pending, and so nothing fires after the component unmounts.
+  const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const schedule = (fn: () => void, ms: number) => {
+    const id = setTimeout(fn, ms);
+    timers.current.push(id);
+    return id;
+  };
+  const clearPendingTimers = () => {
+    timers.current.forEach(clearTimeout);
+    timers.current = [];
+  };
+  useEffect(() => clearPendingTimers, []);
+
   const advance = () => {
+    clearPendingTimers();
     const next = STAGE_ORDER[stageIndex + 1];
     if (next) setStage(next);
   };
@@ -97,10 +119,10 @@ export const InteractiveDemo = ({ onComplete }: { onComplete: () => void }) => {
     } catch {
       /* noop */
     }
-    setTimeout(() => {
+    schedule(() => {
       // Save the word at same time, fly into deck
       setSavedFly(true);
-      setTimeout(() => {
+      schedule(() => {
         setDeckCount(1);
         setSavedFly(false);
         setPopupOpen(false);
@@ -113,7 +135,7 @@ export const InteractiveDemo = ({ onComplete }: { onComplete: () => void }) => {
     if (stage !== "fullscreen") return;
     playDing("soft");
     setFakeFullscreen(true);
-    setTimeout(() => {
+    schedule(() => {
       setFakeFullscreen(false);
       advance();
     }, 1200);
@@ -123,7 +145,7 @@ export const InteractiveDemo = ({ onComplete }: { onComplete: () => void }) => {
     if (stage !== "catalogue") return;
     playDing("soft");
     setShowCatalogue(true);
-    setTimeout(() => {
+    schedule(() => {
       setShowCatalogue(false);
       advance();
     }, 1600);
@@ -133,7 +155,7 @@ export const InteractiveDemo = ({ onComplete }: { onComplete: () => void }) => {
     if (stage !== "flashcards") return;
     playDing("success");
     setShowFlashcards(true);
-    setTimeout(() => {
+    schedule(() => {
       setShowFlashcards(false);
       advance();
     }, 1600);

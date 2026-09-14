@@ -157,7 +157,15 @@ export const TourOverlay = () => {
       const matched = target.closest(step.selector);
       const isAllowed = target.closest('[data-tour-allow="true"]');
       if (matched) {
-        if (step.id === "watch-fullscreen") return;
+        // These steps target a <Select> trigger. Clicking it only OPENS the
+        // dropdown — the click-to-advance rule below would treat that as
+        // "done" and advance the tour ~60ms later, right as the dropdown's
+        // options render. The next step's click-guard then swallows the
+        // click on the actual language option unless the user is fast
+        // enough to beat that window. Browse.tsx already advances these two
+        // steps itself (via each Select's onOpenChange) once a value is
+        // actually chosen, so skip the generic handler for both.
+        if (step.id === "watch-fullscreen" || step.id === "settings-native" || step.id === "settings-learning") return;
         advanceLockRef.current = true;
         setTimeout(() => {
           advanceLockRef.current = false;
