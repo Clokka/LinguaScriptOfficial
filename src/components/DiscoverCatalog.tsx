@@ -1,6 +1,8 @@
 // Discover storefront. Pulls EVERY public film from the Admin Dashboard
-// (table: films, is_public=true). Filters by CEFR / category / language /
-// search. New admin uploads appear automatically with no frontend changes.
+// (table: films, is_public=true). Filters by category / language / search,
+// restricted to the learner's own languages (Profile → My Languages), and
+// orders results toward each language's real CEFR level from that same
+// profile. New admin uploads appear automatically with no frontend changes.
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, Filter, Play, Sparkles, Clock, Loader2 } from "lucide-react";
@@ -9,9 +11,10 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { getLanguageLabel, getLanguageFlag, LANGUAGES } from "@/lib/languages";
+import { getLanguageLabel, getLanguageFlag } from "@/lib/languages";
 import { computeVideoComprehension } from "@/lib/videoComprehension";
 import { passesContentLengthPolicy } from "@/lib/contentLengthPolicy";
+import { listLanguageProfiles, type LanguageProfile } from "@/lib/languageProfiles";
 import { cn } from "@/lib/utils";
 
 export interface DiscoverFilm {
@@ -28,7 +31,8 @@ export interface DiscoverFilm {
   created_at: string;
 }
 
-const CEFR = ["A1", "A2", "B1", "B2", "C1", "C2"];
+// Ascending difficulty, lowercase to match language_profiles.cefr_level.
+const CEFR_ORDER = ["a1", "a2", "b1", "b2", "c1", "c2"];
 
 function formatDuration(s?: number | null): string {
   if (!s || s <= 0) return "";
@@ -50,8 +54,13 @@ export function DiscoverCatalog({ defaultLanguage }: { defaultLanguage: string }
   const [comp, setComp] = useState<Record<string, number>>({});
   const [query, setQuery] = useState("");
   const [langFilter, setLangFilter] = useState<string>(defaultLanguage);
-  const [cefrFilter, setCefrFilter] = useState<string>("__all__");
   const [catFilter, setCatFilter] = useState<string>("__all__");
+  // The learner's own languages (set in Profile → My Languages), each
+  // carrying its own CEFR level — this is what drives both the language
+  // picker below and the difficulty ordering, instead of a separate
+  // all-languages / all-levels picker that could show content the learner
+  // never asked for.
+  const [profiles, setProfiles] = useState<LanguageProfile[] | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -66,6 +75,16 @@ export function DiscoverCatalog({ defaultLanguage }: { defaultLanguage: string }
     })();
     return () => { alive = false; };
   }, []);
+
+  useEffect(() => {
+    let alive = true;
+    if (!user) { setProfiles([]); return; }
+    (async () => {
+      const p = await listLanguageProfiles(user.id);
+      if (alive) setProfiles(p);
+    })();
+    return () => { alive = false; };
+  }, [user]);
 
   // Compute estimated comprehension for visible films (sampled, bounded).
   useEffect(() => {
@@ -92,13 +111,28 @@ export function DiscoverCatalog({ defaultLanguage }: { defaultLanguage: string }
     return Array.from(set).sort();
   }, [films]);
 
+  // Only the learner's own languages, most recently active first — never
+  // every language LinguaScript supports.
+  const languageOptions = useMemo(() => {
+    const codes = (profiles ?? []).map((p) => p.language);
+    if (defaultLanguage && !codes.includes(defaultLanguage)) codes.unshift(defaultLanguage);
+    return codes;
+  }, [profiles, defaultLanguage]);
+
+  // The learner's real CEFR level for whichever language is selected —
+  // set on their profile, not a separate filter here — so raising it
+  // there is what surfaces harder content, automatically.
+  const activeLevel = useMemo(
+    () => profiles?.find((p) => p.language === langFilter)?.cefr_level ?? null,
+    [profiles, langFilter],
+  );
+
   const filtered = useMemo(() => {
     if (!films) return [];
     const q = query.trim().toLowerCase();
-    return films.filter((f) => {
+    const base = films.filter((f) => {
       if (!passesContentLengthPolicy(f)) return false;
-      if (langFilter !== "__all__" && (f.language || "") !== langFilter) return false;
-      if (cefrFilter !== "__all__" && (f.cefr_level || "").toUpperCase() !== cefrFilter) return false;
+      if (langFilter && (f.language || "") !== langFilter) return false;
       if (catFilter !== "__all__" && (f.category || "") !== catFilter) return false;
       if (q) {
         const hay = `${f.title} ${(f.tags || []).join(" ")} ${f.description || ""}`.toLowerCase();
@@ -106,7 +140,21 @@ export function DiscoverCatalog({ defaultLanguage }: { defaultLanguage: string }
       }
       return true;
     });
-  }, [films, query, langFilter, cefrFilter, catFilter]);
+
+    const targetRank = CEFR_ORDER.indexOf((activeLevel || "").toLowerCase());
+    if (targetRank < 0) return base;
+
+    // Bubble videos at-or-above the learner's level to the top (closest
+    // first), then easier ones, then untagged content last — a nudge
+    // toward harder material, not a hard filter that could empty the grid
+    // on sparsely-tagged content.
+    const distance = (f: DiscoverFilm) => {
+      const r = CEFR_ORDER.indexOf((f.cefr_level || "").toLowerCase());
+      if (r < 0) return 99;
+      return r >= targetRank ? r - targetRank : 50 + (targetRank - r);
+    };
+    return [...base].sort((a, b) => distance(a) - distance(b));
+  }, [films, query, langFilter, catFilter, activeLevel]);
 
   if (films === null) {
     return (
@@ -137,26 +185,18 @@ export function DiscoverCatalog({ defaultLanguage }: { defaultLanguage: string }
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Select value={langFilter} onValueChange={setLangFilter}>
-            <SelectTrigger className="w-[170px] h-9 bg-secondary/40 border-border rounded-lg text-sm">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__all__">All languages</SelectItem>
-              {LANGUAGES.map((l) => (
-                <SelectItem key={l.code} value={l.code}>{l.flag} {l.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={cefrFilter} onValueChange={setCefrFilter}>
-            <SelectTrigger className="w-[140px] h-9 bg-secondary/40 border-border rounded-lg text-sm">
-              <SelectValue placeholder="CEFR" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__all__">All levels</SelectItem>
-              {CEFR.map((c) => (<SelectItem key={c} value={c}>{c}</SelectItem>))}
-            </SelectContent>
-          </Select>
+          {languageOptions.length > 1 && (
+            <Select value={langFilter} onValueChange={setLangFilter}>
+              <SelectTrigger className="w-[170px] h-9 bg-secondary/40 border-border rounded-lg text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {languageOptions.map((code) => (
+                  <SelectItem key={code} value={code}>{getLanguageFlag(code)} {getLanguageLabel(code)}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           {categories.length > 0 && (
             <Select value={catFilter} onValueChange={setCatFilter}>
               <SelectTrigger className="w-[170px] h-9 bg-secondary/40 border-border rounded-lg text-sm">
@@ -168,10 +208,10 @@ export function DiscoverCatalog({ defaultLanguage }: { defaultLanguage: string }
               </SelectContent>
             </Select>
           )}
-          {(query || cefrFilter !== "__all__" || catFilter !== "__all__" || langFilter !== defaultLanguage) && (
+          {(query || catFilter !== "__all__" || langFilter !== defaultLanguage) && (
             <Button
               variant="ghost" size="sm"
-              onClick={() => { setQuery(""); setCefrFilter("__all__"); setCatFilter("__all__"); setLangFilter(defaultLanguage); }}
+              onClick={() => { setQuery(""); setCatFilter("__all__"); setLangFilter(defaultLanguage); }}
               className="h-9 gap-1 text-xs"
             >
               <Filter className="w-3 h-3" /> Reset

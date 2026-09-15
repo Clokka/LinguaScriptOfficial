@@ -293,7 +293,7 @@ export function LevelUpCelebration({ petId, level, onDone }: LevelUpCelebrationP
     return runStage({
       host: hostRef.current,
       glbFile: pet.glbFile,
-      canvasSize: 280,
+      canvasSize: 220,
       timings: { spawn: 0.5, hold: cel.hold, exit: 0.3 },
       clips: { intro: cel.intro, loop: cel.loop },
       onExit: () => rootRef.current?.classList.remove("opacity-100"),
@@ -308,7 +308,7 @@ export function LevelUpCelebration({ petId, level, onDone }: LevelUpCelebrationP
       ref={rootRef}
       className="pointer-events-none fixed inset-0 z-[110] flex flex-col items-center justify-center bg-background/60 opacity-0 backdrop-blur-sm transition-opacity duration-300"
     >
-      <div className="relative h-[240px] w-[240px] sm:h-[280px] sm:w-[280px]">
+      <div className="relative h-[190px] w-[190px] sm:h-[220px] sm:w-[220px]">
         <div
           className="absolute inset-[10%] animate-pulse rounded-full"
           style={{

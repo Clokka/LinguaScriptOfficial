@@ -54,7 +54,9 @@ function BillingSection() {
               ? `Pro — access ends ${expiresAt ? new Date(expiresAt).toLocaleDateString() : "at the end of this billing period"}.`
               : `Pro — renews ${expiresAt ? new Date(expiresAt).toLocaleDateString() : "automatically"}.`}
       </p>
-      {isPro && hasBillingAccount ? (
+      {/* Manage billing must show whenever a billing account exists, even if
+          Pro lapsed — Stripe still has the customer on file. Never gate on isPro. */}
+      {hasBillingAccount ? (
         <ManageBillingButton className="border-border text-foreground" />
       ) : !isPro ? (
         <Button type="button" variant="outline" size="lg" className="w-full bg-background/60" onClick={() => navigate("/upgrade")}>
