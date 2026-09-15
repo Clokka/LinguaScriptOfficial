@@ -1,17 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  ArrowRight, ArrowLeft, Check, Sparkles, Languages, Subtitles,
-  BookOpen, Brain, Mic, MousePointer2, Trophy, Flame,
-  Headphones, RefreshCw,
-} from "lucide-react";
+import { ArrowRight, ArrowLeft, Check, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectSeparator } from "@/components/ui/select";
 import { LANGUAGES, getLanguageLabel } from "@/lib/languages";
-// (InteractiveDemo replaced by the live tour overlay launched from this screen)
 import { useAuth } from "@/hooks/useAuth";
 import brandLockup from "@/assets/brand/linguascript-wordmark.png.asset.json";
 import { supabase } from "@/integrations/supabase/client";
@@ -22,7 +17,7 @@ import { playDing } from "@/lib/sound";
 import { toast } from "sonner";
 import { DailyGoalPicker } from "@/components/DailyGoalPicker";
 import { DEFAULT_WORD_GOAL, videoGoalForWords, wordGoalForVideos } from "@/lib/progressStats";
-import { INTERESTS, MAX_INTERESTS } from "@/lib/interests";
+import { INTERESTS } from "@/lib/interests";
 import { MODE_META, addLanguageProfile, type LearningMode } from "@/lib/languageProfiles";
 
 // "beginner" is a true zero-knowledge start — not a CEFR level, a signal
@@ -33,6 +28,12 @@ import { MODE_META, addLanguageProfile, type LearningMode } from "@/lib/language
 const LEVELS = ["beginner", "A2", "B1", "B2", "C1"] as const;
 type Level = typeof LEVELS[number];
 
+// Four steps, not eight. The old flow opened with a static "how it works"
+// slide and closed with three more static cards (Catalogue & XP, Flashcards,
+// Learn faster) that were never actually reachable — the one button that
+// cleared the guided-demo step navigated straight to /watch/:id before the
+// "Continue" past it ever unlocked. Nobody ever saw them. What's left is the
+// four steps that either collect something real or teach by doing.
 const Onboarding = () => {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
@@ -124,14 +125,13 @@ const Onboarding = () => {
     return () => { cancelled = true; };
   }, [target]);
 
-  const totalSteps = 8;
+  const totalSteps = 4;
 
   const canContinue = useMemo(() => {
-    if (step === 0) return true; // 3-pillars intro
-    if (step === 1) return !!native && !!target && native !== target && !!level;
-    if (step === 2) return interests.length >= 1;
-    if (step === 3) return goalSaved;
-    if (step === 4) return dualClicked;
+    if (step === 0) return !!native && !!target && native !== target && !!level;
+    if (step === 1) return interests.length >= 1;
+    if (step === 2) return goalSaved;
+    if (step === 3) return dualClicked;
     return true;
   }, [step, native, target, level, goalSaved, dualClicked, interests]);
 
@@ -145,10 +145,10 @@ const Onboarding = () => {
   const next = async () => {
     // Remember the choice even before there is an account, so signing up later
     // in the flow can never lose it.
-    if (step === 1 && target) {
+    if (step === 0 && target) {
       try { localStorage.setItem(PENDING_LANGUAGE_KEY, target); } catch { /* ignore */ }
     }
-    if (step === 1 && user) {
+    if (step === 0 && user) {
       const isTotalBeginner = level === "beginner";
       // "beginner" isn't a real CEFR value — store A1 as the nominal level
       // so every other CEFR-tier feature (progress tracking, advancement,
@@ -180,7 +180,7 @@ const Onboarding = () => {
         });
       }
     }
-    if (step === 2 && user) {
+    if (step === 1 && user) {
       await supabase.from("profiles").update({ interests } as any).eq("user_id", user.id);
     }
     if (step < totalSteps - 1) {
@@ -217,18 +217,18 @@ const Onboarding = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#0d1410] via-[#08080B] to-[#08080B] text-white antialiased">
-      <header className="sticky top-0 z-50 bg-[#0E0E11]/80 backdrop-blur-xl border-b border-white/10">
-        <div className="max-w-2xl mx-auto px-6 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <img src={brandLockup.url} alt="LinguaScript" className="h-6 w-auto" />
-          </div>
-          <div className="flex items-center gap-1.5">
+    <div className="min-h-screen bg-[#0b1215] text-white antialiased">
+      <header className="sticky top-0 z-50 bg-[#0b1215]/90 backdrop-blur-xl border-b border-white/5">
+        <div className="max-w-2xl mx-auto px-6 h-16 flex items-center justify-between">
+          <img src={brandLockup.url} alt="LinguaScript" className="h-6 w-auto" />
+          {/* Dot pager, not a segmented bar — same idiom as the app's own
+              mobile intro tour (mobile/app/tour.tsx). */}
+          <div className="flex items-center gap-2">
             {Array.from({ length: totalSteps }).map((_, i) => (
               <div
                 key={i}
-                className={`h-1.5 rounded-full transition-all ${
-                  i === step ? "w-6 bg-[#34C759]" : i < step ? "w-1.5 bg-[#34C759]/60" : "w-1.5 bg-white/10"
+                className={`h-2 rounded-full transition-all ${
+                  i === step ? "w-6 bg-[#34C759]" : i < step ? "w-2 bg-[#34C759]/60" : "w-2 bg-white/15"
                 }`}
               />
             ))}
@@ -247,36 +247,6 @@ const Onboarding = () => {
           >
             {step === 0 && (
               <Card>
-                <Eyebrow icon={<Sparkles className="w-3.5 h-3.5" />}>Welcome</Eyebrow>
-                <Title>How LinguaScript works.</Title>
-                <Sub>Three simple habits. That's the whole app.</Sub>
-
-                <div className="mt-8 space-y-4">
-                  <PillarCard
-                    icon={<Headphones className="w-5 h-5" />}
-                    pillar="1. Watch"
-                    title="Real videos, subtitles in both languages"
-                    body="Pick a video. Subtitles show up in your new language and your own, side by side, so you're never lost."
-                  />
-                  <PillarCard
-                    icon={<MousePointer2 className="w-5 h-5" />}
-                    pillar="2. Tap a word"
-                    title="Don't know it? Save it in one tap"
-                    body="See what it means, hear it said correctly, and it's saved for you — no typing, no looking it up elsewhere."
-                  />
-                  <PillarCard
-                    icon={<RefreshCw className="w-5 h-5" />}
-                    pillar="3. Review"
-                    title="We bring words back right on time"
-                    body="A quick flashcard review, timed to hit just as you'd start to forget — that's what makes words stick."
-                  />
-                </div>
-              </Card>
-            )}
-
-            {step === 1 && (
-              <Card>
-                <Eyebrow icon={<Sparkles className="w-3.5 h-3.5" />}>Sign up</Eyebrow>
                 <Title>Let's tune LinguaScript to you.</Title>
                 <Sub>Tell us your languages and current level — this powers translations and recommendations.</Sub>
 
@@ -314,7 +284,7 @@ const Onboarding = () => {
                           className={`text-left rounded-2xl border p-4 transition ${
                             mode === m
                               ? "bg-[#34C759]/10 border-[#34C759]"
-                              : "bg-[#0E0E11] border-white/10 hover:border-[#34C759]/60"
+                              : "bg-white/[0.02] border-white/10 hover:border-[#34C759]/60"
                           }`}
                         >
                           <p className="text-sm font-medium text-white">
@@ -335,7 +305,7 @@ const Onboarding = () => {
                           className={`px-4 py-2 rounded-full text-sm font-medium border transition ${
                             level === l
                               ? "bg-[#34C759] border-[#34C759] text-white shadow-[0_6px_18px_-6px_rgba(52,199,89,0.6)]"
-                              : "bg-[#0E0E11] border-white/10 text-white/75 hover:border-[#34C759]/60"
+                              : "bg-white/[0.02] border-white/10 text-white/75 hover:border-[#34C759]/60"
                           }`}
                         >
                           {l === "beginner" ? "I'm a total beginner" : l}
@@ -355,7 +325,7 @@ const Onboarding = () => {
                       value={school}
                       onChange={(e) => setSchool(e.target.value)}
                       placeholder="e.g. Truro College"
-                      className="rounded-xl border-white/10 bg-[#0E0E11] h-11 focus-visible:ring-[#34C759] text-white"
+                      className="rounded-xl border-white/10 bg-white/[0.02] h-11 focus-visible:ring-[#34C759] text-white"
                     />
                     <p className="mt-2 text-xs text-white/50">
                       Add your school or college so we can connect you with classmates later. Skip if you're learning solo.
@@ -369,10 +339,8 @@ const Onboarding = () => {
               </Card>
             )}
 
-
-            {step === 2 && (
+            {step === 1 && (
               <Card>
-                <Eyebrow icon={<Sparkles className="w-3.5 h-3.5" />}>Personalise your feed</Eyebrow>
                 <Title>What do you enjoy watching?</Title>
                 <Sub>
                   Select all that apply. We'll mix these with your learning language to surface
@@ -390,11 +358,11 @@ const Onboarding = () => {
                         className={`relative rounded-2xl border p-4 flex flex-col items-center justify-center gap-2 transition text-center min-h-[104px] ${
                           active
                             ? "bg-[#34C759] border-[#34C759] text-white shadow-[0_10px_24px_-10px_rgba(52,199,89,0.7)] scale-[1.02]"
-                            : "bg-[#0E0E11] border-white/10 text-white/90 hover:border-[#34C759]/60 hover:-translate-y-0.5"
+                            : "bg-white/[0.02] border-white/10 text-white/90 hover:border-[#34C759]/60 hover:-translate-y-0.5"
                         }`}
                       >
                         {active && (
-                          <span className="absolute top-2 right-2 w-5 h-5 rounded-full bg-[#0E0E11] text-[#34C759] flex items-center justify-center">
+                          <span className="absolute top-2 right-2 w-5 h-5 rounded-full bg-[#0b1215] text-[#34C759] flex items-center justify-center">
                             <Check className="w-3.5 h-3.5" strokeWidth={3} />
                           </span>
                         )}
@@ -413,24 +381,17 @@ const Onboarding = () => {
               </Card>
             )}
 
-            {step === 3 && (
+            {step === 2 && (
               <Card>
-                <Eyebrow icon={<Sparkles className="w-3.5 h-3.5" />}>Card 1 of 5</Eyebrow>
-                <Title>Welcome to the Lingua Universe 🌍</Title>
-                <Sub>We're here to support your language learning goals.</Sub>
-
-                <div className="mt-8 rounded-2xl bg-white/[0.04] border border-white/10 p-5 text-[15px] leading-relaxed text-white/75">
-                  Learners who write down clear goals before starting are{" "}
-                  <span className="font-semibold text-[#34C759]">95% more likely</span> to succeed.
-                </div>
+                <Title>What's your goal?</Title>
+                <Sub>Learners who write down a clear goal before starting are 95% more likely to reach it.</Sub>
 
                 <div className="mt-6">
-                  <label className="text-sm font-medium text-white/75 mb-2 block">Write your language goal</label>
                   <Textarea
                     value={goal}
                     onChange={(e) => { setGoal(e.target.value); setGoalSaved(false); }}
                     placeholder="e.g. Hold a 10-minute conversation in French by summer."
-                    className="min-h-[110px] rounded-2xl border-white/10 focus-visible:ring-[#34C759] bg-[#0E0E11] text-white"
+                    className="min-h-[110px] rounded-2xl border-white/10 focus-visible:ring-[#34C759] bg-white/[0.02] text-white"
                   />
                   <div className="mt-3 flex items-center gap-3">
                     <Button
@@ -445,16 +406,16 @@ const Onboarding = () => {
                         initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}
                         className="text-sm text-[#34C759] font-medium"
                       >
-                        Added to your Calendar ✨
+                        Nice — let's go ✨
                       </motion.span>
                     )}
                   </div>
                 </div>
 
-                <div className="mt-8 rounded-2xl border border-white/10 bg-[#0E0E11] p-5">
+                <div className="mt-8 rounded-2xl border border-white/10 bg-white/[0.02] p-5">
                   <div className="flex items-center gap-2 mb-2">
                     <Trophy className="w-4 h-4 text-[#34C759]" />
-                    <span className="text-sm font-semibold text-white">Join the LinguaScript Leaderboard 🏆</span>
+                    <span className="text-sm font-semibold text-white">Join the leaderboard</span>
                   </div>
                   <label className="flex items-start gap-3 cursor-pointer">
                     <input
@@ -465,26 +426,19 @@ const Onboarding = () => {
                     />
                     <span className="text-sm text-white/75 leading-relaxed">
                       Appear on the public LinguaScript leaderboard.<br />
-                      <span className="text-xs text-white/50">Compete with other learners, earn XP, build streaks, climb the rankings.</span>
+                      <span className="text-xs text-white/50">Compete, earn XP, build streaks. Change this anytime in Settings.</span>
                     </span>
                   </label>
-                  {!showOnLeaderboard && (
-                    <div className="mt-3 rounded-xl bg-white/[0.04] border border-white/10 p-3 text-xs text-white/60 leading-relaxed">
-                      Hidden from: public leaderboards, XP rankings, friend discovery. Existing friends can still see your profile.
-                    </div>
-                  )}
                 </div>
               </Card>
             )}
 
-            {step === 4 && (
-              <Card>
-                <Eyebrow icon={<Subtitles className="w-3.5 h-3.5" />}>Card 2 of 5</Eyebrow>
-                <Title>Now learn by doing.</Title>
-                <Sub>
-                  Watch the 30-second intro, then enter the guided demo. A cursor will walk you through the entire Linguascript loop on a real video.
-                </Sub>
-
+            {step === 3 && (
+              <HeroCard
+                emoji="🦎"
+                title="Now learn by doing."
+                body="Watch a real video, tap any word you don't know, and watch it get saved instantly. That's the whole app — see it for yourself."
+              >
                 {(() => {
                   const trainingYtId = introVideoId;
                   const enterDemo = async () => {
@@ -542,7 +496,7 @@ const Onboarding = () => {
                         <div className="absolute inset-0 bg-transparent group-hover:bg-black/10 transition-colors" aria-hidden />
                       </div>
                       ) : (
-                        <div className="mt-8 rounded-3xl border border-white/10 bg-white/[0.03] p-8 text-center text-sm text-white/60">
+                        <div className="mt-8 rounded-3xl border border-white/10 bg-white/[0.02] p-8 text-center text-sm text-white/60">
                           We don't have an intro clip in {getLanguageLabel(target)} yet — jump straight into the guided demo below.
                         </div>
                       )}
@@ -561,74 +515,7 @@ const Onboarding = () => {
                     </>
                   );
                 })()}
-
-              </Card>
-            )}
-
-            {step === 5 && (
-              <Card>
-                <Eyebrow icon={<Trophy className="w-3.5 h-3.5" />}>Card 3 of 5</Eyebrow>
-                <Title>Catalogue & XP</Title>
-                <Sub>Every video has a CEFR difficulty rating (A1 → C2). Watch content at your level for the fastest progress.</Sub>
-
-                <div className="mt-8 grid sm:grid-cols-2 gap-4">
-                  <InfoTile
-                    icon={<BookOpen className="w-5 h-5" />}
-                    title="Level XP"
-                    body="Earned by completing flashcards. Beat a 1-minute grammar & vocab boss test to officially level up."
-                  />
-                  <InfoTile
-                    icon={<Flame className="w-5 h-5" />}
-                    title="Immersion XP"
-                    body="Earned from watch time, daily streaks, best streaks and total flashcards reviewed."
-                  />
-                </div>
-              </Card>
-            )}
-
-            {step === 6 && (
-              <Card>
-                <Eyebrow icon={<Brain className="w-3.5 h-3.5" />}>Card 4 of 5</Eyebrow>
-                <Title>Flashcards & spaced repetition</Title>
-                <Sub>Words are sorted into three memory decks. Press "Got it" to promote a card.</Sub>
-
-                <div className="mt-8 grid grid-cols-3 gap-3">
-                  {[
-                    { name: "Short term", color: "from-[#34C759]/40 to-[#34C759]/60" },
-                    { name: "Medium term", color: "from-[#34C759]/60 to-[#FF8A00]/70" },
-                    { name: "Long term", color: "from-[#34C759] to-[#FF8A00]" },
-                  ].map((d) => (
-                    <div key={d.name} className="rounded-2xl border border-white/10 p-4 text-center">
-                      <div className={`mx-auto w-10 h-10 rounded-xl bg-gradient-to-br ${d.color} mb-3`} />
-                      <p className="text-sm font-medium text-white">{d.name}</p>
-                    </div>
-                  ))}
-                </div>
-                <p className="mt-6 text-sm text-white/60">
-                  We'll remind you to revisit each card right when your brain needs the reinforcement.
-                </p>
-              </Card>
-            )}
-
-            {step === 7 && (
-              <Card>
-                <Eyebrow icon={<Mic className="w-3.5 h-3.5" />}>Card 5 of 5</Eyebrow>
-                <Title>Learn faster</Title>
-                <Sub>Two habits unlock most of your gains.</Sub>
-
-                <div className="mt-8 space-y-4">
-                  <InfoTile
-                    icon={<Mic className="w-5 h-5" />}
-                    title="Shadowing"
-                    body="Repeat words out loud right after the subtitles. Your accent will thank you."
-                  />
-                  <InfoTile
-                    icon={<MousePointer2 className="w-5 h-5" />}
-                    title="Word click"
-                    body="Click any word for a live translation, native pronunciation and a one-tap add to your flashcard deck."
-                  />
-                </div>
-              </Card>
+              </HeroCard>
             )}
           </motion.div>
         </AnimatePresence>
@@ -647,9 +534,9 @@ const Onboarding = () => {
           <Button
             onClick={next}
             disabled={!canContinue}
-            className="h-11 px-6 rounded-full bg-[#34C759] hover:bg-[#2CB350] text-white font-medium shadow-[0_8px_24px_-8px_rgba(52,199,89,0.5)] gap-2 disabled:opacity-40"
+            className="h-12 px-7 rounded-2xl bg-[#34C759] hover:bg-[#2CB350] text-white font-bold shadow-[0_8px_24px_-8px_rgba(52,199,89,0.5)] gap-2 disabled:opacity-40"
           >
-            {step === totalSteps - 1 ? "Start learning" : "Continue"}
+            {step === totalSteps - 1 ? "Start learning" : "Next"}
             <ArrowRight className="w-4 h-4" />
           </Button>
         </div>
@@ -659,14 +546,25 @@ const Onboarding = () => {
 };
 
 const Card = ({ children }: { children: React.ReactNode }) => (
-  <div className="rounded-3xl bg-[#0E0E11] border border-white/10/80 shadow-[0_24px_60px_-30px_rgba(52,199,89,0.25)] p-7 sm:p-10">
+  <div className="rounded-3xl bg-white/[0.015] border border-white/10 p-7 sm:p-10">
     {children}
   </div>
 );
 
-const Eyebrow = ({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) => (
-  <div className="inline-flex items-center gap-2 bg-white/[0.04] border border-white/15 rounded-full px-3 py-1 mb-5 text-[#34C759] text-xs font-medium">
-    {icon} {children}
+// The single-focus, non-form moment — same idiom as the mobile app's own
+// intro tour (mobile/app/tour.tsx): one giant hero glyph, one bold line, one
+// line of body copy. Everything else in this flow still needs real inputs
+// and keeps the card layout; this is the one step that's pure "look at this."
+const HeroCard = ({
+  emoji, title, body, children,
+}: { emoji: string; title: string; body: string; children?: React.ReactNode }) => (
+  <div className="rounded-3xl bg-white/[0.015] border border-white/10 p-8 sm:p-12 text-center">
+    <div className="text-7xl sm:text-8xl leading-none mb-6">{emoji}</div>
+    <h1 className="text-[28px] sm:text-[36px] font-extrabold tracking-[-0.02em] leading-[1.1] text-white">
+      {title}
+    </h1>
+    <p className="mt-3 text-[15px] sm:text-base text-white/60 leading-relaxed max-w-md mx-auto">{body}</p>
+    {children}
   </div>
 );
 
@@ -696,7 +594,7 @@ const LangSelect = ({ value, onChange, exclude }: { value: string; onChange: (v:
 
   return (
     <Select value={value} onValueChange={onChange}>
-      <SelectTrigger className="rounded-xl border-white/10 bg-[#0E0E11] h-11 text-white">
+      <SelectTrigger className="rounded-xl border-white/10 bg-white/[0.02] h-11 text-white">
         <SelectValue />
       </SelectTrigger>
       <SelectContent className="bg-[#0E0E11] text-white">
@@ -719,34 +617,6 @@ const LangSelect = ({ value, onChange, exclude }: { value: string; onChange: (v:
     </Select>
   );
 };
-
-const InfoTile = ({ icon, title, body }: { icon: React.ReactNode; title: string; body: string }) => (
-  <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
-    <div className="w-9 h-9 rounded-xl bg-[#34C759]/10 text-[#34C759] flex items-center justify-center mb-3">
-      {icon}
-    </div>
-    <p className="font-semibold text-white">{title}</p>
-    <p className="mt-1 text-sm text-white/60 leading-relaxed">{body}</p>
-  </div>
-);
-
-const PillarCard = ({
-  icon, pillar, title, body,
-}: { icon: React.ReactNode; pillar: string; title: string; body: string }) => (
-  <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 flex gap-4">
-    <div className="shrink-0 w-12 h-12 rounded-2xl bg-gradient-to-br from-[#34C759] to-[#FF8A00] text-white flex items-center justify-center shadow-[0_8px_20px_-8px_rgba(52,199,89,0.6)]">
-      {icon}
-    </div>
-    <div className="min-w-0">
-      <div className="flex items-baseline gap-2 flex-wrap">
-        <p className="font-semibold text-white">{pillar}</p>
-      </div>
-      <p className="text-[13px] text-white/50 mt-0.5">{title}</p>
-      <p className="mt-1.5 text-sm text-white/75 leading-relaxed">{body}</p>
-    </div>
-  </div>
-);
-
 
 const AVAILABLE_LEARNING_LANGS = [
   { code: "fr", label: "French", flag: "🇫🇷" },
@@ -775,7 +645,7 @@ const LearningLanguageSelect = ({
             className={`flex items-center gap-2 rounded-xl border px-3 h-11 text-sm font-medium transition ${
               active
                 ? "bg-[#34C759] border-[#34C759] text-white shadow-[0_6px_18px_-6px_rgba(52,199,89,0.6)]"
-                : "bg-[#0E0E11] border-white/10 text-white/75 hover:border-[#34C759]/60"
+                : "bg-white/[0.02] border-white/10 text-white/75 hover:border-[#34C759]/60"
             }`}
           >
             <span className="text-lg leading-none">{l.flag}</span>
