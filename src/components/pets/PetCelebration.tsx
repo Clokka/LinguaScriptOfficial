@@ -55,7 +55,7 @@ function makeStage(canvasSize: number) {
   return { renderer, scene, camera };
 }
 
-function fitModel(gltf: GLTF) {
+function fitModel(gltf: GLTF, fit = 1.5) {
   // gltf.scene is cached and shared (loadPetModel reuses one loaded GLTF per
   // glbFile) — a level-up and the word-saved toast routinely fire from the
   // same action, so two stages can be mounting off the same cached GLTF at
@@ -71,7 +71,7 @@ function fitModel(gltf: GLTF) {
   model.position.set(0, 0, 0);
   const box = new THREE.Box3().setFromObject(model);
   const size = box.getSize(new THREE.Vector3());
-  const scale = 1.5 / Math.max(size.x, size.y, size.z);
+  const scale = fit / Math.max(size.x, size.y, size.z);
   model.scale.setScalar(scale);
   const center = new THREE.Box3().setFromObject(model).getCenter(new THREE.Vector3());
   model.position.sub(center);
@@ -112,12 +112,14 @@ function runStage(opts: {
   host: HTMLElement;
   glbFile: string;
   canvasSize: number;
+  /** How much of the frame the pet fills. Lower = more breathing room. */
+  fit?: number;
   timings: StageTimings;
   clips: { intro?: string; loop: string };
   onExit?: (k: number) => void; // k goes 1 → 0 during exit
   onDone: () => void;
 }) {
-  const { host, glbFile, canvasSize, timings, clips, onExit, onDone } = opts;
+  const { host, glbFile, canvasSize, fit, timings, clips, onExit, onDone } = opts;
   let disposed = false;
   let raf = 0;
   let renderer: THREE.WebGLRenderer | null = null;
@@ -130,7 +132,7 @@ function runStage(opts: {
       renderer = stage.renderer;
       host.appendChild(stage.renderer.domElement);
 
-      const wrapper = fitModel(gltf);
+      const wrapper = fitModel(gltf, fit);
       stage.scene.add(wrapper);
       const model = wrapper.children[0];
 
@@ -293,7 +295,10 @@ export function LevelUpCelebration({ petId, level, onDone }: LevelUpCelebrationP
     return runStage({
       host: hostRef.current,
       glbFile: pet.glbFile,
+      // Buffer matches the on-screen box (190 phone / 220 desktop) and the
+      // pet is fitted below full frame so tail and head never clip.
       canvasSize: 220,
+      fit: 1.15,
       timings: { spawn: 0.5, hold: cel.hold, exit: 0.3 },
       clips: { intro: cel.intro, loop: cel.loop },
       onExit: () => rootRef.current?.classList.remove("opacity-100"),

@@ -92,13 +92,22 @@ async function processReviewReminders() {
     if (weekStart !== currentWeekStart) weekCount = 0
     if (weekCount >= 3) continue
 
-    const { count: dueCount } = await svc.from('saved_words').select('id', { count: 'exact', head: true })
-      .eq('user_id', (p as any).user_id).lte('next_review', today)
+    // Only real study work counts: the learner's current language, and only
+    // the red/orange decks. Green rows include level-seeded "already known"
+    // vocabulary (tens of thousands of rows) — counting those produced the
+    // absurd "6,000 words to review" claims.
+    const lang = (p as any).learning_language
+    let dueQ = svc.from('saved_words').select('id', { count: 'exact', head: true })
+      .eq('user_id', (p as any).user_id).lte('next_review', today).in('state', ['red', 'orange'])
+    if (lang) dueQ = dueQ.eq('language', lang)
+    const { count: dueCount } = await dueQ
     if (!dueCount || dueCount < 5) continue
+    // A session is ~20-30 cards; never promise a number nobody would sit through.
+    const shownCount = Math.min(dueCount, 30)
 
     const email = await emailFor((p as any).user_id); if (!email) continue
     const ok = await sendTemplate('review-reminder', email, `review-${(p as any).user_id}-${today}`, {
-      name: safeName(p), cardCount: dueCount, languageLabel: 'Your',
+      name: safeName(p), cardCount: shownCount, languageLabel: 'Your',
       reviewUrl: 'https://linguascript.co.uk/flashcards',
     })
     if (ok) {
@@ -139,7 +148,7 @@ async function processWeekly() {
   if (now.getUTCDay() !== 0) return // Sundays only
   if (now.getUTCHours() < 17) return // ~5pm UTC
   const { data: rows } = await svc.from('profiles')
-    .select('user_id, display_name, username, email_prefs, xp_total, streak_count, last_weekly_email_at').limit(2000)
+    .select('user_id, display_name, username, email_prefs, xp_total, streak_count, last_weekly_email_at, learning_language').limit(2000)
   if (!rows?.length) return
   const sixDaysAgo = Date.now() - 6 * 24 * 3600 * 1000
   for (const p of rows as any[]) {
@@ -158,8 +167,11 @@ async function processWeekly() {
         .eq('user_id', p.user_id).gte('created_at', weekStartIso)
       cardsReviewed = count ?? 0
     } catch { /* ignore */ }
-    const { count: wordsLearned } = await svc.from('saved_words').select('id', { count: 'exact', head: true })
+    // Counts are per active language — mixing languages inflates every figure.
+    let learnedQ = svc.from('saved_words').select('id', { count: 'exact', head: true })
       .eq('user_id', p.user_id).gte('created_at', weekStartIso)
+    if (p.learning_language) learnedQ = learnedQ.eq('language', p.learning_language)
+    const { count: wordsLearned } = await learnedQ
     const email = await emailFor(p.user_id); if (!email) continue
     const ok = await sendTemplate('weekly-progress', email, `weekly-${p.user_id}-${weekStartIso.slice(0,10)}`, {
       name: safeName(p), xpGained, cardsReviewed: cardsReviewed ?? 0, wordsLearned: wordsLearned ?? 0,
@@ -175,7 +187,7 @@ async function processMonthly() {
   if (now.getUTCDate() !== 1) return
   if (now.getUTCHours() < 17) return
   const { data: rows } = await svc.from('profiles')
-    .select('user_id, display_name, username, email_prefs, last_monthly_email_at').limit(2000)
+    .select('user_id, display_name, username, email_prefs, last_monthly_email_at, learning_language').limit(2000)
   if (!rows?.length) return
   const monthAgoIso = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString()
   for (const p of rows as any[]) {
@@ -185,10 +197,16 @@ async function processMonthly() {
     const { data: xpRows } = await svc.from('xp_events').select('amount').eq('user_id', p.user_id).gte('created_at', monthAgoIso)
     const xpGrowth = (xpRows ?? []).reduce((a, r: any) => a + (r.amount || 0), 0)
     if (xpGrowth <= 0) continue
-    const { count: wordsSaved } = await svc.from('saved_words').select('id', { count: 'exact', head: true })
+    let savedQ = svc.from('saved_words').select('id', { count: 'exact', head: true })
       .eq('user_id', p.user_id).gte('created_at', monthAgoIso)
-    const { count: wordsMastered } = await svc.from('saved_words').select('id', { count: 'exact', head: true })
-      .eq('user_id', p.user_id).eq('state', 'green')
+    if (p.learning_language) savedQ = savedQ.eq('language', p.learning_language)
+    const { count: wordsSaved } = await savedQ
+    // Mastered = greens the learner actually promoted, not level-seeded rows
+    // (those are parked with a far-future review date by the seeding function).
+    let masteredQ = svc.from('saved_words').select('id', { count: 'exact', head: true })
+      .eq('user_id', p.user_id).eq('state', 'green').gt('review_count', 0)
+    if (p.learning_language) masteredQ = masteredQ.eq('language', p.learning_language)
+    const { count: wordsMastered } = await masteredQ
     const email = await emailFor(p.user_id); if (!email) continue
     const ok = await sendTemplate('monthly-recap', email, `monthly-${p.user_id}-${now.toISOString().slice(0,7)}`, {
       name: safeName(p), totalMinutes: 0, wordsSaved: wordsSaved ?? 0,

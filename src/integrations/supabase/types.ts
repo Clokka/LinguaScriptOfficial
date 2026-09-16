@@ -2133,18 +2133,31 @@ export type Database = {
         Returns: undefined
       }
       user_learning_rate: { Args: { _language: string }; Returns: number }
-      user_progress_stats: {
-        Args: never
-        Returns: {
-          avg_comprehension: number
-          avg_gain_per_watch: number
-          highest_comprehension: number
-          total_minutes: number
-          videos_in_progress: number
-          videos_mastered: number
-          vocab_learned: number
-        }[]
-      }
+      user_progress_stats:
+        | {
+            Args: never
+            Returns: {
+              avg_comprehension: number
+              avg_gain_per_watch: number
+              highest_comprehension: number
+              total_minutes: number
+              videos_in_progress: number
+              videos_mastered: number
+              vocab_learned: number
+            }[]
+          }
+        | {
+            Args: { _language?: string }
+            Returns: {
+              avg_comprehension: number
+              avg_gain_per_watch: number
+              highest_comprehension: number
+              total_minutes: number
+              videos_in_progress: number
+              videos_mastered: number
+              vocab_learned: number
+            }[]
+          }
     }
     Enums: {
       app_role: "admin" | "user" | "teacher" | "student"
