@@ -119,7 +119,7 @@ function runStage(opts: {
   onExit?: (k: number) => void; // k goes 1 → 0 during exit
   onDone: () => void;
 }) {
-  const { host, glbFile, canvasSize, timings, clips, onExit, onDone } = opts;
+  const { host, glbFile, canvasSize, fit, timings, clips, onExit, onDone } = opts;
   let disposed = false;
   let raf = 0;
   let renderer: THREE.WebGLRenderer | null = null;
@@ -132,7 +132,7 @@ function runStage(opts: {
       renderer = stage.renderer;
       host.appendChild(stage.renderer.domElement);
 
-      const wrapper = fitModel(gltf);
+      const wrapper = fitModel(gltf, fit);
       stage.scene.add(wrapper);
       const model = wrapper.children[0];
 
