@@ -60,7 +60,7 @@ export function useDailyWordGoal(language?: string) {
     );
     setSavedToday(count ?? 0);
     setLoading(false);
-  }, [user]);
+  }, [user, language]);
 
   useEffect(() => {
     refresh();
