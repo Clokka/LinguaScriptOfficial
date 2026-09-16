@@ -55,7 +55,7 @@ function makeStage(canvasSize: number) {
   return { renderer, scene, camera };
 }
 
-function fitModel(gltf: GLTF) {
+function fitModel(gltf: GLTF, fit = 1.5) {
   // gltf.scene is cached and shared (loadPetModel reuses one loaded GLTF per
   // glbFile) — a level-up and the word-saved toast routinely fire from the
   // same action, so two stages can be mounting off the same cached GLTF at
@@ -71,7 +71,7 @@ function fitModel(gltf: GLTF) {
   model.position.set(0, 0, 0);
   const box = new THREE.Box3().setFromObject(model);
   const size = box.getSize(new THREE.Vector3());
-  const scale = 1.5 / Math.max(size.x, size.y, size.z);
+  const scale = fit / Math.max(size.x, size.y, size.z);
   model.scale.setScalar(scale);
   const center = new THREE.Box3().setFromObject(model).getCenter(new THREE.Vector3());
   model.position.sub(center);
@@ -112,6 +112,8 @@ function runStage(opts: {
   host: HTMLElement;
   glbFile: string;
   canvasSize: number;
+  /** How much of the frame the pet fills. Lower = more breathing room. */
+  fit?: number;
   timings: StageTimings;
   clips: { intro?: string; loop: string };
   onExit?: (k: number) => void; // k goes 1 → 0 during exit
