@@ -204,3 +204,28 @@ export async function advanceCefrLevel(userId: string, language: string): Promis
   await updateLanguageProfile(userId, language, { cefr_level: progress.next_level });
   return progress.next_level;
 }
+
+/**
+ * Basic video-driven progression: understanding this much of a video on
+ * first watch (record_watch_session's new_pct) means the learner is coasting
+ * at their current level, so bump cefr_level one tier. Discover already
+ * sorts toward cefr_level, so harder content surfaces immediately — no
+ * separate "unlock" step, no prompts, nothing else to build.
+ *
+ * Deliberately separate from advanceCefrLevel above, which tracks a
+ * different signal (the exam-track word list) for "cefr" mode learners —
+ * this one applies to any learner, any mode, off a single video's result.
+ */
+export const CEFR_ADVANCE_COMPREHENSION_PCT = 85;
+
+export async function tryAdvanceCefrLevel(
+  userId: string,
+  language: string,
+): Promise<CefrLevel | null> {
+  const profile = await getLanguageProfile(userId, language);
+  if (!profile) return null;
+  const next = nextCefrLevel(profile.cefr_level);
+  if (!next) return null;
+  await updateLanguageProfile(userId, language, { cefr_level: next });
+  return next;
+}
