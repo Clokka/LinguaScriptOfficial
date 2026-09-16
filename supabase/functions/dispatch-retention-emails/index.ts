@@ -92,13 +92,22 @@ async function processReviewReminders() {
     if (weekStart !== currentWeekStart) weekCount = 0
     if (weekCount >= 3) continue
 
-    const { count: dueCount } = await svc.from('saved_words').select('id', { count: 'exact', head: true })
-      .eq('user_id', (p as any).user_id).lte('next_review', today)
+    // Only real study work counts: the learner's current language, and only
+    // the red/orange decks. Green rows include level-seeded "already known"
+    // vocabulary (tens of thousands of rows) — counting those produced the
+    // absurd "6,000 words to review" claims.
+    const lang = (p as any).learning_language
+    let dueQ = svc.from('saved_words').select('id', { count: 'exact', head: true })
+      .eq('user_id', (p as any).user_id).lte('next_review', today).in('state', ['red', 'orange'])
+    if (lang) dueQ = dueQ.eq('language', lang)
+    const { count: dueCount } = await dueQ
     if (!dueCount || dueCount < 5) continue
+    // A session is ~20-30 cards; never promise a number nobody would sit through.
+    const shownCount = Math.min(dueCount, 30)
 
     const email = await emailFor((p as any).user_id); if (!email) continue
     const ok = await sendTemplate('review-reminder', email, `review-${(p as any).user_id}-${today}`, {
-      name: safeName(p), cardCount: dueCount, languageLabel: 'Your',
+      name: safeName(p), cardCount: shownCount, languageLabel: 'Your',
       reviewUrl: 'https://linguascript.co.uk/flashcards',
     })
     if (ok) {
