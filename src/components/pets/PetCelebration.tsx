@@ -295,7 +295,10 @@ export function LevelUpCelebration({ petId, level, onDone }: LevelUpCelebrationP
     return runStage({
       host: hostRef.current,
       glbFile: pet.glbFile,
+      // Buffer matches the on-screen box (190 phone / 220 desktop) and the
+      // pet is fitted below full frame so tail and head never clip.
       canvasSize: 220,
+      fit: 1.15,
       timings: { spawn: 0.5, hold: cel.hold, exit: 0.3 },
       clips: { intro: cel.intro, loop: cel.loop },
       onExit: () => rootRef.current?.classList.remove("opacity-100"),
