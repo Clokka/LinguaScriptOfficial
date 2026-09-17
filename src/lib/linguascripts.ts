@@ -257,6 +257,9 @@ export async function createLinguaScriptFromSavedWord(
         combo_multiplier: 1,
         xp_earned: 0,
         scheduled_for: scheduledFor.toISOString(),
+        // Recorded so sessions can rotate through the structure library
+        // instead of drilling the same shape over and over.
+        pattern_id: patternId,
       } as any)
       .select()
       .single();
