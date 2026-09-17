@@ -46,7 +46,11 @@ export function TodaysMission({ language, onStartExercise }: TodaysMissionProps)
       const user = (await supabase.auth.getUser()).data.user;
       if (!user) return;
 
-      // Fetch saved words that need review today (red or orange state, with today's date or earlier)
+      // Fetch saved words that need review today (red or orange state, with
+      // today's date or earlier), most common word first: a learner's time is
+      // better spent on the 300th most frequent word than the 14,000th, so
+      // frequency_rank leads and the due date only breaks ties. Unranked words
+      // (names, slang) sort last rather than never appearing.
       const today = new Date().toISOString().split("T")[0];
       const { data: savedWords, error: fetchError } = await supabase
         .from("saved_words")
@@ -55,6 +59,7 @@ export function TodaysMission({ language, onStartExercise }: TodaysMissionProps)
         .eq("language", language)
         .in("state", ["red", "orange"])
         .lte("next_review", today)
+        .order("frequency_rank", { ascending: true, nullsFirst: false })
         .order("next_review", { ascending: true })
         .limit(10);
 
