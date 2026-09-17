@@ -629,6 +629,7 @@ export type Database = {
           language: string
           mcq_answer: number | null
           mcq_options: Json | null
+          pattern_id: string | null
           saved_word_id: string | null
           scheduled_for: string
           scheduled_to_srs: boolean | null
@@ -658,6 +659,7 @@ export type Database = {
           language?: string
           mcq_answer?: number | null
           mcq_options?: Json | null
+          pattern_id?: string | null
           saved_word_id?: string | null
           scheduled_for?: string
           scheduled_to_srs?: boolean | null
@@ -687,6 +689,7 @@ export type Database = {
           language?: string
           mcq_answer?: number | null
           mcq_options?: Json | null
+          pattern_id?: string | null
           saved_word_id?: string | null
           scheduled_for?: string
           scheduled_to_srs?: boolean | null
@@ -702,6 +705,13 @@ export type Database = {
           xp_earned?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "linguascripts_pattern_id_fkey"
+            columns: ["pattern_id"]
+            isOneToOne: false
+            referencedRelation: "sentence_patterns"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "linguascripts_saved_word_id_fkey"
             columns: ["saved_word_id"]
@@ -1115,6 +1125,8 @@ export type Database = {
           created_at: string
           ease_factor: number
           film_id: string | null
+          frequency_level: string | null
+          frequency_rank: number | null
           gold_seen_count: number
           grammar_note: string | null
           green_revealed_at: string | null
@@ -1150,6 +1162,8 @@ export type Database = {
           created_at?: string
           ease_factor?: number
           film_id?: string | null
+          frequency_level?: string | null
+          frequency_rank?: number | null
           gold_seen_count?: number
           grammar_note?: string | null
           green_revealed_at?: string | null
@@ -1185,6 +1199,8 @@ export type Database = {
           created_at?: string
           ease_factor?: number
           film_id?: string | null
+          frequency_level?: string | null
+          frequency_rank?: number | null
           gold_seen_count?: number
           grammar_note?: string | null
           green_revealed_at?: string | null
@@ -1325,6 +1341,48 @@ export type Database = {
           name?: string
           slug?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      sentence_patterns: {
+        Row: {
+          cefr_level: string
+          created_at: string
+          example: string
+          example_translation: string
+          explanation: string
+          id: string
+          language: string
+          slots: Json
+          template: string
+          updated_at: string
+          usage_rank: number
+        }
+        Insert: {
+          cefr_level: string
+          created_at?: string
+          example: string
+          example_translation: string
+          explanation: string
+          id?: string
+          language: string
+          slots?: Json
+          template: string
+          updated_at?: string
+          usage_rank: number
+        }
+        Update: {
+          cefr_level?: string
+          created_at?: string
+          example?: string
+          example_translation?: string
+          explanation?: string
+          id?: string
+          language?: string
+          slots?: Json
+          template?: string
+          updated_at?: string
+          usage_rank?: number
         }
         Relationships: []
       }
@@ -1952,6 +2010,15 @@ export type Database = {
         Returns: number
       }
       expire_lapsed_pro: { Args: never; Returns: number }
+      frequency_coverage: {
+        Args: { _language: string }
+        Returns: {
+          band: number
+          known_words: number
+          pct: number
+          total_words: number
+        }[]
+      }
       gen_friend_code: { Args: never; Returns: string }
       get_daily_linguascripts: {
         Args: { p_language: string; p_user_id: string }
