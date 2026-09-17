@@ -8,6 +8,12 @@ interface GenerateRequest {
   language: string;
   wordState: "red" | "orange" | "green";
   nativeLanguage: string;
+  /** Optional sentence structure the generated sentence must follow. */
+  pattern?: {
+    template: string;
+    explanation?: string | null;
+    example?: string | null;
+  } | null;
 }
 
 serve(async (req: Request) => {
@@ -25,6 +31,7 @@ serve(async (req: Request) => {
       language,
       wordState,
       nativeLanguage,
+      pattern,
     } = body;
 
     if (!word || !translation || !language) {
@@ -40,13 +47,24 @@ serve(async (req: Request) => {
     }
 
     const interestsList = (interests || []).join(", ") || "general topics";
+    // The structure is a hard constraint, not a hint: the point of pairing a
+    // frequent word with a graded pattern is that the learner meets the same
+    // sentence shape repeatedly until it is automatic.
+    const patternBlock = pattern?.template
+      ? `
+Sentence structure to follow EXACTLY (fill the blanks, keep the fixed words): ${pattern.template}
+${pattern.explanation ? `Structure is used to: ${pattern.explanation}` : ""}
+${pattern.example ? `Example of this structure: ${pattern.example}` : ""}
+`
+      : "";
+
     const userPrompt = `Generate a contextual sentence in ${language} for language learners.
 
 Word: "${word}" (means: "${translation}")
 User interests: ${interestsList}
 CEFR Level: ${cefLevel}
 Word state: ${wordState} (${wordState === "green" ? "review" : wordState === "orange" ? "reinforcement" : "new"})
-
+${patternBlock}
 Create one natural sentence using "${word}". Return ONLY valid JSON:
 {
   "sentence": "sentence in ${language}",

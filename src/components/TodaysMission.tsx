@@ -5,6 +5,11 @@ import {
   type LinguaScript,
 } from "@/lib/linguascripts";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  loadPatterns,
+  recentlyUsedPatternIds,
+  orderPatternsForSession,
+} from "@/lib/sentencePatterns";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -41,7 +46,11 @@ export function TodaysMission({ language, onStartExercise }: TodaysMissionProps)
       const user = (await supabase.auth.getUser()).data.user;
       if (!user) return;
 
-      // Fetch saved words that need review today (red or orange state, with today's date or earlier)
+      // Fetch saved words that need review today (red or orange state, with
+      // today's date or earlier), most common word first: a learner's time is
+      // better spent on the 300th most frequent word than the 14,000th, so
+      // frequency_rank leads and the due date only breaks ties. Unranked words
+      // (names, slang) sort last rather than never appearing.
       const today = new Date().toISOString().split("T")[0];
       const { data: savedWords, error: fetchError } = await supabase
         .from("saved_words")
@@ -50,6 +59,7 @@ export function TodaysMission({ language, onStartExercise }: TodaysMissionProps)
         .eq("language", language)
         .in("state", ["red", "orange"])
         .lte("next_review", today)
+        .order("frequency_rank", { ascending: true, nullsFirst: false })
         .order("next_review", { ascending: true })
         .limit(10);
 
@@ -68,8 +78,24 @@ export function TodaysMission({ language, onStartExercise }: TodaysMissionProps)
       // same learner, same rough level.
       const distractorPool = (savedWords as SavedWord[]).map((w) => w.word);
 
+      // The learner's real level drives which sentence structures are in play
+      // — this used to be hardcoded to B1 for everyone.
+      const { data: profileRow } = await supabase
+        .from("language_profiles")
+        .select("cefr_level")
+        .eq("user_id", user.id)
+        .eq("language", language)
+        .maybeSingle();
+      const cefLevel = (profileRow?.cefr_level || "a1").toUpperCase();
+
+      const patternQueue = orderPatternsForSession(
+        await loadPatterns(language, cefLevel),
+        await recentlyUsedPatternIds(user.id, language),
+      );
+
       const generatedScripts: LinguaScript[] = [];
       const failures: string[] = [];
+      let patternCursor = 0;
 
       for (const savedWord of savedWords as SavedWord[]) {
         try {
