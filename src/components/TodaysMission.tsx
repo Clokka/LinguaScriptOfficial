@@ -78,8 +78,24 @@ export function TodaysMission({ language, onStartExercise }: TodaysMissionProps)
       // same learner, same rough level.
       const distractorPool = (savedWords as SavedWord[]).map((w) => w.word);
 
+      // The learner's real level drives which sentence structures are in play
+      // — this used to be hardcoded to B1 for everyone.
+      const { data: profileRow } = await supabase
+        .from("language_profiles")
+        .select("cefr_level")
+        .eq("user_id", user.id)
+        .eq("language", language)
+        .maybeSingle();
+      const cefLevel = (profileRow?.cefr_level || "a1").toUpperCase();
+
+      const patternQueue = orderPatternsForSession(
+        await loadPatterns(language, cefLevel),
+        await recentlyUsedPatternIds(user.id, language),
+      );
+
       const generatedScripts: LinguaScript[] = [];
       const failures: string[] = [];
+      let patternCursor = 0;
 
       for (const savedWord of savedWords as SavedWord[]) {
         try {
