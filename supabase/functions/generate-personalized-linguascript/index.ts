@@ -8,6 +8,12 @@ interface GenerateRequest {
   language: string;
   wordState: "red" | "orange" | "green";
   nativeLanguage: string;
+  /** Optional sentence structure the generated sentence must follow. */
+  pattern?: {
+    template: string;
+    explanation?: string | null;
+    example?: string | null;
+  } | null;
 }
 
 serve(async (req: Request) => {
