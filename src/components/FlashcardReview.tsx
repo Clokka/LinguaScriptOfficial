@@ -51,6 +51,7 @@ interface FlashcardReviewProps {
 export const FlashcardReview = ({ cards: initialCards, onClose, onCardReviewed, className }: FlashcardReviewProps) => {
   const { user } = useAuth();
   const { award } = useXp();
+  const { languageContext } = useLanguage();
   const sessionBonusFired = useRef(false);
   const [cards, setCards] = useState<FlashcardData[]>(initialCards);
   // Count cards that moved into the green deck during THIS session — drives
