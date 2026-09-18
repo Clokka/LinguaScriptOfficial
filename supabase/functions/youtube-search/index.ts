@@ -102,7 +102,7 @@ function qualityScore(it: {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
-    const { q, lang } = await req.json();
+    const { q, lang, debug } = await req.json();
     if (!q || typeof q !== "string") {
       return new Response(JSON.stringify({ error: "Missing q" }), {
         status: 400,
@@ -240,7 +240,7 @@ Deno.serve(async (req) => {
     // what makes that cut, not just search relevance order.
     items.sort((a: any, b: any) => qualityScore(b, lang) - qualityScore(a, lang));
 
-    return new Response(JSON.stringify({ items }), {
+    return new Response(JSON.stringify({ items, ...(debug ? { debug: debugInfo } : {}) }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
