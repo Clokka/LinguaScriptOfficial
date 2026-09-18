@@ -107,14 +107,28 @@ export function TodaysMission({ language, onStartExercise }: TodaysMissionProps)
             ? (savedWord.state as "red" | "orange" | "green")
             : "red";
 
+          // Rotate through the structure library so each word in the session
+          // arrives in a different sentence shape.
+          const pattern =
+            patternQueue.length > 0
+              ? patternQueue[patternCursor++ % patternQueue.length]
+              : null;
+
           const generated = await generateLinguaScriptFromWord({
             word: savedWord.word,
             translation: savedWord.translation,
             interests: [],
-            cefLevel: "B1",
+            cefLevel,
             language,
             wordState,
             nativeLanguage: "en",
+            pattern: pattern
+              ? {
+                  template: pattern.template,
+                  explanation: pattern.explanation,
+                  example: pattern.example,
+                }
+              : null,
           });
 
           // The generator returns null on any edge-function failure rather
