@@ -13,7 +13,7 @@ import { useSubscription } from "@/hooks/useSubscription";
 import { useUpgradeTrigger } from "@/hooks/useUpgradeTrigger";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTour } from "@/contexts/TourContext";
-import { getLanguageLabel, getLanguageFlag } from "@/lib/languages";
+import { getLanguageLabel, getLanguageFlag, subtitlesLookLikeWrongLanguage } from "@/lib/languages";
 import { cn } from "@/lib/utils";
 import { fetchCaptionsFromBrowser } from "@/lib/browserCaptionFetcher";
 import { AdLoader } from "@/components/AdLoader";
@@ -191,6 +191,16 @@ async function loadAllCaptions(
     }
   }
 
+  // Detect a cached secondary track that was saved under the right language
+  // code but is actually written in a totally different one — a leftover
+  // from providers that silently hand back the original track instead of
+  // erroring when they can't translate. Purge so it gets re-fetched/re-translated.
+  if (primaryLang !== secondaryLang && secondary.length && subtitlesLookLikeWrongLanguage(secondary, secondaryLang)) {
+    console.warn(`Cached ${secondaryLang} track is actually a different language — purging`);
+    await supabase.from("subtitles").delete().eq("film_id", filmId).eq("language", secondaryLang);
+    secondary = [];
+  }
+
   if (primary.length > 0 && (primaryLang === secondaryLang || secondary.length > 0)) {
     return { primary, secondary, primaryLang };
   }
@@ -221,7 +231,12 @@ async function loadAllCaptions(
           primary = data.subtitles;
           await persistTrack(filmId, primaryLang, primary);
         }
-        if (primaryLang !== secondaryLang && !secondary.length && data.nativeSubtitles?.length) {
+        if (
+          primaryLang !== secondaryLang &&
+          !secondary.length &&
+          data.nativeSubtitles?.length &&
+          !subtitlesLookLikeWrongLanguage(data.nativeSubtitles, secondaryLang)
+        ) {
           secondary = data.nativeSubtitles;
           await persistTrack(filmId, secondaryLang, secondary);
         }
@@ -240,7 +255,12 @@ async function loadAllCaptions(
           primary = browserRes.learning;
           await persistTrack(filmId, primaryLang, primary);
         }
-        if (primaryLang !== secondaryLang && !secondary.length && browserRes.native.length) {
+        if (
+          primaryLang !== secondaryLang &&
+          !secondary.length &&
+          browserRes.native.length &&
+          !subtitlesLookLikeWrongLanguage(browserRes.native, secondaryLang)
+        ) {
           secondary = browserRes.native;
           await persistTrack(filmId, secondaryLang, secondary);
         }

@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import { getLanguageLabel } from "@/lib/languages";
+import { getLanguageLabel, subtitlesLookLikeWrongLanguage } from "@/lib/languages";
 import { fetchCaptionsFromBrowser } from "@/lib/browserCaptionFetcher";
 
 export interface SubtitleSegment {
@@ -176,7 +176,8 @@ export async function ensureSubtitleTracks({
       if (
         needSecondary &&
         browser.native.length &&
-        !tracksAreDuplicate(primary, browser.native)
+        !tracksAreDuplicate(primary, browser.native) &&
+        !subtitlesLookLikeWrongLanguage(browser.native, secondaryLanguage)
       ) {
         secondary = browser.native;
         await persistSubtitleTrack(filmId, secondaryLanguage, secondary);
@@ -204,11 +205,26 @@ export async function ensureSubtitleTracks({
       secondary = [];
     }
 
+    // Self-heal: a stored secondary row can also be a totally different
+    // language than its own row label claims — a leftover from a provider
+    // that silently returned the original track instead of translating.
+    if (secondary.length && subtitlesLookLikeWrongLanguage(secondary, secondaryLanguage)) {
+      console.warn(
+        `[subtitleSync] Stored ${secondaryLanguage} track is actually a different language — regenerating via AI translation`,
+      );
+      await supabase.from("subtitles").delete().eq("film_id", filmId).eq("language", secondaryLanguage);
+      secondary = [];
+    }
+
     if (!secondary.length) {
       const fetched = await fetchSubtitleTrackFromBackend(videoId, secondaryLanguage);
       // If YT/Supadata handed back the primary track pretending to be the secondary,
-      // ignore it and translate instead.
-      if (fetched.length && !tracksAreDuplicate(primary, fetched)) {
+      // or handed back some other wrong language entirely, ignore it and translate instead.
+      if (
+        fetched.length &&
+        !tracksAreDuplicate(primary, fetched) &&
+        !subtitlesLookLikeWrongLanguage(fetched, secondaryLanguage)
+      ) {
         secondary = fetched;
       }
 
