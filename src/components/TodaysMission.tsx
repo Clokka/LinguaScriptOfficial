@@ -149,6 +149,8 @@ export function TodaysMission({ language, onStartExercise }: TodaysMissionProps)
             wordState,
             language,
             distractorPool,
+            undefined,
+            pattern?.id ?? null,
           );
 
           if (!created) {
