@@ -335,7 +335,9 @@ export const FlashcardReview = ({ cards: initialCards, onClose, onCardReviewed, 
           className="gap-2 rounded-full text-xs"
         >
           <ArrowLeftRight className="w-3.5 h-3.5" />
-          {direction === "native-to-learn" ? "English → French" : "French → English"}
+          {direction === "native-to-learn"
+            ? `${getLanguageLabel(nativeLang)} → ${getLanguageLabel(cardLang)}`
+            : `${getLanguageLabel(cardLang)} → ${getLanguageLabel(nativeLang)}`}
         </Button>
         <Button
           variant="outline"
