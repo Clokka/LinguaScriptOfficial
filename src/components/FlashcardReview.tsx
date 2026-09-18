@@ -83,6 +83,23 @@ export const FlashcardReview = ({ cards: initialCards, onClose, onCardReviewed, 
     setCardType((t) => (t === "text" ? "image" : "text"));
   };
 
+  // The direction label must name the language of the card in front of the
+  // learner — never a hardcoded "French". Falls back to the active learning
+  // language when a card carries no language of its own.
+  const [nativeLang, setNativeLang] = useState("en");
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from("profiles")
+      .select("native_language")
+      .eq("user_id", user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        const n = (data as any)?.native_language?.toLowerCase();
+        if (n) setNativeLang(n);
+      });
+  }, [user]);
+
   // Text-to-image mode: backfill an image the first time a card without one
   // is displayed, so words saved before this feature shipped catch up as
   // they're reviewed instead of staying permanently image-less.
