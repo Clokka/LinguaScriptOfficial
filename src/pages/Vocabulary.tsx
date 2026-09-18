@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { LevelBadge } from "@/components/LevelBadge";
 import { BrandMark } from "@/components/BrandMark";
+import { FrequencyCoverageCard } from "@/components/FrequencyCoverageCard";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -169,6 +170,8 @@ export default function Vocabulary() {
             You already know more than you think. These words are inherited from your CEFR level and treated as known across subtitles, flashcards, and comprehension scoring.
           </p>
         </section>
+
+        <FrequencyCoverageCard language={learningLanguage || "fr"} />
 
         {/* Three-state overview: Recognized · Learning · Unknown */}
         <section className="grid grid-cols-1 sm:grid-cols-3 gap-4">
