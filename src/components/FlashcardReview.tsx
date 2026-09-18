@@ -300,6 +300,7 @@ export const FlashcardReview = ({ cards: initialCards, onClose, onCardReviewed, 
   }
 
   const currentCard = cards[currentIndex];
+  const cardLang = (currentCard?.language || languageContext || "").toLowerCase();
 
   return (
     <div className={cn("max-w-lg mx-auto", className)}>
