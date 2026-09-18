@@ -8,6 +8,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { DeckState, nextState, applySrsReview, syncLemmaState } from "@/lib/vocab";
 import { cacheWordImage } from "@/lib/wordImages";
 import { useXp } from "@/contexts/XpContext";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { getLanguageLabel } from "@/lib/languages";
 import { toast } from "sonner";
 import { Image as ImageIcon, Type } from "lucide-react";
 
