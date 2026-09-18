@@ -35,7 +35,7 @@ export function FrequencyCoverageCard({ language }: Props) {
   if (!headline || headline.total === 0) return null;
 
   const languageName =
-    LANGUAGES.find((l) => l.code === language)?.name ?? language.toUpperCase();
+    LANGUAGES.find((l) => l.code === language)?.label ?? language.toUpperCase();
   const pct = Math.min(100, Math.round((headline.known / headline.total) * 100));
 
   return (
