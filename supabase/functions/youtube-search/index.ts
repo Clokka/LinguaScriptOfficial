@@ -89,6 +89,7 @@ function qualityScore(it: {
   likeCount: number;
   durationSeconds: number;
   audioLang: string;
+  hasCaptions?: boolean;
 }, lang: string): number {
   const engagementRatio = it.viewCount > 0 ? it.likeCount / it.viewCount : 0;
   const durationCloseness = 1 - Math.min(1, Math.abs(it.durationSeconds - IDEAL_DURATION_SECONDS) / IDEAL_DURATION_SECONDS);
@@ -96,7 +97,7 @@ function qualityScore(it: {
   // Weighted so CI content wins ties decisively, engagement quality matters
   // more than exact duration, and nothing so extreme one factor alone
   // dominates every other signal.
-  return engagementRatio * 100 + durationCloseness * 3 + ciBoost * 5;
+  return engagementRatio * 100 + durationCloseness * 3 + ciBoost * 5 + (it.hasCaptions ? 2 : 0);
 }
 
 Deno.serve(async (req) => {
