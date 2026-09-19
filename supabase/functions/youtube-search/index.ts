@@ -63,24 +63,24 @@ function isComprehensibleInput(title: string, channel: string, lang: string): bo
   return known.some((name) => channel.toLowerCase().includes(name));
 }
 
-// Duration band: 8–15 minutes. Long enough to be a real lesson (not a
-// vlog fragment), short enough to finish in one sitting — "one video a
-// day" only works as a habit if that video is a 10-ish minute commitment,
-// not a 40-minute lecture. Center of the band (~600s) scores best.
-const MIN_DURATION_SECONDS = 8 * 60;
-const MAX_DURATION_SECONDS = 15 * 60;
+// Duration band: 3–20 minutes. The old 8–15 band was so narrow that a
+// 20-result search page routinely contained zero in-band videos, which is
+// why the rails came back empty. 20 min is the owner-set catalog cap.
+// Center of the band (~600s) still scores best.
+const MIN_DURATION_SECONDS = 3 * 60;
+const MAX_DURATION_SECONDS = 20 * 60;
 const IDEAL_DURATION_SECONDS = 10 * 60;
 
 // Below this, a video's "popularity" is noise, not signal — could be brand
-// new or just obscure. Raised from 500: that floor let real junk through.
-const MIN_VIEW_COUNT = 5000;
+// new or just obscure. Kept low so smaller languages aren't wiped out.
+const MIN_VIEW_COUNT = 1000;
 
 // Raw view count rewards whatever language already has the most YouTube
 // content (English, Spanish) over well-made niche content in a smaller
 // language. Like/view ratio is a much fairer quality signal: it asks "did
 // the people who watched this actually rate it," not "is this language
 // popular." A ratio this low is a real spam/low-effort signal in either case.
-const MIN_ENGAGEMENT_RATIO = 0.004;
+const MIN_ENGAGEMENT_RATIO = 0.001;
 
 function qualityScore(it: {
   title: string;
