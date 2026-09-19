@@ -224,15 +224,21 @@ Deno.serve(async (req) => {
     //  - below the view floor, OR essentially no engagement relative to its
     //    view count -> spam/low-effort filter that doesn't penalize niche
     //    languages the way a raw view-count filter would
-    items = items.filter((it: any) =>
-      it.hasCaptions &&
-      it.durationSeconds >= MIN_DURATION_SECONDS &&
-      it.durationSeconds <= MAX_DURATION_SECONDS &&
-      !it.madeForKids &&
-      !EXCLUDED_CATEGORY_IDS.has(it.categoryId) &&
-      it.viewCount >= MIN_VIEW_COUNT &&
-      (it.viewCount > 0 ? it.likeCount / it.viewCount >= MIN_ENGAGEMENT_RATIO : false),
-    );
+    // NOTE: contentDetails.caption is "true" only for MANUALLY uploaded
+    // caption tracks — auto-generated (ASR) captions report "false". The
+    // client caption fetcher reads ASR tracks fine, so requiring captions
+    // here silently dropped the overwhelming majority of real candidates.
+    // It is now a ranking boost, not a hard filter.
+    const debugInfo: Record<string, number> = { fromSearch: base.length, afterLangPurity: items.length };
+    const step = (pred: (it: any) => boolean, name: string) => {
+      items = items.filter(pred);
+      debugInfo[name] = items.length;
+    };
+    step((it: any) => it.durationSeconds >= MIN_DURATION_SECONDS && it.durationSeconds <= MAX_DURATION_SECONDS, "afterDuration");
+    step((it: any) => !it.madeForKids, "afterKids");
+    step((it: any) => !EXCLUDED_CATEGORY_IDS.has(it.categoryId), "afterCategory");
+    step((it: any) => it.viewCount >= MIN_VIEW_COUNT, "afterViews");
+    step((it: any) => it.viewCount > 0 && it.likeCount / it.viewCount >= MIN_ENGAGEMENT_RATIO, "afterEngagement");
 
     // Best candidates first: only the top `maxToScore` (10, in
     // rankByComprehension) ever get their captions fetched for real
