@@ -168,7 +168,7 @@ export const PersonalizedRails = ({
       const blendQuery = selectedInterests.slice(0, 3).map((i) => i.query).join(" OR ");
       const blendKey = selectedInterests.slice(0, 3).map((i) => i.id).join("+") || "default";
 
-      const [rec, tr, bg, ...perInterest] = await Promise.all([
+      const [recR, trR, bgR, ...perInterestR] = await Promise.all([
         cachedSearch(
           `rails:rec:${learningLanguage}:${blendKey}:${cefrKey}`,
           `${langLabel} ${blendQuery}${cefrMod ? ` ${cefrMod}` : ""}`,
@@ -193,6 +193,15 @@ export const PersonalizedRails = ({
         ),
       ]);
       if (cancelled) return;
+      const rec = recR.items;
+      const tr = trR.items;
+      const bg = bgR.items;
+      const perInterest = perInterestR.map((r) => r.items);
+      // If every search failed, that's a YouTube outage/quota problem, not
+      // "no good videos" — say so instead of rendering blank rails.
+      setSearchFailed(
+        recR.failed && trR.failed && bgR.failed && perInterestR.every((r) => r.failed),
+      );
       // Trending/beginner stay on the fast metadata-only path — they're
       // generic categories, not matched to this learner's own vocabulary.
       setTrending(tr.slice(0, 12));
