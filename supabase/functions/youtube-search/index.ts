@@ -310,7 +310,9 @@ Deno.serve(async (req) => {
     // what makes that cut, not just search relevance order.
     items.sort((a: any, b: any) => qualityScore(b, lang) - qualityScore(a, lang));
 
-    return new Response(JSON.stringify({ items, ...(debug ? { debug: debugInfo } : {}) }), {
+    await writeCache(cacheKey, lang || "", q, items);
+
+    return new Response(JSON.stringify({ items, cached: false, ...(debug ? { debug: debugInfo } : {}) }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
