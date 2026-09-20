@@ -49,19 +49,27 @@ function fmtDur(s?: number) {
   return `${m}:${sec.toString().padStart(2, "0")}`;
 }
 
-/** Session-scoped cache so flipping between tabs doesn't burn YouTube quota. */
-async function cachedSearch(key: string, q: string, lang: string): Promise<YTItem[]> {
+/**
+ * Session-scoped cache on top of the edge function's own 24h shared cache.
+ * `failed` is surfaced so the UI can say "couldn't reach YouTube" instead of
+ * rendering a silent empty rail that looks like a broken page.
+ */
+async function cachedSearch(
+  key: string,
+  q: string,
+  lang: string,
+): Promise<{ items: YTItem[]; failed: boolean }> {
   try {
     const hit = sessionStorage.getItem(key);
-    if (hit) return JSON.parse(hit) as YTItem[];
+    if (hit) return { items: JSON.parse(hit) as YTItem[], failed: false };
   } catch {}
   const { data, error } = await supabase.functions.invoke("youtube-search", {
     body: { q, lang },
   });
-  if (error) return [];
+  if (error || (data as any)?.error) return { items: [], failed: true };
   const items: YTItem[] = (data as any)?.items || [];
   try { sessionStorage.setItem(key, JSON.stringify(items)); } catch {}
-  return items;
+  return { items, failed: false };
 }
 
 export const PersonalizedRails = ({
