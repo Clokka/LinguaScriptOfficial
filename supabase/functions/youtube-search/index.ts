@@ -100,6 +100,54 @@ function qualityScore(it: {
   return engagementRatio * 100 + durationCloseness * 3 + ciBoost * 5 + (it.hasCaptions ? 2 : 0);
 }
 
+// YouTube's search.list costs 100 quota units of a 10,000/day allowance —
+// only 100 searches a day for the entire product. A per-browser cache is
+// useless there: every new visitor paid full price and the day's quota was
+// gone by mid-morning, which is why the rails came back empty. This cache
+// is shared by all users and survives a quota outage (stale entries are
+// served rather than showing nothing).
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+
+function serviceClient() {
+  const url = Deno.env.get("SUPABASE_URL");
+  const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!url || !key) return null;
+  return { url, key };
+}
+
+async function readCache(key: string): Promise<{ items: any[]; ageMs: number } | null> {
+  const c = serviceClient();
+  if (!c) return null;
+  try {
+    const res = await fetch(
+      `${c.url}/rest/v1/youtube_search_cache?cache_key=eq.${encodeURIComponent(key)}&select=items,updated_at`,
+      { headers: { apikey: c.key, Authorization: `Bearer ${c.key}` } },
+    );
+    if (!res.ok) return null;
+    const rows = await res.json();
+    const row = rows?.[0];
+    if (!row) return null;
+    return { items: row.items || [], ageMs: Date.now() - new Date(row.updated_at).getTime() };
+  } catch { return null; }
+}
+
+async function writeCache(key: string, lang: string, q: string, items: any[]) {
+  const c = serviceClient();
+  if (!c) return;
+  try {
+    await fetch(`${c.url}/rest/v1/youtube_search_cache?on_conflict=cache_key`, {
+      method: "POST",
+      headers: {
+        apikey: c.key,
+        Authorization: `Bearer ${c.key}`,
+        "Content-Type": "application/json",
+        Prefer: "resolution=merge-duplicates",
+      },
+      body: JSON.stringify({ cache_key: key, language: lang || null, query: q, items, updated_at: new Date().toISOString() }),
+    });
+  } catch { /* cache write is best-effort */ }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
@@ -118,12 +166,20 @@ Deno.serve(async (req) => {
       });
     }
 
+    const cacheKey = `${(lang || "any").toLowerCase()}::${q.trim().toLowerCase()}`;
+    const cached = await readCache(cacheKey);
+    if (cached && cached.ageMs < CACHE_TTL_MS) {
+      return new Response(JSON.stringify({ items: cached.items, cached: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // 1) search.list
     const searchUrl = new URL("https://www.googleapis.com/youtube/v3/search");
     searchUrl.searchParams.set("part", "snippet");
     searchUrl.searchParams.set("q", q);
     searchUrl.searchParams.set("type", "video");
-    searchUrl.searchParams.set("maxResults", "20");
+    searchUrl.searchParams.set("maxResults", "25");
     searchUrl.searchParams.set("videoEmbeddable", "true");
     if (lang) searchUrl.searchParams.set("relevanceLanguage", lang);
     searchUrl.searchParams.set("key", apiKey);
@@ -131,6 +187,13 @@ Deno.serve(async (req) => {
     const searchRes = await fetch(searchUrl.toString());
     const searchData = await searchRes.json();
     if (!searchRes.ok) {
+      // Quota gone or YouTube down: a stale cached page of results beats an
+      // empty screen, so serve it if we have one.
+      if (cached) {
+        return new Response(JSON.stringify({ items: cached.items, cached: true, stale: true }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
       return new Response(JSON.stringify({ error: searchData?.error?.message || "YouTube error" }), {
         status: searchRes.status,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -247,7 +310,9 @@ Deno.serve(async (req) => {
     // what makes that cut, not just search relevance order.
     items.sort((a: any, b: any) => qualityScore(b, lang) - qualityScore(a, lang));
 
-    return new Response(JSON.stringify({ items, ...(debug ? { debug: debugInfo } : {}) }), {
+    await writeCache(cacheKey, lang || "", q, items);
+
+    return new Response(JSON.stringify({ items, cached: false, ...(debug ? { debug: debugInfo } : {}) }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {

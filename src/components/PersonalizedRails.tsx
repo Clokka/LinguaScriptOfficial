@@ -49,19 +49,27 @@ function fmtDur(s?: number) {
   return `${m}:${sec.toString().padStart(2, "0")}`;
 }
 
-/** Session-scoped cache so flipping between tabs doesn't burn YouTube quota. */
-async function cachedSearch(key: string, q: string, lang: string): Promise<YTItem[]> {
+/**
+ * Session-scoped cache on top of the edge function's own 24h shared cache.
+ * `failed` is surfaced so the UI can say "couldn't reach YouTube" instead of
+ * rendering a silent empty rail that looks like a broken page.
+ */
+async function cachedSearch(
+  key: string,
+  q: string,
+  lang: string,
+): Promise<{ items: YTItem[]; failed: boolean }> {
   try {
     const hit = sessionStorage.getItem(key);
-    if (hit) return JSON.parse(hit) as YTItem[];
+    if (hit) return { items: JSON.parse(hit) as YTItem[], failed: false };
   } catch {}
   const { data, error } = await supabase.functions.invoke("youtube-search", {
     body: { q, lang },
   });
-  if (error) return [];
+  if (error || (data as any)?.error) return { items: [], failed: true };
   const items: YTItem[] = (data as any)?.items || [];
   try { sessionStorage.setItem(key, JSON.stringify(items)); } catch {}
-  return items;
+  return { items, failed: false };
 }
 
 export const PersonalizedRails = ({
@@ -90,6 +98,7 @@ export const PersonalizedRails = ({
   const [scoring, setScoring] = useState(true);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [cefrLevel, setCefrLevel] = useState<string | null>(null);
+  const [searchFailed, setSearchFailed] = useState(false);
   // Picks from an interest rail, past sessions included — a much stronger
   // taste signal than the onboarding checkbox itself. Reorders which 3
   // interests get rail slots; never changes the underlying interest list.
@@ -160,7 +169,7 @@ export const PersonalizedRails = ({
       const blendQuery = selectedInterests.slice(0, 3).map((i) => i.query).join(" OR ");
       const blendKey = selectedInterests.slice(0, 3).map((i) => i.id).join("+") || "default";
 
-      const [rec, tr, bg, ...perInterest] = await Promise.all([
+      const [recR, trR, bgR, ...perInterestR] = await Promise.all([
         cachedSearch(
           `rails:rec:${learningLanguage}:${blendKey}:${cefrKey}`,
           `${langLabel} ${blendQuery}${cefrMod ? ` ${cefrMod}` : ""}`,
@@ -185,6 +194,15 @@ export const PersonalizedRails = ({
         ),
       ]);
       if (cancelled) return;
+      const rec = recR.items;
+      const tr = trR.items;
+      const bg = bgR.items;
+      const perInterest = perInterestR.map((r) => r.items);
+      // If every search failed, that's a YouTube outage/quota problem, not
+      // "no good videos" — say so instead of rendering blank rails.
+      setSearchFailed(
+        recR.failed && trR.failed && bgR.failed && perInterestR.every((r) => r.failed),
+      );
       // Trending/beginner stay on the fast metadata-only path — they're
       // generic categories, not matched to this learner's own vocabulary.
       setTrending(tr.slice(0, 12));
@@ -208,14 +226,17 @@ export const PersonalizedRails = ({
         ),
       ]);
       if (cancelled) return;
-      setRecommended(
-        rankedRec.slice(0, 12).map((r) => ({ ...r.item, comprehensionPct: r.comprehensionPct, zone: r.zone })),
-      );
+      // Caption scoring can come back empty (captions blocked, fetch failed).
+      // Falling back to the metadata-ranked candidates without a comprehension
+      // badge is far better than an empty rail.
+      const withScores = (ranked: typeof rankedRec, raw: YTItem[]) =>
+        ranked.length > 0
+          ? ranked.slice(0, 12).map((r) => ({ ...r.item, comprehensionPct: r.comprehensionPct, zone: r.zone }))
+          : raw.slice(0, 12);
+      setRecommended(withScores(rankedRec, rec));
       const perMap: Record<string, YTItem[]> = {};
       interestRailDefs.forEach((i, idx) => {
-        perMap[i.id] = rankedInterests[idx]
-          .slice(0, 12)
-          .map((r) => ({ ...r.item, comprehensionPct: r.comprehensionPct, zone: r.zone }));
+        perMap[i.id] = withScores(rankedInterests[idx], perInterest[idx] || []);
       });
       setInterestRails(perMap);
       setScoring(false);
@@ -249,9 +270,17 @@ export const PersonalizedRails = ({
         </div>
       )}
 
-      {!loading && scoring && (
+      {!loading && scoring && !searchFailed && (
         <div className="flex items-center gap-2 text-muted-foreground text-sm">
           <Loader2 className="w-4 h-4 animate-spin" /> Matching videos to what you already know…
+        </div>
+      )}
+
+      {!loading && searchFailed && (
+        <div className="rounded-xl border border-border bg-card/60 p-4 text-sm text-muted-foreground">
+          Fresh picks from YouTube aren't available right now — today's search
+          allowance has run out. Your curated library below still works, and new
+          recommendations return automatically.
         </div>
       )}
 
