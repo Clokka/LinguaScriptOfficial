@@ -20,6 +20,7 @@ import { getIntegrations, saveIntegrations, type IntegrationKey, type Integratio
 import { AdminProGrants } from "@/components/AdminProGrants";
 import { AdminProGiftLinks } from "@/components/AdminProGiftLinks";
 import { AdminProChameleonGiveaway } from "@/components/AdminProChameleonGiveaway";
+import { AdminVideoSearchCache } from "@/components/AdminVideoSearchCache";
 import { AdminStripeFallback } from "@/components/AdminStripeFallback";
 import { AdminTaxIssues } from "@/components/AdminTaxIssues";
 import { AdminPaymentLinks } from "@/components/AdminPaymentLinks";
@@ -383,6 +384,7 @@ const Admin = () => {
 
         <AdminProGiftLinks />
         <AdminProChameleonGiveaway />
+        <AdminVideoSearchCache />
         <AdminStripeFallback />
         <AdminTaxIssues />
         <AdminPaymentLinks />
