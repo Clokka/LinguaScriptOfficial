@@ -1894,6 +1894,36 @@ export type Database = {
         }
         Relationships: []
       }
+      youtube_search_cache: {
+        Row: {
+          cache_key: string
+          created_at: string
+          hit_count: number
+          items: Json
+          language: string | null
+          query: string | null
+          updated_at: string
+        }
+        Insert: {
+          cache_key: string
+          created_at?: string
+          hit_count?: number
+          items?: Json
+          language?: string | null
+          query?: string | null
+          updated_at?: string
+        }
+        Update: {
+          cache_key?: string
+          created_at?: string
+          hit_count?: number
+          items?: Json
+          language?: string | null
+          query?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
