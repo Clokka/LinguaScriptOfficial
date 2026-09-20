@@ -225,14 +225,17 @@ export const PersonalizedRails = ({
         ),
       ]);
       if (cancelled) return;
-      setRecommended(
-        rankedRec.slice(0, 12).map((r) => ({ ...r.item, comprehensionPct: r.comprehensionPct, zone: r.zone })),
-      );
+      // Caption scoring can come back empty (captions blocked, fetch failed).
+      // Falling back to the metadata-ranked candidates without a comprehension
+      // badge is far better than an empty rail.
+      const withScores = (ranked: typeof rankedRec, raw: YTItem[]) =>
+        ranked.length > 0
+          ? ranked.slice(0, 12).map((r) => ({ ...r.item, comprehensionPct: r.comprehensionPct, zone: r.zone }))
+          : raw.slice(0, 12);
+      setRecommended(withScores(rankedRec, rec));
       const perMap: Record<string, YTItem[]> = {};
       interestRailDefs.forEach((i, idx) => {
-        perMap[i.id] = rankedInterests[idx]
-          .slice(0, 12)
-          .map((r) => ({ ...r.item, comprehensionPct: r.comprehensionPct, zone: r.zone }));
+        perMap[i.id] = withScores(rankedInterests[idx], perInterest[idx] || []);
       });
       setInterestRails(perMap);
       setScoring(false);
