@@ -98,6 +98,7 @@ export const PersonalizedRails = ({
   const [scoring, setScoring] = useState(true);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [cefrLevel, setCefrLevel] = useState<string | null>(null);
+  const [searchFailed, setSearchFailed] = useState(false);
   // Picks from an interest rail, past sessions included — a much stronger
   // taste signal than the onboarding checkbox itself. Reorders which 3
   // interests get rail slots; never changes the underlying interest list.
@@ -269,9 +270,17 @@ export const PersonalizedRails = ({
         </div>
       )}
 
-      {!loading && scoring && (
+      {!loading && scoring && !searchFailed && (
         <div className="flex items-center gap-2 text-muted-foreground text-sm">
           <Loader2 className="w-4 h-4 animate-spin" /> Matching videos to what you already know…
+        </div>
+      )}
+
+      {!loading && searchFailed && (
+        <div className="rounded-xl border border-border bg-card/60 p-4 text-sm text-muted-foreground">
+          Fresh picks from YouTube aren't available right now — today's search
+          allowance has run out. Your curated library below still works, and new
+          recommendations return automatically.
         </div>
       )}
 
