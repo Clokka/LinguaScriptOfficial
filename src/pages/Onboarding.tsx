@@ -465,8 +465,22 @@ const Onboarding = () => {
                       film = anyFilm ?? null;
                     }
                     if (!film?.id) {
-                      toast.error("Training video missing from catalogue. Ask an admin to add it.");
+                      // Last resort: any public film at all, so the demo never dead-ends.
+                      const { data: anyPublic } = await supabase
+                        .from("films")
+                        .select("id")
+                        .eq("is_public", true)
+                        .limit(1)
+                        .maybeSingle();
+                      film = anyPublic ?? null;
+                    }
+                    if (!film?.id) {
+                      toast.message("The demo couldn't load right now — let's get you started instead.");
+                      if (user) {
+                        await supabase.from("profiles").update({ onboarded: true }).eq("user_id", user.id);
+                      }
                       setEnteringDemo(false);
+                      navigate("/discover");
                       return;
                     }
                     if (user) {
