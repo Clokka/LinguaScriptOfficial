@@ -25,3 +25,6 @@ dist-ssr
 
 # Remotion render output
 out/
+
+# phrase-data downloads (scripts/phrases)
+.cache/
