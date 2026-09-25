@@ -8,6 +8,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { DeckState, nextState, applySrsReview, syncLemmaState } from "@/lib/vocab";
 import { cacheWordImage } from "@/lib/wordImages";
 import { useXp } from "@/contexts/XpContext";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { getLanguageLabel } from "@/lib/languages";
 import { toast } from "sonner";
 import { Image as ImageIcon, Type } from "lucide-react";
 
@@ -49,6 +51,7 @@ interface FlashcardReviewProps {
 export const FlashcardReview = ({ cards: initialCards, onClose, onCardReviewed, className }: FlashcardReviewProps) => {
   const { user } = useAuth();
   const { award } = useXp();
+  const { languageContext } = useLanguage();
   const sessionBonusFired = useRef(false);
   const [cards, setCards] = useState<FlashcardData[]>(initialCards);
   // Count cards that moved into the green deck during THIS session — drives
@@ -82,6 +85,23 @@ export const FlashcardReview = ({ cards: initialCards, onClose, onCardReviewed, 
   const toggleCardType = () => {
     setCardType((t) => (t === "text" ? "image" : "text"));
   };
+
+  // The direction label must name the language of the card in front of the
+  // learner — never a hardcoded "French". Falls back to the active learning
+  // language when a card carries no language of its own.
+  const [nativeLang, setNativeLang] = useState("en");
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from("profiles")
+      .select("native_language")
+      .eq("user_id", user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        const n = (data as any)?.native_language?.toLowerCase();
+        if (n) setNativeLang(n);
+      });
+  }, [user]);
 
   // Text-to-image mode: backfill an image the first time a card without one
   // is displayed, so words saved before this feature shipped catch up as
@@ -281,6 +301,7 @@ export const FlashcardReview = ({ cards: initialCards, onClose, onCardReviewed, 
   }
 
   const currentCard = cards[currentIndex];
+  const cardLang = (currentCard?.language || languageContext || "").toLowerCase();
 
   return (
     <div className={cn("max-w-lg mx-auto", className)}>
@@ -318,7 +339,9 @@ export const FlashcardReview = ({ cards: initialCards, onClose, onCardReviewed, 
           className="gap-2 rounded-full text-xs"
         >
           <ArrowLeftRight className="w-3.5 h-3.5" />
-          {direction === "native-to-learn" ? "English → French" : "French → English"}
+          {direction === "native-to-learn"
+            ? `${getLanguageLabel(nativeLang)} → ${getLanguageLabel(cardLang)}`
+            : `${getLanguageLabel(cardLang)} → ${getLanguageLabel(nativeLang)}`}
         </Button>
         <Button
           variant="outline"

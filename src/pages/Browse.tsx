@@ -598,15 +598,19 @@ const Browse = () => {
               nativeLanguage={nativeLanguage}
               setNativeLanguage={(v) => {
                 setNativeLanguage(v);
-                if (tour.active && tour.step?.id === "settings-native") {
-                  setTimeout(() => tour.advance(), 350);
+                if (tour.active) {
+                  setTimeout(() => {
+                    if (tour.step?.id === "settings-native") tour.advance();
+                  }, 350);
                 }
               }}
               learningLanguage={settingsLearning}
               setLearningLanguage={(v) => {
                 setSettingsLearning(v);
-                if (tour.active && tour.step?.id === "settings-learning") {
-                  setTimeout(() => tour.advance(), 350);
+                if (tour.active) {
+                  setTimeout(() => {
+                    if (tour.step?.id === "settings-learning") tour.advance();
+                  }, 350);
                 }
               }}
               saving={savingSettings}
@@ -1229,15 +1233,22 @@ const SettingsTab = ({
   navigate: (p: string) => void;
 }) => {
   const tour = useTour();
+  // Closing the dropdown used to advance the tour immediately — but picking an
+  // option ALSO advances it (via the value handler), so choosing a language
+  // fired two advances and the tour jumped a whole step while the list was
+  // still on screen, swallowing the tap. Wait long enough for the value
+  // handler to run first, and re-check the step id at fire time so we only
+  // advance when the learner dismissed the list without choosing anything.
+  const advanceIfStillOn = (id: string) => {
+    setTimeout(() => {
+      if (tour.active && tour.step?.id === id) tour.advance();
+    }, 900);
+  };
   const onNativeOpenChange = (open: boolean) => {
-    if (!open && tour.active && tour.step?.id === "settings-native") {
-      setTimeout(() => tour.advance(), 250);
-    }
+    if (!open) advanceIfStillOn("settings-native");
   };
   const onLearningOpenChange = (open: boolean) => {
-    if (!open && tour.active && tour.step?.id === "settings-learning") {
-      setTimeout(() => tour.advance(), 250);
-    }
+    if (!open) advanceIfStillOn("settings-learning");
   };
   // While the auth session is still restoring, show a spinner instead of a
   // sign-in barrier — otherwise a logged-in user briefly sees "Sign in" on

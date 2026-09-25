@@ -111,6 +111,12 @@ export async function generateLinguaScriptFromWord(params: {
   language: string;
   wordState: "red" | "orange" | "green";
   nativeLanguage: string;
+  /**
+   * Optional sentence structure the generated sentence must follow. Words
+   * alone build vocabulary; pairing each one with a common structure is what
+   * builds language, so the pattern is passed straight through to the model.
+   */
+  pattern?: { template: string; explanation?: string | null; example?: string | null } | null;
 }): Promise<{ sentence: string; translation: string } | null> {
   try {
     const { data, error } = await supabase.functions.invoke(
@@ -224,6 +230,7 @@ export async function createLinguaScriptFromSavedWord(
   language: string,
   distractorPool: string[] = [],
   scheduledFor: Date = getNextReviewDate(wordState),
+  patternId: string | null = null,
 ): Promise<LinguaScript | null> {
   try {
     const { gapPosition, gapOptions, mcqOptions } = buildExerciseOptions(sentence, word, distractorPool);
@@ -250,6 +257,9 @@ export async function createLinguaScriptFromSavedWord(
         combo_multiplier: 1,
         xp_earned: 0,
         scheduled_for: scheduledFor.toISOString(),
+        // Recorded so sessions can rotate through the structure library
+        // instead of drilling the same shape over and over.
+        pattern_id: patternId,
       } as any)
       .select()
       .single();

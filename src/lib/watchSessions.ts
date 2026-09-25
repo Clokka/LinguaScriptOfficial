@@ -90,8 +90,11 @@ export interface DashboardStats {
   vocab_learned: number;
 }
 
-export async function fetchProgressStats(): Promise<DashboardStats | null> {
-  const { data, error } = await supabase.rpc("user_progress_stats");
+/** Stats for one language — each language profile has its own progress. */
+export async function fetchProgressStats(language?: string): Promise<DashboardStats | null> {
+  const { data, error } = await (supabase as any).rpc("user_progress_stats", {
+    _language: language ? language.toLowerCase() : null,
+  });
   if (error) {
     console.error("user_progress_stats failed:", error);
     return null;

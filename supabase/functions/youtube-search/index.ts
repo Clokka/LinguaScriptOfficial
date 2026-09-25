@@ -63,24 +63,24 @@ function isComprehensibleInput(title: string, channel: string, lang: string): bo
   return known.some((name) => channel.toLowerCase().includes(name));
 }
 
-// Duration band: 8–15 minutes. Long enough to be a real lesson (not a
-// vlog fragment), short enough to finish in one sitting — "one video a
-// day" only works as a habit if that video is a 10-ish minute commitment,
-// not a 40-minute lecture. Center of the band (~600s) scores best.
-const MIN_DURATION_SECONDS = 8 * 60;
-const MAX_DURATION_SECONDS = 15 * 60;
+// Duration band: 3–20 minutes. The old 8–15 band was so narrow that a
+// 20-result search page routinely contained zero in-band videos, which is
+// why the rails came back empty. 20 min is the owner-set catalog cap.
+// Center of the band (~600s) still scores best.
+const MIN_DURATION_SECONDS = 3 * 60;
+const MAX_DURATION_SECONDS = 20 * 60;
 const IDEAL_DURATION_SECONDS = 10 * 60;
 
 // Below this, a video's "popularity" is noise, not signal — could be brand
-// new or just obscure. Raised from 500: that floor let real junk through.
-const MIN_VIEW_COUNT = 5000;
+// new or just obscure. Kept low so smaller languages aren't wiped out.
+const MIN_VIEW_COUNT = 1000;
 
 // Raw view count rewards whatever language already has the most YouTube
 // content (English, Spanish) over well-made niche content in a smaller
 // language. Like/view ratio is a much fairer quality signal: it asks "did
 // the people who watched this actually rate it," not "is this language
 // popular." A ratio this low is a real spam/low-effort signal in either case.
-const MIN_ENGAGEMENT_RATIO = 0.004;
+const MIN_ENGAGEMENT_RATIO = 0.001;
 
 function qualityScore(it: {
   title: string;
@@ -89,6 +89,7 @@ function qualityScore(it: {
   likeCount: number;
   durationSeconds: number;
   audioLang: string;
+  hasCaptions?: boolean;
 }, lang: string): number {
   const engagementRatio = it.viewCount > 0 ? it.likeCount / it.viewCount : 0;
   const durationCloseness = 1 - Math.min(1, Math.abs(it.durationSeconds - IDEAL_DURATION_SECONDS) / IDEAL_DURATION_SECONDS);
@@ -96,13 +97,61 @@ function qualityScore(it: {
   // Weighted so CI content wins ties decisively, engagement quality matters
   // more than exact duration, and nothing so extreme one factor alone
   // dominates every other signal.
-  return engagementRatio * 100 + durationCloseness * 3 + ciBoost * 5;
+  return engagementRatio * 100 + durationCloseness * 3 + ciBoost * 5 + (it.hasCaptions ? 2 : 0);
+}
+
+// YouTube's search.list costs 100 quota units of a 10,000/day allowance —
+// only 100 searches a day for the entire product. A per-browser cache is
+// useless there: every new visitor paid full price and the day's quota was
+// gone by mid-morning, which is why the rails came back empty. This cache
+// is shared by all users and survives a quota outage (stale entries are
+// served rather than showing nothing).
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+
+function serviceClient() {
+  const url = Deno.env.get("SUPABASE_URL");
+  const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!url || !key) return null;
+  return { url, key };
+}
+
+async function readCache(key: string): Promise<{ items: any[]; ageMs: number } | null> {
+  const c = serviceClient();
+  if (!c) return null;
+  try {
+    const res = await fetch(
+      `${c.url}/rest/v1/youtube_search_cache?cache_key=eq.${encodeURIComponent(key)}&select=items,updated_at`,
+      { headers: { apikey: c.key, Authorization: `Bearer ${c.key}` } },
+    );
+    if (!res.ok) return null;
+    const rows = await res.json();
+    const row = rows?.[0];
+    if (!row) return null;
+    return { items: row.items || [], ageMs: Date.now() - new Date(row.updated_at).getTime() };
+  } catch { return null; }
+}
+
+async function writeCache(key: string, lang: string, q: string, items: any[]) {
+  const c = serviceClient();
+  if (!c) return;
+  try {
+    await fetch(`${c.url}/rest/v1/youtube_search_cache?on_conflict=cache_key`, {
+      method: "POST",
+      headers: {
+        apikey: c.key,
+        Authorization: `Bearer ${c.key}`,
+        "Content-Type": "application/json",
+        Prefer: "resolution=merge-duplicates",
+      },
+      body: JSON.stringify({ cache_key: key, language: lang || null, query: q, items, updated_at: new Date().toISOString() }),
+    });
+  } catch { /* cache write is best-effort */ }
 }
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
-    const { q, lang } = await req.json();
+    const { q, lang, debug } = await req.json();
     if (!q || typeof q !== "string") {
       return new Response(JSON.stringify({ error: "Missing q" }), {
         status: 400,
@@ -117,12 +166,20 @@ Deno.serve(async (req) => {
       });
     }
 
+    const cacheKey = `${(lang || "any").toLowerCase()}::${q.trim().toLowerCase()}`;
+    const cached = await readCache(cacheKey);
+    if (cached && cached.ageMs < CACHE_TTL_MS) {
+      return new Response(JSON.stringify({ items: cached.items, cached: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // 1) search.list
     const searchUrl = new URL("https://www.googleapis.com/youtube/v3/search");
     searchUrl.searchParams.set("part", "snippet");
     searchUrl.searchParams.set("q", q);
     searchUrl.searchParams.set("type", "video");
-    searchUrl.searchParams.set("maxResults", "20");
+    searchUrl.searchParams.set("maxResults", "25");
     searchUrl.searchParams.set("videoEmbeddable", "true");
     if (lang) searchUrl.searchParams.set("relevanceLanguage", lang);
     searchUrl.searchParams.set("key", apiKey);
@@ -130,6 +187,13 @@ Deno.serve(async (req) => {
     const searchRes = await fetch(searchUrl.toString());
     const searchData = await searchRes.json();
     if (!searchRes.ok) {
+      // Quota gone or YouTube down: a stale cached page of results beats an
+      // empty screen, so serve it if we have one.
+      if (cached) {
+        return new Response(JSON.stringify({ items: cached.items, cached: true, stale: true }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
       return new Response(JSON.stringify({ error: searchData?.error?.message || "YouTube error" }), {
         status: searchRes.status,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -224,15 +288,21 @@ Deno.serve(async (req) => {
     //  - below the view floor, OR essentially no engagement relative to its
     //    view count -> spam/low-effort filter that doesn't penalize niche
     //    languages the way a raw view-count filter would
-    items = items.filter((it: any) =>
-      it.hasCaptions &&
-      it.durationSeconds >= MIN_DURATION_SECONDS &&
-      it.durationSeconds <= MAX_DURATION_SECONDS &&
-      !it.madeForKids &&
-      !EXCLUDED_CATEGORY_IDS.has(it.categoryId) &&
-      it.viewCount >= MIN_VIEW_COUNT &&
-      (it.viewCount > 0 ? it.likeCount / it.viewCount >= MIN_ENGAGEMENT_RATIO : false),
-    );
+    // NOTE: contentDetails.caption is "true" only for MANUALLY uploaded
+    // caption tracks — auto-generated (ASR) captions report "false". The
+    // client caption fetcher reads ASR tracks fine, so requiring captions
+    // here silently dropped the overwhelming majority of real candidates.
+    // It is now a ranking boost, not a hard filter.
+    const debugInfo: Record<string, number> = { fromSearch: base.length, afterLangPurity: items.length };
+    const step = (pred: (it: any) => boolean, name: string) => {
+      items = items.filter(pred);
+      debugInfo[name] = items.length;
+    };
+    step((it: any) => it.durationSeconds >= MIN_DURATION_SECONDS && it.durationSeconds <= MAX_DURATION_SECONDS, "afterDuration");
+    step((it: any) => !it.madeForKids, "afterKids");
+    step((it: any) => !EXCLUDED_CATEGORY_IDS.has(it.categoryId), "afterCategory");
+    step((it: any) => it.viewCount >= MIN_VIEW_COUNT, "afterViews");
+    step((it: any) => it.viewCount > 0 && it.likeCount / it.viewCount >= MIN_ENGAGEMENT_RATIO, "afterEngagement");
 
     // Best candidates first: only the top `maxToScore` (10, in
     // rankByComprehension) ever get their captions fetched for real
@@ -240,7 +310,9 @@ Deno.serve(async (req) => {
     // what makes that cut, not just search relevance order.
     items.sort((a: any, b: any) => qualityScore(b, lang) - qualityScore(a, lang));
 
-    return new Response(JSON.stringify({ items }), {
+    await writeCache(cacheKey, lang || "", q, items);
+
+    return new Response(JSON.stringify({ items, cached: false, ...(debug ? { debug: debugInfo } : {}) }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {

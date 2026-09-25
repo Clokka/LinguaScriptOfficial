@@ -17,7 +17,8 @@ export function YourProgressDashboard({ languages }: { languages?: string[] }) {
   useEffect(() => {
     if (!user) return;
     let alive = true;
-    fetchProgressStats().then((s) => { if (alive) setStats(s); });
+    // Scoped to the active language — each language profile keeps its own numbers.
+    fetchProgressStats(learningLanguage).then((s) => { if (alive) setStats(s); });
     const langs = languages && languages.length ? languages : [learningLanguage];
     Promise.all(langs.map(async (l) => ({ lang: l, rate: await fetchLearningRate(l) })))
       .then((r) => { if (alive) setRates(r); });

@@ -24,24 +24,43 @@ export function useDailyWordGoal(language?: string) {
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
 
-    const [{ data: profile }, { count }] = await Promise.all([
+    // Everything the learner sees is scoped to the language they're studying:
+    // today's tally counts only that language's words, and the goal comes from
+    // that language's own profile before falling back to the account default.
+    let savedQuery = supabase
+      .from("saved_words")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .gte("created_at", startOfDay.toISOString());
+    if (language) savedQuery = savedQuery.eq("language", language.toLowerCase());
+
+    const [{ data: profile }, { count }, { data: langProfile }] = await Promise.all([
       supabase
         .from("profiles")
         .select("daily_word_goal, daily_video_goal")
         .eq("user_id", user.id)
         .maybeSingle(),
-      supabase
-        .from("saved_words")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", user.id)
-        .gte("created_at", startOfDay.toISOString()),
+      savedQuery,
+      language
+        ? (supabase as any)
+            .from("language_profiles")
+            .select("daily_word_goal, daily_video_goal")
+            .eq("user_id", user.id)
+            .eq("language", language.toLowerCase())
+            .maybeSingle()
+        : Promise.resolve({ data: null }),
     ]);
 
     const p = profile as any;
-    setGoal(p?.daily_word_goal ?? wordGoalForVideos(p?.daily_video_goal ?? 1));
+    const lp = langProfile as any;
+    setGoal(
+      lp?.daily_word_goal ??
+        p?.daily_word_goal ??
+        wordGoalForVideos(lp?.daily_video_goal ?? p?.daily_video_goal ?? 1),
+    );
     setSavedToday(count ?? 0);
     setLoading(false);
-  }, [user]);
+  }, [user, language]);
 
   useEffect(() => {
     refresh();

@@ -14,6 +14,18 @@ function getCtx(): AudioContext | null {
 export function playDing(variant: "soft" | "success" = "success") {
   const ac = getCtx();
   if (!ac) return;
+  // Browsers suspend the context until a user gesture, and it can also be
+  // suspended again after the tab/player takes focus. Without this resume the
+  // ding is silently dropped — which is why saving a word while watching a
+  // video made no sound even though the same call works during onboarding.
+  if (ac.state === "suspended") {
+    void ac.resume().then(() => ring(ac, variant)).catch(() => {});
+    return;
+  }
+  ring(ac, variant);
+}
+
+function ring(ac: AudioContext, variant: "soft" | "success") {
   const now = ac.currentTime;
 
   const notes = variant === "success" ? [880, 1320] : [660];

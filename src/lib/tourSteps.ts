@@ -271,6 +271,17 @@ export const TOUR_TRAINING_BY_LANG: Record<string, string> = {
   it: "jJz7UhAx2u4",
   pt: "wWoDedyb91w",
   de: "y-sOwSKvTNU",
+  zh: "WjvTAyUc9ro",
+  ko: "9lOJxJBRj1I",
+  ar: "f47iF_Ykd-8",
+  hi: "lbsQJghnHdU",
+  th: "aNdYdSpL6zE",
+  ru: "Dlo4pxB2WUg",
+  tr: "ytwfWa1KUyY",
+  nl: "StLd7rw1BfI",
+  pl: "KfbaaG5KdKg",
+  sv: "VY24C7Bs3OM",
+  en: "31AtaK035JQ",
 };
 
 /**
