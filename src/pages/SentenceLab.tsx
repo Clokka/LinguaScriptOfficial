@@ -20,6 +20,7 @@ import { useSubscription } from "@/hooks/useSubscription";
 import { supabase } from "@/integrations/supabase/client";
 import { loadDeckIndex } from "@/lib/vocab";
 import { loadSession, type SentenceLabBoard } from "@/lib/sentenceLabBoard";
+import { checkAnswer } from "@/lib/sentenceLabCheck";
 import { WordBlock, type BlockSkin } from "@/components/blocks/WordBlock";
 import { ChameleonReaction } from "@/components/ChameleonReaction";
 import { LineBlastOverlay, type BlastPraise, type BlastFloatXp } from "@/components/LineBlastOverlay";
@@ -52,6 +53,10 @@ export default function SentenceLab() {
   // so the block tracks the finger with no render lag.
   const [drag, setDrag] = useState<{ word: string; skin: BlockSkin } | null>(null);
   const [wrongWord, setWrongWord] = useState<string | null>(null);
+  const [checking, setChecking] = useState(false);
+  const [hint, setHint] = useState<string | null>(null);
+  const [misses, setMisses] = useState(0);
+  const [revealAnswer, setRevealAnswer] = useState(false);
   const dragElRef = useRef<HTMLDivElement>(null);
   const dragPosRef = useRef({ x: 0, y: 0 });
   const grabOffsetRef = useRef({ x: 0, y: 0 });
@@ -110,37 +115,70 @@ export default function SentenceLab() {
   const board = boards[index];
   const totalMinutes = Math.max(1, Math.round(boards.length * 0.6));
 
-  const attempt = useCallback(
-    (word: string, skin: BlockSkin) => {
-      if (!board || solved) return;
-      if (word === board.answer) {
-        setSolved(true);
-        setDrag(null);
-        const nextCombo = Math.min(combo + 1, COMBO_CAP);
-        setCombo(nextCombo);
-        const [big, sub] = PRAISE[nextCombo] ?? PRAISE[1];
-        keyRef.current += 1;
-        setPraise({ big, sub, combo: nextCombo, key: keyRef.current });
-        setFloatXp({ text: floatXpText(nextCombo), key: keyRef.current });
-        setGlowKey((k) => k + 1);
-        if (!prefersReducedMotion()) burstRef.current.fire(confettiCountForCombo(nextCombo));
-        setReaction(true);
-        window.setTimeout(() => {
-          setReaction(false);
-          setSolved(false);
-          if (!isPro) { try { localStorage.setItem(FREE_TASTE_KEY, todayKey()); } catch { /* ignore */ } }
-          if (index < boards.length - 1) setIndex((i) => i + 1);
-          else setPhase("done");
-        }, 1700);
-      } else {
-        // Full "what went wrong" hints land in Step 3 — this is just the wobble.
-        setCombo(0);
-        setWrongWord(word);
-        setDrag(null);
-        window.setTimeout(() => setWrongWord(null), 460);
-      }
+  const celebrate = useCallback(
+    (placedWord: string) => {
+      setSolved(true);
+      setDrag(null);
+      setHint(null);
+      const nextCombo = Math.min(combo + 1, COMBO_CAP);
+      setCombo(nextCombo);
+      const [big, sub] = PRAISE[nextCombo] ?? PRAISE[1];
+      keyRef.current += 1;
+      setPraise({ big, sub, combo: nextCombo, key: keyRef.current });
+      setFloatXp({ text: floatXpText(nextCombo), key: keyRef.current });
+      setGlowKey((k) => k + 1);
+      if (!prefersReducedMotion()) burstRef.current.fire(confettiCountForCombo(nextCombo));
+      setReaction(true);
+      window.setTimeout(() => {
+        setReaction(false);
+        setSolved(false);
+        setMisses(0);
+        setRevealAnswer(false);
+        if (!isPro) { try { localStorage.setItem(FREE_TASTE_KEY, todayKey()); } catch { /* ignore */ } }
+        if (index < boards.length - 1) setIndex((i) => i + 1);
+        else setPhase("done");
+      }, 1700);
     },
-    [board, solved, combo, index, boards.length, isPro],
+    [combo, index, boards.length, isPro],
+  );
+
+  const attempt = useCallback(
+    async (word: string) => {
+      if (!board || solved || checking) return;
+
+      // Exact match short-circuits without the async round trip — the common
+      // case never waits on a POS lookup it doesn't need.
+      if (word === board.answer) {
+        celebrate(word);
+        return;
+      }
+
+      setChecking(true);
+      const result = await checkAnswer(board, learningLanguage, word);
+      setChecking(false);
+      // The board may have already moved on while the check was in flight
+      // (e.g. the learner double-tapped) — never act on a stale result.
+      if (boards[index]?.patternId !== board.patternId) return;
+
+      if (result.correct) {
+        celebrate(word);
+        return;
+      }
+
+      // Only the combo resets — never a scarier penalty, and never shaming
+      // copy. After two misses on the same board, gently reveal the answer.
+      setCombo(0);
+      setWrongWord(word);
+      setDrag(null);
+      setHint(result.hint ?? null);
+      window.setTimeout(() => setWrongWord(null), 460);
+      setMisses((m) => {
+        const next = m + 1;
+        if (next >= 2) setRevealAnswer(true);
+        return next;
+      });
+    },
+    [board, solved, checking, learningLanguage, boards, index, celebrate],
   );
 
   const paintDrag = useCallback(() => {
@@ -181,9 +219,9 @@ export default function SentenceLab() {
       const cx = e.clientX - grabOffsetRef.current.x + dragSizeRef.current.width / 2;
       const cy = e.clientY - grabOffsetRef.current.y + dragSizeRef.current.height / 2;
       const hit = box && cx >= box.left - 40 && cx <= box.right + 40 && cy >= box.top - 40 && cy <= box.bottom + 40;
-      const { word, skin } = drag;
+      const { word } = drag;
       activePointerRef.current = null;
-      if (hit) attempt(word, skin);
+      if (hit) void attempt(word);
       else setDrag(null);
     };
     window.addEventListener("pointermove", move, { passive: true });
@@ -297,7 +335,18 @@ export default function SentenceLab() {
             </div>
 
             {board.translation && (
-              <p className="mb-6 text-sm italic text-white/40">{board.translation}</p>
+              <p className="mb-2 text-sm italic text-white/40">{board.translation}</p>
+            )}
+
+            {/* Wrong-answer hint — always says what went wrong, never a
+                generic "try a verb". Clears the moment the board is solved. */}
+            {hint && !solved && (
+              <p className="mb-4 max-w-xs text-center text-sm font-medium text-[#FF8A00]">{hint}</p>
+            )}
+            {checking && (
+              <p className="mb-4 flex items-center gap-1.5 text-xs text-white/40">
+                <Loader2 className="h-3 w-3 animate-spin" /> Checking…
+              </p>
             )}
 
             {combo > 1 && (
@@ -310,25 +359,41 @@ export default function SentenceLab() {
               @keyframes sl-shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-7px)} 40%{transform:translateX(7px)} 60%{transform:translateX(-5px)} 80%{transform:translateX(5px)} }
               @keyframes sl-pop { 0%{transform:scale(0.6);opacity:0} 70%{transform:scale(1.1)} 100%{transform:scale(1);opacity:1} }
               @keyframes sl-slot-pulse { 0%,100%{border-color:rgba(255,255,255,0.28)} 50%{border-color:rgba(255,255,255,0.55)} }
+              @keyframes sl-reveal { 0%,100%{opacity:0.4} 50%{opacity:1} }
             `}</style>
 
             {/* Block tray */}
             <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-              {board.candidates.map((c) => (
-                <WordBlock
-                  key={c.word}
-                  label={c.word}
-                  skin={c.word === board.answer && solved ? "green" : c.skin}
-                  dragging={drag?.word === c.word}
-                  onPointerDown={startDrag(c.word, c.skin)}
-                  onDoubleClick={() => attempt(c.word, c.skin)}
-                  style={{
-                    opacity: solved && c.word !== board.answer ? 0.25 : drag?.word === c.word ? 0.35 : 1,
-                    animation: wrongWord === c.word ? "sl-shake 420ms ease-in-out" : undefined,
-                    pointerEvents: solved ? "none" : undefined,
-                  }}
-                />
-              ))}
+              {board.candidates.map((c) => {
+                const isAnswer = c.word === board.answer;
+                return (
+                  <div
+                    key={c.word}
+                    className="rounded-2xl"
+                    style={
+                      revealAnswer && isAnswer && !solved
+                        ? {
+                            boxShadow: "0 0 0 3px #22D3EE, 0 0 18px 4px rgba(34,211,238,0.65)",
+                            animation: "sl-reveal 1.1s ease-in-out infinite",
+                          }
+                        : undefined
+                    }
+                  >
+                    <WordBlock
+                      label={c.word}
+                      skin={isAnswer && solved ? "green" : c.skin}
+                      dragging={drag?.word === c.word}
+                      onPointerDown={startDrag(c.word, c.skin)}
+                      onDoubleClick={() => void attempt(c.word)}
+                      style={{
+                        opacity: solved && !isAnswer ? 0.25 : drag?.word === c.word ? 0.35 : 1,
+                        animation: wrongWord === c.word ? "sl-shake 420ms ease-in-out" : undefined,
+                        pointerEvents: solved || checking ? "none" : undefined,
+                      }}
+                    />
+                  </div>
+                );
+              })}
             </div>
 
             {reaction && (
