@@ -329,8 +329,9 @@ const Watch = () => {
   const savedTodayRef = useRef(0);
   const dailyGoal = useDailyWordGoal();
 
-  // One nudge per day, fired the moment the goal is met: the point of the goal
-  // is to hand the learner over to review, not to congratulate them and stop.
+  // One nudge per day, fired the moment the goal is met. Used to hand the
+  // learner over to the old LinguaScripts SRS review — that flow is retired
+  // (see the Sentence Lab rebuild), so this is just the win on its own now.
   const nudgedRef = useRef(false);
   const registerDailySave = useCallback(() => {
     dailyGoal.bump();
@@ -338,12 +339,11 @@ const Watch = () => {
     if (!nudgedRef.current && next >= dailyGoal.goal) {
       nudgedRef.current = true;
       toast.success(`Daily goal reached — ${dailyGoal.goal} words saved`, {
-        description: "Review them now while they're fresh.",
-        action: { label: "Review", onClick: () => navigate("/linguascript") },
+        description: "Nice work — come back tomorrow to keep it going.",
         duration: 8000,
       });
     }
-  }, [dailyGoal, navigate]);
+  }, [dailyGoal]);
   const { learningLanguage, languageContext, isContentLocked } = useLanguage();
   const { award } = useXp();
   const { triggerReaction } = usePet();

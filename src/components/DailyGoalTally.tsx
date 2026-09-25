@@ -1,13 +1,13 @@
-import { useNavigate } from "react-router-dom";
-import { ArrowRight, Check, Target } from "lucide-react";
+import { Check, Target } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
  * "3 / 5 saved today" — the day's progress, and nothing louder.
  *
- * The product is built on turning up daily for a small amount, not on bingeing.
- * When the goal is met the tally quietly turns into a handoff to the review
- * session rather than celebrating and leaving the learner with nothing to do.
+ * The product is built on turning up daily for a small amount, not on
+ * bingeing. This used to hand the learner off to the old LinguaScripts SRS
+ * review on "reached" — that flow is retired (see the Sentence Lab rebuild),
+ * so reaching the goal now is just a quiet, complete win on its own.
  */
 export interface DailyGoalTallyProps {
   savedToday: number;
@@ -18,7 +18,6 @@ export interface DailyGoalTallyProps {
 }
 
 export function DailyGoalTally({ savedToday, goal, variant = "pill", className }: DailyGoalTallyProps) {
-  const navigate = useNavigate();
   const reached = savedToday >= goal;
   const pct = Math.min(100, Math.round((savedToday / Math.max(1, goal)) * 100));
 
@@ -37,14 +36,6 @@ export function DailyGoalTally({ savedToday, goal, variant = "pill", className }
         <span className="tabular-nums">
           {Math.min(savedToday, goal)} / {goal} saved today
         </span>
-        {reached && (
-          <button
-            onClick={() => navigate("/linguascript")}
-            className="ml-1 inline-flex items-center gap-1 rounded-full bg-[#34C759] px-2 py-0.5 text-[11px] font-bold text-black"
-          >
-            Review <ArrowRight className="h-3 w-3" />
-          </button>
-        )}
       </div>
     );
   }
@@ -67,12 +58,9 @@ export function DailyGoalTally({ savedToday, goal, variant = "pill", className }
           </p>
         </div>
         {reached && (
-          <button
-            onClick={() => navigate("/linguascript")}
-            className="inline-flex items-center gap-2 rounded-full bg-[#34C759] px-4 py-2 text-sm font-bold text-black transition hover:brightness-110"
-          >
-            Review them <ArrowRight className="h-4 w-4" />
-          </button>
+          <span className="inline-flex items-center gap-2 rounded-full bg-[#34C759] px-4 py-2 text-sm font-bold text-black">
+            <Check className="h-4 w-4" /> Done for today
+          </span>
         )}
       </div>
 
@@ -85,7 +73,7 @@ export function DailyGoalTally({ savedToday, goal, variant = "pill", className }
 
       <p className="mt-3 text-xs text-muted-foreground">
         {reached
-          ? "Goal reached. A short review now is what makes it stick — then you're done for the day."
+          ? "Goal reached — nice work. Come back tomorrow to keep the streak going."
           : "Small and daily beats big and occasional. Save a few words while you watch."}
       </p>
     </div>

@@ -5,7 +5,6 @@ import {
   Search,
   Home,
   Compass,
-  Library,
   Calendar as CalendarIcon,
   Settings,
   Link as LinkIcon,
@@ -47,8 +46,6 @@ import { HomeCatalogRows } from "@/components/HomeCatalogRows";
 import { ContinueWatchingRail } from "@/components/ContinueWatchingRail";
 import { DiscoverCatalog } from "@/components/DiscoverCatalog";
 import { useLinguaScriptStatus } from "@/hooks/useLinguaScriptStatus";
-import { LinguaScriptsPendingAlert } from "@/components/LinguaScriptsPendingAlert";
-import { LinguaScriptsCompleteCard } from "@/components/LinguaScriptsCompleteCard";
 import { FlashcardsDueAlert } from "@/components/FlashcardsDueAlert";
 import { LinguaScriptSessionFlow } from "@/components/LinguaScriptSessionFlow";
 import { LevelBadge } from "@/components/LevelBadge";
@@ -81,11 +78,13 @@ interface ActivityDay {
 
 type TabKey = "home" | "discover" | "calendar" | "settings";
 
-const SIDEBAR_ITEMS: { icon: typeof Home; label: string; key: TabKey | "flashcards" | "vocabulary" | "friends" | "linguascripts" }[] = [
+// "linguascripts" deliberately absent — the old SRS flow is retired (see
+// Sentence Lab rebuild). Its route and data are untouched, just no longer
+// linked to from anywhere in the nav.
+const SIDEBAR_ITEMS: { icon: typeof Home; label: string; key: TabKey | "flashcards" | "vocabulary" | "friends" }[] = [
   { icon: Home, label: "Home", key: "home" },
   { icon: Compass, label: "Discover", key: "discover" },
   { icon: Target, label: "Comprehension", key: "vocabulary" },
-  { icon: Library, label: "LinguaScripts", key: "linguascripts" },
   { icon: BookOpen, label: "Flashcards", key: "flashcards" },
   { icon: Users, label: "Friends", key: "friends" },
   { icon: CalendarIcon, label: "Calendar", key: "calendar" },
@@ -456,7 +455,7 @@ const Browse = () => {
             <button
               key={key}
               data-tour={`nav-${key}`}
-              onClick={() => key === "flashcards" ? navigate("/flashcards") : key === "vocabulary" ? navigate("/vocabulary") : key === "friends" ? navigate("/friends") : key === "linguascripts" ? navigate("/linguascript") : setActiveTab(key as TabKey)}
+              onClick={() => key === "flashcards" ? navigate("/flashcards") : key === "vocabulary" ? navigate("/vocabulary") : key === "friends" ? navigate("/friends") : setActiveTab(key as TabKey)}
               className={cn(
                 "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors",
                 activeTab === key
@@ -492,7 +491,7 @@ const Browse = () => {
                 <button
                   key={key}
                   data-tour={`nav-${key}`}
-                  onClick={() => key === "flashcards" ? navigate("/flashcards") : key === "vocabulary" ? navigate("/vocabulary") : key === "friends" ? navigate("/friends") : key === "linguascripts" ? navigate("/linguascript") : setActiveTab(key as TabKey)}
+                  onClick={() => key === "flashcards" ? navigate("/flashcards") : key === "vocabulary" ? navigate("/vocabulary") : key === "friends" ? navigate("/friends") : setActiveTab(key as TabKey)}
                   className={cn(
                     "p-2 rounded-lg transition-colors",
                     activeTab === key ? "bg-primary/15 text-primary" : "text-muted-foreground"
@@ -540,25 +539,10 @@ const Browse = () => {
                 className="mb-6"
               />
 
-              {/* LinguaScripts Alerts - Top Priority */}
-              {linguaScriptStatus.state === "linguascripts-pending" && (
-                <LinguaScriptsPendingAlert
-                  count={linguaScriptStatus.linguascriptsPending}
-                  estimatedTime={Math.ceil(linguaScriptStatus.linguascriptsPending * 1)}
-                  onStart={() => navigate("/linguascript")}
-                />
-              )}
-
-              {linguaScriptStatus.state === "linguascripts-complete" && (
-                <LinguaScriptsCompleteCard
-                  wordsReviewedToday={0}
-                  newWordsCaptured={0}
-                  onContinueWatching={() => {
-                    setActiveTab("discover");
-                  }}
-                  onDiscover={() => setActiveTab("discover")}
-                />
-              )}
+              {/* The old LinguaScripts SRS alerts (pending/complete) are
+                  retired along with the flow itself — see the Sentence Lab
+                  rebuild. useLinguaScriptStatus and its data are untouched;
+                  this just stops surfacing them on the home tab. */}
 
               {linguaScriptStatus.state === "flashcards-due" && (
                 <FlashcardsDueAlert
