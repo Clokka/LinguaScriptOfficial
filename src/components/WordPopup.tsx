@@ -21,14 +21,12 @@ interface WordPopupProps {
    * must match the subtitle exactly — clicking a word never changes its colour.
    */
   deckColor?: string;
-  /** Why this word is highlighted, e.g. a gold "B2 word" hint. */
-  badge?: string;
   onClose: () => void;
   onSave: () => void;
   onMarkKnown?: () => void;
 }
 
-export const WordPopup = ({ word, position, language, translating, deckColor, badge, onClose, onSave, onMarkKnown }: WordPopupProps) => {
+export const WordPopup = ({ word, position, language, translating, deckColor, onClose, onSave, onMarkKnown }: WordPopupProps) => {
   const { speak } = useLanguage();
   const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
 
@@ -74,11 +72,6 @@ export const WordPopup = ({ word, position, language, translating, deckColor, ba
                 {word.text}
               </h3>
               {word.ipa && <p className="text-muted-foreground text-sm mt-1">{word.ipa}</p>}
-              {badge && (
-                <p className="mt-2 inline-block rounded-full border border-amber-400/40 bg-amber-400/15 px-2 py-0.5 text-xs font-semibold text-amber-300">
-                  {badge}
-                </p>
-              )}
 
             </div>
             <Button

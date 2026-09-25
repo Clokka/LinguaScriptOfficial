@@ -14,7 +14,6 @@ import {
 import { greenScoreForLine } from "@/lib/understanding";
 import { ChameleonReaction, ReactionMode } from "./ChameleonReaction";
 import { useXp } from "@/contexts/XpContext";
-import { xpForAction } from "@/lib/xp";
 import {
   isPendingGreen,
   revealGreenWord,
@@ -23,15 +22,6 @@ import {
   GOLD,
   type GoldCandidate,
 } from "@/lib/goldenReveal";
-import {
-  lookupVocab,
-  loadLearnerLevel,
-  classifyTarget,
-  compareTargets,
-  targetLabel,
-  type TargetInfo,
-} from "@/lib/targetWords";
-import type { CefrLevel } from "@/lib/languageProfiles";
 import { playClaimChime } from "@/lib/chime";
 import { LineBlastOverlay } from "@/components/LineBlastOverlay";
 import { GoldenDust, type DustAnchor } from "./GoldenDust";
@@ -92,8 +82,6 @@ export const SubtitleOverlay = ({
   contentLanguage,
 }: SubtitleOverlayProps) => {
   const [selectedWord, setSelectedWord] = useState<Word | null>(null);
-  /** Set when the open popup belongs to a target-gold word. */
-  const [selectedTarget, setSelectedTarget] = useState<TargetInfo | null>(null);
   const [popupPosition, setPopupPosition] = useState({ x: 0, y: 0 });
   const [translating, setTranslating] = useState(false);
   const { languageContext } = useLanguage();
@@ -154,58 +142,6 @@ export const SubtitleOverlay = ({
     return out;
   }, [primaryText, deck, justClaimed]);
 
-  // ── Target Gold ──────────────────────────────────────────────────────────
-  // Unsaved words worth learning next — a CEFR level or two above the learner,
-  // or among the most common words — also render gold. They share the
-  // per-line cap with reveal gold. See src/lib/targetWords.ts.
-
-  const [learnerLevel, setLearnerLevel] = useState<CefrLevel | null>(null);
-  useEffect(() => {
-    let alive = true;
-    loadLearnerLevel(user?.id ?? null, effectiveLang).then((lvl) => {
-      if (alive) setLearnerLevel(lvl);
-    });
-    return () => { alive = false; };
-  }, [user, effectiveLang]);
-
-  /** core_vocabulary info for this line's tokens (token → target, or absent). */
-  const [lineTargets, setLineTargets] = useState<Map<string, TargetInfo>>(new Map());
-  useEffect(() => {
-    let alive = true;
-    const tokens = primaryText.split(/\s+/).map(normalizeToken).filter(Boolean);
-    lookupVocab(effectiveLang, tokens).then((rows) => {
-      if (!alive) return;
-      const next = new Map<string, TargetInfo>();
-      for (const t of tokens) {
-        const info = classifyTarget(rows.get(t), learnerLevel);
-        if (info) next.set(t, info);
-      }
-      setLineTargets(next);
-    });
-    return () => { alive = false; };
-  }, [primaryText, effectiveLang, learnerLevel]);
-
-  /**
-   * Target-gold tokens on this line: not in the deck yet, best first, filling
-   * whatever room the reveal gold left under MAX_GOLD_PER_LINE.
-   */
-  const targetTokens = useMemo(() => {
-    const room = MAX_GOLD_PER_LINE - goldTokens.size;
-    if (room <= 0) return new Set<string>();
-    const candidates = [...lineTargets.entries()]
-      .filter(([token]) => !deck.has(token) && !goldTokens.has(token))
-      .sort(([, a], [, b]) => compareTargets(a, b))
-      .slice(0, room)
-      .map(([token]) => token);
-    return new Set(candidates);
-  }, [lineTargets, deck, goldTokens]);
-
-  /** Everything that should glitter — both kinds of gold. */
-  const allGoldTokens = useMemo(
-    () => new Set([...goldTokens, ...targetTokens]),
-    [goldTokens, targetTokens],
-  );
-
   /** Live view of the gold set for the deferred blast guard. */
   const goldTokensRef = useRef<Set<string>>(goldTokens);
   goldTokensRef.current = goldTokens;
@@ -225,13 +161,13 @@ export const SubtitleOverlay = ({
 
   // Feed the shared dust canvas the on-screen position of each gold word.
   useEffect(() => {
-    if (allGoldTokens.size === 0) {
+    if (goldTokens.size === 0) {
       setDustAnchors([]);
       return;
     }
     const measure = () => {
       const next: DustAnchor[] = [];
-      for (const token of allGoldTokens) {
+      for (const token of goldTokens) {
         const el = wordElsRef.current.get(token);
         if (el) next.push({ key: token, rect: el.getBoundingClientRect() });
       }
@@ -245,7 +181,7 @@ export const SubtitleOverlay = ({
       window.clearInterval(id);
       window.removeEventListener("resize", measure);
     };
-  }, [allGoldTokens, primaryText]);
+  }, [goldTokens, primaryText]);
 
   // ── Line Blast ───────────────────────────────────────────────────────────
   // Identical to /landingpage4 by construction: every constant, timing and
@@ -441,19 +377,7 @@ export const SubtitleOverlay = ({
       const token = normalizeToken(text);
       // A green word the learner hasn't witnessed yet renders GOLD, not green
       // — the promotion is a reward to be claimed, not a status to be shown.
-      const isRevealGold = goldTokens.has(token);
-      // An unsaved word worth learning next (a CEFR stretch word or a very
-      // common one) also renders gold — tapping it opens the popup, and
-      // saving it is the claim.
-      const isTargetGold = targetTokens.has(token);
-      const isGold = isRevealGold || isTargetGold;
-      // Words the popup can open: the player's own entry, or a stand-in for
-      // a target word the caption parser didn't hand us.
-      const clickable: Word | undefined =
-        wordData ??
-        (isTargetGold
-          ? { id: `target-${token}`, text: text.replace(/[.,!?;:"'«»()…]/g, ""), translation: "", pronunciation: "", ipa: "" }
-          : undefined);
+      const isGold = goldTokens.has(token);
       // Saved words render in their exact deck colour (red/orange/green);
       // unknown words stay bright white to draw the eye.
       const deckColor = isGold
@@ -469,12 +393,11 @@ export const SubtitleOverlay = ({
             else if (!isGold) wordElsRef.current.delete(token);
           }}
           data-tour={wordData ? "subtitle-word" : undefined}
-          title={isTargetGold ? targetLabel(lineTargets.get(token)!) : undefined}
           className={cn(
             "subtitle-word inline-flex items-baseline transition-colors duration-500",
             // Only real words are interactive; everything else stays
             // click-through so the video controls underneath remain reachable.
-            (clickable || isGold) && "cursor-pointer pointer-events-auto rounded hover:bg-white/10",
+            (wordData || isGold) && "cursor-pointer pointer-events-auto rounded hover:bg-white/10",
             deckColor ? "font-semibold" : "text-white font-medium",
           )}
           style={
@@ -489,12 +412,11 @@ export const SubtitleOverlay = ({
           onClick={(e) => {
             // Claiming takes precedence over the translation popup: on a gold
             // word the tap means "this one's mine", not "what does it mean".
-            if (isRevealGold) {
+            if (isGold) {
               void claimGoldWord(token);
               return;
             }
-            setSelectedTarget(isTargetGold ? lineTargets.get(token) ?? null : null);
-            if (clickable) handleWordClick(clickable, e);
+            if (wordData) handleWordClick(wordData, e);
           }}
         >
           {text}
@@ -589,26 +511,16 @@ export const SubtitleOverlay = ({
           /* The popup must never recolour a word: an unknown word stays white,
              a saved word keeps its exact deck colour. */
           deckColor={
-            selectedTarget
-              ? GOLD.core
-              : stateForToken(selectedWord.text)
-                ? DECK_COLORS[stateForToken(selectedWord.text)!]
-                : "#FFFFFF"
+            stateForToken(selectedWord.text)
+              ? DECK_COLORS[stateForToken(selectedWord.text)!]
+              : "#FFFFFF"
           }
-          badge={selectedTarget ? `✨ ${targetLabel(selectedTarget)} · save for +${xpForAction("reinforcement")} bonus XP` : undefined}
           onClose={() => setSelectedWord(null)}
 
           onSave={() => {
             // Check BEFORE the optimistic update (while the word is still white).
             const sweep = selectedWord ? wouldCompleteLine(selectedWord.text) : false;
             if (onSaveWord && selectedWord) onSaveWord(selectedWord);
-            // Saving a target-gold word is the claim: chime and a gold bonus
-            // on top of the normal save XP. It lands in the deck as red, so
-            // it can't glitter (or pay) again.
-            if (selectedTarget && onSaveWord) {
-              playClaimChime();
-              award("reinforcement");
-            }
             // Optimistic local update so the word turns red (UNKNOWN — newly
             // saved) immediately, mirroring the green update for "mark known".
             if (selectedWord) {
