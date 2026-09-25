@@ -23,6 +23,15 @@ const BLOCK_SKINS = {
   orange: ["#FF8A00", "#FFB44D", "#C46500"],
   green: ["#34C759", "#6BE08A", "#1F8F3E"],
   slate: ["#41414d", "#5a5a69", "#2a2a33"],
+  // Sentence Lab additions — never deck-state colours, so they can't be
+  // confused with red/orange/green mastery meaning:
+  //   cyan   = the target word (e.g. a revealed hint)
+  //   purple = a phrase/chunk piece (a frame, or a multi-word block)
+  //   grey   = names/numbers — words frequency doesn't rank
+  // Gold is deliberately absent — it's on hold, not part of this palette.
+  cyan: ["#22D3EE", "#7FF0FA", "#0E92A8"],
+  purple: ["#A855F7", "#CB92FB", "#7A2ECB"],
+  grey: ["#71717A", "#9C9CA3", "#4B4B52"],
 } as const satisfies Record<string, readonly [string, string, string]>;
 
 export type BlockSkin = keyof typeof BLOCK_SKINS;
@@ -31,8 +40,9 @@ export interface WordBlockProps extends HTMLAttributes<HTMLDivElement> {
   label: string;
   /**
    * Red, orange and green here mean deck state and nothing else — they are the
-   * word-mastery colours and must not be used decoratively. Anything that isn't
-   * about mastery uses `slate`.
+   * word-mastery colours and must not be used decoratively. `cyan`, `purple`
+   * and `grey` are Sentence Lab's non-mastery meanings (target word, phrase/
+   * chunk, names & numbers); everything else uses `slate`.
    */
   skin?: BlockSkin;
   size?: "md" | "sm";
