@@ -171,7 +171,6 @@ export default function Vocabulary() {
           </p>
         </section>
 
-        <FrequencyCoverageCard language={learningLanguage || "fr"} />
 
         {/* Three-state overview: Recognized · Learning · Unknown */}
         <section className="grid grid-cols-1 sm:grid-cols-3 gap-4">
