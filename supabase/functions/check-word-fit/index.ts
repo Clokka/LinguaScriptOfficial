@@ -21,12 +21,11 @@ const supabase = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
 );
 
-async function askAi(language: string, frame: string, after: string, translation: string, candidate: string): Promise<boolean> {
+async function askAi(language: string, frame: string, after: string, candidate: string): Promise<boolean> {
   const sentence = `${frame} ___${after ? ` ${after}` : ""}`.trim();
   const prompt = `You are grading a language-learning fill-in-the-blank exercise.
 Language: ${language}
 Sentence with a gap: "${sentence}"
-Intended meaning of the gap: "${translation}"
 Candidate word to place in the gap: "${candidate}"
 
 Does the candidate word, placed in the gap, produce a sentence that is grammatically sound AND makes real-world sense? Answer with exactly one word: YES or NO.`;
@@ -58,7 +57,7 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") return new Response("Method not allowed", { status: 405, headers: corsHeaders });
 
   try {
-    const { patternId, language, frame, after, translation, candidate } = await req.json();
+    const { patternId, language, frame, after, candidate } = await req.json();
     if (!patternId || !language || !frame || !candidate) {
       return new Response(JSON.stringify({ error: "patternId, language, frame and candidate are required" }), {
         status: 400,
@@ -79,7 +78,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const fits = await askAi(language, String(frame), String(after ?? ""), String(translation ?? ""), candidateWord);
+    const fits = await askAi(language, String(frame), String(after ?? ""), candidateWord);
 
     // Best-effort — a cache write failure shouldn't fail the actual answer.
     const { error: cacheError } = await supabase

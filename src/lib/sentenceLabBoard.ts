@@ -23,7 +23,6 @@ export interface SentenceLabBoard {
   /** The correct filler — always a word from the learner's own saved deck. */
   answer: string;
   answerSkin: "green" | "orange";
-  translation: string | null;
   /** 3–5 draggable blocks, answer included, order randomised. */
   candidates: { word: string; skin: "green" | "orange" }[];
 }
@@ -122,7 +121,6 @@ export function buildSession(
       after: split.after,
       answer: tokens[0],
       answerSkin,
-      translation: pattern.example_translation,
       candidates,
     });
   }

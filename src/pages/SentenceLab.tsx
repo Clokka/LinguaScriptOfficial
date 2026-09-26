@@ -334,10 +334,6 @@ export default function SentenceLab() {
               )}
             </div>
 
-            {board.translation && (
-              <p className="mb-2 text-sm italic text-white/40">{board.translation}</p>
-            )}
-
             {/* Wrong-answer hint — always says what went wrong, never a
                 generic "try a verb". Clears the moment the board is solved. */}
             {hint && !solved && (

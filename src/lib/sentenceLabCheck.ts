@@ -44,17 +44,14 @@ export function frameAcceptsNounOrVerb(language: string, frame: string): boolean
 const accentFold = (s: string) =>
   s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
 
-const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
 interface VocabRow {
   pos: string | null;
-  translation: string | null;
 }
 
 async function lookupVocab(language: string, word: string): Promise<VocabRow | null> {
   const { data } = await supabase
     .from("core_vocabulary" as any)
-    .select("pos, translation")
+    .select("pos")
     .eq("language", language)
     .ilike("word", word)
     .limit(1)
@@ -120,7 +117,6 @@ export async function checkAnswer(
         language,
         frame: board.frame,
         after: board.after,
-        translation: board.translation ?? "",
         candidate: dropped,
       },
     });
@@ -130,16 +126,9 @@ export async function checkAnswer(
     // than silently accepting an unverified word.
   }
 
-  let meaning = board.translation ?? "";
-  if (meaning && answerVocab?.translation) {
-    const withGap = meaning.replace(new RegExp(escapeRegExp(answerVocab.translation), "i"), "___");
-    if (withGap !== meaning) meaning = withGap;
-  }
   return {
     correct: false,
     reason: "wrong-meaning",
-    hint: meaning
-      ? `${board.frame} ___${board.after ? ` ${board.after}` : ""} = ${meaning}. Which one do you need?`
-      : `Right kind of word — but not quite the right meaning here.`,
+    hint: `Right kind of word — but not quite the right meaning here.`,
   };
 }
