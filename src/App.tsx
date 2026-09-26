@@ -51,6 +51,7 @@ const Profile = lazy(() => import("./pages/Profile"));
 const Watch = lazy(() => import("./pages/Watch"));
 const Flashcards = lazy(() => import("./pages/Flashcards"));
 const StarterDeck = lazy(() => import("./pages/StarterDeck"));
+const CommonWordsDeck = lazy(() => import("./pages/CommonWordsDeck"));
 const Vocabulary = lazy(() => import("./pages/Vocabulary"));
 const Admin = lazy(() => import("./pages/Admin"));
 const Story = lazy(() => import("./pages/Story"));
@@ -120,6 +121,7 @@ const App = () => (
                 <Route path="/watch/:id" element={<Watch />} />
                 <Route path="/flashcards" element={<Flashcards />} />
                 <Route path="/flashcards/starter/:slug" element={<StarterDeck />} />
+                <Route path="/flashcards/common" element={<CommonWordsDeck />} />
                 <Route path="/vocabulary" element={<Vocabulary />} />
                 <Route path="/admin" element={<Admin />} />
                 <Route path="/story" element={<Story />} />
