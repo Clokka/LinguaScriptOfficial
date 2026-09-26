@@ -711,8 +711,6 @@ const HomeTab = ({
   const { learningLanguage } = useLanguage();
   return (
     <div className="space-y-8">
-      {/* Headline metric: how green is the language? */}
-      <UnderstandingHero language={learningLanguage} />
 
       {/* Primary action — pick up the quest. */}
       <ContinueWatchingRail />

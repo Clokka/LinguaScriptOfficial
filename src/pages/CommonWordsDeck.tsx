@@ -138,9 +138,9 @@ export default function CommonWordsDeck() {
           </section>
 
           <ol className="rounded-2xl border border-border divide-y divide-border">
-            {words.map((w) => (
+            {words.map((w, i) => (
               <li key={w.rank} className="flex items-center gap-3 px-4 py-2.5">
-                <span className="w-8 text-xs tabular-nums text-muted-foreground">{w.rank}</span>
+                <span className="w-8 text-xs tabular-nums text-muted-foreground">{i + 1}</span>
                 <span className={`h-2 w-2 rounded-full ${DOT[stateOf(w)]}`} />
                 <span className="font-semibold text-foreground">{w.word}</span>
                 <span className="ml-auto text-sm text-muted-foreground truncate">{w.translation}</span>
