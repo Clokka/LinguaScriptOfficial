@@ -59,9 +59,13 @@ export const PreTeachCard = ({ lines, language, level, goal, userId, onComplete 
   const question = useMemo(() => {
     const it = items[qi];
     if (!it) return null;
-    const others = shuffle(items.filter((x) => x.item !== it.item)).slice(0, 2).map((x) => x.translation);
-    return { it, options: shuffle([it.translation, ...others]) };
-  }, [items, qi]);
+    const answerText = it.translation.trim();
+    const distractorPool = Array.from(new Set(
+      (pool ?? []).map((x) => x.translation.trim()).filter((t) => t && t.toLowerCase() !== answerText.toLowerCase()),
+    ));
+    const others = shuffle(distractorPool).slice(0, 2);
+    return { it, options: shuffle([answerText, ...others]) };
+  }, [items, qi, pool]);
 
   if (!pool) return <ChameleonLoader message="Finding the key words in this video…" />;
 
@@ -69,7 +73,7 @@ export const PreTeachCard = ({ lines, language, level, goal, userId, onComplete 
     const answer = (opt: string) => {
       if (picked) return;
       setPicked(opt);
-      if (opt === question.it.translation) setScore((s) => s + 1);
+      if (opt === question.it.translation.trim()) setScore((s) => s + 1);
       setTimeout(() => {
         setPicked(null);
         if (qi + 1 >= items.length) onComplete();
@@ -92,7 +96,7 @@ export const PreTeachCard = ({ lines, language, level, goal, userId, onComplete 
           <p className="mt-1 text-sm text-muted-foreground">What does it mean?</p>
           <div className="mt-5 w-full space-y-2">
             {question.options.map((opt) => {
-              const correct = opt === question.it.translation;
+              const correct = opt === question.it.translation.trim();
               const state = picked ? (correct ? "border-emerald-500 bg-emerald-500/10" : picked === opt ? "border-destructive bg-destructive/10" : "border-border") : "border-border hover:border-primary";
               return (
                 <button key={opt} onClick={() => answer(opt)} className={`w-full rounded-xl border p-3 text-left font-medium text-foreground transition-colors ${state}`}>
