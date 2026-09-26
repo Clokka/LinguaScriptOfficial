@@ -116,11 +116,22 @@ serve(async (req) => {
     let learningError: string | null = null;
     let nativeError: string | null = null;
 
-    try {
-      learning = await fetchSupadataTranscript(videoId, lang);
-    } catch (e: any) {
-      learningError = e.message;
-      console.log(`Learning lang fetch failed: ${e.message}`);
+    const VARIANTS: Record<string, string[]> = {
+      zh: ['zh', 'zh-Hans', 'zh-CN', 'zh-Hant', 'zh-TW'],
+      pt: ['pt', 'pt-BR', 'pt-PT'],
+      es: ['es', 'es-419', 'es-ES'],
+      en: ['en', 'en-US', 'en-GB'],
+    };
+    for (const variant of VARIANTS[lang] || [lang]) {
+      try {
+        learning = await fetchSupadataTranscript(videoId, variant);
+        learningError = null;
+        if (learning.length) break;
+      } catch (e: any) {
+        learningError = e.message;
+        console.log(`Learning lang fetch failed (${variant}): ${e.message}`);
+        await new Promise((r) => setTimeout(r, 1200));
+      }
     }
 
     if (native !== lang) {
