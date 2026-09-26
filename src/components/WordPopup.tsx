@@ -63,7 +63,7 @@ export const WordPopup = ({ word, position, language, translating, deckColor, on
         </button>
 
         <div className="space-y-4">
-          <div className="flex items-start gap-3">
+          <div className="flex items-start gap-3 pr-10 pt-1">
             <div className="flex-1">
               <h3
                 className={cn("text-2xl font-bold", !deckColor && "gradient-text")}
