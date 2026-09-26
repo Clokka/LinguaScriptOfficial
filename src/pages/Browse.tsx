@@ -812,39 +812,34 @@ const UnderstandingHero = ({ language }: { language: string }) => {
   const langLabel = getLanguageLabel(language);
 
   return (
-    <div className="glass-panel-strong rounded-3xl p-8 relative overflow-hidden border border-emerald-500/20">
-      <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-transparent to-transparent pointer-events-none" />
-      <div className="relative flex items-end justify-between gap-6 flex-wrap">
+    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+      <div className="flex items-center justify-between gap-4">
         <div>
-          <p className="text-sm font-medium text-emerald-300/80 uppercase tracking-wider">
-            {langLabel} Understanding
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+            {langLabel} understanding
           </p>
-          <div className="flex items-baseline gap-3 mt-2">
-            <span className="text-6xl font-bold text-emerald-400 tabular-nums">
-              {pct === null ? "—" : `${pct}%`}
+          <p className="mt-1 text-2xl font-bold tabular-nums text-foreground">
+            {pct === null ? "—" : `${pct}%`}{" "}
+            <span className="text-muted-foreground text-base font-semibold">
+              · {(greenCount ?? 0).toLocaleString()} words known
             </span>
-            {monthDelta > 0 && (
-              <span className="text-sm font-medium text-emerald-300">
-                ↑ {monthDelta}% this month
-              </span>
-            )}
-          </div>
-          <p className="text-sm text-muted-foreground mt-2 max-w-md">
-            Every green word is a word you understand. Watch more, save more, turn more of the language green.
           </p>
         </div>
-        <div className="flex flex-col items-end">
-          <div className="w-48 h-2 rounded-full bg-emerald-500/10 overflow-hidden">
-            <div
-              className="h-full bg-gradient-to-r from-emerald-500 to-emerald-300 transition-all duration-700"
-              style={{ width: `${pct ?? 0}%` }}
-            />
-          </div>
-          <p className="text-xs text-muted-foreground mt-2">
-            {greenCount ?? 0} green words
-          </p>
-        </div>
+        {monthDelta > 0 && (
+          <span className="rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-400">
+            ↑ {monthDelta}% this month
+          </span>
+        )}
       </div>
+      <div className="mt-4 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+        <div
+          className="h-full rounded-full bg-emerald-400 transition-all duration-500"
+          style={{ width: `${pct ?? 0}%` }}
+        />
+      </div>
+      <p className="mt-3 text-xs text-muted-foreground">
+        {greenCount ? "Words turn green as you learn them." : "Save words while you watch to start turning them green."}
+      </p>
     </div>
   );
 };
