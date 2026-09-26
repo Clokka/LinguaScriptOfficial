@@ -48,10 +48,13 @@ function makeStage(canvasSize: number) {
   const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 100);
   camera.position.set(0, 0.35, 3.2);
   camera.lookAt(0, 0, 0);
-  scene.add(new THREE.HemisphereLight(0xffffff, 0x443388, 2.2));
-  const dir = new THREE.DirectionalLight(0xffffff, 2.4);
+  scene.add(new THREE.HemisphereLight(0xffffff, 0xcccccc, 2.0));
+  const dir = new THREE.DirectionalLight(0xffffff, 2.2);
   dir.position.set(2, 4, 3);
   scene.add(dir);
+  const fill = new THREE.DirectionalLight(0xffffff, 1.0);
+  fill.position.set(0, 0.5, 4);
+  scene.add(fill);
   return { renderer, scene, camera };
 }
 
@@ -69,13 +72,35 @@ function fitModel(gltf: GLTF, fit = 1.5) {
   const model = cloneSkinnedModel(gltf.scene) as THREE.Object3D;
   model.scale.setScalar(1);
   model.position.set(0, 0, 0);
-  const box = new THREE.Box3().setFromObject(model);
+  // Fit against the union of every animated pose (Bounce lifts the body,
+  // Spin swings the tail), not just the rest pose — otherwise the animation
+  // carries the head/back out of frame and it looks cropped.
+  const box = new THREE.Box3();
+  const tmp = new THREE.Box3();
+  model.updateMatrixWorld(true);
+  box.setFromObject(model, true);
+  if (gltf.animations.length) {
+    const mixer = new THREE.AnimationMixer(model);
+    for (const clip of gltf.animations) {
+      const action = mixer.clipAction(clip);
+      action.reset().play();
+      const steps = 12;
+      for (let i = 0; i <= steps; i++) {
+        mixer.setTime((clip.duration * i) / steps);
+        model.updateMatrixWorld(true);
+        box.union(tmp.setFromObject(model, true));
+      }
+      action.stop();
+    }
+    mixer.stopAllAction();
+    mixer.uncacheRoot(model);
+    model.updateMatrixWorld(true);
+  }
   const size = box.getSize(new THREE.Vector3());
   const scale = fit / Math.max(size.x, size.y, size.z);
   model.scale.setScalar(scale);
-  const center = new THREE.Box3().setFromObject(model).getCenter(new THREE.Vector3());
+  const center = box.getCenter(new THREE.Vector3()).multiplyScalar(scale);
   model.position.sub(center);
-  model.position.y += 0.05;
   const wrapper = new THREE.Group();
   wrapper.add(model);
   return wrapper;

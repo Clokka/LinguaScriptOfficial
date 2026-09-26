@@ -5,3 +5,5 @@
 - [x] Remove the incomplete RevenueCat integration
 - [x] Move embedded checkout to a native full-page scroll surface on mobile and desktop
 - [x] Restore a balanced responsive level-up chameleon size
+
+- [x] Fix chameleon clipping (word-saved + level-up)
