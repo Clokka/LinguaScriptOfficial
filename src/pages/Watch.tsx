@@ -16,7 +16,7 @@ import { useTour } from "@/contexts/TourContext";
 import { getLanguageLabel, getLanguageFlag, subtitlesLookLikeWrongLanguage } from "@/lib/languages";
 import { cn } from "@/lib/utils";
 import { fetchCaptionsFromBrowser } from "@/lib/browserCaptionFetcher";
-import { AdLoader } from "@/components/AdLoader";
+import { ChameleonLoader } from "@/components/ChameleonLoader";
 import { PreTeachCard } from "@/components/PreTeachCard";
 import { ContentLockScreen } from "@/components/ContentLockScreen";
 import { ActiveLanguageBadge } from "@/components/ActiveLanguageBadge";
@@ -1277,7 +1277,7 @@ const Watch = () => {
               userId={user?.id}
               onComplete={finishPreTeach}
             />
-          ) : <AdLoader onComplete={finishPreTeach} />)}
+          ) : <ChameleonLoader onComplete={finishPreTeach} duration={captionsLoading ? 12000 : 5000} />)}
         {cssFullscreen && (
           <Button
             variant="ghost"
@@ -1439,7 +1439,7 @@ const Watch = () => {
               userId={user?.id}
               onComplete={finishPreTeach}
             />
-          ) : <AdLoader onComplete={finishPreTeach} />)}
+          ) : <ChameleonLoader onComplete={finishPreTeach} duration={captionsLoading ? 12000 : 5000} />)}
 
           {/* Loading status */}
           {captionsLoading && captionsStatus && (
