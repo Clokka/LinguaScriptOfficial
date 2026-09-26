@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, Loader2, Download, Maximize, Minimize, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,7 @@ import { getLanguageLabel, getLanguageFlag, subtitlesLookLikeWrongLanguage } fro
 import { cn } from "@/lib/utils";
 import { fetchCaptionsFromBrowser } from "@/lib/browserCaptionFetcher";
 import { AdLoader } from "@/components/AdLoader";
+import { PreTeachCard } from "@/components/PreTeachCard";
 import { ContentLockScreen } from "@/components/ContentLockScreen";
 import { ActiveLanguageBadge } from "@/components/ActiveLanguageBadge";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -387,6 +388,10 @@ const Watch = () => {
   const preWatchToastFiredRef = useRef(false);
   const [apiReady, setApiReady] = useState(!!window.YT?.Player);
   const [subtitles, setSubtitles] = useState<DisplaySubtitle[]>([]);
+  const preTeachLines = useMemo(
+    () => subtitles.map((s) => ({ primary: s.primary, secondary: s.secondary })),
+    [subtitles],
+  );
   const [captionsLoading, setCaptionsLoading] = useState(false);
   const [captionsStatus, setCaptionsStatus] = useState<string | null>(null);
   const [captionsError, setCaptionsError] = useState<string | null>(null);
@@ -433,6 +438,7 @@ const Watch = () => {
   // frictionless first impression. The first thing the new user sees should
   // be the video + the teaching cursor, never an ad.
   const [adDone, setAdDone] = useState(tourActive);
+  const finishPreTeach = useCallback(() => setAdDone(true), []);
 
   const [cssFullscreen, setCssFullscreen] = useState(false);
   const toggleFullscreen = useCallback(async () => {
@@ -1262,7 +1268,16 @@ const Watch = () => {
         }
       >
         <div id="yt-player" className="absolute inset-0 w-full h-full" />
-        {!adDone && <AdLoader onComplete={() => setAdDone(true)} />}
+        {!adDone && (subtitles.length ? (
+            <PreTeachCard
+              lines={preTeachLines}
+              language={learningLanguage || film.language || "fr"}
+              level={(languageContext as any)?.cefrLevel ?? (film as any).cefr_level ?? null}
+              goal={dailyGoal.goal}
+              userId={user?.id}
+              onComplete={finishPreTeach}
+            />
+          ) : <AdLoader onComplete={finishPreTeach} />)}
         {cssFullscreen && (
           <Button
             variant="ghost"
@@ -1415,7 +1430,16 @@ const Watch = () => {
           <div id="yt-player" className={cn("w-full", isFullscreen ? "h-full" : "h-full")} />
 
           {/* Pre-roll house ad — masks YT iframe load */}
-          {!adDone && <AdLoader onComplete={() => setAdDone(true)} />}
+          {!adDone && (subtitles.length ? (
+            <PreTeachCard
+              lines={preTeachLines}
+              language={learningLanguage || film.language || "fr"}
+              level={(languageContext as any)?.cefrLevel ?? (film as any).cefr_level ?? null}
+              goal={dailyGoal.goal}
+              userId={user?.id}
+              onComplete={finishPreTeach}
+            />
+          ) : <AdLoader onComplete={finishPreTeach} />)}
 
           {/* Loading status */}
           {captionsLoading && captionsStatus && (
