@@ -101,6 +101,9 @@ export async function gradePreTeachVocab(opts: {
     const lemma = String(v.lemma || w).toLowerCase();
     const cefr = v.cefr_level ? String(v.cefr_level).toLowerCase() : null;
     if (known.has(w) || known.has(lemma)) continue;
+    // No meaning available → can't teach it or quiz it.
+    const tr = String(v.translation ?? "").trim();
+    if (!tr || tr.toLowerCase() === w) continue;
     if (cefr && !allowed.has(cefr)) continue;
     const c = counts.get(w);
     if (!c) continue;
