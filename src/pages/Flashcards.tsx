@@ -15,6 +15,29 @@ import { ActiveLanguageBadge } from "@/components/ActiveLanguageBadge";
 import { LevelBadge } from "@/components/LevelBadge";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { toast } from "sonner";
+import { loadFrequencyCoverage, headlineBand, type CoverageBand } from "@/lib/frequencyCoverage";
+
+function CommonWordsBadge({ language }: { language: string }) {
+  const [bands, setBands] = useState<CoverageBand[]>([]);
+  useEffect(() => {
+    let alive = true;
+    loadFrequencyCoverage(language).then((b) => alive && setBands(b));
+    return () => { alive = false; };
+  }, [language]);
+  const h = headlineBand(bands);
+  const pct = h && h.total ? Math.min(100, Math.round((h.known / h.total) * 100)) : 0;
+  return (
+    <div className="shrink-0 w-16 rounded-xl border border-primary/30 bg-primary/10 px-2 py-2 text-center">
+      <p className="text-sm font-bold tabular-nums text-foreground leading-none">
+        {h ? h.known : 0}<span className="text-muted-foreground font-medium">/{h ? h.band : 50}</span>
+      </p>
+      <div className="mt-2 h-1.5 w-full rounded-full bg-muted overflow-hidden">
+        <div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
+      </div>
+      <p className="mt-1 text-[10px] text-muted-foreground leading-none">known</p>
+    </div>
+  );
+}
 
 interface SavedWord {
   id: string;
@@ -323,7 +346,7 @@ const Flashcards = () => {
               onClick={() => navigate("/flashcards/common")}
               className="w-full glass-panel-strong rounded-2xl p-5 flex items-center gap-4 text-left hover:border-primary/40 transition-colors"
             >
-              <span className="text-3xl">📈</span>
+              <CommonWordsBadge language={learningLanguage || "fr"} />
               <div className="flex-1">
                 <p className="font-bold text-foreground">Most common words</p>
                 <p className="text-sm text-muted-foreground">Learn the words you'll hear most, in order.</p>
