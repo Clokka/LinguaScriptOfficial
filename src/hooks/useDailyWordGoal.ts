@@ -31,7 +31,10 @@ export function useDailyWordGoal(language?: string) {
       .from("saved_words")
       .select("id", { count: "exact", head: true })
       .eq("user_id", user.id)
-      .gte("created_at", startOfDay.toISOString());
+      .gte("created_at", startOfDay.toISOString())
+      // Words pre-marked as "known" when a language/level is set up are parked
+      // at 2999-01-01 — they were never saved by the learner, so don't count them.
+      .lt("next_review", "2999-01-01");
     if (language) savedQuery = savedQuery.eq("language", language.toLowerCase());
 
     const [{ data: profile }, { count }, { data: langProfile }] = await Promise.all([
