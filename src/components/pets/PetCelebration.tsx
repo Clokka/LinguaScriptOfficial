@@ -35,7 +35,7 @@ const easeOutBack = (t: number) => {
   return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
 };
 
-function makeStage(canvasSize: number) {
+function makeStage(canvasSize: number, bright = false) {
   const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
   renderer.setSize(canvasSize, canvasSize);
   // Keep the render buffer sharp while allowing the celebration host to
@@ -44,21 +44,25 @@ function makeStage(canvasSize: number) {
   renderer.domElement.style.height = "100%";
   renderer.domElement.style.display = "block";
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  if (bright) {
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.15;
+  }
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 100);
   camera.position.set(0, 0.35, 3.2);
   camera.lookAt(0, 0, 0);
-  scene.add(new THREE.HemisphereLight(0xffffff, 0xcccccc, 2.0));
-  const dir = new THREE.DirectionalLight(0xffffff, 2.2);
+  scene.add(new THREE.HemisphereLight(0xffffff, 0xcccccc, bright ? 2.6 : 2.0));
+  const dir = new THREE.DirectionalLight(0xffffff, bright ? 2.8 : 2.2);
   dir.position.set(2, 4, 3);
   scene.add(dir);
-  const fill = new THREE.DirectionalLight(0xffffff, 1.0);
+  const fill = new THREE.DirectionalLight(0xffffff, bright ? 1.4 : 1.0);
   fill.position.set(0, 0.5, 4);
   scene.add(fill);
   return { renderer, scene, camera };
 }
 
-function fitModel(gltf: GLTF, fit = 1.5) {
+function fitModel(gltf: GLTF, fit = 1.5, clipNames?: string[]) {
   // gltf.scene is cached and shared (loadPetModel reuses one loaded GLTF per
   // glbFile) — a level-up and the word-saved toast routinely fire from the
   // same action, so two stages can be mounting off the same cached GLTF at
@@ -81,7 +85,10 @@ function fitModel(gltf: GLTF, fit = 1.5) {
   box.setFromObject(model, true);
   if (gltf.animations.length) {
     const mixer = new THREE.AnimationMixer(model);
-    for (const clip of gltf.animations) {
+    const clips = clipNames
+      ? gltf.animations.filter((c) => clipNames.includes(c.name))
+      : gltf.animations;
+    for (const clip of clips) {
       const action = mixer.clipAction(clip);
       action.reset().play();
       const steps = 12;
@@ -139,12 +146,13 @@ function runStage(opts: {
   canvasSize: number;
   /** How much of the frame the pet fills. Lower = more breathing room. */
   fit?: number;
+  bright?: boolean;
   timings: StageTimings;
   clips: { intro?: string; loop: string };
   onExit?: (k: number) => void; // k goes 1 → 0 during exit
   onDone: () => void;
 }) {
-  const { host, glbFile, canvasSize, fit, timings, clips, onExit, onDone } = opts;
+  const { host, glbFile, canvasSize, fit, bright, timings, clips, onExit, onDone } = opts;
   let disposed = false;
   let raf = 0;
   let renderer: THREE.WebGLRenderer | null = null;
@@ -153,11 +161,11 @@ function runStage(opts: {
   loadPetModel(glbFile)
     .then((gltf) => {
       if (disposed) return;
-      const stage = makeStage(canvasSize);
+      const stage = makeStage(canvasSize, bright);
       renderer = stage.renderer;
       host.appendChild(stage.renderer.domElement);
 
-      const wrapper = fitModel(gltf, fit);
+      const wrapper = fitModel(gltf, fit, clips.intro ? [clips.intro, clips.loop] : [clips.loop]);
       stage.scene.add(wrapper);
       const model = wrapper.children[0];
 
@@ -317,18 +325,35 @@ export function LevelUpCelebration({ petId, level, onDone }: LevelUpCelebrationP
       origin: { y: 0.55 },
       colors: ["#7c3aed", "#a78bfa", "#fb923c", "#facc15", "#22c55e"],
     });
-    return runStage({
+    const sideTimer = setTimeout(() => {
+      for (const x of [0.1, 0.9]) {
+        confetti({
+          particleCount: Math.round(cel.particles / 2),
+          spread: 70,
+          angle: x < 0.5 ? 60 : 120,
+          startVelocity: 55,
+          origin: { x, y: 0.7 },
+          colors: ["#fb923c", "#facc15", "#22c55e", "#f472b6"],
+        });
+      }
+    }, 250);
+    const stop = runStage({
       host: hostRef.current,
       glbFile: pet.glbFile,
       // Buffer matches the on-screen box (190 phone / 220 desktop) and the
       // pet is fitted below full frame so tail and head never clip.
-      canvasSize: 220,
-      fit: 1.15,
+      canvasSize: 340,
+      fit: 1.45,
+      bright: true,
       timings: { spawn: 0.5, hold: cel.hold, exit: 0.3 },
       clips: { intro: cel.intro, loop: cel.loop },
       onExit: () => rootRef.current?.classList.remove("opacity-100"),
       onDone: () => onDoneRef.current?.(),
     });
+    return () => {
+      clearTimeout(sideTimer);
+      stop();
+    };
     // `level` matters: consecutive level-ups reuse this component instance, so
     // without it the second one would replay the first one's animation.
   }, [petId, level]);
@@ -338,18 +363,27 @@ export function LevelUpCelebration({ petId, level, onDone }: LevelUpCelebrationP
       ref={rootRef}
       className="pointer-events-none fixed inset-0 z-[110] flex flex-col items-center justify-center bg-background/60 opacity-0 backdrop-blur-sm transition-opacity duration-300"
     >
-      <div className="relative h-[190px] w-[190px] sm:h-[220px] sm:w-[220px]">
+      <div className="relative h-[280px] w-[280px] sm:h-[340px] sm:w-[340px]">
         <div
-          className="absolute inset-[10%] animate-pulse rounded-full"
+          className="absolute inset-0 animate-pulse rounded-full"
           style={{
             background:
-              "radial-gradient(circle, hsl(48 96% 53% / 0.28), hsl(27 96% 61% / 0.12) 55%, transparent 72%)",
+              "radial-gradient(circle, hsl(48 96% 53% / 0.55), hsl(27 96% 61% / 0.3) 50%, transparent 72%)",
           }}
         />
+        <div
+          key={level}
+          className="absolute inset-[15%] rounded-full border-4"
+          style={{
+            borderColor: "hsl(48 96% 60%)",
+            animation: "ls-levelup-ring 0.6s ease-out forwards",
+          }}
+        />
+        <style>{`@keyframes ls-levelup-ring{from{transform:scale(.4);opacity:1}to{transform:scale(1.5);opacity:0}}`}</style>
         <div ref={hostRef} className="relative h-full w-full" />
       </div>
       <div
-        className="bg-gradient-to-br from-orange-400 to-yellow-400 bg-clip-text text-4xl font-extrabold tracking-tight text-transparent"
+        className="bg-gradient-to-br from-orange-400 to-yellow-400 bg-clip-text text-5xl font-extrabold tracking-tight text-transparent sm:text-6xl"
         style={{ textWrap: "balance" } as React.CSSProperties}
       >
         Level {level}!
