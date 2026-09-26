@@ -318,6 +318,19 @@ const Flashcards = () => {
               </div>
             </section>
 
+            {/* Most common words deck */}
+            <button
+              onClick={() => navigate("/flashcards/common")}
+              className="w-full glass-panel-strong rounded-2xl p-5 flex items-center gap-4 text-left hover:border-primary/40 transition-colors"
+            >
+              <span className="text-3xl">📈</span>
+              <div className="flex-1">
+                <p className="font-bold text-foreground">Most common words</p>
+                <p className="text-sm text-muted-foreground">Learn the words you'll hear most, in order.</p>
+              </div>
+              <ChevronRight className="w-5 h-5 text-muted-foreground" />
+            </button>
+
             {/* Starter decks */}
             {starterDecks.length > 0 && (
               <section>
