@@ -309,7 +309,7 @@ export const TourOverlay = () => {
     zIndex: Z_TOOLTIP,
     position: "fixed",
     maxWidth: ttMax,
-    width: isNarrow ? "calc(100vw - 24px)" : undefined,
+    width: isNarrow ? "max-content" : undefined,
     pointerEvents: "none",
   };
   if (ring) {
@@ -384,20 +384,20 @@ export const TourOverlay = () => {
 
       {/* Tooltip */}
       <AnimatePresence mode="wait">
+        <div key={step.id} style={tooltipStyle}>
         <motion.div
-          key={step.id}
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -6 }}
           transition={{ duration: 0.2 }}
-          style={tooltipStyle}
-          className="rounded-2xl bg-white shadow-2xl border border-orange-200 px-4 py-3 text-[14px] text-neutral-800 leading-snug font-medium"
+          className="rounded-xl bg-white/95 shadow-md border border-orange-100 px-3 py-2 text-[13px] text-neutral-700 leading-snug font-medium"
         >
           <div className="flex items-start gap-2">
             <span className="mt-0.5 text-orange-500">●</span>
             <span>{step.copy}</span>
           </div>
         </motion.div>
+        </div>
       </AnimatePresence>
 
       {/* Animated fake cursor */}
