@@ -181,9 +181,15 @@ export async function fetchCaptionsFromBrowser(
     console.log(`[BrowserCaptions] Track: ${t.languageCode} (kind: ${t.kind || "standard"})`);
   }
 
-  // Find best base track
-  const exactLearning = tracks.find((t) => t.languageCode === learningLang);
-  const exactNative = tracks.find((t) => t.languageCode === nativeLang);
+  // Find best base track — match regional variants too (zh-Hans, zh-CN, pt-BR…),
+  // preferring manual tracks over auto-generated ones.
+  const base = (c: string) => c.toLowerCase().split(/[-_]/)[0];
+  const pick = (lang: string) =>
+    tracks.find((t) => t.languageCode === lang) ||
+    tracks.find((t) => base(t.languageCode) === base(lang) && t.kind !== "asr") ||
+    tracks.find((t) => base(t.languageCode) === base(lang));
+  const exactLearning = pick(learningLang);
+  const exactNative = pick(nativeLang);
   const baseTrack = exactLearning || exactNative || tracks[0];
 
   console.log(`[BrowserCaptions] Using base track: ${baseTrack.languageCode}`);
@@ -191,17 +197,13 @@ export async function fetchCaptionsFromBrowser(
   let learning: SubtitleSegment[] = [];
   let native: SubtitleSegment[] = [];
 
-  // Fetch learning language
-  if (baseTrack.languageCode === learningLang) {
-    learning = await downloadCaptionTrack(baseTrack.baseUrl, learningLang, true);
+  if (exactLearning) {
+    learning = await downloadCaptionTrack(exactLearning.baseUrl, learningLang, true);
   } else {
     learning = await downloadCaptionTrack(baseTrack.baseUrl, learningLang, false);
   }
 
-  // Fetch native language
-  if (baseTrack.languageCode === nativeLang) {
-    native = await downloadCaptionTrack(baseTrack.baseUrl, nativeLang, true);
-  } else if (exactNative) {
+  if (exactNative) {
     native = await downloadCaptionTrack(exactNative.baseUrl, nativeLang, true);
   } else {
     native = await downloadCaptionTrack(baseTrack.baseUrl, nativeLang, false);

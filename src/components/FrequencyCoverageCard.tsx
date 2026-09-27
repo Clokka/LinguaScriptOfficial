@@ -6,6 +6,7 @@
  * nothing about how much real speech those words unlock.
  */
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { Progress } from "@/components/ui/progress";
 import { LANGUAGES } from "@/lib/languages";
 import {
@@ -55,6 +56,12 @@ export function FrequencyCoverageCard({ language }: Props) {
         These are the words that appear most often in real speech — learning
         them in order is the fastest route to understanding what you watch.
       </p>
+      <Link
+        to="/flashcards/common"
+        className="mt-4 inline-flex items-center rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
+      >
+        Study these words →
+      </Link>
     </section>
   );
 }
