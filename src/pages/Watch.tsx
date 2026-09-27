@@ -672,7 +672,8 @@ const Watch = () => {
         preWatchToastFiredRef.current = true;
         toast.message(`Estimated understanding: ${comp.pct}%`, {
           description: zoneMessage(comp.pct),
-          duration: 7000,
+          duration: 4000,
+          position: "top-center",
         });
       }
     })();

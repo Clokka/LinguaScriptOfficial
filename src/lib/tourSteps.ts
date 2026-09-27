@@ -80,7 +80,7 @@ export const TOUR_STEPS: TourStep[] = [
   {
     id: "watch-save",
     selector: '[data-tour="word-save"]',
-    copy: "Save useful words directly into your personal flashcard deck for long-term retention.",
+    copy: "Save it to your flashcards.",
     placement: "top",
     pad: 4,
     postDelay: 400,
