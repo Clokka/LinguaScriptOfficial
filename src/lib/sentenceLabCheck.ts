@@ -8,7 +8,7 @@
 //      not a "wrong kind of word" hint.
 //   3. Word type, via core_vocabulary.pos (+ the noun-or-infinitive
 //      exception after a preposition, the one case the brief names).
-//   4. Verb FORM, via suffix heuristics (verbFormFamily) — POS alone can't
+//   4. Exact word form via the word_forms dictionary vs the frame's declared accepts.
 //      tell "ayudarme" (infinitive) from "matando" (gerund) from "intentaste"
 //      (conjugated past); they're all just "verb". This also covers words
 //      core_vocabulary has no row for at all — saved_words holds real
