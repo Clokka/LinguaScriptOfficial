@@ -635,6 +635,7 @@ export type Database = {
           scheduled_to_srs: boolean | null
           sentence: string
           speaking_answer: string | null
+          stage: number
           status: string | null
           target_word: string
           time_spent_ms: number | null
@@ -665,6 +666,7 @@ export type Database = {
           scheduled_to_srs?: boolean | null
           sentence: string
           speaking_answer?: string | null
+          stage?: number
           status?: string | null
           target_word: string
           time_spent_ms?: number | null
@@ -695,6 +697,7 @@ export type Database = {
           scheduled_to_srs?: boolean | null
           sentence?: string
           speaking_answer?: string | null
+          stage?: number
           status?: string | null
           target_word?: string
           time_spent_ms?: number | null
@@ -1153,6 +1156,7 @@ export type Database = {
           translation: string
           user_id: string
           word: string
+          word_form_id: string | null
         }
         Insert: {
           appearance_count?: number | null
@@ -1190,6 +1194,7 @@ export type Database = {
           translation?: string
           user_id: string
           word: string
+          word_form_id?: string | null
         }
         Update: {
           appearance_count?: number | null
@@ -1227,6 +1232,7 @@ export type Database = {
           translation?: string
           user_id?: string
           word?: string
+          word_form_id?: string | null
         }
         Relationships: [
           {
@@ -1234,6 +1240,13 @@ export type Database = {
             columns: ["film_id"]
             isOneToOne: false
             referencedRelation: "films"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "saved_words_word_form_id_fkey"
+            columns: ["word_form_id"]
+            isOneToOne: false
+            referencedRelation: "word_forms"
             referencedColumns: ["id"]
           },
         ]
@@ -1866,6 +1879,54 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      word_forms: {
+        Row: {
+          created_at: string
+          form: string | null
+          id: string
+          language: string
+          lemma: string
+          mood: string | null
+          number: string | null
+          person: string | null
+          pos: string
+          source: string
+          surface: string
+          tense: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          form?: string | null
+          id?: string
+          language: string
+          lemma: string
+          mood?: string | null
+          number?: string | null
+          person?: string | null
+          pos: string
+          source?: string
+          surface: string
+          tense?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          form?: string | null
+          id?: string
+          language?: string
+          lemma?: string
+          mood?: string | null
+          number?: string | null
+          person?: string | null
+          pos?: string
+          source?: string
+          surface?: string
+          tense?: string | null
+          updated_at?: string
+        }
+        Relationships: []
       }
       xp_events: {
         Row: {
