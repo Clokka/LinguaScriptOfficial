@@ -8,10 +8,19 @@
 //      not a "wrong kind of word" hint.
 //   3. Word type, via core_vocabulary.pos (+ the noun-or-infinitive
 //      exception after a preposition, the one case the brief names).
-//   4. Only when the type genuinely fits and it's still not the recorded
-//      answer: ask the AI whether the *meaning* works, and cache that
-//      answer forever (see check-word-fit) — the fit of a word in a frame
-//      doesn't depend on who asked.
+//   4. Verb FORM, via suffix heuristics (verbFormFamily) — POS alone can't
+//      tell "ayudarme" (infinitive) from "matando" (gerund) from "intentaste"
+//      (conjugated past); they're all just "verb". This also covers words
+//      core_vocabulary has no row for at all — saved_words holds real
+//      inflected forms a learner saved from a video, while core_vocabulary
+//      keys one row per LEMMA, so a conjugated/gerund form frequently has no
+//      POS row to look up in the first place. Without this step that missing
+//      data fell through as "don't reject", so a gerund could stand in for
+//      an infinitive and only ever get told its *meaning* was off.
+//   5. Only when the type AND form genuinely fit and it's still not the
+//      recorded answer: ask the AI whether the *meaning* works, and cache
+//      that answer forever (see check-word-fit) — the fit of a word in a
+//      frame doesn't depend on who asked.
 import { supabase } from "@/integrations/supabase/client";
 import type { SentenceLabBoard } from "@/lib/sentenceLabBoard";
 
@@ -39,6 +48,67 @@ const NOUN_OR_VERB_AFTER: Record<string, string[]> = {
 export function frameAcceptsNounOrVerb(language: string, frame: string): boolean {
   const lower = frame.trim().toLowerCase();
   return (NOUN_OR_VERB_AFTER[language] ?? []).some((p) => lower.endsWith(p));
+}
+
+export type VerbForm = "infinitive" | "gerund" | "participle" | "conjugated";
+
+const FORM_LABEL: Record<VerbForm, string> = {
+  infinitive: "infinitive",
+  gerund: "-ing form",
+  participle: "past-participle form",
+  conjugated: "conjugated form",
+};
+
+// Spanish/French attach an object/reflexive pronoun straight onto an
+// infinitive or gerund ("ayudarme", "dándole") — strip it before reading the
+// verb's own ending, longest cluster first so "selo" doesn't get read as "lo".
+const CLITICS = [
+  "selo", "sela", "selos", "selas",
+  "melo", "mela", "melos", "melas",
+  "telo", "tela", "telos", "telas",
+  "noslo", "nosla",
+  "nos", "os", "me", "te", "se", "lo", "la", "le", "los", "las", "les",
+].sort((a, b) => b.length - a.length);
+
+function stripClitics(word: string): string {
+  for (const c of CLITICS) {
+    if (word.length > c.length + 2 && word.endsWith(c)) {
+      const stem = word.slice(0, word.length - c.length);
+      // Only strip when what's left is itself a plausible infinitive/gerund —
+      // otherwise a conjugated form that happens to end in "te"/"se"/"le"/...
+      // ("intentaste") gets its real ending eaten and misread as something
+      // else ("intentas").
+      if (/(ar|er|ir|ando|iendo|yendo)$/.test(stem)) return stem;
+    }
+  }
+  return word;
+}
+
+/**
+ * Classifies a word's verb form by surface suffix — a rule-based stand-in
+ * for morphology data the app doesn't have. Deliberately conservative: an
+ * unrecognized shape returns null rather than a guess, so it only ever
+ * blocks an answer when it's confident the shapes genuinely differ (see
+ * how it's used below — both sides must resolve before it can reject).
+ */
+export function verbFormFamily(word: string, language: string): VerbForm | null {
+  const w = stripClitics(word.trim().toLowerCase());
+  if (!w) return null;
+
+  if (language === "es") {
+    if (/(ando|iendo|yendo)$/.test(w)) return "gerund";
+    if (/(ar|er|ir)$/.test(w)) return "infinitive";
+    if (/(ado|ada|ados|adas|ido|ida|idos|idas)$/.test(w)) return "participle";
+    if (/(aste|amos|aron|ó|é|imos|iste|ieron|aba|abas|ábamos|aban|ía|ías|íamos|ían)$/.test(w)) return "conjugated";
+    return null;
+  }
+  if (language === "fr") {
+    if (/ant$/.test(w)) return "gerund";
+    if (/(er|ir|re|oir)$/.test(w)) return "infinitive";
+    if (/(é|ée|és|ées|i|ie|is|u|ue|us)$/.test(w)) return "participle";
+    return null; // French conjugated endings are too varied to heuristic safely
+  }
+  return null;
 }
 
 const accentFold = (s: string) =>
@@ -107,6 +177,24 @@ export async function checkAnswer(
       correct: false,
       reason: "wrong-type",
       hint: `This gap needs ${wants} (like "${board.answer}").`,
+    };
+  }
+
+  // The broad category (verb/noun/...) fits, but a verb slot can still want
+  // a specific FORM — the infinitive after a modal, not a gerund or a
+  // conjugated form. Skipped whenever either side is a confirmed noun (the
+  // noun/verb swap case above): a noun's suffix can coincidentally look
+  // verb-shaped ("lugar" ends like an infinitive) and must never be
+  // second-guessed once the swap rule has already accepted it.
+  const answerForm = verbFormFamily(board.answer, language);
+  const droppedForm = verbFormFamily(dropped, language);
+  const eitherConfirmedNoun = droppedCat === "noun" || answerCat === "noun";
+  const verbShaped = !eitherConfirmedNoun && (answerCat === "verb" || droppedCat === "verb" || (!!answerForm && !!droppedForm));
+  if (verbShaped && answerForm && droppedForm && answerForm !== droppedForm) {
+    return {
+      correct: false,
+      reason: "wrong-type",
+      hint: `This needs the ${FORM_LABEL[answerForm]} (like "${board.answer}"), not the ${FORM_LABEL[droppedForm]}.`,
     };
   }
 
