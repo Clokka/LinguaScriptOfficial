@@ -69,7 +69,7 @@ export const XpToast = () => {
   useEffect(() => {
     if (!recentGain) return;
     setVisible(recentGain);
-    const isPetSpawn = petCelebrations && recentGain.action === "add_word";
+    const isPetSpawn = false && recentGain.action === "add_word";
     const t = setTimeout(
       () => setVisible(null),
       isPetSpawn ? WORD_SAVED_DURATION_MS : 1400,
@@ -90,7 +90,7 @@ export const XpToast = () => {
   }, [leveledUpTo, consumeLevelUp, triggerReaction]);
 
   const petWordSpawn =
-    petCelebrations && visible?.action === "add_word" ? visible : null;
+    null as typeof visible; // word saves use the plain chip — the pet is saved for bigger moments
 
   return (
     <>

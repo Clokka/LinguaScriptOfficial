@@ -249,7 +249,7 @@ export default function SentenceLab() {
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div className="flex-1">
-            <p className="text-sm font-bold text-white">Sentence Lab</p>
+            <p className="text-sm font-bold text-white">LinguaScripts</p>
             {phase === "playing" && (
               <p className="text-xs text-white/50">Today: {boards.length} board{boards.length !== 1 ? "s" : ""} · ~{totalMinutes} min</p>
             )}
@@ -281,7 +281,7 @@ export default function SentenceLab() {
             <div className="text-6xl mb-4">🦎</div>
             <h1 className="text-xl font-extrabold mb-2">You've had today's free board</h1>
             <p className="text-sm text-white/60 mb-6">
-              Sentence Lab is a Pro feature — free accounts get one board a day as a taste. Upgrade for the full 5-board session.
+              LinguaScripts is a Pro feature — free accounts get one board a day as a taste. Upgrade for the full 5-board session.
             </p>
             <button
               onClick={() => navigate("/upgrade")}
@@ -297,7 +297,7 @@ export default function SentenceLab() {
             <div className="text-6xl mb-4">🌱</div>
             <h1 className="text-xl font-extrabold mb-2">Not quite enough words yet</h1>
             <p className="text-sm text-white/60">
-              Sentence Lab builds boards from words you already know. Save a few more from videos, then come back.
+              LinguaScripts builds boards from words you already know. Save a few more from videos, then come back.
             </p>
           </div>
         )}
