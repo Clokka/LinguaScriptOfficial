@@ -119,7 +119,7 @@ export const PersonalizedRails = ({
   const interestRailDefs = useMemo(() => {
     return [...selectedInterests]
       .sort((a, b) => (interestWeights[b.id] || 0) - (interestWeights[a.id] || 0))
-      .slice(0, 3);
+      .slice(0, 5);
   }, [selectedInterests, interestWeights]);
 
   const [interestRails, setInterestRails] = useState<Record<string, YTItem[]>>({});
