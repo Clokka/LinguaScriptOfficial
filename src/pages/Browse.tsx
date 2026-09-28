@@ -5,6 +5,7 @@ import {
   Search,
   Home,
   Compass,
+  Sparkles,
   Calendar as CalendarIcon,
   Settings,
   Link as LinkIcon,
