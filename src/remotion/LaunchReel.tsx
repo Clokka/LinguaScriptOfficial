@@ -174,7 +174,7 @@ interface NarrationLine {
 const NARRATION: Record<Lang, NarrationLine[]> = {
   fr: [
     { id: "scene2", native: "Transformez vos contenus préférés en apprentissage des langues.", en: VO_LINES[0].text },
-    { id: "scene3", native: "Apprenez directement depuis les vidéos que vous regardez déjà.", en: VO_LINES[1].text },
+    { id: "scene3", native: "Apprenez directement avec les contenus que vous aimez déjà.", en: VO_LINES[1].text },
     { id: "scene4", native: "Cliquez sur un mot inconnu pour une traduction instantanée.", en: VO_LINES[2].text },
     { id: "scene5", native: "Enregistrez le vocabulaire utile en un clic.", en: VO_LINES[3].text },
     { id: "scene6", native: "Puis révisez vos mots avec la répétition espacée.", en: VO_LINES[4].text },
