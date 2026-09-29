@@ -192,11 +192,11 @@ export default function LinguaScripts() {
             <div className="text-sm text-slate-400 mt-1">Due today</div>
           </div>
           <div className="bg-slate-800 rounded-lg p-4 text-center border border-slate-700">
-            <div className="text-3xl font-bold text-emerald-400">{exercises.length}</div>
-            <div className="text-sm text-slate-400 mt-1">Total exercises</div>
+            <div className="text-3xl font-bold text-emerald-400">{dailyGoal}</div>
+            <div className="text-sm text-slate-400 mt-1">Daily goal</div>
           </div>
           <div className="bg-slate-800 rounded-lg p-4 text-center border border-slate-700">
-            <div className="text-3xl font-bold text-blue-400">0</div>
+            <div className="text-3xl font-bold text-blue-400">{doneToday}</div>
             <div className="text-sm text-slate-400 mt-1">Completed today</div>
           </div>
         </div>
