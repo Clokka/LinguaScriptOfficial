@@ -13,7 +13,9 @@
     "video": "remotion studio src/remotion/index.ts",
     "video:render": "remotion render src/remotion/index.ts GreenTransition out/green-transition.mp4",
     "video:hedgehog": "remotion render src/remotion/index.ts HedgehogGiveaway out/hedgehog-giveaway.mp4",
-    "video:launch": "remotion render src/remotion/index.ts LaunchReel out/launch-reel.mp4",
+    "video:launch:fr": "remotion render src/remotion/index.ts LaunchReel-French out/launch-reel-fr.mp4",
+    "video:launch:es": "remotion render src/remotion/index.ts LaunchReel-Spanish out/launch-reel-es.mp4",
+    "video:launch:ja": "remotion render src/remotion/index.ts LaunchReel-Japanese out/launch-reel-ja.mp4",
     "voiceover": "bunx tsx scripts/generate-voiceover.ts",
     "predev": "bunx tsx scripts/generate-sitemap.ts",
     "prebuild": "bunx tsx scripts/generate-sitemap.ts"

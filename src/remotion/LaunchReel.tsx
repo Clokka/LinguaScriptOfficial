@@ -2,6 +2,7 @@ import {
   AbsoluteFill,
   Sequence,
   Audio,
+  OffthreadVideo,
   staticFile,
   interpolate,
   interpolateColors,
@@ -21,13 +22,30 @@ import { DECK } from "@/lib/deck-colors";
  * <Sequence> so each one gets its own local frame 0 — no scene's animation
  * math depends on the total video length.
  *
+ * Multi-language: the whole reel is parameterized by `lang` (see CONTENT
+ * below) so the same timeline/animation code produces a French, Spanish, or
+ * Japanese cut just by swapping the on-screen sentence and platform names —
+ * see Root.tsx for the three registered compositions.
+ *
+ * Platform badges are plain text wordmarks, deliberately NOT the real
+ * Netflix/Crunchyroll/etc. logo artwork — this product has no affiliation
+ * or license with those platforms, and reproducing their exact marks in a
+ * promotional video risks implied-endorsement/trademark trouble. Same
+ * reasoning for video content: DeviceMockup can render a real clip via
+ * `videoSrc` (a local file in public/, e.g. "video/fr-hero.mp4"), but no
+ * clip is wired in — dropping in real footage is a rights decision for
+ * whoever owns that footage, not something to source here.
+ *
  * Narration: each scene accepts an optional `audioSrc`. Files are generated
  * by `npm run voiceover` (scripts/generate-voiceover.ts, ElevenLabs) into
  * public/audio/launch-reel/. Until those exist, scenes simply render silent —
  * nothing here throws on a missing file, so this always previews/renders.
+ * The VO script itself is English narration only, for every language cut,
+ * until localized narration is requested.
  */
 
-const FONT = "Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
+const FONT =
+  "Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans JP', 'IPAGothic', sans-serif";
 const BG = "#08080B";
 
 // ---- Narration script (also the source of truth for scripts/generate-voiceover.ts) ----
@@ -53,6 +71,76 @@ const NarrationTrack = ({ id }: { id: string }) => {
   return <Audio src={staticFile(voFor(id))} />;
 };
 
+// ---- Per-language content ----
+// One consistent example sentence per language, reused across scenes 1
+// (the problem), 4 (click-to-translate) and 7 (the comprehension shift) so
+// the reel tells one coherent story rather than three unrelated snippets.
+export type Lang = "fr" | "es" | "ja";
+
+interface LangContent {
+  label: string;
+  /** Two platforms shown in scene 3 — text wordmarks only, see file header. */
+  platforms: { name: string; videoSrc?: string }[];
+  /** The running example sentence, tokenized for word-by-word colour/highlight. */
+  sentence: string[];
+  /** Index into `sentence` that's clicked/saved/reviewed in scenes 4–6. */
+  wordIndex: number;
+  /** The clicked word as shown in the popup/flashcard (may drop trailing punctuation). */
+  word: string;
+  translation: string;
+  /** Two more flashcards for scene 6's review stack. */
+  deck: { front: string; back: string }[];
+  /** Optional local video (public/…mp4) behind the subtitle scenes — see file header. */
+  videoSrc?: string;
+}
+
+const CONTENT: Record<Lang, LangContent> = {
+  fr: {
+    label: "French",
+    platforms: [{ name: "Netflix" }, { name: "YouTube" }],
+    sentence: ["Je", "n'ai", "aucune", "idée,", "mais", "je", "comprends."],
+    wordIndex: 3,
+    word: "idée",
+    translation: "idea / clue",
+    deck: [
+      { front: "idée", back: "idea / clue" },
+      { front: "pressé", back: "in a hurry" },
+      { front: "rater", back: "to miss (out)" },
+    ],
+  },
+  es: {
+    label: "Spanish",
+    platforms: [{ name: "Netflix" }, { name: "YouTube" }],
+    sentence: ["No", "tengo", "ni", "idea,", "pero", "entiendo."],
+    wordIndex: 3,
+    word: "idea",
+    translation: "idea / clue",
+    deck: [
+      { front: "idea", back: "idea / clue" },
+      { front: "apurado", back: "in a hurry" },
+      { front: "perderse", back: "to miss (out)" },
+    ],
+  },
+  ja: {
+    label: "Japanese",
+    // Crunchyroll named per the demographic ask, in place of TikTok — text
+    // wordmark only, see file header on why not the real logo mark.
+    platforms: [{ name: "Crunchyroll" }, { name: "YouTube" }],
+    // Japanese doesn't space-segment naturally; these two chunks are a
+    // deliberate simplification for a word-by-word highlight animation, not
+    // a linguistically precise tokenization.
+    sentence: ["全然", "わからない。"],
+    wordIndex: 1,
+    word: "わからない",
+    translation: "don't understand",
+    deck: [
+      { front: "わからない", back: "don't understand" },
+      { front: "急いで", back: "in a hurry" },
+      { front: "見逃す", back: "to miss (out)" },
+    ],
+  },
+};
+
 // ---- Scene timing (30fps) ----
 const SCENES = {
   problem: { from: 0, dur: 105 },
@@ -72,8 +160,10 @@ const pop = (frame: number, fps: number, at: number, dur = 22) =>
 // ---- Shared chrome ----
 
 /** A rounded laptop-style screen frame — the "device the learner is watching
- *  on", drawn flat/geometric rather than a stock photo of a laptop. */
-const DeviceMockup = ({ children }: { children: React.ReactNode }) => (
+ *  on", drawn flat/geometric rather than a stock photo of a laptop. Renders
+ *  a real clip if `videoSrc` is given (a local file under public/), else a
+ *  plain gradient placeholder. */
+const DeviceMockup = ({ children, videoSrc }: { children: React.ReactNode; videoSrc?: string }) => (
   <div
     style={{
       width: 1180,
@@ -94,9 +184,23 @@ const DeviceMockup = ({ children }: { children: React.ReactNode }) => (
         borderRadius: 16,
         overflow: "hidden",
         aspectRatio: "16/9",
-        background: "linear-gradient(135deg, #1c2333, #241a2e 60%, #1a1420)",
       }}
     >
+      {videoSrc ? (
+        <OffthreadVideo
+          src={staticFile(videoSrc)}
+          muted
+          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
+        />
+      ) : (
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            background: "linear-gradient(135deg, #1c2333, #241a2e 60%, #1a1420)",
+          }}
+        />
+      )}
       {children}
     </div>
   </div>
@@ -179,16 +283,20 @@ const Headline = ({ children, progress }: { children: React.ReactNode; progress:
 );
 
 // ---- Scene 1: the problem ----
-const SceneProblem = () => {
+const SceneProblem = ({ content }: { content: LangContent }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const words = ["No", "sé", "por", "qué", "sigues", "mintiendo"];
-  const highlight = [4, 5];
+  const { sentence, wordIndex } = content;
+  const highlight = [wordIndex];
   const kicker = pop(frame, fps, 30);
   return (
     <AbsoluteFill style={{ backgroundColor: BG, justifyContent: "center", alignItems: "center" }}>
-      <DeviceMockup>
-        <SubtitleLine words={words} colours={words.map((_, i) => (highlight.includes(i) ? "#fff" : "rgba(255,255,255,.5)"))} highlight={highlight} />
+      <DeviceMockup videoSrc={content.videoSrc}>
+        <SubtitleLine
+          words={sentence}
+          colours={sentence.map((_, i) => (highlight.includes(i) ? "#fff" : "rgba(255,255,255,.5)"))}
+          highlight={highlight}
+        />
       </DeviceMockup>
       <div style={{ marginTop: 46, opacity: kicker, transform: `translateY(${(1 - kicker) * 16}px)` }}>
         <Headline progress={kicker}>Watching in another language?</Headline>
@@ -242,8 +350,20 @@ const SceneIntro = () => {
   );
 };
 
-// ---- Scene 3: Netflix / YouTube / TikTok ----
-const SceneName = ({ label, from, dur, frame }: { label: string; from: number; dur: number; frame: number }) => {
+// ---- Scene 3: platform quick-cut ----
+const SceneName = ({
+  label,
+  from,
+  dur,
+  frame,
+  videoSrc,
+}: {
+  label: string;
+  from: number;
+  dur: number;
+  frame: number;
+  videoSrc?: string;
+}) => {
   const p = interpolate(frame, [from, from + 14, from + dur - 14, from + dur], [0, 1, 1, 0], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
@@ -260,7 +380,7 @@ const SceneName = ({ label, from, dur, frame }: { label: string; from: number; d
         transform: `scale(${0.96 + p * 0.04})`,
       }}
     >
-      <DeviceMockup>
+      <DeviceMockup videoSrc={videoSrc}>
         <div
           style={{
             position: "absolute",
@@ -299,17 +419,25 @@ const SceneName = ({ label, from, dur, frame }: { label: string; from: number; d
   );
 };
 
-const ScenePlatforms = () => {
+const ScenePlatforms = ({ content }: { content: LangContent }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const kicker = pop(frame, fps, 8);
-  const each = Math.floor(SCENES.platforms.dur / 3);
+  const { platforms } = content;
+  const each = Math.floor(SCENES.platforms.dur / platforms.length);
   return (
     <AbsoluteFill style={{ backgroundColor: BG, justifyContent: "center", alignItems: "center" }}>
       <NarrationTrack id="scene3" />
-      <SceneName label="Netflix" from={0} dur={each} frame={frame} />
-      <SceneName label="YouTube" from={each} dur={each} frame={frame} />
-      <SceneName label="TikTok" from={each * 2} dur={SCENES.platforms.dur - each * 2} frame={frame} />
+      {platforms.map((p, i) => (
+        <SceneName
+          key={p.name}
+          label={p.name}
+          from={i * each}
+          dur={i === platforms.length - 1 ? SCENES.platforms.dur - each * i : each}
+          frame={frame}
+          videoSrc={p.videoSrc}
+        />
+      ))}
       <div
         style={{
           position: "absolute",
@@ -321,35 +449,40 @@ const ScenePlatforms = () => {
           color: "rgba(255,255,255,.7)",
         }}
       >
-        Netflix <span style={{ color: DECK.green }}>•</span> YouTube{" "}
-        <span style={{ color: DECK.green }}>•</span> TikTok
+        {platforms.map((p, i) => (
+          <span key={p.name}>
+            {i > 0 && <span style={{ color: DECK.green }}> • </span>}
+            {p.name}
+          </span>
+        ))}
       </div>
     </AbsoluteFill>
   );
 };
 
 // ---- Scene 4: click a word, translation pops up ----
-const SceneClickWord = () => {
+const SceneClickWord = ({ content }: { content: LangContent }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const kicker = pop(frame, fps, 8);
   const click = pop(frame, fps, 34, 14);
   const popup = pop(frame, fps, 46, 20);
-  const words = ["Ich", "habe", "keine", "Ahnung"];
+  const { sentence, wordIndex, word, translation } = content;
+  const clickLeftPct = ((wordIndex + 0.5) / sentence.length) * 100;
   return (
     <AbsoluteFill style={{ backgroundColor: BG, justifyContent: "center", alignItems: "center" }}>
       <NarrationTrack id="scene4" />
-      <DeviceMockup>
+      <DeviceMockup videoSrc={content.videoSrc}>
         <SubtitleLine
-          words={words}
-          colours={words.map((_, i) => (i === 3 ? "#fff" : "rgba(255,255,255,.5)"))}
-          highlight={[3]}
+          words={sentence}
+          colours={sentence.map((_, i) => (i === wordIndex ? "#fff" : "rgba(255,255,255,.5)"))}
+          highlight={[wordIndex]}
         />
         {/* click ring */}
         <div
           style={{
             position: "absolute",
-            left: "63%",
+            left: `${clickLeftPct}%`,
             bottom: 40,
             width: 30,
             height: 30,
@@ -376,9 +509,9 @@ const SceneClickWord = () => {
               minWidth: 220,
             }}
           >
-            <div style={{ fontSize: 24, fontWeight: 800, color: "#fff" }}>Ahnung</div>
+            <div style={{ fontSize: 24, fontWeight: 800, color: "#fff" }}>{word}</div>
             <div style={{ fontSize: 16, color: DECK.green, fontWeight: 700, marginTop: 4 }}>
-              idea / clue
+              {translation}
             </div>
           </div>
         )}
@@ -391,7 +524,7 @@ const SceneClickWord = () => {
 };
 
 // ---- Scene 5: save it ----
-const SceneSave = () => {
+const SceneSave = ({ content }: { content: LangContent }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const kicker = pop(frame, fps, 6);
@@ -417,9 +550,9 @@ const SceneSave = () => {
             minWidth: 220,
           }}
         >
-          <div style={{ fontSize: 24, fontWeight: 800, color: "#fff" }}>Ahnung</div>
+          <div style={{ fontSize: 24, fontWeight: 800, color: "#fff" }}>{content.word}</div>
           <div style={{ fontSize: 16, color: DECK.green, fontWeight: 700, margin: "4px 0 12px" }}>
-            idea / clue
+            {content.translation}
           </div>
           <div
             style={{
@@ -491,16 +624,12 @@ const FlashCard = ({ front, back, flip }: { front: string; back: string; flip: n
   );
 };
 
-const SceneReview = () => {
+const SceneReview = ({ content }: { content: LangContent }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const kicker = pop(frame, fps, 6);
   const cardIn = pop(frame, fps, 0, 18);
-  const cards = [
-    { front: "Ahnung", back: "idea / clue" },
-    { front: "eilig", back: "in a hurry" },
-    { front: "verpassen", back: "to miss (out)" },
-  ];
+  const cards = content.deck;
   const flip = interpolate(frame, [24, 44], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
   const idx = Math.min(cards.length - 1, Math.floor(frame / 34));
   return (
@@ -525,23 +654,15 @@ const SceneReview = () => {
 };
 
 // ---- Scene 7: the language turns green ----
-const TURN_LINE = [
-  { w: "Ich", from: 0 },
-  { w: "habe", from: 1 },
-  { w: "keine", from: 2 },
-  { w: "Ahnung,", from: 3 },
-  { w: "aber", from: 4 },
-  { w: "ich", from: 5 },
-  { w: "verstehe.", from: 6 },
-];
 const WORD_RAMP = 20;
 const WORD_STAGGER = 12;
 const TURN_START = 20;
 
-const SceneTurnGreen = ({ durationInFrames }: { durationInFrames: number }) => {
+const SceneTurnGreen = ({ content }: { content: LangContent }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const lineEnd = TURN_START + WORD_STAGGER * (TURN_LINE.length - 1) + WORD_RAMP;
+  const { sentence } = content;
+  const lineEnd = TURN_START + WORD_STAGGER * (sentence.length - 1) + WORD_RAMP;
   const progress = interpolate(frame, [TURN_START, lineEnd], [0, 1], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
@@ -557,7 +678,7 @@ const SceneTurnGreen = ({ durationInFrames }: { durationInFrames: number }) => {
         <div style={{ flex: 1.4 }}>
           <Kicker opacity={kicker}>the comprehension shift</Kicker>
           <div style={{ display: "flex", flexWrap: "wrap", gap: "0 16px", fontSize: 48, fontWeight: 800, maxWidth: 620 }}>
-            {TURN_LINE.map((item, i) => {
+            {sentence.map((w, i) => {
               const start = TURN_START + i * WORD_STAGGER;
               const colour = interpolateColors(
                 frame,
@@ -569,8 +690,8 @@ const SceneTurnGreen = ({ durationInFrames }: { durationInFrames: number }) => {
                 extrapolateRight: "clamp",
               });
               return (
-                <span key={item.w} style={{ color: colour, transform: `translateY(${lift}px)` }}>
-                  {item.w}
+                <span key={i} style={{ color: colour, transform: `translateY(${lift}px)` }}>
+                  {w}
                 </span>
               );
             })}
@@ -666,33 +787,36 @@ const SceneOutro = () => {
   );
 };
 
-export const LaunchReel = () => (
-  <AbsoluteFill style={{ fontFamily: FONT, color: "#fff" }}>
-    <Sequence from={SCENES.problem.from} durationInFrames={SCENES.problem.dur}>
-      <SceneProblem />
-    </Sequence>
-    <Sequence from={SCENES.intro.from} durationInFrames={SCENES.intro.dur}>
-      <SceneIntro />
-    </Sequence>
-    <Sequence from={SCENES.platforms.from} durationInFrames={SCENES.platforms.dur}>
-      <ScenePlatforms />
-    </Sequence>
-    <Sequence from={SCENES.clickWord.from} durationInFrames={SCENES.clickWord.dur}>
-      <SceneClickWord />
-    </Sequence>
-    <Sequence from={SCENES.save.from} durationInFrames={SCENES.save.dur}>
-      <SceneSave />
-    </Sequence>
-    <Sequence from={SCENES.review.from} durationInFrames={SCENES.review.dur}>
-      <SceneReview />
-    </Sequence>
-    <Sequence from={SCENES.turnGreen.from} durationInFrames={SCENES.turnGreen.dur}>
-      <SceneTurnGreen durationInFrames={SCENES.turnGreen.dur} />
-    </Sequence>
-    <Sequence from={SCENES.outro.from} durationInFrames={SCENES.outro.dur}>
-      <SceneOutro />
-    </Sequence>
-  </AbsoluteFill>
-);
+export const LaunchReel = ({ lang = "fr" }: { lang?: Lang }) => {
+  const content = CONTENT[lang];
+  return (
+    <AbsoluteFill style={{ fontFamily: FONT, color: "#fff" }}>
+      <Sequence from={SCENES.problem.from} durationInFrames={SCENES.problem.dur}>
+        <SceneProblem content={content} />
+      </Sequence>
+      <Sequence from={SCENES.intro.from} durationInFrames={SCENES.intro.dur}>
+        <SceneIntro />
+      </Sequence>
+      <Sequence from={SCENES.platforms.from} durationInFrames={SCENES.platforms.dur}>
+        <ScenePlatforms content={content} />
+      </Sequence>
+      <Sequence from={SCENES.clickWord.from} durationInFrames={SCENES.clickWord.dur}>
+        <SceneClickWord content={content} />
+      </Sequence>
+      <Sequence from={SCENES.save.from} durationInFrames={SCENES.save.dur}>
+        <SceneSave content={content} />
+      </Sequence>
+      <Sequence from={SCENES.review.from} durationInFrames={SCENES.review.dur}>
+        <SceneReview content={content} />
+      </Sequence>
+      <Sequence from={SCENES.turnGreen.from} durationInFrames={SCENES.turnGreen.dur}>
+        <SceneTurnGreen content={content} />
+      </Sequence>
+      <Sequence from={SCENES.outro.from} durationInFrames={SCENES.outro.dur}>
+        <SceneOutro />
+      </Sequence>
+    </AbsoluteFill>
+  );
+};
 
 export default LaunchReel;
