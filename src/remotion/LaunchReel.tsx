@@ -160,6 +160,47 @@ const CONTENT: Record<Lang, LangContent> = {
   },
 };
 
+// ---- Dual subtitles ----
+// The video's own captions, styled like the product's real dual-subtitle
+// overlay: native-language line on top (deck green — "this is what fluency
+// looks like"), English translation beneath in dim grey. Doubles as a demo
+// of the actual subtitle UI within the marketing video itself.
+interface NarrationLine {
+  id: string;
+  native: string;
+  en: string;
+}
+
+const NARRATION: Record<Lang, NarrationLine[]> = {
+  fr: [
+    { id: "scene2", native: "Transformez vos contenus préférés en apprentissage des langues.", en: VO_LINES[0].text },
+    { id: "scene3", native: "Apprenez directement depuis les vidéos que vous regardez déjà.", en: VO_LINES[1].text },
+    { id: "scene4", native: "Cliquez sur un mot inconnu pour une traduction instantanée.", en: VO_LINES[2].text },
+    { id: "scene5", native: "Enregistrez le vocabulaire utile en un clic.", en: VO_LINES[3].text },
+    { id: "scene6", native: "Puis révisez vos mots avec la répétition espacée.", en: VO_LINES[4].text },
+    { id: "scene7", native: "Et à mesure que votre vocabulaire grandit, la langue devient plus facile à comprendre.", en: VO_LINES[5].text },
+    { id: "scene8", native: "LinguaScript. Regardez la langue passer au vert.", en: VO_LINES[6].text },
+  ],
+  es: [
+    { id: "scene2", native: "Transforma el contenido que ya te encanta en aprendizaje de idiomas.", en: VO_LINES[0].text },
+    { id: "scene3", native: "Aprende directamente desde los videos que ya ves.", en: VO_LINES[1].text },
+    { id: "scene4", native: "Haz clic en palabras desconocidas para traducciones instantáneas.", en: VO_LINES[2].text },
+    { id: "scene5", native: "Guarda vocabulario útil con un solo clic.", en: VO_LINES[3].text },
+    { id: "scene6", native: "Luego repasa tus palabras con repetición espaciada.", en: VO_LINES[4].text },
+    { id: "scene7", native: "Y a medida que crece tu vocabulario, el idioma se vuelve más fácil de entender.", en: VO_LINES[5].text },
+    { id: "scene8", native: "LinguaScript. Mira el idioma volverse verde.", en: VO_LINES[6].text },
+  ],
+  ja: [
+    { id: "scene2", native: "お気に入りのコンテンツを、そのまま語学学習に変えましょう。", en: VO_LINES[0].text },
+    { id: "scene3", native: "普段見ている動画から、直接学べます。", en: VO_LINES[1].text },
+    { id: "scene4", native: "知らない単語をクリックするだけで、すぐに翻訳。", en: VO_LINES[2].text },
+    { id: "scene5", native: "役立つ単語をワンクリックで保存。", en: VO_LINES[3].text },
+    { id: "scene6", native: "間隔反復で、単語をしっかり復習。", en: VO_LINES[4].text },
+    { id: "scene7", native: "語彙が増えるほど、言葉がどんどん分かりやすくなる。", en: VO_LINES[5].text },
+    { id: "scene8", native: "LinguaScript。言語が緑に変わる瞬間を。", en: VO_LINES[6].text },
+  ],
+};
+
 // ---- Scene timing (30fps) ----
 const SCENES = {
   problem: { from: 0, dur: 105 },
@@ -175,6 +216,79 @@ export const LAUNCH_REEL_DURATION = SCENES.outro.from + SCENES.outro.dur; // 106
 
 const pop = (frame: number, fps: number, at: number, dur = 22) =>
   spring({ frame: frame - at, fps, config: { damping: 190 }, durationInFrames: dur });
+
+// Maps each narration line to the scene it plays under, in absolute
+// (whole-composition) frames — the caption bar lives above the per-scene
+// <Sequence>s, so it reads global frame numbers directly.
+const CAPTION_SCENES: { id: string; from: number; dur: number }[] = [
+  { id: "scene2", from: SCENES.intro.from, dur: SCENES.intro.dur },
+  { id: "scene3", from: SCENES.platforms.from, dur: SCENES.platforms.dur },
+  { id: "scene4", from: SCENES.clickWord.from, dur: SCENES.clickWord.dur },
+  { id: "scene5", from: SCENES.save.from, dur: SCENES.save.dur },
+  { id: "scene6", from: SCENES.review.from, dur: SCENES.review.dur },
+  { id: "scene7", from: SCENES.turnGreen.from, dur: SCENES.turnGreen.dur },
+  { id: "scene8", from: SCENES.outro.from, dur: SCENES.outro.dur },
+];
+const CAPTION_FADE = 8;
+
+/** The video's own dual-subtitle bar — native line (deck green, word-split)
+ *  over a dimmed English translation, the same stacked treatment the real
+ *  product uses for dual subtitles. Lives at the LaunchReel level (not
+ *  inside a scene's <Sequence>) so one component covers the whole timeline. */
+const DualCaptionBar = ({ lang }: { lang: Lang }) => {
+  const frame = useCurrentFrame();
+  const active = CAPTION_SCENES.find((s) => frame >= s.from && frame < s.from + s.dur);
+  if (!active) return null;
+  const line = NARRATION[lang].find((n) => n.id === active.id);
+  if (!line) return null;
+
+  const local = frame - active.from;
+  const opacity = interpolate(
+    local,
+    [0, CAPTION_FADE, active.dur - CAPTION_FADE, active.dur],
+    [0, 1, 1, 0],
+    { extrapolateLeft: "clamp", extrapolateRight: "clamp" },
+  );
+  const rise = interpolate(local, [0, CAPTION_FADE], [10, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+
+  return (
+    <div
+      style={{
+        position: "absolute",
+        left: 0,
+        right: 0,
+        bottom: 36,
+        display: "flex",
+        justifyContent: "center",
+        opacity,
+        transform: `translateY(${rise}px)`,
+        pointerEvents: "none",
+      }}
+    >
+      <div
+        style={{
+          maxWidth: 1400,
+          padding: "14px 28px",
+          borderRadius: 14,
+          background: "rgba(8,8,11,.72)",
+          backdropFilter: "blur(10px)",
+          textAlign: "center",
+        }}
+      >
+        <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "0 10px", fontSize: 26, fontWeight: 800 }}>
+          {line.native.split(/\s+/).map((w, i) => (
+            <span key={i} style={{ color: DECK.green }}>
+              {w}
+            </span>
+          ))}
+        </div>
+        <div style={{ marginTop: 6, fontSize: 17, fontStyle: "italic", color: "rgba(255,255,255,.5)" }}>
+          {line.en}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 // ---- Shared chrome ----
 
@@ -449,8 +563,6 @@ const SceneName = ({
 
 const ScenePlatforms = ({ content }: { content: LangContent }) => {
   const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
-  const kicker = pop(frame, fps, 8);
   const { platforms } = content;
   const each = Math.floor(SCENES.platforms.dur / platforms.length);
   return (
@@ -467,24 +579,6 @@ const ScenePlatforms = ({ content }: { content: LangContent }) => {
           videoSrc={p.videoSrc}
         />
       ))}
-      <div
-        style={{
-          position: "absolute",
-          bottom: 96,
-          opacity: kicker,
-          fontSize: 30,
-          fontWeight: 800,
-          letterSpacing: "0.05em",
-          color: "rgba(255,255,255,.7)",
-        }}
-      >
-        {platforms.map((p, i) => (
-          <span key={p.name}>
-            {i > 0 && <span style={{ color: DECK.green }}> • </span>}
-            {p.name}
-          </span>
-        ))}
-      </div>
     </AbsoluteFill>
   );
 };
@@ -844,6 +938,7 @@ export const LaunchReel = ({ lang = "fr" }: { lang?: Lang }) => {
       <Sequence from={SCENES.outro.from} durationInFrames={SCENES.outro.dur}>
         <SceneOutro />
       </Sequence>
+      <DualCaptionBar lang={lang} />
     </AbsoluteFill>
   );
 };
