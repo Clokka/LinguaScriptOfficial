@@ -376,48 +376,48 @@ export function LinguaScriptSession({
           </div>
         )}
 
-        {currentStage.type === "gap-fill" && currentExercise && (
-          <div>
-            <p className="text-sm text-slate-400 mb-4">
-              Word {wordNumber} of {exercises.length} — Fill the gap
-            </p>
-            {/*
-              gapIndex and distractors are still the pre-existing bugs: this
-              blanks the FIRST word of the sentence rather than the target
-              word, and the distractor is a neighbouring exercise's word
-              rather than one drawn from the learner's own deck. Both are
-              scoped to the gap-fill rebuild (buildGapFill), not this pass —
-              the fix here is only that every stage now looks at the SAME
-              word, via currentExercise, instead of a hardcoded index.
-            */}
-            <GapFillChallenge
-              words={currentExercise.sentence.split(/\s+/)}
-              gapIndex={Math.max(
-                0,
-                currentExercise.sentence
-                  .split(/\s+/)
-                  .findIndex((w) =>
-                    w.toLowerCase().replace(/[.,!?;:«»"'¿¡]/g, "").includes(currentExercise.target_word.toLowerCase()),
-                  ),
-              )}
-              distractors={[
-                exercises[(currentStage.exerciseIndex! + 1) % exercises.length]?.target_word ??
-                  "test",
-                exercises[(currentStage.exerciseIndex! + 2) % exercises.length]?.target_word ??
-                  "test",
-                "test",
-              ]}
-              tier={currentExercise.word_state === "green" ? "orange" : currentExercise.word_state}
-              translation={currentExercise.translation}
-              onComplete={handleGapFillComplete}
-              onSkip={handleSkip}
-            />
-          </div>
-        )}
+        {currentStage.type === "gap-fill" && currentExercise && (() => {
+          const clean = (w: string) => w.toLowerCase().replace(/[.,!?;:«»"'¿¡…]/g, "");
+          const target = clean(currentExercise.target_word);
+          const tokens = currentExercise.sentence.split(/\s+/);
+          const gi = Math.max(0, tokens.findIndex((w) => clean(w) === target || clean(w).includes(target)));
+          // Four different options: the answer plus 3 real words from this
+          // session / sentence / the learner's meanings pool — never duplicates
+          // of the answer and never a placeholder.
+          const seen = new Set([target]);
+          const pool = [
+            ...exercises.map((e) => e.target_word),
+            ...tokens.filter((_, i) => i !== gi),
+          ];
+          const distractors: string[] = [];
+          for (const w of pool) {
+            const c = clean(w);
+            if (!c || seen.has(c) || c.length < 2) continue;
+            seen.add(c);
+            distractors.push(c);
+            if (distractors.length === 3) break;
+          }
+          return (
+            <div>
+              <p className="text-sm text-muted-foreground mb-4">
+                Word {wordNumber} of {exercises.length} — Fill the gap
+              </p>
+              <GapFillChallenge
+                words={tokens}
+                gapIndex={gi}
+                distractors={distractors}
+                tier={currentExercise.word_state === "green" ? "orange" : currentExercise.word_state}
+                translation={currentExercise.translation}
+                onComplete={handleGapFillComplete}
+                onSkip={handleSkip}
+              />
+            </div>
+          );
+        })()}
 
         {currentStage.type === "active-recall" && currentExercise && (
           <div>
-            <p className="text-sm text-slate-400 mb-4">
+            <p className="text-sm text-muted-foreground mb-4">
               Word {wordNumber} of {exercises.length} — Recall
             </p>
             <ActiveRecallReview
@@ -433,30 +433,31 @@ export function LinguaScriptSession({
         )}
 
         {currentStage.type === "linguascript" && (
-          <div>
-            <p className="text-sm text-slate-400 mb-4">Stage 3: Make Sentences (Production)</p>
-            <LinguaScriptCreation
-              words={exercises.map((e) => e.target_word)}
-              onComplete={handleLinguaScriptComplete}
-              onSkip={handleSkip}
-            />
-          </div>
+          <LinguaScriptCreation
+            items={exercises.map((e) => ({
+              word: e.target_word,
+              example: e.sentence,
+              exampleTranslation: e.translation,
+            }))}
+            onComplete={handleLinguaScriptComplete}
+            onSkip={handleSkip}
+          />
         )}
 
         {currentStage.type === "complete" && (
-          <div className="bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700 rounded-2xl p-8 text-center">
+          <div className="rounded-2xl border border-[#34C759]/40 bg-card p-8 text-center">
             <div className="mb-6">
-              <p className="text-4xl font-black text-amber-400 mb-2">{sessionXp} XP</p>
-              <p className="text-slate-400">Session Complete!</p>
+              <p className="text-4xl font-black text-[#34C759] mb-2">{sessionXp} XP</p>
+              <p className="text-muted-foreground">Session complete</p>
             </div>
-            <p className="text-slate-300 mb-6">
-              Great work! You listened, filled gaps and recalled for {exercises.length} words.
+            <p className="text-foreground mb-6">
+              You listened, filled gaps, recalled and wrote with {exercises.length} words.
             </p>
             <button
               onClick={handleSessionComplete}
-              className="px-6 py-3 bg-gradient-to-r from-amber-400 to-emerald-400 text-slate-900 font-bold rounded-lg hover:shadow-lg transition-all"
+              className="w-full rounded-xl bg-[#34C759] px-6 py-3 font-semibold text-background"
             >
-              <span>Back to Dashboard</span>
+              <span>Back to LinguaScripts</span>
               <ArrowRight className="w-4 h-4 ml-2 inline" />
             </button>
           </div>
