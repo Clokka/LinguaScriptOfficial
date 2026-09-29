@@ -176,6 +176,23 @@ export function LinguaScriptSession({
           first_try_correct: data.outcome === "clean" && data.hintsUsed === 0,
           session_id: `session_${Date.now()}`,
         } as any);
+
+        // Real spacing: clean recall climbs the ladder 1→3→7→21→60 days,
+        // a hint holds the step, a reveal drops back to tomorrow.
+        const INTERVALS = [1, 3, 7, 21, 60];
+        const cur = Number((exercise as any).stage ?? 0);
+        const next =
+          data.outcome === "clean"
+            ? Math.min(cur + 1, INTERVALS.length - 1)
+            : data.outcome === "assisted"
+              ? cur
+              : 0;
+        const due = new Date(Date.now() + INTERVALS[next] * 86400000);
+        void supabase
+          .from("linguascripts")
+          .update({ stage: next, scheduled_for: due.toISOString(), status: "started" } as any)
+          .eq("id", exercise.id)
+          .eq("user_id", user.id);
       }
 
       setStageIndex((prev) => prev + 1);
