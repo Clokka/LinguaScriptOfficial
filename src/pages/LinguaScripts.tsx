@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { ArrowLeft, BookOpen, Loader2, Play } from "lucide-react";
 import { LinguaScriptSession } from "@/components/LinguaScriptSession";
+import { useDailyWordGoal } from "@/hooks/useDailyWordGoal";
 
 type WordState = "red" | "orange" | "green";
 
@@ -36,26 +37,43 @@ export default function LinguaScripts() {
   const [sessionActive, setSessionActive] = useState(false);
   const [sessionExerciseIds, setSessionExerciseIds] = useState<string[]>([]);
 
+  const { goal: dailyGoal } = useDailyWordGoal(learningLanguage || undefined);
+  const [doneToday, setDoneToday] = useState(0);
+
   const loadExercises = useCallback(async () => {
     if (!user || !learningLanguage) return;
 
     try {
       setLoading(true);
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
 
-      // Fetch linguascripts (which are created from saved words)
-      const { data: linguascripts, error } = await supabase
-        .from("linguascripts")
-        .select("id, target_word, sentence, translation, word_state, completed_at, scheduled_for")
-        .eq("user_id", user.id)
-        .eq("language", learningLanguage)
-        .is("completed_at", null)
-        .lte("scheduled_for", new Date().toISOString())
-        .order("scheduled_for", { ascending: true });
+      const [{ data: linguascripts, error }, { count: completedToday }] = await Promise.all([
+        supabase
+          .from("linguascripts")
+          .select("id, target_word, sentence, translation, word_state, completed_at, scheduled_for")
+          .eq("user_id", user.id)
+          .eq("language", learningLanguage)
+          .is("completed_at", null)
+          .lte("scheduled_for", new Date().toISOString())
+          .order("scheduled_for", { ascending: true }),
+        supabase
+          .from("linguascripts")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", user.id)
+          .eq("language", learningLanguage)
+          .gte("completed_at", startOfDay.toISOString()),
+      ]);
 
       if (error) throw error;
 
-      setExercises((linguascripts || []) as Exercise[]);
-      setDueCount((linguascripts || []).length);
+      // Daily cap: only as many as the learner's word goal, minus what's done today.
+      const done = completedToday ?? 0;
+      const remaining = Math.max(0, dailyGoal - done);
+      const capped = (linguascripts || []).slice(0, remaining) as Exercise[];
+      setDoneToday(done);
+      setExercises(capped);
+      setDueCount(capped.length);
     } catch (err) {
       console.error("Error loading exercises:", err);
       setExercises([]);
@@ -63,7 +81,7 @@ export default function LinguaScripts() {
     } finally {
       setLoading(false);
     }
-  }, [user, learningLanguage]);
+  }, [user, learningLanguage, dailyGoal]);
 
   // Initial load
   useEffect(() => {
@@ -174,11 +192,11 @@ export default function LinguaScripts() {
             <div className="text-sm text-slate-400 mt-1">Due today</div>
           </div>
           <div className="bg-slate-800 rounded-lg p-4 text-center border border-slate-700">
-            <div className="text-3xl font-bold text-emerald-400">{exercises.length}</div>
-            <div className="text-sm text-slate-400 mt-1">Total exercises</div>
+            <div className="text-3xl font-bold text-emerald-400">{dailyGoal}</div>
+            <div className="text-sm text-slate-400 mt-1">Daily goal</div>
           </div>
           <div className="bg-slate-800 rounded-lg p-4 text-center border border-slate-700">
-            <div className="text-3xl font-bold text-blue-400">0</div>
+            <div className="text-3xl font-bold text-blue-400">{doneToday}</div>
             <div className="text-sm text-slate-400 mt-1">Completed today</div>
           </div>
         </div>
