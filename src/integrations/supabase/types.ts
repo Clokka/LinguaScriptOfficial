@@ -1589,6 +1589,36 @@ export type Database = {
         }
         Relationships: []
       }
+      user_interest_signals: {
+        Row: {
+          id: string
+          interest_id: string
+          language: string
+          last_picked_at: string | null
+          picks: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          interest_id: string
+          language: string
+          last_picked_at?: string | null
+          picks?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          interest_id?: string
+          language?: string
+          last_picked_at?: string | null
+          picks?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_lessons: {
         Row: {
           created_at: string
@@ -2235,6 +2265,10 @@ export type Database = {
           msg_id: number
           read_ct: number
         }[]
+      }
+      record_feed_event: {
+        Args: { _interest_id: string; _kind: string; _language: string }
+        Returns: undefined
       }
       record_watch_session: {
         Args: {
