@@ -7,7 +7,7 @@ import { ArrowLeft, ArrowRight, Check, Loader2 } from "lucide-react";
 import { LinguaScriptSession } from "@/components/LinguaScriptSession";
 import { useDailyWordGoal } from "@/hooks/useDailyWordGoal";
 import { DECK } from "@/lib/deck-colors";
-import { getLanguageName } from "@/lib/languages";
+import { getLanguageLabel } from "@/lib/languages";
 
 const GREEN = DECK.green;
 
@@ -81,7 +81,7 @@ export default function LinguaScripts() {
       }
 
       const covRow: any = Array.isArray(cov.data) ? cov.data[0] : cov.data;
-      const currentBand: number | null = covRow?.band ?? covRow?.total ?? null;
+      const currentBand: number | null = covRow?.band ?? null;
 
       // Due now, current frequency milestone first, then most common first.
       const due = rows
@@ -135,7 +135,7 @@ export default function LinguaScripts() {
     );
   }
 
-  const langName = learningLanguage ? getLanguageName(learningLanguage) : "";
+  const langName = learningLanguage ? getLanguageLabel(learningLanguage) : "";
   const target = Math.min(dailyGoal, doneToday + queue.length) || dailyGoal;
   const pct = target ? Math.min(100, Math.round((doneToday / target) * 100)) : 0;
   const allDone = queue.length === 0 && doneToday > 0;
