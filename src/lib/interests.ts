@@ -32,7 +32,7 @@ export const INTERESTS: Interest[] = [
   { id: "language",        label: "Language Learning", emoji: "📖", query: "language learning" },
   { id: "tech",            label: "Technology",        emoji: "📱", query: "technology" },
   { id: "entrepreneurship",label: "Entrepreneurship",  emoji: "📈", query: "entrepreneurship startup" },
-  { id: "anime",           label: "Anime",             emoji: "🇯🇵", query: "anime" },
+  { id: "anime",           label: "Anime",             emoji: "🇯🇵", query: "anime dubbed" },
 ];
 
 export const MAX_INTERESTS = 5;

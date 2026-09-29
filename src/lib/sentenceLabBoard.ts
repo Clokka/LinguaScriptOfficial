@@ -12,7 +12,8 @@
 // of the pipeline (extraction, candidate building, session assembly) is
 // already shaped around "frame text + one gap + a real filler word".
 import { normalizeToken, type SavedWordLite } from "@/lib/vocab";
-import { loadPatterns, orderPatternsForSession, recentlyUsedPatternIds, type SentencePattern } from "@/lib/sentencePatterns";
+import { loadPatterns, orderPatternsForSession, recentlyUsedPatternIds, type SentencePattern, type SlotAccepts } from "@/lib/sentencePatterns";
+import { loadWordForms, fitsAccepts, type WordForm } from "@/lib/wordForms";
 
 export interface SentenceLabBoard {
   patternId: string;
@@ -25,6 +26,11 @@ export interface SentenceLabBoard {
   answerSkin: "green" | "orange";
   /** 3–5 draggable blocks, answer included, order randomised. */
   candidates: { word: string; skin: "green" | "orange" }[];
+  /** What the gap accepts — from the frame, or the answer's own analysis. */
+  accepts: SlotAccepts | null;
+  /** guided = every block already has the right form, only meaning is tested
+   *  (orange words, still being learnt). mixed = form is tested too (green). */
+  mode: "guided" | "mixed";
 }
 
 /** Splits "J'ai besoin de ___" into { before: "J'ai besoin de", after: "" }.
@@ -76,6 +82,7 @@ export function buildSession(
   patterns: SentencePattern[],
   deck: Map<string, SavedWordLite>,
   count = 5,
+  forms: Map<string, WordForm> = new Map(),
 ): SentenceLabBoard[] {
   const green = [...deck.values()].filter((w) => w.state === "green");
   const orange = [...deck.values()].filter((w) => w.state === "orange");
@@ -100,15 +107,32 @@ export function buildSession(
     if (!entry || (entry.state !== "green" && entry.state !== "orange")) continue;
     const answerSkin = entry.state;
 
+    // Only words whose form is confirmed in the word_forms dictionary go on a
+    // board, so a learner never meets a gap nobody can check exactly.
+    const answerForm = forms.get(key);
+    if (!answerForm) continue;
+    const accepts: SlotAccepts = pattern.accepts ?? {
+      pos: answerForm.pos, form: answerForm.form,
+      ...(answerForm.form === "conjugated"
+        ? { person: answerForm.person, number: answerForm.number, tense: answerForm.tense } : {}),
+    };
+    const mode: "guided" | "mixed" = answerSkin === "orange" ? "guided" : "mixed";
+    const pool = (words: string[]) => words.filter((w) => {
+      const f = forms.get(normalizeToken(w));
+      if (!f) return false;
+      // Guided: distractors fit the grammar, so only meaning is being judged.
+      return mode === "guided" ? fitsAccepts(f, accepts).ok : true;
+    });
+
     // 2–4 distractors from the learner's own green words, plus at most one
     // orange word thrown in — never a word invented for the occasion.
-    const otherGreen = shuffle(greenWords.filter((w) => normalizeToken(w) !== key));
+    const otherGreen = shuffle(pool(greenWords).filter((w) => normalizeToken(w) !== key));
     const distractorCount = Math.min(3, Math.max(2, otherGreen.length >= 2 ? 3 : otherGreen.length));
     const distractors: { word: string; skin: "green" | "orange" }[] =
       otherGreen.slice(0, distractorCount).map((word) => ({ word, skin: "green" }));
 
     if (answerSkin === "green" && orangeWords.length > 0 && distractors.length < 4) {
-      const orangePick = shuffle(orangeWords.filter((w) => normalizeToken(w) !== key))[0];
+      const orangePick = shuffle(pool(orangeWords).filter((w) => normalizeToken(w) !== key))[0];
       if (orangePick) distractors.push({ word: orangePick, skin: "orange" });
     }
 
@@ -122,6 +146,8 @@ export function buildSession(
       answer: tokens[0],
       answerSkin,
       candidates,
+      accepts,
+      mode,
     });
   }
   return boards;
@@ -140,5 +166,6 @@ export async function loadSession(
     recentlyUsedPatternIds(userId, language),
   ]);
   const ordered = orderPatternsForSession(patterns, recent);
-  return buildSession(ordered, deck, count);
+  const forms = await loadWordForms(language, [...deck.values()].map((w) => w.word));
+  return buildSession(ordered, deck, count, forms);
 }

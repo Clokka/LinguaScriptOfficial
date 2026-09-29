@@ -18,6 +18,16 @@ export interface SentencePattern {
   explanation: string | null;
   example: string | null;
   example_translation: string | null;
+  /** What the gap accepts, declared on the frame itself (slots[0].accepts). */
+  accepts?: SlotAccepts | null;
+}
+
+export interface SlotAccepts {
+  pos: string;
+  form: "infinitive" | "gerund" | "participle" | "conjugated" | null;
+  person?: string | null;
+  number?: string | null;
+  tense?: string | null;
 }
 
 const LEVEL_ORDER = ["a1", "a2", "b1", "b2", "c1", "c2"];
@@ -36,7 +46,7 @@ export async function loadPatterns(
 ): Promise<SentencePattern[]> {
   const { data, error } = await supabase
     .from("sentence_patterns" as any)
-    .select("id, language, cefr_level, usage_rank, template, explanation, example, example_translation")
+    .select("id, language, cefr_level, usage_rank, template, explanation, example, example_translation, slots")
     .eq("language", language)
     .in("cefr_level", levelsUpTo(cefLevel))
     .order("cefr_level", { ascending: true })
@@ -45,7 +55,10 @@ export async function loadPatterns(
     console.warn("[sentencePatterns] load failed", error);
     return [];
   }
-  return ((data as any[]) || []) as SentencePattern[];
+  return ((data as any[]) || []).map((r) => ({
+    ...r,
+    accepts: Array.isArray(r.slots) ? r.slots[0]?.accepts ?? null : null,
+  })) as SentencePattern[];
 }
 
 /**

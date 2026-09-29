@@ -5,6 +5,7 @@ import {
   Search,
   Home,
   Compass,
+  Sparkles,
   Calendar as CalendarIcon,
   Settings,
   Link as LinkIcon,
@@ -81,11 +82,12 @@ type TabKey = "home" | "discover" | "calendar" | "settings";
 // "linguascripts" deliberately absent — the old SRS flow is retired (see
 // Sentence Lab rebuild). Its route and data are untouched, just no longer
 // linked to from anywhere in the nav.
-const SIDEBAR_ITEMS: { icon: typeof Home; label: string; key: TabKey | "flashcards" | "vocabulary" | "friends" }[] = [
+const SIDEBAR_ITEMS: { icon: typeof Home; label: string; key: TabKey | "flashcards" | "vocabulary" | "friends" | "linguascript" }[] = [
   { icon: Home, label: "Home", key: "home" },
   { icon: Compass, label: "Discover", key: "discover" },
   { icon: Target, label: "Comprehension", key: "vocabulary" },
   { icon: BookOpen, label: "Flashcards", key: "flashcards" },
+  { icon: Sparkles, label: "LinguaScripts", key: "linguascript" },
   { icon: Users, label: "Friends", key: "friends" },
   { icon: CalendarIcon, label: "Calendar", key: "calendar" },
   { icon: Settings, label: "Settings", key: "settings" },
@@ -455,7 +457,7 @@ const Browse = () => {
             <button
               key={key}
               data-tour={`nav-${key}`}
-              onClick={() => key === "flashcards" ? navigate("/flashcards") : key === "vocabulary" ? navigate("/vocabulary") : key === "friends" ? navigate("/friends") : setActiveTab(key as TabKey)}
+              onClick={() => key === "flashcards" ? navigate("/flashcards") : key === "vocabulary" ? navigate("/vocabulary") : key === "friends" ? navigate("/friends") : key === "linguascript" ? navigate("/linguascript") : setActiveTab(key as TabKey)}
               className={cn(
                 "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors",
                 activeTab === key
@@ -491,7 +493,7 @@ const Browse = () => {
                 <button
                   key={key}
                   data-tour={`nav-${key}`}
-                  onClick={() => key === "flashcards" ? navigate("/flashcards") : key === "vocabulary" ? navigate("/vocabulary") : key === "friends" ? navigate("/friends") : setActiveTab(key as TabKey)}
+                  onClick={() => key === "flashcards" ? navigate("/flashcards") : key === "vocabulary" ? navigate("/vocabulary") : key === "friends" ? navigate("/friends") : key === "linguascript" ? navigate("/linguascript") : setActiveTab(key as TabKey)}
                   className={cn(
                     "p-2 rounded-lg transition-colors",
                     activeTab === key ? "bg-primary/15 text-primary" : "text-muted-foreground"
