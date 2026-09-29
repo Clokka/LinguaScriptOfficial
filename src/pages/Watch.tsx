@@ -381,6 +381,16 @@ const Watch = () => {
   const historyIntervalRef = useRef<ReturnType<typeof setInterval>>();
 
   const [film, setFilm] = useState<FilmData | null>(null);
+  // Saving a word from a feed video is a strong "I like this" signal.
+  const noteFeedSave = () => {
+    if (!user || !film) return;
+    const src = feedSourceFor(getYouTubeId(film.url));
+    if (!src) return;
+    const key = `${film.id}:${src.interest}`;
+    if (feedSaveSent.has(key)) return;
+    feedSaveSent.add(key);
+    void recordFeedEvent(src.interest, src.lang, "save");
+  };
   const [loading, setLoading] = useState(true);
   const [currentTime, setCurrentTime] = useState(0);
   const [subtitleMode, setSubtitleMode] = useState<"single" | "dual">("dual");
