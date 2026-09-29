@@ -1,6 +1,7 @@
 import { Composition } from "remotion";
 import { GreenTransition } from "./GreenTransition";
 import { HedgehogGiveaway } from "./HedgehogGiveaway";
+import { LaunchReel, LAUNCH_REEL_DURATION } from "./LaunchReel";
 
 /**
  * Remotion composition registry.
@@ -36,6 +37,16 @@ export const RemotionRoot = () => (
       fps={30}
       width={1080}
       height={1920}
+    />
+
+    {/* Chrome extension launch reel. */}
+    <Composition
+      id="LaunchReel"
+      component={LaunchReel}
+      durationInFrames={LAUNCH_REEL_DURATION}
+      fps={30}
+      width={1920}
+      height={1080}
     />
   </>
 );

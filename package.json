@@ -13,6 +13,8 @@
     "video": "remotion studio src/remotion/index.ts",
     "video:render": "remotion render src/remotion/index.ts GreenTransition out/green-transition.mp4",
     "video:hedgehog": "remotion render src/remotion/index.ts HedgehogGiveaway out/hedgehog-giveaway.mp4",
+    "video:launch": "remotion render src/remotion/index.ts LaunchReel out/launch-reel.mp4",
+    "voiceover": "bunx tsx scripts/generate-voiceover.ts",
     "predev": "bunx tsx scripts/generate-sitemap.ts",
     "prebuild": "bunx tsx scripts/generate-sitemap.ts"
   },
