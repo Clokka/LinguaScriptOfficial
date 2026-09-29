@@ -232,7 +232,9 @@ export const PersonalizedRails = ({
       if (cancelled) return;
       const scored: Record<string, YTItem[]> = {};
       interestRailDefs.forEach((i, idx) => {
-        const byId = new Map(ranked[idx].map((r) => [r.item.videoId, r]));
+        const byId = new Map<string, { comprehensionPct: number; zone: LearningZone }>(
+          (ranked[idx] as any[]).map((r) => [r.item.videoId, r] as [string, { comprehensionPct: number; zone: LearningZone }]),
+        );
         scored[i.id] = sortFeed(
           (perMap[i.id] || []).map((it) => {
             const r = byId.get(it.videoId);
