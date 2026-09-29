@@ -7,7 +7,6 @@
  */
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Progress } from "@/components/ui/progress";
 import { LANGUAGES } from "@/lib/languages";
 import {
   loadFrequencyCoverage,
