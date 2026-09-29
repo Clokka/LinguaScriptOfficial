@@ -40,3 +40,40 @@ export const MAX_INTERESTS = 5;
 export function interestById(id: string): Interest | undefined {
   return INTERESTS.find((i) => i.id === id);
 }
+
+/**
+ * Native-language search phrases per interest. Searching in the target
+ * language ("anime VF") finds real dubbed clips far better than
+ * "French anime dubbed", which mostly returns English channels.
+ */
+const LOCAL_QUERIES: Record<string, Record<string, string[]>> = {
+  anime: {
+    fr: ["anime VF extrait", "anime en français VF"],
+    es: ["anime doblaje latino escena", "anime en español latino"],
+    it: ["anime doppiaggio italiano scena", "anime in italiano"],
+    de: ["anime german dub szene", "anime auf deutsch"],
+    pt: ["anime dublado cena", "anime dublado português"],
+    ja: ["アニメ 名シーン", "アニメ 切り抜き"],
+    zh: ["动漫 中文配音 片段", "动漫 国语"],
+    ko: ["애니 한국어 더빙 명장면", "애니 더빙"],
+    ru: ["аниме русская озвучка момент", "аниме на русском"],
+    th: ["อนิเมะ พากย์ไทย", "อนิเมะ พากย์ไทย ฉาก"],
+    tr: ["anime türkçe dublaj sahne"],
+    pl: ["anime po polsku dubbing"],
+    nl: ["anime nederlands nagesynchroniseerd"],
+    ar: ["انمي مدبلج عربي مشهد"],
+    hi: ["anime hindi dubbed scene"],
+    sv: ["anime svenska dubbning"],
+  },
+  gaming: { fr: ["gaming FR"], es: ["gameplay en español"], de: ["gaming deutsch"], it: ["gameplay ita"], pt: ["gameplay português"] },
+  football: { fr: ["football résumé"], es: ["fútbol resumen"], de: ["fußball highlights deutsch"], it: ["calcio highlights"], pt: ["futebol melhores momentos"] },
+  cooking: { fr: ["recette facile"], es: ["receta fácil"], de: ["einfaches rezept"], it: ["ricetta facile"], pt: ["receita fácil"] },
+  travel: { fr: ["vlog voyage"], es: ["vlog de viaje"], de: ["reise vlog"], it: ["vlog viaggio"], pt: ["vlog de viagem"] },
+  comedy: { fr: ["sketch humour"], es: ["sketch comedia"], de: ["comedy sketch deutsch"], it: ["sketch comico"], pt: ["esquete comédia"] },
+};
+
+/** Search phrases for an interest: localized first, then the English fallback. */
+export function interestQueries(interest: Interest, lang: string, langLabel: string): string[] {
+  const local = LOCAL_QUERIES[interest.id]?.[lang.toLowerCase()] || [];
+  return [...local, `${langLabel} ${interest.query}`].slice(0, 3);
+}
