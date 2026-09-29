@@ -72,10 +72,7 @@ const GiftClaim = lazy(() => import("./pages/GiftClaim"));
 const MieoFrames = lazy(() => import("./pages/MieoFrames"));
 const OnboardingMobile = lazy(() => import("./pages/OnboardingMobile"));
 const OAuthConsent = lazy(() => import("./pages/OAuthConsent"));
-// LinguaScripts (the old SRS drill flow) is retired but its file, route
-// data, and tables are untouched — /linguascript now renders SentenceLab
-// instead. Nothing still imports the old component.
-const SentenceLab = lazy(() => import("./pages/SentenceLab"));
+const LinguaScripts = lazy(() => import("./pages/LinguaScripts"));
 const Credits = lazy(() => import("./pages/Credits"));
 const ChameleonMethod = lazy(() => import("./pages/ChameleonMethod"));
 const ProGiftClaim = lazy(() => import("./pages/ProGiftClaim"));
@@ -144,7 +141,7 @@ const App = () => (
                 <Route path="/mieoframes" element={<MieoFrames />} />
                 <Route path="/onboarding/mobile" element={<OnboardingMobile />} />
                 <Route path="/welcome" element={<OnboardingMobile />} />
-                <Route path="/linguascript" element={<SentenceLab />} />
+                <Route path="/linguascript" element={<LinguaScripts />} />
                 <Route path="/linguascripts" element={<Navigate to="/linguascript" replace />} />
                 <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
                 <Route path="/blog" element={<Blog />} />
