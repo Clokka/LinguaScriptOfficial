@@ -4,7 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { getLanguageLabel } from "@/lib/languages";
-import { INTERESTS, interestById } from "@/lib/interests";
+import { INTERESTS, interestById, interestQueries } from "@/lib/interests";
+import { recordFeedEvent } from "@/lib/feedSignals";
 import { rankByComprehension } from "@/lib/videoRecommendation";
 import { cefrSearchModifier } from "@/lib/cefrQueryModifiers";
 import { getLanguageProfile } from "@/lib/languageProfiles";
@@ -70,6 +71,33 @@ async function cachedSearch(
   const items: YTItem[] = (data as any)?.items || [];
   try { sessionStorage.setItem(key, JSON.stringify(items)); } catch {}
   return { items, failed: false };
+}
+
+function dedupe(items: YTItem[]): YTItem[] {
+  const seen = new Set<string>();
+  return items.filter((i) => (seen.has(i.videoId) ? false : (seen.add(i.videoId), true)));
+}
+
+/** Snackable first: short clips up, ideal-understanding up, very hard down. */
+function feedScore(it: YTItem): number {
+  let s = 0;
+  const d = it.durationSeconds || 0;
+  if (d > 0 && d <= 360) s += 3;
+  else if (d > 0 && d <= 720) s += 1;
+  if (typeof it.comprehensionPct === "number") {
+    s += Math.max(0, 4 - Math.abs(94 - it.comprehensionPct) / 3);
+    if (it.zone === "too-hard") s -= 2;
+  }
+  return s;
+}
+function sortFeed(items: YTItem[]): YTItem[] {
+  return items.map((it, i) => ({ it, i })).sort((a, b) => feedScore(b.it) - feedScore(a.it) || a.i - b.i).map((x) => x.it);
+}
+function roundRobin(lists: YTItem[][]): YTItem[] {
+  const out: YTItem[] = [];
+  const max = Math.max(0, ...lists.map((l) => l.length));
+  for (let r = 0; r < max; r++) for (const l of lists) if (l[r]) out.push(l[r]);
+  return dedupe(out);
 }
 
 export const PersonalizedRails = ({
@@ -224,30 +252,39 @@ export const PersonalizedRails = ({
     if (importing || pendingId) return;
     setPendingId(it.videoId);
     try {
+      if (sourceInterestId) {
+        try { sessionStorage.setItem(`feed:src:${it.videoId}`, JSON.stringify({ interest: sourceInterestId, lang: learningLanguage })); } catch {}
+      }
       await onWatch(it.videoId, it.title, it.thumbnail);
-      // Fire-and-forget: a failed signal write shouldn't block or error the
-      // actual watch action the learner is waiting on.
       if (sourceInterestId && user?.id) {
         setInterestWeights((w) => ({ ...w, [sourceInterestId]: (w[sourceInterestId] || 0) + 1 }));
-        void (supabase as any).rpc("record_interest_pick", {
-          _interest_id: sourceInterestId,
-          _language: learningLanguage.toLowerCase(),
-        });
+        void recordFeedEvent(sourceInterestId, learningLanguage, "open");
       }
     } finally { setPendingId(null); }
+  };
+
+  const [topInterest, ...otherInterests] = interestRailDefs;
+  const renderInterestRail = (i: (typeof interestRailDefs)[number], first = false) => {
+    const items = interestRails[i.id] || [];
+    if (items.length === 0) return null;
+    return (
+      <Rail
+        key={i.id}
+        title={first ? `${i.emoji} ${i.label} in ${langLabel}` : `${i.emoji} Because you like ${i.label}`}
+        subtitle={first ? "Short clips first — tap one and start saving words." : undefined}
+      >
+        {items.map((it) => (
+          <YTCard key={it.videoId} it={it} onPick={(x) => pick(x, i.id)} loading={pendingId === it.videoId} />
+        ))}
+      </Rail>
+    );
   };
 
   return (
     <div className="space-y-10">
       {loading && (
         <div className="flex items-center gap-2 text-muted-foreground text-sm">
-          <Loader2 className="w-4 h-4 animate-spin" /> Building recommendations in {langLabel}…
-        </div>
-      )}
-
-      {!loading && scoring && !searchFailed && (
-        <div className="flex items-center gap-2 text-muted-foreground text-sm">
-          <Loader2 className="w-4 h-4 animate-spin" /> Matching videos to what you already know…
+          <Loader2 className="w-4 h-4 animate-spin" /> Finding {topInterest ? topInterest.label.toLowerCase() : "videos"} in {langLabel}…
         </div>
       )}
 
@@ -259,10 +296,12 @@ export const PersonalizedRails = ({
         </div>
       )}
 
-      {!scoring && recommended.length > 0 && (
+      {topInterest && renderInterestRail(topInterest, true)}
+
+      {otherInterests.length > 0 && recommended.length > 0 && (
         <Rail
-          title={`🎯 Recommended for you in ${langLabel}`}
-          subtitle="Save new words as you watch, then review them — that's what turns a score green, not rewatching alone."
+          title={`🎯 Mixed for you in ${langLabel}`}
+          subtitle={scoring ? "Checking how much of each you'll understand…" : "Sorted by how much you'll understand."}
         >
           {recommended.map((it) => (
             <YTCard key={it.videoId} it={it} onPick={pick} loading={pendingId === it.videoId} />
@@ -270,17 +309,7 @@ export const PersonalizedRails = ({
         </Rail>
       )}
 
-      {!scoring && interestRailDefs.map((i) => {
-        const items = interestRails[i.id] || [];
-        if (items.length === 0) return null;
-        return (
-          <Rail key={i.id} title={`${i.emoji} Because you like ${i.label}`}>
-            {items.map((it) => (
-              <YTCard key={it.videoId} it={it} onPick={(x) => pick(x, i.id)} loading={pendingId === it.videoId} />
-            ))}
-          </Rail>
-        );
-      })}
+      {otherInterests.map((i) => renderInterestRail(i))}
 
       {trending.length > 0 && (
         <Rail title={`Trending in ${langLabel}`}>
