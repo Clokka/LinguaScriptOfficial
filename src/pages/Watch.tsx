@@ -27,6 +27,12 @@ import { useXp } from "@/contexts/XpContext";
 import { usePet } from "@/contexts/PetContext";
 import { recordDailyVideoWatch, setReinforcementPending } from "@/lib/dailyVideo";
 import { toast } from "sonner";
+import { recordFeedEvent, feedSourceFor } from "@/lib/feedSignals";
+
+// One signal per video per session, across re-renders.
+const feedHalfSent = new Set<string>();
+const feedDoneSent = new Set<string>();
+const feedSaveSent = new Set<string>();
 import {
   computeVideoComprehension,
   loadComprehensionRecord,
@@ -375,6 +381,16 @@ const Watch = () => {
   const historyIntervalRef = useRef<ReturnType<typeof setInterval>>();
 
   const [film, setFilm] = useState<FilmData | null>(null);
+  // Saving a word from a feed video is a strong "I like this" signal.
+  const noteFeedSave = () => {
+    if (!user || !film) return;
+    const src = feedSourceFor(getYouTubeId(film.url));
+    if (!src) return;
+    const key = `${film.id}:${src.interest}`;
+    if (feedSaveSent.has(key)) return;
+    feedSaveSent.add(key);
+    void recordFeedEvent(src.interest, src.lang, "save");
+  };
   const [loading, setLoading] = useState(true);
   const [currentTime, setCurrentTime] = useState(0);
   const [subtitleMode, setSubtitleMode] = useState<"single" | "dual">("dual");
@@ -721,6 +737,28 @@ const Watch = () => {
               const mins = Math.round((Date.now() - watchStartRef.current) / 60000);
               if (mins > 0) logWatchTime(mins);
               watchStartRef.current = null;
+            }
+            // Feed taste signals: watched past halfway / finished.
+            const src = user && film ? feedSourceFor(getYouTubeId(film.url)) : null;
+            if (src) {
+              try {
+                const p = playerRef.current;
+                const dur = p?.getDuration?.() || 0;
+                const pos = p?.getCurrentTime?.() || 0;
+                const key = `${film!.id}:${src.interest}`;
+                if (dur > 0 && pos / dur >= 0.5 && !feedHalfSent.has(key)) {
+                  feedHalfSent.add(key);
+                  void recordFeedEvent(src.interest, src.lang, "half");
+                }
+                if (event.data === window.YT.PlayerState.ENDED && !feedDoneSent.has(key)) {
+                  feedDoneSent.add(key);
+                  void recordFeedEvent(src.interest, src.lang, "complete");
+                  toast("Up next: more like this", {
+                    duration: 8000,
+                    action: { label: "Watch next", onClick: () => navigate("/discover") },
+                  });
+                }
+              } catch { /* noop */ }
             }
             if (event.data === window.YT.PlayerState.ENDED && !videoWatchAwardedRef.current) {
               videoWatchAwardedRef.current = true;
