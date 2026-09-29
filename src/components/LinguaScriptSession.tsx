@@ -3,6 +3,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { GapFillChallenge } from "@/components/GapFillChallenge";
 import { ActiveRecallReview } from "@/components/ActiveRecallReview";
 import { LinguaScriptCreation } from "@/components/LinguaScriptCreation";
+import { RecogniseStep } from "@/components/RecogniseStep";
+import { generateLinguaScriptFromWord } from "@/lib/linguascripts";
+import { DECK } from "@/lib/deck-colors";
 import { LineBlastOverlay } from "@/components/LineBlastOverlay";
 import { Loader2, ArrowRight } from "lucide-react";
 import { useLineBlast } from "@/hooks/useLineBlast";
@@ -32,7 +35,7 @@ interface Exercise {
  * aspirational.
  */
 interface SessionStage {
-  type: "gap-fill" | "active-recall" | "linguascript" | "complete";
+  type: "recognise" | "gap-fill" | "active-recall" | "linguascript" | "complete";
   exerciseIndex?: number;
 }
 
@@ -50,7 +53,10 @@ export function LinguaScriptSession({
   const [loading, setLoading] = useState(true);
   const [stageIndex, setStageIndex] = useState(0);
   const [sessionXp, setSessionXp] = useState(0);
-  const { learningLanguage } = useLanguage();
+  const { learningLanguage, nativeLanguage } = useLanguage() as any;
+  // Word meaning per saved word id, plus a pool of other meanings for options.
+  const [meanings, setMeanings] = useState<Record<string, string>>({});
+  const [meaningPool, setMeaningPool] = useState<string[]>([]);
 
   /**
    * The blast is for a LinguaScript's sentence turning fully green, never for
@@ -87,8 +93,28 @@ export function LinguaScriptSession({
           .in("id", exerciseIds);
 
         if (error) throw error;
+        const rows = (data || []) as any[];
+        const ids = rows.map((r) => r.saved_word_id).filter(Boolean);
+        if (user && learningLanguage) {
+          const [own, pool] = await Promise.all([
+            ids.length
+              ? supabase.from("saved_words").select("id, translation").in("id", ids)
+              : Promise.resolve({ data: [] as any[] }),
+            supabase
+              .from("saved_words")
+              .select("translation")
+              .eq("user_id", user.id)
+              .eq("language", learningLanguage)
+              .not("translation", "is", null)
+              .limit(60),
+          ]);
+          const m: Record<string, string> = {};
+          for (const r of (own.data || []) as any[]) if (r.translation) m[r.id] = r.translation;
+          setMeanings(m);
+          setMeaningPool(((pool.data || []) as any[]).map((r) => r.translation).filter(Boolean));
+        }
         setExercises(
-          ((data || []) as any[]).map((row) => ({
+          rows.map((row) => ({
             ...row,
             word_state: coerceDeckState(row.word_state),
           })) as Exercise[],
@@ -110,14 +136,17 @@ export function LinguaScriptSession({
     if (exercises.length === 0) return [];
 
     const stages: SessionStage[] = [];
-    exercises.forEach((_, i) => {
+    exercises.forEach((ex, i) => {
+      if (ex.saved_word_id && meanings[ex.saved_word_id]) {
+        stages.push({ type: "recognise", exerciseIndex: i });
+      }
       stages.push({ type: "gap-fill", exerciseIndex: i });
       stages.push({ type: "active-recall", exerciseIndex: i });
     });
     stages.push({ type: "linguascript" });
     stages.push({ type: "complete" });
     return stages;
-  }, [exercises]);
+  }, [exercises, meanings]);
 
   const stages = generateStages();
 
@@ -193,11 +222,33 @@ export function LinguaScriptSession({
           .update({ stage: next, scheduled_for: due.toISOString(), status: "started" } as any)
           .eq("id", exercise.id)
           .eq("user_id", user.id);
+
+        // Fresh context: once a word is on step 3+ (7 days out), swap its
+        // sentence so the next visit meets the word in a new line.
+        const meaning = exercise.saved_word_id ? meanings[exercise.saved_word_id] : undefined;
+        if (next >= 2 && meaning && learningLanguage) {
+          void generateLinguaScriptFromWord({
+            word: exercise.target_word,
+            translation: meaning,
+            interests: [],
+            cefLevel: "B1",
+            language: learningLanguage,
+            wordState: exercise.word_state,
+            nativeLanguage: nativeLanguage || "en",
+          }).then((fresh) => {
+            if (!fresh?.sentence || !fresh.sentence.toLowerCase().includes(exercise.target_word.toLowerCase())) return;
+            void supabase
+              .from("linguascripts")
+              .update({ sentence: fresh.sentence, translation: fresh.translation || exercise.translation } as any)
+              .eq("id", exercise.id)
+              .eq("user_id", user.id);
+          });
+        }
       }
 
       setStageIndex((prev) => prev + 1);
     },
-    [blast, checkSentences, user],
+    [blast, checkSentences, user, meanings, learningLanguage, nativeLanguage],
   );
 
   const handleLinguaScriptComplete = useCallback(
@@ -281,7 +332,7 @@ export function LinguaScriptSession({
       <div className="container mx-auto max-w-4xl mb-8">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h1 className="text-2xl font-black text-amber-400">LinguaScript Session</h1>
+            <h1 className="text-2xl font-black" style={{ color: DECK.green }}>LinguaScripts</h1>
             <p className="text-sm text-slate-400">
               {stageIndex + 1} of {stages.length - 1} stages
             </p>
@@ -295,8 +346,9 @@ export function LinguaScriptSession({
         {/* Progress Bar */}
         <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
           <div
-            className="h-full bg-gradient-to-r from-amber-400 to-emerald-400 transition-all duration-300"
+            className="h-full transition-all duration-300"
             style={{
+              background: DECK.green,
               width: `${((stageIndex + 1) / stages.length) * 100}%`,
             }}
           />
@@ -305,10 +357,29 @@ export function LinguaScriptSession({
 
       {/* Stage Content */}
       <div className="container mx-auto max-w-4xl">
+        {currentStage.type === "recognise" && currentExercise && (
+          <div>
+            <p className="text-sm text-muted-foreground mb-4">
+              Word {wordNumber} of {exercises.length} — Listen
+            </p>
+            <RecogniseStep
+              key={currentExercise.id}
+              word={currentExercise.target_word}
+              meaning={meanings[currentExercise.saved_word_id!]}
+              distractors={meaningPool}
+              language={learningLanguage}
+              onComplete={(ok) => {
+                if (ok) setSessionXp((p) => p + 5);
+                setStageIndex((p) => p + 1);
+              }}
+            />
+          </div>
+        )}
+
         {currentStage.type === "gap-fill" && currentExercise && (
           <div>
             <p className="text-sm text-slate-400 mb-4">
-              Word {wordNumber} of {exercises.length} — Recognise
+              Word {wordNumber} of {exercises.length} — Fill the gap
             </p>
             {/*
               gapIndex and distractors are still the pre-existing bugs: this
@@ -321,7 +392,14 @@ export function LinguaScriptSession({
             */}
             <GapFillChallenge
               words={currentExercise.sentence.split(/\s+/)}
-              gapIndex={0}
+              gapIndex={Math.max(
+                0,
+                currentExercise.sentence
+                  .split(/\s+/)
+                  .findIndex((w) =>
+                    w.toLowerCase().replace(/[.,!?;:«»"'¿¡]/g, "").includes(currentExercise.target_word.toLowerCase()),
+                  ),
+              )}
               distractors={[
                 exercises[(currentStage.exerciseIndex! + 1) % exercises.length]?.target_word ??
                   "test",
@@ -372,7 +450,7 @@ export function LinguaScriptSession({
               <p className="text-slate-400">Session Complete!</p>
             </div>
             <p className="text-slate-300 mb-6">
-              Great work! You completed all 3 methods for {exercises.length} words.
+              Great work! You listened, filled gaps and recalled for {exercises.length} words.
             </p>
             <button
               onClick={handleSessionComplete}
