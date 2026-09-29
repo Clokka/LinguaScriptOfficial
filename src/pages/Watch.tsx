@@ -27,6 +27,12 @@ import { useXp } from "@/contexts/XpContext";
 import { usePet } from "@/contexts/PetContext";
 import { recordDailyVideoWatch, setReinforcementPending } from "@/lib/dailyVideo";
 import { toast } from "sonner";
+import { recordFeedEvent, feedSourceFor } from "@/lib/feedSignals";
+
+// One signal per video per session, across re-renders.
+const feedHalfSent = new Set<string>();
+const feedDoneSent = new Set<string>();
+const feedSaveSent = new Set<string>();
 import {
   computeVideoComprehension,
   loadComprehensionRecord,
