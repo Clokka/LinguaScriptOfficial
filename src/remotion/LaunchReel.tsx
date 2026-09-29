@@ -2,6 +2,7 @@ import {
   AbsoluteFill,
   Sequence,
   Audio,
+  Img,
   OffthreadVideo,
   staticFile,
   interpolate,
@@ -27,13 +28,16 @@ import { DECK } from "@/lib/deck-colors";
  * Japanese cut just by swapping the on-screen sentence and platform names —
  * see Root.tsx for the three registered compositions.
  *
- * Platform badges are plain text wordmarks, deliberately NOT the real
- * Netflix/Crunchyroll/etc. logo artwork — this product has no affiliation
- * or license with those platforms, and reproducing their exact marks in a
- * promotional video risks implied-endorsement/trademark trouble. Same
- * reasoning for video content: DeviceMockup can render a real clip via
- * `videoSrc` (a local file in public/, e.g. "video/fr-hero.mp4"), but no
- * clip is wired in — dropping in real footage is a rights decision for
+ * Platform badges: Netflix and Crunchyroll use their real logo marks
+ * (public/brand-logos/*.png, background chroma-keyed out) purely
+ * referentially — "this runs on top of Netflix" — the same way any browser
+ * extension's marketing shows the sites it works with, not to imply a
+ * partnership with either company. YouTube has no logo file supplied yet,
+ * so it still falls back to a plain text wordmark (see LangContent.logo).
+ * Video content is a separate, higher-risk decision: DeviceMockup can render
+ * a real clip via `videoSrc` (a local file in public/, e.g.
+ * "video/fr-hero.mp4"), but no clip is wired in — dropping in real footage
+ * (especially a copyrighted film/show clip) is a rights decision for
  * whoever owns that footage, not something to source here.
  *
  * Narration: each scene accepts an optional `audioSrc`. Files are generated
@@ -79,8 +83,11 @@ export type Lang = "fr" | "es" | "ja";
 
 interface LangContent {
   label: string;
-  /** Two platforms shown in scene 3 — text wordmarks only, see file header. */
-  platforms: { name: string; videoSrc?: string }[];
+  /** Two platforms shown in scene 3. `logo` is an actual brand mark (a real
+   *  logo file under public/brand-logos/) used referentially — "this runs on
+   *  Netflix" — not to imply any partnership; falls back to a plain text
+   *  wordmark when no logo file is set. See file header. */
+  platforms: { name: string; logo?: string; videoSrc?: string }[];
   /** The running example sentence, tokenized for word-by-word colour/highlight. */
   sentence: string[];
   /** Index into `sentence` that's clicked/saved/reviewed in scenes 4–6. */
@@ -97,7 +104,7 @@ interface LangContent {
 const CONTENT: Record<Lang, LangContent> = {
   fr: {
     label: "French",
-    platforms: [{ name: "Netflix" }, { name: "YouTube" }],
+    platforms: [{ name: "Netflix", logo: "brand-logos/netflix.png" }, { name: "YouTube" }],
     sentence: ["Je", "n'ai", "aucune", "idée,", "mais", "je", "comprends."],
     wordIndex: 3,
     word: "idée",
@@ -110,7 +117,7 @@ const CONTENT: Record<Lang, LangContent> = {
   },
   es: {
     label: "Spanish",
-    platforms: [{ name: "Netflix" }, { name: "YouTube" }],
+    platforms: [{ name: "Netflix", logo: "brand-logos/netflix.png" }, { name: "YouTube" }],
     sentence: ["No", "tengo", "ni", "idea,", "pero", "entiendo."],
     wordIndex: 3,
     word: "idea",
@@ -123,9 +130,8 @@ const CONTENT: Record<Lang, LangContent> = {
   },
   ja: {
     label: "Japanese",
-    // Crunchyroll named per the demographic ask, in place of TikTok — text
-    // wordmark only, see file header on why not the real logo mark.
-    platforms: [{ name: "Crunchyroll" }, { name: "YouTube" }],
+    // Crunchyroll named per the demographic ask, in place of TikTok.
+    platforms: [{ name: "Crunchyroll", logo: "brand-logos/crunchyroll.png" }, { name: "YouTube" }],
     // Japanese doesn't space-segment naturally; these two chunks are a
     // deliberate simplification for a word-by-word highlight animation, not
     // a linguistically precise tokenization.
@@ -353,12 +359,14 @@ const SceneIntro = () => {
 // ---- Scene 3: platform quick-cut ----
 const SceneName = ({
   label,
+  logo,
   from,
   dur,
   frame,
   videoSrc,
 }: {
   label: string;
+  logo?: string;
   from: number;
   dur: number;
   frame: number;
@@ -381,19 +389,26 @@ const SceneName = ({
       }}
     >
       <DeviceMockup videoSrc={videoSrc}>
-        <div
-          style={{
-            position: "absolute",
-            top: 16,
-            left: 20,
-            fontSize: 20,
-            fontWeight: 800,
-            letterSpacing: "-0.01em",
-            color: "rgba(255,255,255,.72)",
-          }}
-        >
-          {label}
-        </div>
+        {logo ? (
+          <Img
+            src={staticFile(logo)}
+            style={{ position: "absolute", top: 16, left: 20, height: 44, width: "auto" }}
+          />
+        ) : (
+          <div
+            style={{
+              position: "absolute",
+              top: 16,
+              left: 20,
+              fontSize: 20,
+              fontWeight: 800,
+              letterSpacing: "-0.01em",
+              color: "rgba(255,255,255,.72)",
+            }}
+          >
+            {label}
+          </div>
+        )}
         <div
           style={{
             position: "absolute",
@@ -432,6 +447,7 @@ const ScenePlatforms = ({ content }: { content: LangContent }) => {
         <SceneName
           key={p.name}
           label={p.name}
+          logo={p.logo}
           from={i * each}
           dur={i === platforms.length - 1 ? SCENES.platforms.dur - each * i : each}
           frame={frame}
