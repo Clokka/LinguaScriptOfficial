@@ -722,6 +722,28 @@ const Watch = () => {
               if (mins > 0) logWatchTime(mins);
               watchStartRef.current = null;
             }
+            // Feed taste signals: watched past halfway / finished.
+            const src = user && film ? feedSourceFor(getYouTubeId(film.url)) : null;
+            if (src) {
+              try {
+                const p = playerRef.current;
+                const dur = p?.getDuration?.() || 0;
+                const pos = p?.getCurrentTime?.() || 0;
+                const key = `${film!.id}:${src.interest}`;
+                if (dur > 0 && pos / dur >= 0.5 && !feedHalfSent.has(key)) {
+                  feedHalfSent.add(key);
+                  void recordFeedEvent(src.interest, src.lang, "half");
+                }
+                if (event.data === window.YT.PlayerState.ENDED && !feedDoneSent.has(key)) {
+                  feedDoneSent.add(key);
+                  void recordFeedEvent(src.interest, src.lang, "complete");
+                  toast("Up next: more like this", {
+                    duration: 8000,
+                    action: { label: "Watch next", onClick: () => navigate("/discover") },
+                  });
+                }
+              } catch { /* noop */ }
+            }
             if (event.data === window.YT.PlayerState.ENDED && !videoWatchAwardedRef.current) {
               videoWatchAwardedRef.current = true;
               award("video_watch", { videoId: film?.id });
