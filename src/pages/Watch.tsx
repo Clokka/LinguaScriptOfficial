@@ -27,6 +27,12 @@ import { useXp } from "@/contexts/XpContext";
 import { usePet } from "@/contexts/PetContext";
 import { recordDailyVideoWatch, setReinforcementPending } from "@/lib/dailyVideo";
 import { toast } from "sonner";
+import { recordFeedEvent, feedSourceFor } from "@/lib/feedSignals";
+
+// One signal per video per session, across re-renders.
+const feedHalfSent = new Set<string>();
+const feedDoneSent = new Set<string>();
+const feedSaveSent = new Set<string>();
 import {
   computeVideoComprehension,
   loadComprehensionRecord,
@@ -375,6 +381,16 @@ const Watch = () => {
   const historyIntervalRef = useRef<ReturnType<typeof setInterval>>();
 
   const [film, setFilm] = useState<FilmData | null>(null);
+  // Saving a word from a feed video is a strong "I like this" signal.
+  const noteFeedSave = () => {
+    if (!user || !film) return;
+    const src = feedSourceFor(getYouTubeId(film.url));
+    if (!src) return;
+    const key = `${film.id}:${src.interest}`;
+    if (feedSaveSent.has(key)) return;
+    feedSaveSent.add(key);
+    void recordFeedEvent(src.interest, src.lang, "save");
+  };
   const [loading, setLoading] = useState(true);
   const [currentTime, setCurrentTime] = useState(0);
   const [subtitleMode, setSubtitleMode] = useState<"single" | "dual">("dual");
@@ -721,6 +737,28 @@ const Watch = () => {
               const mins = Math.round((Date.now() - watchStartRef.current) / 60000);
               if (mins > 0) logWatchTime(mins);
               watchStartRef.current = null;
+            }
+            // Feed taste signals: watched past halfway / finished.
+            const src = user && film ? feedSourceFor(getYouTubeId(film.url)) : null;
+            if (src) {
+              try {
+                const p = playerRef.current;
+                const dur = p?.getDuration?.() || 0;
+                const pos = p?.getCurrentTime?.() || 0;
+                const key = `${film!.id}:${src.interest}`;
+                if (dur > 0 && pos / dur >= 0.5 && !feedHalfSent.has(key)) {
+                  feedHalfSent.add(key);
+                  void recordFeedEvent(src.interest, src.lang, "half");
+                }
+                if (event.data === window.YT.PlayerState.ENDED && !feedDoneSent.has(key)) {
+                  feedDoneSent.add(key);
+                  void recordFeedEvent(src.interest, src.lang, "complete");
+                  toast("Up next: more like this", {
+                    duration: 8000,
+                    action: { label: "Watch next", onClick: () => navigate("/discover") },
+                  });
+                }
+              } catch { /* noop */ }
             }
             if (event.data === window.YT.PlayerState.ENDED && !videoWatchAwardedRef.current) {
               videoWatchAwardedRef.current = true;
@@ -1226,8 +1264,11 @@ const Watch = () => {
     );
   }
 
-  // ── MOBILE LAYOUT (<768px) — desktop layout below is untouched ──
-  if (isMobile && !isFullscreen) {
+  // ── MOBILE LAYOUT (<768px, or a phone turned sideways) — desktop layout below is untouched ──
+  const isPhoneLandscape =
+    isLandscape && typeof window !== "undefined" &&
+    window.matchMedia("(pointer: coarse)").matches && window.innerHeight < 540;
+  if ((isMobile || isPhoneLandscape) && !isFullscreen) {
     const header = (
       <div className="flex items-center gap-2 p-2 bg-black/80 backdrop-blur z-20">
         <Button data-tour="page-back" variant="ghost" size="icon" onClick={() => navigate("/discover")} className="text-white hover:bg-white/10 shrink-0 h-9 w-9">
@@ -1338,34 +1379,42 @@ const Watch = () => {
       </div>
     );
 
-    if (isLandscape) {
-      return (
-        <div className="min-h-screen bg-black flex flex-col">
-          {isLandscape && !landscapeBannerDismissed && (
-            <div className="flex items-center justify-between gap-2 px-3 py-1.5 bg-orange-500 text-white text-xs">
-              <span>📱 Rotate to portrait for a better experience!</span>
-              <button onClick={() => setLandscapeBannerDismissed(true)} aria-label="Dismiss" className="p-1 hover:bg-white/20 rounded">
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          )}
-          {header}
-          <div className="flex-1 flex flex-row gap-2 p-2 overflow-hidden">
-            <div className="flex-[7] min-w-0 flex items-center">{videoBlock}</div>
-            <div className="flex-[3] min-w-0 overflow-y-auto">{subtitleBlock}</div>
-          </div>
-          {pcNudge}
-        </div>
-      );
-    }
-
+    // One stable tree for portrait AND landscape: rotating the phone must
+    // never unmount the YouTube player (that was killing playback sideways).
     return (
-      <div className="min-h-screen bg-black flex flex-col">
-        {header}
-        <div className="flex flex-col w-full">
-          {videoBlock}
-          {subtitleBlock}
-          {pcNudge}
+      <div className={cn("bg-black flex flex-col", isLandscape ? "h-[100dvh] overflow-hidden" : "min-h-screen")}>
+        {!isLandscape && header}
+        <div className={cn("flex w-full", isLandscape ? "flex-1 flex-row min-h-0" : "flex-col")}>
+          <div
+            className={cn("min-w-0 flex items-center justify-center bg-black", isLandscape && "flex-[7] h-full")}
+            style={isLandscape ? { ["--ls-h" as any]: "100dvh" } : undefined}
+          >
+            <div className={cn("w-full", isLandscape && "h-full flex items-center justify-center")}>
+              {videoBlock}
+            </div>
+          </div>
+          <div className={cn("min-w-0", isLandscape && "flex-[3] h-full overflow-y-auto flex flex-col")}>
+            {isLandscape && (
+              <div className="flex items-center gap-1 p-1 shrink-0">
+                <Button variant="ghost" size="icon" onClick={() => navigate("/discover")} className="text-white hover:bg-white/10 h-8 w-8" aria-label="Back">
+                  <ArrowLeft className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant={subtitleMode === "dual" ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setSubtitleMode(subtitleMode === "dual" ? "single" : "dual")}
+                  className={cn("h-7 px-2 text-[11px] ml-auto", subtitleMode !== "dual" && "text-white hover:bg-white/10")}
+                >
+                  {subtitleMode === "dual" ? "Dual: ON" : "Dual: OFF"}
+                </Button>
+                <Button variant="ghost" size="icon" onClick={toggleFullscreen} className="text-white hover:bg-white/10 h-8 w-8" aria-label="Fullscreen">
+                  {cssFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
+                </Button>
+              </div>
+            )}
+            {subtitleBlock}
+            {!isLandscape && pcNudge}
+          </div>
         </div>
       </div>
     );
