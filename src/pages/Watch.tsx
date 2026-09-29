@@ -1226,8 +1226,11 @@ const Watch = () => {
     );
   }
 
-  // ── MOBILE LAYOUT (<768px) — desktop layout below is untouched ──
-  if (isMobile && !isFullscreen) {
+  // ── MOBILE LAYOUT (<768px, or a phone turned sideways) — desktop layout below is untouched ──
+  const isPhoneLandscape =
+    isLandscape && typeof window !== "undefined" &&
+    window.matchMedia("(pointer: coarse)").matches && window.innerHeight < 540;
+  if ((isMobile || isPhoneLandscape) && !isFullscreen) {
     const header = (
       <div className="flex items-center gap-2 p-2 bg-black/80 backdrop-blur z-20">
         <Button data-tour="page-back" variant="ghost" size="icon" onClick={() => navigate("/discover")} className="text-white hover:bg-white/10 shrink-0 h-9 w-9">
