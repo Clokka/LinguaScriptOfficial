@@ -104,7 +104,10 @@ interface LangContent {
 const CONTENT: Record<Lang, LangContent> = {
   fr: {
     label: "French",
-    platforms: [{ name: "Netflix", logo: "brand-logos/netflix.png" }, { name: "YouTube" }],
+    platforms: [
+      { name: "Netflix", logo: "brand-logos/netflix.png" },
+      { name: "YouTube", logo: "brand-logos/youtube.png" },
+    ],
     sentence: ["Je", "n'ai", "aucune", "idée,", "mais", "je", "comprends."],
     wordIndex: 3,
     word: "idée",
@@ -117,7 +120,10 @@ const CONTENT: Record<Lang, LangContent> = {
   },
   es: {
     label: "Spanish",
-    platforms: [{ name: "Netflix", logo: "brand-logos/netflix.png" }, { name: "YouTube" }],
+    platforms: [
+      { name: "Netflix", logo: "brand-logos/netflix.png" },
+      { name: "YouTube", logo: "brand-logos/youtube.png" },
+    ],
     sentence: ["No", "tengo", "ni", "idea,", "pero", "entiendo."],
     wordIndex: 3,
     word: "idea",
@@ -130,8 +136,15 @@ const CONTENT: Record<Lang, LangContent> = {
   },
   ja: {
     label: "Japanese",
-    // Crunchyroll named per the demographic ask, in place of TikTok.
-    platforms: [{ name: "Crunchyroll", logo: "brand-logos/crunchyroll.png" }, { name: "YouTube" }],
+    // Netflix + YouTube everywhere, not Crunchyroll — the actual extension
+    // (extension/adapters/) only has adapters for these two; Crunchyroll was
+    // considered for this demographic but isn't a real supported platform,
+    // so showing it here would be a false product claim, not just a
+    // trademark question.
+    platforms: [
+      { name: "Netflix", logo: "brand-logos/netflix.png" },
+      { name: "YouTube", logo: "brand-logos/youtube.png" },
+    ],
     // Japanese doesn't space-segment naturally; these two chunks are a
     // deliberate simplification for a word-by-word highlight animation, not
     // a linguistically precise tokenization.
