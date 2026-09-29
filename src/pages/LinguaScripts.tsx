@@ -6,6 +6,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { ArrowLeft, ArrowRight, Check, Loader2 } from "lucide-react";
 import { LinguaScriptSession } from "@/components/LinguaScriptSession";
 import { useDailyWordGoal } from "@/hooks/useDailyWordGoal";
+import { headlineBand, loadFrequencyCoverage } from "@/lib/frequencyCoverage";
 import { DECK } from "@/lib/deck-colors";
 import { getLanguageLabel } from "@/lib/languages";
 
@@ -67,7 +68,7 @@ export default function LinguaScripts() {
           .eq("user_id", user.id)
           .eq("language", learningLanguage)
           .limit(20000),
-        supabase.rpc("frequency_coverage" as any, { _language: learningLanguage }),
+        loadFrequencyCoverage(learningLanguage),
       ]);
 
       const rows = (all.data || []) as Row[];
@@ -80,8 +81,7 @@ export default function LinguaScripts() {
         if (w.state in d) (d as any)[w.state]++;
       }
 
-      const covRow: any = Array.isArray(cov.data) ? cov.data[0] : cov.data;
-      const currentBand: number | null = covRow?.band ?? null;
+      const currentBand = headlineBand(cov)?.band ?? null;
 
       // Due now, current frequency milestone first, then most common first.
       const due = rows
