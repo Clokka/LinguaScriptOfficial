@@ -156,94 +156,69 @@ export const PersonalizedRails = ({
     const load = async () => {
       setLoading(true);
       setScoring(true);
-
-      // Base tier: CEFR level decides WHAT to search for (candidate
-      // generation); real comprehension scoring below then picks the BEST
-      // specific videos from those candidates. Cache key includes it so a
-      // level-up doesn't serve yesterday's difficulty-tier results.
       const cefrMod = cefrSearchModifier(cefrLevel);
       const cefrKey = cefrLevel || "any";
+      const lang = learningLanguage;
 
-      // Top-level rec rail uses a broad blend of selected interests so it feels
-      // like a personalised homepage rather than a single-topic feed.
-      const blendQuery = selectedInterests.slice(0, 3).map((i) => i.query).join(" OR ");
-      const blendKey = selectedInterests.slice(0, 3).map((i) => i.id).join("+") || "default";
-
-      const [recR, trR, bgR, ...perInterestR] = await Promise.all([
-        cachedSearch(
-          `rails:rec:${learningLanguage}:${blendKey}:${cefrKey}`,
-          `${langLabel} ${blendQuery}${cefrMod ? ` ${cefrMod}` : ""}`,
-          learningLanguage,
-        ),
-        cachedSearch(
-          `rails:trending:${learningLanguage}`,
-          `${langLabel} trending 2026`,
-          learningLanguage,
-        ),
-        cachedSearch(
-          `rails:beginner:${learningLanguage}`,
-          `${langLabel} for beginners slow easy`,
-          learningLanguage,
-        ),
-        ...interestRailDefs.map((i) =>
-          cachedSearch(
-            `rails:interest:${learningLanguage}:${i.id}:${cefrKey}`,
-            `${langLabel} ${i.query}${cefrMod ? ` ${cefrMod}` : ""}`,
-            learningLanguage,
+      // Favourite interest gets 2 search phrases, others 1 — keeps quota sane.
+      const interestSearches = interestRailDefs.map((i, idx) => {
+        const qs = interestQueries(i, lang, langLabel).slice(0, idx === 0 ? 2 : 1);
+        return Promise.all(
+          qs.map((q, qi) =>
+            cachedSearch(`rails:i2:${lang}:${i.id}:${qi}:${cefrKey}`, `${q}${cefrMod ? ` ${cefrMod}` : ""}`, lang),
           ),
-        ),
-      ]);
-      if (cancelled) return;
-      const rec = recR.items;
-      const tr = trR.items;
-      const bg = bgR.items;
-      const perInterest = perInterestR.map((r) => r.items);
-      // If every search failed, that's a YouTube outage/quota problem, not
-      // "no good videos" — say so instead of rendering blank rails.
-      setSearchFailed(
-        recR.failed && trR.failed && bgR.failed && perInterestR.every((r) => r.failed),
-      );
-      // Trending/beginner stay on the fast metadata-only path — they're
-      // generic categories, not matched to this learner's own vocabulary.
-      setTrending(tr.slice(0, 12));
-      setBeginner(
-        bg.filter((x) => x.difficulty === "beginner").slice(0, 12).length > 0
-          ? bg.filter((x) => x.difficulty === "beginner").slice(0, 12)
-          : bg.slice(0, 12),
-      );
-      setLoading(false);
+        ).then((rs) => ({
+          items: dedupe(rs.flatMap((r) => r.items)),
+          failed: rs.every((r) => r.failed),
+        }));
+      });
 
-      // Recommended + per-interest rails are the actual personalized surface:
-      // score each candidate's real captions against the learner's saved-word
-      // deck and keep only the ones near the 95–98%-known "ideal" band,
-      // ranked by closeness to it. This is the whole point — a title-keyword
-      // guess can't know what THIS learner already knows.
-      const nativeLang = nativeLanguage || "en";
-      const [rankedRec, ...rankedInterests] = await Promise.all([
-        rankByComprehension(rec, learningLanguage, nativeLang, user?.id ?? null),
-        ...interestRailDefs.map((_, idx) =>
-          rankByComprehension(perInterest[idx] || [], learningLanguage, nativeLang, user?.id ?? null),
-        ),
+      const [trR, bgR, ...perInterestR] = await Promise.all([
+        cachedSearch(`rails:trending:${lang}`, `${langLabel} trending 2026`, lang),
+        cachedSearch(`rails:beginner:${lang}`, `${langLabel} for beginners slow easy`, lang),
+        ...interestSearches,
       ]);
       if (cancelled) return;
-      // Caption scoring can come back empty (captions blocked, fetch failed).
-      // Falling back to the metadata-ranked candidates without a comprehension
-      // badge is far better than an empty rail.
-      const withScores = (ranked: typeof rankedRec, raw: YTItem[]) =>
-        ranked.length > 0
-          ? ranked.slice(0, 12).map((r) => ({ ...r.item, comprehensionPct: r.comprehensionPct, zone: r.zone }))
-          : raw.slice(0, 12);
-      setRecommended(withScores(rankedRec, rec));
+      setSearchFailed(trR.failed && bgR.failed && perInterestR.every((r) => r.failed));
+
+      // Show everything immediately (short clips first); scores fill in later.
       const perMap: Record<string, YTItem[]> = {};
       interestRailDefs.forEach((i, idx) => {
-        perMap[i.id] = withScores(rankedInterests[idx], perInterest[idx] || []);
+        perMap[i.id] = sortFeed(perInterestR[idx]?.items || []).slice(0, 12);
       });
       setInterestRails(perMap);
+      setRecommended(roundRobin(interestRailDefs.map((i) => perMap[i.id] || [])).slice(0, 12));
+      setTrending(trR.items.slice(0, 12));
+      const bgEasy = bgR.items.filter((x) => x.difficulty === "beginner");
+      setBeginner((bgEasy.length ? bgEasy : bgR.items).slice(0, 12));
+      setLoading(false);
+
+      // Background: score captions against the learner's words, then
+      // re-sort (never filter) and attach the understanding badge.
+      const nativeLang = nativeLanguage || "en";
+      const ranked = await Promise.all(
+        interestRailDefs.map((i) =>
+          rankByComprehension(perMap[i.id] || [], lang, nativeLang, user?.id ?? null).catch(() => []),
+        ),
+      );
+      if (cancelled) return;
+      const scored: Record<string, YTItem[]> = {};
+      interestRailDefs.forEach((i, idx) => {
+        const byId = new Map(ranked[idx].map((r) => [r.item.videoId, r]));
+        scored[i.id] = sortFeed(
+          (perMap[i.id] || []).map((it) => {
+            const r = byId.get(it.videoId);
+            return r ? { ...it, comprehensionPct: r.comprehensionPct, zone: r.zone } : it;
+          }),
+        );
+      });
+      setInterestRails(scored);
+      setRecommended(roundRobin(interestRailDefs.map((i) => scored[i.id] || [])).slice(0, 12));
       setScoring(false);
     };
     void load();
     return () => { cancelled = true; };
-  }, [user?.id, learningLanguage, nativeLanguage, langLabel, interestRailDefs, selectedInterests, cefrLevel]);
+  }, [user?.id, learningLanguage, nativeLanguage, langLabel, interestRailDefs, cefrLevel]);
 
   const pick = async (it: YTItem, sourceInterestId?: string) => {
     if (importing || pendingId) return;
