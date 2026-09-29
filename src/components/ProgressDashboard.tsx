@@ -16,6 +16,8 @@ import {
   type ActivityDayLite,
 } from "@/lib/progressStats";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { FrequencyCoverageCard } from "./FrequencyCoverageCard";
 
 const AnimatedNumber = ({ value, suffix = "" }: { value: number; suffix?: string }) => {
   const [display, setDisplay] = useState(0);
@@ -87,6 +89,7 @@ interface ProgressDashboardProps {
 
 export const ProgressDashboard = ({ variant = "light" }: ProgressDashboardProps) => {
   const { user } = useAuth();
+  const { learningLanguage } = useLanguage();
   const streak = useStreakStatus();
 
   const [words, setWords] = useState<SavedWordLite[]>([]);
@@ -240,6 +243,8 @@ export const ProgressDashboard = ({ variant = "light" }: ProgressDashboardProps)
           </div>
         </div>
       </motion.div>
+
+      {learningLanguage && <FrequencyCoverageCard language={learningLanguage} />}
 
       {/* Top stat grid */}
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
