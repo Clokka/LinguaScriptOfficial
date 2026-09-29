@@ -230,11 +230,19 @@ const CAPTION_SCENES: { id: string; from: number; dur: number }[] = [
   { id: "scene8", from: SCENES.outro.from, dur: SCENES.outro.dur },
 ];
 const CAPTION_FADE = 8;
+const CAPTION_WORD_RAMP = 14;
 
-/** The video's own dual-subtitle bar — native line (deck green, word-split)
- *  over a dimmed English translation, the same stacked treatment the real
- *  product uses for dual subtitles. Lives at the LaunchReel level (not
- *  inside a scene's <Sequence>) so one component covers the whole timeline. */
+/** The video's own dual-subtitle bar — native line over a dimmed English
+ *  translation, the same stacked treatment the real product uses for dual
+ *  subtitles. Lives at the LaunchReel level (not inside a scene's
+ *  <Sequence>) so one component covers the whole timeline.
+ *
+ *  Word colour follows the actual deck mechanic, not a flat "already known"
+ *  green: every word starts red (a brand-new word always starts red — see
+ *  Watch.tsx's onSave), ambers through orange, and settles green as you
+ *  read it, staggered across the line the same way Scene 7 dramatizes the
+ *  comprehension shift. Skipping straight to green would misrepresent the
+ *  one mechanic this whole product is built around. */
 const DualCaptionBar = ({ lang }: { lang: Lang }) => {
   const frame = useCurrentFrame();
   const active = CAPTION_SCENES.find((s) => frame >= s.from && frame < s.from + s.dur);
@@ -250,6 +258,12 @@ const DualCaptionBar = ({ lang }: { lang: Lang }) => {
     { extrapolateLeft: "clamp", extrapolateRight: "clamp" },
   );
   const rise = interpolate(local, [0, CAPTION_FADE], [10, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+
+  const words = line.native.split(/\s+/);
+  // Stagger the whole reveal across most of the scene, but always leave the
+  // last third or so resting fully green — long enough to actually read it.
+  const revealSpan = Math.max(24, active.dur * 0.6 - CAPTION_FADE);
+  const stagger = words.length > 1 ? revealSpan / (words.length - 1) : 0;
 
   return (
     <div
@@ -276,11 +290,19 @@ const DualCaptionBar = ({ lang }: { lang: Lang }) => {
         }}
       >
         <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "0 10px", fontSize: 26, fontWeight: 800 }}>
-          {line.native.split(/\s+/).map((w, i) => (
-            <span key={i} style={{ color: DECK.green }}>
-              {w}
-            </span>
-          ))}
+          {words.map((w, i) => {
+            const start = CAPTION_FADE + i * stagger;
+            const colour = interpolateColors(
+              local,
+              [start, start + CAPTION_WORD_RAMP / 2, start + CAPTION_WORD_RAMP],
+              [DECK.red, DECK.orange, DECK.green],
+            );
+            return (
+              <span key={i} style={{ color: colour }}>
+                {w}
+              </span>
+            );
+          })}
         </div>
         <div style={{ marginTop: 6, fontSize: 17, fontStyle: "italic", color: "rgba(255,255,255,.5)" }}>
           {line.en}
