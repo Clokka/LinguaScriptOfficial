@@ -1,3 +1,4 @@
+import { getNativeLanguage, overlayNative } from "@/lib/nativeGloss";
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { GapFillChallenge } from "@/components/GapFillChallenge";
@@ -76,7 +77,8 @@ interface LinguaScriptSessionProps {
 
 export function LinguaScriptSession({ exerciseIds, onSessionComplete }: LinguaScriptSessionProps) {
   const { user } = useAuth();
-  const { learningLanguage, nativeLanguage } = useLanguage() as any;
+  const { learningLanguage } = useLanguage() as any;
+  const [nativeLanguage, setNativeLanguage] = useState("en");
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [loading, setLoading] = useState(true);
   const [steps, setSteps] = useState<Step[]>([]);
@@ -139,7 +141,9 @@ export function LinguaScriptSession({ exerciseIds, onSessionComplete }: LinguaSc
           }
           setMeaningPool(((pool.data || []) as any[]).map((r) => r.translation).filter(Boolean));
           if (lp.data) setProfile({ level: (lp.data as any).cefr_level || "a2", interests: (lp.data as any).interests || [] });
-          const vb = await loadVocabBand(learningLanguage, maxRank);
+          const native = await getNativeLanguage(user.id);
+          setNativeLanguage(native);
+          const vb = await overlayNative(await loadVocabBand(learningLanguage, maxRank), learningLanguage, native);
           setBand(vb);
           // Every word gets a meaning so the listening round always runs.
           const missing = rows.filter((r) => !(r.saved_word_id && m[r.saved_word_id]));

@@ -80,6 +80,11 @@ export async function gradePreTeachVocab(opts: {
       .in("word", chunk);
     if (data) vocab.push(...data);
   }
+  {
+    const native = await getNativeLanguage(opts.userId);
+    const over = await overlayNative(vocab, lang, native);
+    vocab.splice(0, vocab.length, ...over);
+  }
 
   // Drop words the learner already knows (green).
   let known = new Set<string>();

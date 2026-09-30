@@ -46,6 +46,9 @@ serve(async (req: Request) => {
       throw new Error("LOVABLE_API_KEY not configured");
     }
 
+    const NAMES: Record<string, string> = { en: "English", hi: "Hindi", fr: "French", es: "Spanish", de: "German", it: "Italian", pt: "Portuguese", ja: "Japanese", ko: "Korean", zh: "Chinese", ar: "Arabic", ru: "Russian", th: "Thai" };
+    const nativeName = NAMES[(nativeLanguage || "en").toLowerCase()] || nativeLanguage || "English";
+    const targetName = NAMES[language.toLowerCase()] || language;
     const interestsList = (interests || []).join(", ") || "general topics";
     // The structure is a hard constraint, not a hint: the point of pairing a
     // frequent word with a graded pattern is that the learner meets the same
@@ -58,7 +61,7 @@ ${pattern.example ? `Example of this structure: ${pattern.example}` : ""}
 `
       : "";
 
-    const userPrompt = `Generate a contextual sentence in ${language} for language learners.
+    const userPrompt = `Generate a contextual sentence in ${targetName} for a learner whose first language is ${nativeName}.
 
 Word: "${word}" (means: "${translation}")
 User interests: ${interestsList}
@@ -69,8 +72,8 @@ Create one natural, self-contained sentence using "${word}" exactly as written.
 Rules: 5-10 words; vocabulary a ${cefLevel} learner already knows apart from "${word}"; no character or person names; no fragments; the sentence must make the meaning of "${word}" guessable from context. If "${word}" belongs to a fixed pair or chunk (e.g. French "ne ... pas", "il y a"), use the full chunk.
 Return ONLY valid JSON:
 {
-  "sentence": "sentence in ${language}",
-  "englishTranslation": "English translation"
+  "sentence": "sentence in ${targetName}",
+  "nativeTranslation": "natural ${nativeName} translation of the sentence"
 }`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -102,6 +105,7 @@ Return ONLY valid JSON:
     content = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
 
     const parsed = JSON.parse(content);
+    parsed.englishTranslation = parsed.nativeTranslation; // backwards compat
     return new Response(JSON.stringify(parsed), {
       headers: { "Content-Type": "application/json" },
       status: 200,
