@@ -65,7 +65,9 @@ User interests: ${interestsList}
 CEFR Level: ${cefLevel}
 Word state: ${wordState} (${wordState === "green" ? "review" : wordState === "orange" ? "reinforcement" : "new"})
 ${patternBlock}
-Create one natural sentence using "${word}". Return ONLY valid JSON:
+Create one natural, self-contained sentence using "${word}" exactly as written.
+Rules: 5-10 words; vocabulary a ${cefLevel} learner already knows apart from "${word}"; no character or person names; no fragments; the sentence must make the meaning of "${word}" guessable from context. If "${word}" belongs to a fixed pair or chunk (e.g. French "ne ... pas", "il y a"), use the full chunk.
+Return ONLY valid JSON:
 {
   "sentence": "sentence in ${language}",
   "englishTranslation": "English translation"
