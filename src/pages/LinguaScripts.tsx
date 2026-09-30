@@ -122,7 +122,6 @@ export default function LinguaScripts() {
         week: rows.filter((r) => new Date(r.scheduled_for) > now).length,
       });
       setDecks(d);
-      setBand(currentBand);
     } catch (e) {
       console.error("LinguaScripts load failed", e);
     } finally {
