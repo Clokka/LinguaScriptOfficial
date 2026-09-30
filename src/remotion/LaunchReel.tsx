@@ -746,7 +746,10 @@ const SceneSave = ({ content }: { content: LangContent }) => {
 // ---- Scene 6: review ----
 const FlashCard = ({ front, back, flip }: { front: string; back: string; flip: number }) => {
   const showBack = flip > 0.5;
-  const rotation = interpolate(flip, [0, 0.5, 1], [0, 90, 180]);
+  const rotation = interpolate(flip, [0, 0.5, 1], [0, 90, 180], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
   return (
     <div
       style={{
@@ -769,19 +772,35 @@ const FlashCard = ({ front, back, flip }: { front: string; back: string; flip: n
   );
 };
 
+// Each card gets its own bounded window and its own bounded flip — the
+// previous version reused a single interpolate() across all cards via
+// (frame % CARD_DUR), which meant the divisor didn't match the window size:
+// flip overshot past 1.0 every cycle (spinning the card past the back face)
+// and then snapped instantly back to 0 at the next card's boundary, and
+// card 0 specifically never finished its flip before the switch happened.
+// Deriving `local` and `flip` from `idx` guarantees every card starts at 0,
+// clamps at exactly 1, and holds there — no overshoot, no snap.
+const CARD_DUR = 34;
+const CARD_FLIP_START = 10;
+const CARD_FLIP_DUR = 16;
+
 const SceneReview = ({ content }: { content: LangContent }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const kicker = pop(frame, fps, 6);
   const cardIn = pop(frame, fps, 0, 18);
   const cards = content.deck;
-  const flip = interpolate(frame, [24, 44], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-  const idx = Math.min(cards.length - 1, Math.floor(frame / 34));
+  const idx = Math.min(cards.length - 1, Math.floor(frame / CARD_DUR));
+  const local = frame - idx * CARD_DUR;
+  const flip = interpolate(local, [CARD_FLIP_START, CARD_FLIP_START + CARD_FLIP_DUR], [0, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
   return (
     <AbsoluteFill style={{ backgroundColor: BG, justifyContent: "center", alignItems: "center" }}>
       <NarrationTrack id="scene6" />
       <div style={{ opacity: cardIn, transform: `scale(${cardIn})` }}>
-        <FlashCard front={cards[idx].front} back={cards[idx].back} flip={idx === 0 ? flip : ((frame - idx * 34) % 34) / 20} />
+        <FlashCard front={cards[idx].front} back={cards[idx].back} flip={flip} />
       </div>
       <div style={{ display: "flex", gap: 10, marginTop: 30 }}>
         {cards.map((_, i) => (
