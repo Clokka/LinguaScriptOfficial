@@ -212,6 +212,7 @@ export const XpToast = () => {
                 </>
               )}
 
+              <p className="text-xs text-primary mt-3">🎁 Your level gift is waiting in Profile → Rewards</p>
               {nextUnlock && (
                 <p className="text-xs text-muted-foreground mt-3">
                   {nextUnlock.remaining.toLocaleString()} more gems unlocks{" "}
