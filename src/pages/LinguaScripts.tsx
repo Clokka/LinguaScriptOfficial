@@ -192,7 +192,7 @@ export default function LinguaScripts() {
                     <h2 className="text-2xl font-extrabold">All done for today</h2>
                   </div>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    {doneToday} reviewed. Come back tomorrow.
+                    {doneToday > 0 ? `${doneToday} reviewed. Come back tomorrow.` : "Nothing is due right now. Come back tomorrow."}
                   </p>
                   <Bar pct={100} />
                   <GreenButton onClick={() => navigate("/discover")}>Watch a video</GreenButton>
