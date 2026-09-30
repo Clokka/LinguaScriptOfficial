@@ -290,14 +290,14 @@ const Profile = () => {
     <>
     <div className="min-h-screen bg-background relative">
       <div className="absolute inset-0 bg-gradient-hero pointer-events-none" />
-      <div className="relative z-10 max-w-xl mx-auto px-6 py-12">
-        <Button variant="glass" onClick={() => navigate("/")} className="mb-8 gap-2">
+      <div className="relative z-10 max-w-xl mx-auto px-4 sm:px-6 pt-6 pb-28 sm:py-12">
+        <Button variant="glass" onClick={() => navigate("/")} className="mb-6 gap-2">
           <ArrowLeft className="w-4 h-4" /> Back
         </Button>
 
-        <h1 className="text-3xl font-bold text-foreground mb-8">Your Profile</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground mb-6">Your Profile</h1>
 
-        <div className="glass-panel-strong p-8 space-y-8">
+        <div className="glass-panel-strong rounded-2xl p-5 sm:p-8 space-y-7">
           {/* Avatar */}
           <div className="flex items-center gap-6">
             <div className="relative group">
@@ -419,16 +419,17 @@ const Profile = () => {
             />
           </div>
 
+          <div className="sticky bottom-4 z-20 -mx-1">
           <Button
-            variant="hero"
             size="lg"
-            className="w-full gap-2"
+            className="w-full gap-2 rounded-xl font-bold shadow-lg bg-emerald-500 text-black hover:bg-emerald-400"
             onClick={handleSave}
             disabled={saving}
           >
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            Save Changes
+            Save changes
           </Button>
+          </div>
 
           {/* My Pet */}
           <div className="pt-4 border-t border-border/50">

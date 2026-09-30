@@ -1,246 +1,266 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { BrandMark } from "@/components/BrandMark";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { ArrowLeft, BookOpen, Loader2, Play } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Loader2 } from "lucide-react";
 import { LinguaScriptSession } from "@/components/LinguaScriptSession";
+import { useDailyWordGoal } from "@/hooks/useDailyWordGoal";
+import { headlineBand, loadFrequencyCoverage } from "@/lib/frequencyCoverage";
+import { DECK } from "@/lib/deck-colors";
+import { getLanguageLabel } from "@/lib/languages";
 
-type WordState = "red" | "orange" | "green";
+const GREEN = DECK.green;
 
-interface Exercise {
+interface Row {
   id: string;
   target_word: string;
-  sentence: string;
-  translation: string;
-  word_state: WordState;
-  completed_at?: string;
-  scheduled_for?: string;
+  scheduled_for: string;
 }
 
-const STATE_CONFIG: Record<WordState, { label: string; emoji: string; description: string }> = {
-  green: { label: "Review", emoji: "🟢", description: "Words you know well" },
-  orange: { label: "Learn", emoji: "🟠", description: "Strengthening words" },
-  red: { label: "Master", emoji: "🔴", description: "New words to learn" },
-};
-
+/**
+ * LinguaScripts hub. Deliberately shows NO words, sentences or translations
+ * before the session — previewing them turned recall into copying.
+ */
 export default function LinguaScripts() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { learningLanguage } = useLanguage();
+  const { goal: dailyGoal } = useDailyWordGoal(learningLanguage || undefined);
 
-  const [exercises, setExercises] = useState<Exercise[]>([]);
+  const [queue, setQueue] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
-  const [dueCount, setDueCount] = useState(0);
-  const [sessionActive, setSessionActive] = useState(false);
-  const [sessionExerciseIds, setSessionExerciseIds] = useState<string[]>([]);
+  const [doneToday, setDoneToday] = useState(0);
+  const [hasAny, setHasAny] = useState(false);
+  const [soon, setSoon] = useState({ tomorrow: 0, week: 0 });
+  const [decks, setDecks] = useState({ red: 0, orange: 0, green: 0 });
+  const [band, setBand] = useState<number | null>(null);
+  const [sessionIds, setSessionIds] = useState<string[] | null>(null);
 
-  const loadExercises = useCallback(async () => {
+  const load = useCallback(async () => {
     if (!user || !learningLanguage) return;
-
+    setLoading(true);
     try {
-      setLoading(true);
+      const start = new Date();
+      start.setHours(0, 0, 0, 0);
+      const now = new Date();
+      const tomorrowEnd = new Date(start.getTime() + 2 * 86400000);
+      const weekEnd = new Date(start.getTime() + 8 * 86400000);
 
-      // Fetch linguascripts (which are created from saved words)
-      const { data: linguascripts, error } = await supabase
-        .from("linguascripts")
-        .select("id, target_word, sentence, translation, word_state, completed_at, scheduled_for")
-        .eq("user_id", user.id)
-        .eq("language", learningLanguage)
-        .is("completed_at", null)
-        .lte("scheduled_for", new Date().toISOString())
-        .order("scheduled_for", { ascending: true });
+      const [all, reviews, words, cov] = await Promise.all([
+        supabase
+          .from("linguascripts")
+          .select("id, target_word, scheduled_for")
+          .eq("user_id", user.id)
+          .eq("language", learningLanguage)
+          .is("completed_at", null)
+          .lte("scheduled_for", weekEnd.toISOString())
+          .order("scheduled_for", { ascending: true })
+          .limit(1000),
+        supabase
+          .from("linguascript_reviews")
+          .select("linguascript_id")
+          .eq("user_id", user.id)
+          .gte("created_at", start.toISOString()),
+        supabase
+          .from("saved_words")
+          .select("word, state, frequency_rank, next_review")
+          .eq("user_id", user.id)
+          .eq("language", learningLanguage)
+          .limit(20000),
+        loadFrequencyCoverage(learningLanguage),
+      ]);
 
-      if (error) throw error;
+      const rows = (all.data || []) as Row[];
+      const done = new Set(((reviews.data || []) as any[]).map((r) => r.linguascript_id)).size;
+      const wordRows = (words.data || []) as any[];
+      const rank = new Map<string, number>();
+      const d = { red: 0, orange: 0, green: 0 };
+      for (const w of wordRows) {
+        if (w.frequency_rank) rank.set(String(w.word).toLowerCase(), w.frequency_rank);
+        if (w.state in d) (d as any)[w.state]++;
+      }
 
-      setExercises((linguascripts || []) as Exercise[]);
-      setDueCount((linguascripts || []).length);
-    } catch (err) {
-      console.error("Error loading exercises:", err);
-      setExercises([]);
-      setDueCount(0);
+      const currentBand = headlineBand(cov)?.band ?? null;
+
+      // Due now, current frequency milestone first, then most common first.
+      const due = rows
+        .filter((r) => new Date(r.scheduled_for) <= now)
+        .sort((a, b) => {
+          const ra = rank.get(a.target_word.toLowerCase()) ?? 99999;
+          const rb = rank.get(b.target_word.toLowerCase()) ?? 99999;
+          const ia = currentBand && ra <= currentBand ? 0 : 1;
+          const ib = currentBand && rb <= currentBand ? 0 : 1;
+          return ia - ib || ra - rb;
+        });
+
+      const remaining = Math.max(0, dailyGoal - done);
+      setQueue(due.slice(0, remaining).map((r) => r.id));
+      setDoneToday(done);
+      setHasAny(rows.length > 0 || done > 0);
+      setSoon({
+        tomorrow: rows.filter((r) => new Date(r.scheduled_for) > now && new Date(r.scheduled_for) < tomorrowEnd).length,
+        week: rows.filter((r) => new Date(r.scheduled_for) > now).length,
+      });
+      setDecks(d);
+      setBand(currentBand);
+    } catch (e) {
+      console.error("LinguaScripts load failed", e);
     } finally {
       setLoading(false);
     }
-  }, [user, learningLanguage]);
+  }, [user, learningLanguage, dailyGoal]);
 
-  // Initial load
   useEffect(() => {
-    if (user && learningLanguage) {
-      loadExercises();
-    }
-  }, [user, learningLanguage, loadExercises]);
+    load();
+  }, [load]);
 
-  // Subscribe to real-time changes on linguascripts table
-  useEffect(() => {
-    if (!user || !learningLanguage) return;
-
-    const channel = supabase
-      .channel(`linguascripts-${user.id}-${learningLanguage}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "linguascripts",
-          filter: `user_id=eq.${user.id}`,
-        },
-        () => {
-          loadExercises();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user, learningLanguage, loadExercises]);
-
-  const handleStartSession = useCallback(() => {
-    if (exercises.length === 0) return;
-
-    const now = new Date().toISOString();
-    const dueExercises = exercises.filter((e) => e.scheduled_for && e.scheduled_for <= now);
-    const otherExercises = exercises.filter((e) => !dueExercises.find((d) => d.id === e.id));
-
-    const sessionIds = [...dueExercises, ...otherExercises]
-      .map((e) => e.id)
-      .slice(0, 10);
-
-    setSessionExerciseIds(sessionIds);
-    setSessionActive(true);
-  }, [exercises]);
-
-  const handleSessionComplete = useCallback(
-    async (data: { totalXp: number; exercises: string[] }) => {
-      setSessionActive(false);
-      setSessionExerciseIds([]);
-      await loadExercises();
-    },
-    [loadExercises]
-  );
-
-  if (sessionActive) {
+  if (sessionIds) {
     return (
       <LinguaScriptSession
-        exerciseIds={sessionExerciseIds}
-        onSessionComplete={handleSessionComplete}
+        exerciseIds={sessionIds}
+        onSessionComplete={async () => {
+          setSessionIds(null);
+          await load();
+        }}
       />
     );
   }
 
   if (!user) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-slate-950">
-        <div className="text-slate-400">Please log in</div>
+      <div className="flex min-h-screen items-center justify-center bg-background text-muted-foreground">
+        Please log in
       </div>
     );
   }
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 to-slate-900 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="w-8 h-8 text-amber-400 animate-spin" />
-          <p className="text-slate-400">Loading your LinguaScripts...</p>
-        </div>
-      </div>
-    );
-  }
+  const langName = learningLanguage ? getLanguageLabel(learningLanguage) : "";
+  const target = Math.min(dailyGoal, doneToday + queue.length) || dailyGoal;
+  const pct = target ? Math.min(100, Math.round((doneToday / target) * 100)) : 0;
+  const allDone = queue.length === 0 && doneToday > 0;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 to-slate-900">
-      <div className="border-b border-slate-800">
-        <div className="container mx-auto px-4 py-6 flex items-center gap-4">
-          <button
-            onClick={() => navigate("/discover")}
-            className="p-2 hover:bg-slate-800 rounded-lg transition-colors"
-          >
-            <ArrowLeft className="w-5 h-5 text-slate-400" />
-          </button>
-          <BrandMark variant="pin" size={30} />
-          <div>
-            <h1 className="text-3xl font-black text-[#FF8A00]">LinguaScripts</h1>
-            <p className="text-xs text-slate-500 uppercase tracking-widest mt-1">SRS Practice</p>
-          </div>
+    <div className="min-h-screen bg-background text-foreground">
+      <header className="mx-auto flex max-w-xl items-center gap-3 px-4 pb-2 pt-6">
+        <button
+          onClick={() => navigate("/discover")}
+          aria-label="Back"
+          className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </button>
+        <div>
+          <h1 className="text-2xl font-extrabold">LinguaScripts</h1>
+          <p className="text-sm text-muted-foreground">
+            {band ? `Top ${band.toLocaleString()} words` : "Frequency practice"}
+            {langName ? ` · ${langName}` : ""}
+          </p>
         </div>
-      </div>
+      </header>
 
-      <div className="container mx-auto px-4 py-8">
-        <div className="grid grid-cols-3 gap-4 mb-8">
-          <div className="bg-slate-800 rounded-lg p-4 text-center border border-slate-700">
-            <div className="text-3xl font-bold text-amber-400">{dueCount}</div>
-            <div className="text-sm text-slate-400 mt-1">Due today</div>
+      <main className="mx-auto max-w-xl px-4 py-4">
+        {loading ? (
+          <div className="flex justify-center py-20">
+            <Loader2 className="h-7 w-7 animate-spin" style={{ color: GREEN }} />
           </div>
-          <div className="bg-slate-800 rounded-lg p-4 text-center border border-slate-700">
-            <div className="text-3xl font-bold text-emerald-400">{exercises.length}</div>
-            <div className="text-sm text-slate-400 mt-1">Total exercises</div>
-          </div>
-          <div className="bg-slate-800 rounded-lg p-4 text-center border border-slate-700">
-            <div className="text-3xl font-bold text-blue-400">0</div>
-            <div className="text-sm text-slate-400 mt-1">Completed today</div>
-          </div>
-        </div>
-
-        {dueCount > 0 && (
-          <button
-            onClick={handleStartSession}
-            className="w-full bg-gradient-to-r from-amber-400 to-emerald-400 text-slate-900 font-bold py-4 rounded-lg mb-8 hover:shadow-lg transition-all flex items-center justify-center gap-2"
-          >
-            <Play className="w-5 h-5" />
-            Start Session ({dueCount} ready)
-          </button>
-        )}
-
-        {exercises.length > 0 ? (
-          ["red", "orange", "green"].map((state) => {
-            const stateExercises = exercises.filter((e) => e.word_state === state);
-            if (stateExercises.length === 0) return null;
-
-            const config = STATE_CONFIG[state as WordState];
-
-            return (
-              <div key={state} className="mb-8">
-                <div className="flex items-center gap-3 mb-4">
-                  <span className="text-2xl">{config.emoji}</span>
-                  <div>
-                    <h2 className="text-xl font-bold text-slate-200">{config.label}</h2>
-                    <p className="text-sm text-slate-500">{config.description}</p>
-                  </div>
-                  <span className="ml-auto text-sm font-bold text-slate-400">
-                    {stateExercises.length}
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {stateExercises.map((exercise) => (
-                    <div
-                      key={exercise.id}
-                      className="bg-slate-800 hover:bg-slate-700 rounded-lg p-4 border border-slate-700 hover:border-slate-600 transition-all"
-                    >
-                      <p className="font-bold text-lg mb-2 text-slate-100">{exercise.target_word}</p>
-                      <p className="text-sm text-slate-400 italic mb-3 line-clamp-2">"{exercise.sentence}"</p>
-                      <p className="text-xs text-slate-500">{exercise.translation}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            );
-          })
         ) : (
-          <div className="text-center py-12">
-            <BookOpen className="w-12 h-12 mx-auto mb-4 text-slate-600" />
-            <p className="text-slate-400">No exercises yet. Save words while watching to get started!</p>
-            <button
-              onClick={() => navigate("/discover")}
-              className="mt-4 px-6 py-2 bg-amber-600 hover:bg-amber-500 text-white font-semibold rounded-lg transition-colors"
+          <>
+            <section
+              className="rounded-2xl border p-6"
+              style={{ borderColor: `${GREEN}55`, background: `${GREEN}14` }}
             >
-              Browse Videos
-            </button>
-          </div>
+              <p className="mb-2 text-xs font-bold uppercase tracking-widest" style={{ color: GREEN }}>
+                LinguaScripts
+              </p>
+
+              {!hasAny ? (
+                <>
+                  <h2 className="text-2xl font-extrabold leading-tight">No words to review yet</h2>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Save words while watching and they'll show up here.
+                  </p>
+                  <GreenButton onClick={() => navigate("/discover")}>Watch a video</GreenButton>
+                </>
+              ) : allDone ? (
+                <>
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-8 w-8 items-center justify-center rounded-full" style={{ background: GREEN }}>
+                      <Check className="h-5 w-5 text-background" />
+                    </span>
+                    <h2 className="text-2xl font-extrabold">All done for today</h2>
+                  </div>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    {doneToday} reviewed. Come back tomorrow.
+                  </p>
+                  <Bar pct={100} />
+                  <GreenButton onClick={() => navigate("/discover")}>Watch a video</GreenButton>
+                </>
+              ) : (
+                <>
+                  <h2 className="text-2xl font-extrabold leading-tight">
+                    <span style={{ color: GREEN }}>{queue.length}</span> word{queue.length !== 1 ? "s" : ""} to review today
+                  </h2>
+                  <Bar pct={pct} />
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    {doneToday} / {target} done · +{queue.length * 15} XP
+                  </p>
+                  {queue.length > 0 && (
+                    <GreenButton onClick={() => setSessionIds(queue)}>Start review</GreenButton>
+                  )}
+                </>
+              )}
+            </section>
+
+            {hasAny && (
+              <section className="mt-6 rounded-2xl border border-border p-5">
+                <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Coming back soon</p>
+                <p className="mt-2 text-sm">
+                  Tomorrow <b>{soon.tomorrow}</b> · This week <b>{soon.week}</b>
+                </p>
+              </section>
+            )}
+
+            <section className="mt-4 rounded-2xl border border-border p-5">
+              <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Your decks</p>
+              <div className="mt-3 grid grid-cols-3 gap-3 text-center">
+                {([
+                  ["red", "New"],
+                  ["orange", "Learning"],
+                  ["green", "Known"],
+                ] as const).map(([k, label]) => (
+                  <div key={k}>
+                    <div className="text-2xl font-extrabold" style={{ color: DECK[k] }}>
+                      {decks[k].toLocaleString()}
+                    </div>
+                    <div className="text-xs text-muted-foreground">{label}</div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </>
         )}
-      </div>
+      </main>
     </div>
+  );
+}
+
+function Bar({ pct }: { pct: number }) {
+  return (
+    <div className="mt-4 h-2 w-full overflow-hidden rounded-full bg-muted">
+      <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: GREEN }} />
+    </div>
+  );
+}
+
+function GreenButton({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      onClick={onClick}
+      className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl py-3 font-bold text-background transition-opacity hover:opacity-90"
+      style={{ background: GREEN }}
+    >
+      {children} <ArrowRight className="h-4 w-4" />
+    </button>
   );
 }

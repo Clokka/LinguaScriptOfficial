@@ -9,6 +9,7 @@ export interface LinguaScriptStatusData {
   state: HomeState;
   linguascriptsPending: number;
   linguascriptsDueIds: string[];
+  reviewedToday: number;
   flashcardsDue: number;
   nextFlashcardReviewTime?: string;
 }
@@ -17,6 +18,7 @@ const EMPTY: LinguaScriptStatusData = {
   state: "linguascripts-complete",
   linguascriptsPending: 0,
   linguascriptsDueIds: [],
+  reviewedToday: 0,
   flashcardsDue: 0,
 };
 
@@ -67,6 +69,16 @@ export function useLinguaScriptStatus() {
       .or(`next_review_at.is.null,next_review_at.lte.${now}`)
       .limit(1);
 
+    // Same "done today" measure as the LinguaScripts page.
+    const dayStart = new Date();
+    dayStart.setHours(0, 0, 0, 0);
+    const { data: revs } = await supabase
+      .from("linguascript_reviews")
+      .select("linguascript_id")
+      .eq("user_id", user.id)
+      .gte("created_at", dayStart.toISOString());
+    const reviewedToday = new Set((revs ?? []).map((r: any) => r.linguascript_id)).size;
+
     const firstError = countError || idsError || fcError;
     if (firstError) {
       // Surface the failure instead of silently reporting zero.
@@ -85,6 +97,7 @@ export function useLinguaScriptStatus() {
             ? "flashcards-due"
             : "linguascripts-complete",
       linguascriptsPending: pending,
+      reviewedToday,
       linguascriptsDueIds: (dueRows ?? []).map((r) => r.id),
       flashcardsDue,
       nextFlashcardReviewTime: flashcards?.[0]?.last_reviewed_at ?? undefined,
@@ -121,6 +134,11 @@ export function useLinguaScriptStatus() {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "saved_words", filter: `user_id=eq.${user.id}` },
+        () => debouncedLoadStatus()
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "linguascript_reviews", filter: `user_id=eq.${user.id}` },
         () => debouncedLoadStatus()
       )
       .subscribe();

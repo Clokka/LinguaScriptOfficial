@@ -45,6 +45,7 @@ import { LearningBreakModal, type QuizWord } from "@/components/LearningBreakMod
 import { PronunciationJudge } from "@/components/PronunciationJudge";
 import { DailyGoalTally } from "@/components/DailyGoalTally";
 import { useDailyWordGoal } from "@/hooks/useDailyWordGoal";
+import { WatchGoalGate } from "@/components/WatchGoalGate";
 
 interface FilmData {
   id: string;
@@ -1271,6 +1272,7 @@ const Watch = () => {
   if ((isMobile || isPhoneLandscape) && !isFullscreen) {
     const header = (
       <div className="flex items-center gap-2 p-2 bg-black/80 backdrop-blur z-20">
+        {user && <WatchGoalGate goal={dailyGoal.goal} playerRef={playerRef} />}
         <Button data-tour="page-back" variant="ghost" size="icon" onClick={() => navigate("/discover")} className="text-white hover:bg-white/10 shrink-0 h-9 w-9">
           <ArrowLeft className="w-5 h-5" />
         </Button>
@@ -1423,6 +1425,7 @@ const Watch = () => {
 
   return (
     <div className="min-h-screen bg-black flex flex-col">
+      {user && <WatchGoalGate goal={dailyGoal.goal} playerRef={playerRef} />}
       <div className="flex items-center gap-3 p-4 bg-black/80 backdrop-blur z-20">
         <Button data-tour="page-back" variant="ghost" size="icon" onClick={() => navigate("/discover")} className="text-white hover:bg-white/10">
           <ArrowLeft className="w-5 h-5" />

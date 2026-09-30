@@ -2134,6 +2134,7 @@ export type Database = {
       frequency_coverage: {
         Args: { _language: string }
         Returns: {
+          assumed_words: number
           band: number
           known_words: number
           pct: number

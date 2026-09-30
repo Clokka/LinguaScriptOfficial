@@ -1,6 +1,7 @@
-import { Zap, ArrowRight } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { useDailyWordGoal } from "@/hooks/useDailyWordGoal";
 
 interface LinguaScriptsPendingAlertProps {
   count: number;
@@ -9,43 +10,39 @@ interface LinguaScriptsPendingAlertProps {
   onStart?: () => void;
 }
 
-export function LinguaScriptsPendingAlert({
-  count,
-  estimatedTime = 5,
-  onStart,
-}: LinguaScriptsPendingAlertProps) {
+const GREEN = "#34C759";
+
+export function LinguaScriptsPendingAlert({ count, onStart }: LinguaScriptsPendingAlertProps) {
   const navigate = useNavigate();
+  const { learningLanguage } = useLanguage();
+  const { goal } = useDailyWordGoal(learningLanguage || undefined);
+  // Daily cap: never show more than the learner's word goal.
+  const today = Math.min(count, goal || count);
   const start = () => {
     if (onStart) onStart();
     else navigate("/linguascript");
   };
   return (
-    <div className="mb-8 bg-gradient-to-r from-amber-500/20 via-amber-500/10 to-emerald-500/10 border border-amber-500/30 rounded-2xl p-8 backdrop-blur-sm">
-      <div className="flex items-start justify-between gap-6">
-        <div className="flex-1">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="p-2 bg-amber-500/30 rounded-lg animate-pulse">
-              <Zap className="w-5 h-5 text-amber-400" />
-            </div>
-            <h2 className="text-2xl font-bold bg-gradient-to-r from-amber-400 to-emerald-400 bg-clip-text text-transparent">
-              🔥 {count} LinguaScripts Ready for Review
-            </h2>
-          </div>
-          <p className="text-sm text-slate-400 mb-2">
-            Review the words you learned before they fade from memory
-          </p>
-          <p className="text-xs text-slate-500">
-            {estimatedTime} min • {count} word{count !== 1 ? "s" : ""} • +{Math.round(count * 15)} XP
-          </p>
-        </div>
-
-        <Button
-          onClick={start}
-          className="whitespace-nowrap bg-gradient-to-r from-amber-400 to-emerald-400 text-slate-900 font-bold hover:shadow-lg hover:shadow-amber-500/50 transition-all"
-        >
-          Start <ArrowRight className="w-4 h-4 ml-2" />
-        </Button>
-      </div>
+    <div
+      className="mb-8 rounded-2xl border p-6"
+      style={{ borderColor: `${GREEN}55`, background: `${GREEN}14` }}
+    >
+      <p className="mb-2 text-xs font-bold uppercase tracking-widest" style={{ color: GREEN }}>
+        LinguaScripts
+      </p>
+      <h2 className="text-2xl font-extrabold leading-tight text-white">
+        <span style={{ color: GREEN }}>{today}</span> word{today !== 1 ? "s" : ""} to review today
+      </h2>
+      <p className="mt-2 text-sm text-white/60">
+        Review them before they fade from memory · +{today * 15} XP
+      </p>
+      <button
+        onClick={start}
+        className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl py-3 font-bold text-black transition-opacity hover:opacity-90"
+        style={{ background: GREEN }}
+      >
+        Start review <ArrowRight className="h-4 w-4" />
+      </button>
     </div>
   );
 }
