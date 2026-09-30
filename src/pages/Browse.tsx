@@ -116,6 +116,9 @@ const Browse = () => {
   const initialTab: TabKey = location.pathname.startsWith("/discover") ? "discover" : "home";
   const [activeTab, setActiveTab] = useState<TabKey>(initialTab);
   const dailyGoal = useDailyWordGoal();
+  const lsRemaining = linguaScriptStatus
+    ? Math.min(linguaScriptStatus.linguascriptsPending, Math.max(0, (dailyGoal.goal || 0) - (linguaScriptStatus.reviewedToday ?? 0)))
+    : 0;
   const [showLinguaScriptSession, setShowLinguaScriptSession] = useState(false);
   useEffect(() => {
     if (location.pathname.startsWith("/discover")) setActiveTab("discover");
@@ -541,17 +544,17 @@ const Browse = () => {
               />
 
               {/* LinguaScripts Alerts - Top Priority */}
-              {linguaScriptStatus.state === "linguascripts-pending" && (
+              {lsRemaining > 0 && (
                 <LinguaScriptsPendingAlert
-                  count={linguaScriptStatus.linguascriptsPending}
+                  count={lsRemaining}
                   estimatedTime={Math.ceil(linguaScriptStatus.linguascriptsPending * 1)}
                   onStart={() => navigate("/linguascript")}
                 />
               )}
 
-              {linguaScriptStatus.state === "linguascripts-complete" && (
+              {lsRemaining === 0 && (linguaScriptStatus.reviewedToday ?? 0) > 0 && (
                 <LinguaScriptsCompleteCard
-                  wordsReviewedToday={0}
+                  wordsReviewedToday={linguaScriptStatus.reviewedToday ?? 0}
                   newWordsCaptured={0}
                   onContinueWatching={() => {
                     setActiveTab("discover");
