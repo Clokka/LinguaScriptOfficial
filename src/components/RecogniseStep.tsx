@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Volume2, Check, X, ArrowRight } from "lucide-react";
 import { DECK } from "@/lib/deck-colors";
+import { shuffle } from "@/lib/lsTeaching";
 
 const GREEN = DECK.green;
 
@@ -24,36 +25,41 @@ export function speakWord(word: string, language: string) {
 }
 
 /**
- * Step 1 of each word: hear it, pick its meaning. Recognition before recall —
- * the word is heard (not shown) so the learner links sound to meaning first.
+ * Hear the word, pick its meaning from 4. After answering, a feedback card
+ * shows the word in its sentence with the translation — and, if wrong, what
+ * the picked option actually means. Corrective feedback is where learning is.
  */
 export function RecogniseStep({
   word,
   meaning,
   distractors,
   language,
+  sentence,
+  sentenceTranslation,
+  pairHint,
   onComplete,
 }: {
   word: string;
   meaning: string;
-  distractors: string[];
+  distractors: { meaning: string; word?: string }[];
   language: string;
+  sentence?: string;
+  sentenceTranslation?: string;
+  pairHint?: string | null;
   onComplete: (correct: boolean) => void;
 }) {
-  const options = useMemo(() => {
-    const pool = Array.from(
-      new Set(distractors.filter((d) => d && d.toLowerCase() !== meaning.toLowerCase())),
-    ).slice(0, 2);
-    return [meaning, ...pool].sort(() => Math.random() - 0.5);
-  }, [meaning, distractors]);
-  const [picked, setPicked] = useState<string | null>(null);
+  const options = useMemo(
+    () => shuffle([{ meaning }, ...distractors.slice(0, 3)]),
+    [meaning, distractors],
+  );
+  const [picked, setPicked] = useState<{ meaning: string; word?: string } | null>(null);
 
   useEffect(() => {
     const t = setTimeout(() => speakWord(word, language), 300);
     return () => clearTimeout(t);
   }, [word, language]);
 
-  const correct = picked === meaning;
+  const correct = picked?.meaning === meaning;
 
   return (
     <div className="mx-auto max-w-md rounded-2xl border p-6" style={{ borderColor: `${GREEN}55`, background: `${GREEN}14` }}>
@@ -72,11 +78,11 @@ export function RecogniseStep({
 
       <div className="mt-6 space-y-2">
         {options.map((o) => {
-          const isRight = o === meaning;
+          const isRight = o.meaning === meaning;
           const show = picked !== null;
           return (
             <button
-              key={o}
+              key={o.meaning}
               disabled={show}
               onClick={() => setPicked(o)}
               className="flex w-full items-center justify-between rounded-xl border border-border bg-background px-4 py-3 text-left font-semibold transition-colors"
@@ -88,7 +94,7 @@ export function RecogniseStep({
                     : undefined
               }
             >
-              {o}
+              {o.meaning}
               {show && isRight && <Check className="h-5 w-5" />}
               {show && !isRight && o === picked && <X className="h-5 w-5" />}
             </button>
@@ -97,12 +103,36 @@ export function RecogniseStep({
       </div>
 
       {picked && (
+        <div className="mt-5 rounded-xl border border-border bg-background p-4 text-sm">
+          <p>
+            <b>{word}</b> = {meaning}
+          </p>
+          {!correct && (
+            <p className="mt-1 text-muted-foreground">
+              You picked “{picked.meaning}”{picked.word ? ` — that's “${picked.word}”` : ""}.
+            </p>
+          )}
+          {pairHint && (
+            <p className="mt-1 text-muted-foreground">
+              Works as a pair: <b>{pairHint}</b>
+            </p>
+          )}
+          {sentence && (
+            <div className="mt-3 border-t border-border pt-3">
+              <p className="font-medium">{sentence}</p>
+              {sentenceTranslation && <p className="mt-1 text-muted-foreground">{sentenceTranslation}</p>}
+            </div>
+          )}
+        </div>
+      )}
+
+      {picked && (
         <button
           onClick={() => onComplete(correct)}
           className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl py-3 font-bold text-background"
           style={{ background: GREEN }}
         >
-          {correct ? "Next" : "Got it"} <ArrowRight className="h-4 w-4" />
+          {correct ? "Next" : "Got it — I'll see it again"} <ArrowRight className="h-4 w-4" />
         </button>
       )}
     </div>

@@ -25,7 +25,8 @@ export interface GapFillChallengeProps {
   tier: "red" | "orange";
   /** Native-language translation, shown under the line. */
   translation?: string;
-  onComplete: () => void;
+  /** firstTry: answered without any wrong attempt. */
+  onComplete: (firstTry: boolean) => void;
   onSkip: () => void;
 }
 
@@ -74,6 +75,7 @@ export function GapFillChallenge({
     });
   }, []);
 
+  const misses = useRef(0);
   const attempt = useCallback(
     (label: string) => {
       if (filled) return;
@@ -83,8 +85,10 @@ export function GapFillChallenge({
         goldSweep();
         setChamTier("green");
         setParty(true);
-        window.setTimeout(onComplete, 1500);
+        const firstTry = misses.current === 0;
+        window.setTimeout(() => onComplete(firstTry), 1500);
       } else {
+        misses.current += 1;
         setWrongKey(label);
         setDrag(null);
         window.setTimeout(() => setWrongKey(null), 460);
