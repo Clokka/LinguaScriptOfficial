@@ -560,6 +560,30 @@ export type Database = {
         }
         Relationships: []
       }
+      level_rewards: {
+        Row: {
+          gems: number
+          granted_at: string
+          id: string
+          level: number
+          user_id: string
+        }
+        Insert: {
+          gems?: number
+          granted_at?: string
+          id?: string
+          level: number
+          user_id: string
+        }
+        Update: {
+          gems?: number
+          granted_at?: string
+          id?: string
+          level?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       linguascript_reviews: {
         Row: {
           ai_feedback: string | null
@@ -987,6 +1011,8 @@ export type Database = {
           display_name: string | null
           email_prefs: Json
           friend_code: string | null
+          gems: number
+          gems_spent: number
           id: string
           interests: string[]
           is_pro: boolean
@@ -1034,6 +1060,8 @@ export type Database = {
           display_name?: string | null
           email_prefs?: Json
           friend_code?: string | null
+          gems?: number
+          gems_spent?: number
           id?: string
           interests?: string[]
           is_pro?: boolean
@@ -1081,6 +1109,8 @@ export type Database = {
           display_name?: string | null
           email_prefs?: Json
           friend_code?: string | null
+          gems?: number
+          gems_spent?: number
           id?: string
           interests?: string[]
           is_pro?: boolean
@@ -2225,6 +2255,7 @@ export type Database = {
         Args: { _school_id: string; _user_id: string }
         Returns: boolean
       }
+      level_reward_gems: { Args: { p_level: number }; Returns: number }
       list_school_students: {
         Args: { _school_id: string }
         Returns: {
@@ -2308,6 +2339,7 @@ export type Database = {
             Returns: number
           }
       set_username: { Args: { _username: string }; Returns: string }
+      sync_level_rewards: { Args: { p_level: number }; Returns: number }
       touch_gold_word: {
         Args: { p_decay_at?: number; p_word_id: string }
         Returns: Json
