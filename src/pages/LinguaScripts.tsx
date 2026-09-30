@@ -37,97 +37,80 @@ export default function LinguaScripts() {
   const [band, setBand] = useState<number | null>(null);
   const [sessionIds, setSessionIds] = useState<string[] | null>(null);
 
+  const reqId = useRef(0);
+
+  const apply = useCallback(
+    (d: DueSummary, rank: Map<string, number>) => {
+      const now = Date.now();
+      const byId = new Map(d.rows.map((r) => [r.id, r]));
+      const due = d.dueIds
+        .map((id) => byId.get(id)!)
+        .filter(Boolean)
+        .sort(
+          (a, b) =>
+            (rank.get(a.target_word.toLowerCase()) ?? 99999) - (rank.get(b.target_word.toLowerCase()) ?? 99999),
+        );
+      const tomorrowEnd = new Date();
+      tomorrowEnd.setHours(0, 0, 0, 0);
+      const tEnd = tomorrowEnd.getTime() + 2 * 86400000;
+      const future = d.rows.filter((r) => new Date(r.scheduled_for).getTime() > now);
+      setQueue(due.slice(0, Math.max(0, dailyGoal - d.doneToday)).map((r) => r.id));
+      setDoneToday(d.doneToday);
+      setHasAny(d.rows.length > 0 || d.doneToday > 0);
+      setSoon({ tomorrow: future.filter((r) => new Date(r.scheduled_for).getTime() < tEnd).length, week: future.length });
+    },
+    [dailyGoal],
+  );
+
   const load = useCallback(async () => {
     if (!user || !learningLanguage) return;
-    setLoading(true);
+    const my = ++reqId.current;
+    const lang = learningLanguage;
+    const cached = cachedDue(user.id, lang);
+    if (cached) {
+      apply(cached, new Map());
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
+    setBand(null);
+    loadFrequencyCoverage(lang)
+      .then((cov) => my === reqId.current && setBand(headlineBand(cov)?.band ?? null))
+      .catch(() => {});
+    const deckCount = (state: string) =>
+      supabase
+        .from("saved_words")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("language", lang)
+        .eq("state", state);
+    Promise.all([deckCount("red"), deckCount("orange"), deckCount("green")]).then(([r, o, g]) => {
+      if (my === reqId.current) setDecks({ red: r.count ?? 0, orange: o.count ?? 0, green: g.count ?? 0 });
+    });
     try {
-      const start = new Date();
-      start.setHours(0, 0, 0, 0);
-      const now = new Date();
-      const tomorrowEnd = new Date(start.getTime() + 2 * 86400000);
-      const weekEnd = new Date(start.getTime() + 8 * 86400000);
-
-      // Coverage is slow; load it in the background so the page shows at once.
-      const covPromise = loadFrequencyCoverage(learningLanguage);
-      const deckCount = (state: string) =>
-        supabase
-          .from("saved_words")
-          .select("id", { count: "exact", head: true })
-          .eq("user_id", user.id)
-          .eq("language", learningLanguage)
-          .eq("state", state);
-
-      const [all, reviews, red, orange, green] = await Promise.all([
-        supabase
-          .from("linguascripts")
-          .select("id, target_word, scheduled_for")
-          .eq("user_id", user.id)
-          .eq("language", learningLanguage)
-          .is("completed_at", null)
-          .lte("scheduled_for", weekEnd.toISOString())
-          .order("scheduled_for", { ascending: true })
-          .limit(1000),
-        supabase
-          .from("linguascript_reviews")
-          .select("linguascript_id, linguascripts!inner(language)")
-          .eq("user_id", user.id)
-          .eq("linguascripts.language", learningLanguage)
-          .gte("created_at", start.toISOString()),
-        deckCount("red"),
-        deckCount("orange"),
-        deckCount("green"),
-      ]);
-
-      const rows = (all.data || []) as Row[];
-      const done = new Set(((reviews.data || []) as any[]).map((r) => r.linguascript_id)).size;
-      const d = { red: red.count ?? 0, orange: orange.count ?? 0, green: green.count ?? 0 };
-
-      // Frequency ranks only for words that are due now.
-      const dueWords = Array.from(
-        new Set(rows.filter((r) => new Date(r.scheduled_for) <= now).map((r) => r.target_word)),
-      ).slice(0, 300);
-      const rank = new Map<string, number>();
-      if (dueWords.length) {
+      const d = await loadDue(user.id, lang);
+      if (my !== reqId.current) return;
+      apply(d, new Map());
+      setLoading(false);
+      // Most-common-first ordering refines the queue a moment later.
+      const words = Array.from(new Set(d.rows.filter((r) => d.dueIds.includes(r.id)).map((r) => r.target_word))).slice(0, 300);
+      if (words.length) {
         const { data: rk } = await supabase
           .from("saved_words")
           .select("word, frequency_rank")
           .eq("user_id", user.id)
-          .eq("language", learningLanguage)
-          .in("word", dueWords);
-        for (const w of (rk || []) as any[]) {
-          if (w.frequency_rank) rank.set(String(w.word).toLowerCase(), w.frequency_rank);
-        }
+          .eq("language", lang)
+          .in("word", words);
+        if (my !== reqId.current) return;
+        const rank = new Map<string, number>();
+        for (const w of (rk || []) as any[]) if (w.frequency_rank) rank.set(String(w.word).toLowerCase(), w.frequency_rank);
+        apply(d, rank);
       }
-
-      const currentBand: number | null = null;
-      covPromise.then((cov) => setBand(headlineBand(cov)?.band ?? null)).catch(() => {});
-
-      // Due now, current frequency milestone first, then most common first.
-      const due = rows
-        .filter((r) => new Date(r.scheduled_for) <= now)
-        .sort((a, b) => {
-          const ra = rank.get(a.target_word.toLowerCase()) ?? 99999;
-          const rb = rank.get(b.target_word.toLowerCase()) ?? 99999;
-          const ia = currentBand && ra <= currentBand ? 0 : 1;
-          const ib = currentBand && rb <= currentBand ? 0 : 1;
-          return ia - ib || ra - rb;
-        });
-
-      const remaining = Math.max(0, dailyGoal - done);
-      setQueue(due.slice(0, remaining).map((r) => r.id));
-      setDoneToday(done);
-      setHasAny(rows.length > 0 || done > 0);
-      setSoon({
-        tomorrow: rows.filter((r) => new Date(r.scheduled_for) > now && new Date(r.scheduled_for) < tomorrowEnd).length,
-        week: rows.filter((r) => new Date(r.scheduled_for) > now).length,
-      });
-      setDecks(d);
     } catch (e) {
       console.error("LinguaScripts load failed", e);
-    } finally {
-      setLoading(false);
+      if (my === reqId.current) setLoading(false);
     }
-  }, [user, learningLanguage, dailyGoal]);
+  }, [user, learningLanguage, apply]);
 
   useEffect(() => {
     load();
