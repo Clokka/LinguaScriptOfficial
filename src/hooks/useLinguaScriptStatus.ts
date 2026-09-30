@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useDailyWordGoal } from "@/hooks/useDailyWordGoal";
+import { cachedDue, loadDue, type DueSummary } from "@/lib/lsDue";
 
 export type HomeState = "linguascripts-pending" | "linguascripts-complete" | "flashcards-due";
 
@@ -25,9 +27,27 @@ const EMPTY: LinguaScriptStatusData = {
 export function useLinguaScriptStatus() {
   const { user } = useAuth();
   const { learningLanguage } = useLanguage();
+  const { goal: dailyGoal } = useDailyWordGoal(learningLanguage || undefined);
   const [status, setStatus] = useState<LinguaScriptStatusData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const reqId = useRef(0);
+
+  const toStatus = useCallback(
+    (d: DueSummary, flashcardsDue = 0): LinguaScriptStatusData => {
+      // Same cap as the LinguaScripts page: never show more than what's left of today's goal.
+      const remaining = Math.max(0, (dailyGoal || 0) - d.doneToday);
+      const ids = d.dueIds.slice(0, remaining);
+      return {
+        state: ids.length > 0 ? "linguascripts-pending" : flashcardsDue > 0 ? "flashcards-due" : "linguascripts-complete",
+        linguascriptsPending: ids.length,
+        reviewedToday: d.doneToday,
+        linguascriptsDueIds: ids.slice(0, 10),
+        flashcardsDue,
+      };
+    },
+    [dailyGoal],
+  );
 
   const loadStatus = useCallback(async () => {
     if (!user?.id || !learningLanguage) {
@@ -35,76 +55,35 @@ export function useLinguaScriptStatus() {
       setLoading(false);
       return;
     }
-
-    setLoading(true);
+    const my = ++reqId.current;
+    // Show this language's last known numbers instantly, never the previous language's.
+    const cached = cachedDue(user.id, learningLanguage);
+    setStatus(cached ? toStatus(cached) : null);
+    setLoading(!cached);
     setError(null);
-    const now = new Date().toISOString();
-
-    // Exact count of due exercises (no row cap).
-    const { count, error: countError } = await supabase
-      .from("linguascripts")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", user.id)
-      .eq("language", learningLanguage)
-      .lte("scheduled_for", now)
-      .is("completed_at", null);
-
-    // First batch of IDs, used to seed a practice session.
-    const { data: dueRows, error: idsError } = await supabase
-      .from("linguascripts")
-      .select("id")
-      .eq("user_id", user.id)
-      .eq("language", learningLanguage)
-      .lte("scheduled_for", now)
-      .is("completed_at", null)
-      .order("scheduled_for", { ascending: true })
-      .limit(10);
-
-    const { data: flashcards, error: fcError } = await supabase
-      .from("saved_words")
-      .select("id, last_reviewed_at")
-      .eq("user_id", user.id)
-      .eq("language", learningLanguage)
-      .gte("appearance_count", 3)
-      .or(`next_review_at.is.null,next_review_at.lte.${now}`)
-      .limit(1);
-
-    // Same "done today" measure as the LinguaScripts page.
-    const dayStart = new Date();
-    dayStart.setHours(0, 0, 0, 0);
-    const { data: revs } = await supabase
-      .from("linguascript_reviews")
-      .select("linguascript_id, linguascripts!inner(language)")
-      .eq("user_id", user.id)
-      .eq("linguascripts.language", learningLanguage)
-      .gte("created_at", dayStart.toISOString());
-    const reviewedToday = new Set((revs ?? []).map((r: any) => r.linguascript_id)).size;
-
-    const firstError = countError || idsError || fcError;
-    if (firstError) {
-      // Surface the failure instead of silently reporting zero.
-      console.error("[useLinguaScriptStatus] query failed:", firstError);
-      setError(firstError.message);
+    try {
+      const now = new Date().toISOString();
+      const [d, fc] = await Promise.all([
+        loadDue(user.id, learningLanguage),
+        supabase
+          .from("saved_words")
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("language", learningLanguage)
+          .gte("appearance_count", 3)
+          .or(`next_review_at.is.null,next_review_at.lte.${now}`)
+          .limit(1),
+      ]);
+      if (my !== reqId.current) return; // a newer language/load superseded this one
+      setStatus(toStatus(d, fc.data?.length ?? 0));
+    } catch (e: any) {
+      if (my !== reqId.current) return;
+      console.error("[useLinguaScriptStatus] query failed:", e);
+      setError(e?.message || "Failed");
+    } finally {
+      if (my === reqId.current) setLoading(false);
     }
-
-    const pending = count ?? 0;
-    const flashcardsDue = flashcards?.length ?? 0;
-
-    setStatus({
-      state:
-        pending > 0
-          ? "linguascripts-pending"
-          : flashcardsDue > 0
-            ? "flashcards-due"
-            : "linguascripts-complete",
-      linguascriptsPending: pending,
-      reviewedToday,
-      linguascriptsDueIds: (dueRows ?? []).map((r) => r.id),
-      flashcardsDue,
-      nextFlashcardReviewTime: flashcards?.[0]?.last_reviewed_at ?? undefined,
-    });
-    setLoading(false);
-  }, [user?.id, learningLanguage]);
+  }, [user?.id, learningLanguage, toStatus]);
 
   useEffect(() => {
     loadStatus();
