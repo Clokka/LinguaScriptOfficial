@@ -28,6 +28,7 @@ import { INTERESTS } from "@/lib/interests";
 import { useToast } from "@/hooks/use-toast";
 import { MyLanguagesPanel } from "@/components/MyLanguagesPanel";
 import { PetGallery } from "@/components/pets/PetGallery";
+import { RewardsPanel } from "@/components/rewards/RewardsPanel";
 import { usePet } from "@/contexts/PetContext";
 import { getPetById } from "@/lib/pets";
 import { PetViewer } from "@/components/pets/PetViewer";
@@ -432,6 +433,10 @@ const Profile = () => {
           </div>
 
           {/* My Pet */}
+          <div className="pt-4 border-t border-border/50">
+            <RewardsPanel />
+          </div>
+
           <div className="pt-4 border-t border-border/50">
             <p className="text-sm font-medium text-foreground mb-3">🐾 My Pet</p>
             <button

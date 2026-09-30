@@ -55,7 +55,7 @@ export const claimStreakReward = (days: number) =>
 export const claimDailyChest = () =>
   rpc<{ gems: number; run: number; already: boolean; balance: number }>("claim_daily_chest");
 export const buyShopItem = (id: string) => rpc<{ balance: number }>("buy_shop_item", { p_item: id });
-export const useStreakFreeze = () => rpc<boolean>("use_streak_freeze");
+export const consumeStreakFreeze = () => rpc<boolean>("use_streak_freeze");
 
 export async function loadRewardState(userId: string) {
   const [claims, items, shop, profile] = await Promise.all([
