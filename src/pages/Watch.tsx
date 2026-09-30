@@ -863,7 +863,7 @@ const Watch = () => {
   const saveWordToFlashcards = async (word: { id: string; text: string; translation: string; pronunciation: string; ipa: string }) => {
     let { translation, pronunciation, ipa } = word;
     const context = currentSubtitle?.primary || "";
-    const langCode = learningLanguage || film?.language || "fr";
+    const langCode = film?.language || learningLanguage || "fr";
     const fromLang = getLanguageLabel(langCode);
     const toLang = getLanguageLabel(nativeLanguage);
 
@@ -1010,7 +1010,7 @@ const Watch = () => {
     const trimmed = phrase.trim();
     if (!trimmed) return;
     const context = currentSubtitle?.primary || trimmed;
-    const langCode = learningLanguage || film?.language || "fr";
+    const langCode = film?.language || learningLanguage || "fr";
     const fromLang = getLanguageLabel(langCode);
     const toLang = getLanguageLabel(nativeLanguage);
 
@@ -1091,7 +1091,7 @@ const Watch = () => {
   };
 
   const markWordKnown = async (word: { text: string; translation?: string }) => {
-    const langCode = learningLanguage || film?.language || "fr";
+    const langCode = film?.language || learningLanguage || "fr";
     if (!user) {
       saveGuestWord({
         word: word.text,
@@ -1162,7 +1162,7 @@ const Watch = () => {
 
   // Load the deck used to evaluate challenge-worthy lines (same language the
   // words are saved under, matching the subtitle colouring).
-  const challengeLang = learningLanguage || film?.language || "fr";
+  const challengeLang = film?.language || learningLanguage || "fr";
   useEffect(() => {
     let alive = true;
     loadDeckIndex(user?.id ?? null, challengeLang).then((m) => { if (alive) setChallengeDeck(m); });
