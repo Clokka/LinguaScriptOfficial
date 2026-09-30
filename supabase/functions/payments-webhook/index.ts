@@ -111,6 +111,77 @@ async function clearTaxIssue(invoice: any) {
     .eq("tax_location_invalid", true);
 }
 
+const SITE_URL = "https://linguascript.co.uk";
+
+// Hands a template to send-transactional-email, which checks the suppression
+// list and queues it. The idempotencyKey stops Stripe's webhook retries from
+// sending the same email twice.
+async function sendEmail(templateName: string, recipientEmail: string, idempotencyKey: string, templateData: Record<string, unknown>) {
+  const url = Deno.env.get("SUPABASE_URL")!;
+  const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const res = await fetch(`${url}/functions/v1/send-transactional-email`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}`, "apikey": key },
+    body: JSON.stringify({ templateName, recipientEmail, idempotencyKey, templateData }),
+  });
+  if (!res.ok) console.error("Failed to send email", templateName, res.status, await res.text());
+}
+
+// Best-effort friendly name + email for a userId from checkout metadata.
+async function lookupUser(userId: string | undefined) {
+  if (!userId) return { email: null as string | null, name: undefined as string | undefined, isPro: false };
+  const [{ data: authData }, { data: profile }] = await Promise.all([
+    getSupabase().auth.admin.getUserById(userId),
+    getSupabase().from("profiles").select("display_name, is_pro").eq("user_id", userId).maybeSingle(),
+  ]);
+  const displayName = (profile as any)?.display_name;
+  return {
+    email: authData?.user?.email ?? null,
+    name: displayName && !String(displayName).includes("@") ? String(displayName) : undefined,
+    isPro: !!(profile as any)?.is_pro,
+  };
+}
+
+// Abandoned / declined checkout. Stripe expires an unpaid Checkout Session
+// after 24h — this covers both "card was declined and they gave up" and "they
+// closed the page". Send one recovery email, unless they've since bought Pro
+// through another session.
+async function sendCheckoutRecovery(session: any) {
+  if (session.payment_status === "paid") return;
+  const user = await lookupUser(session.metadata?.userId);
+  if (user.isPro) return;
+  const email = session.customer_details?.email || session.customer_email || user.email;
+  if (!email) {
+    console.log("checkout.session.expired with no email to follow up", session.id);
+    return;
+  }
+  await sendEmail("checkout-recovery", email, `checkout-recovery-${session.id}`, {
+    name: user.name,
+    retryUrl: `${SITE_URL}/upgrade`,
+  });
+}
+
+// A renewal charge failed. Stripe retries the card itself; we email once per
+// invoice (on the first failed attempt) so the customer can update their card.
+// First-time subscription invoices are skipped — those failures happen inside
+// checkout and are covered by sendCheckoutRecovery when the session expires.
+async function sendRenewalPaymentFailed(invoice: any) {
+  if (invoice.billing_reason === "subscription_create") return;
+  if ((invoice.attempt_count ?? 1) > 1) return;
+  const userId = invoice.subscription_details?.metadata?.userId
+    ?? invoice.parent?.subscription_details?.metadata?.userId;
+  const user = await lookupUser(userId);
+  const email = invoice.customer_email || user.email;
+  if (!email) {
+    console.log("invoice.payment_failed with no email to follow up", invoice.id);
+    return;
+  }
+  await sendEmail("renewal-payment-failed", email, `renewal-payment-failed-${invoice.id}`, {
+    name: user.name,
+    billingUrl: `${SITE_URL}/profile`,
+  });
+}
+
 Deno.serve(async (req) => {
   if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
   const rawEnv = new URL(req.url).searchParams.get("env");
@@ -136,6 +207,12 @@ Deno.serve(async (req) => {
         break;
       case "invoice.paid":
         await clearTaxIssue(event.data.object);
+        break;
+      case "checkout.session.expired":
+        await sendCheckoutRecovery(event.data.object);
+        break;
+      case "invoice.payment_failed":
+        await sendRenewalPaymentFailed(event.data.object);
         break;
       default:
         console.log("Unhandled event:", event.type);
