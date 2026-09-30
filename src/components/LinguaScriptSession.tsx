@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { GapFillChallenge } from "@/components/GapFillChallenge";
 import { ActiveRecallReview } from "@/components/ActiveRecallReview";
 import { LinguaScriptCreation } from "@/components/LinguaScriptCreation";
+import { DictationStep } from "@/components/DictationStep";
 import { RecogniseStep } from "@/components/RecogniseStep";
 import { generateLinguaScriptFromWord } from "@/lib/linguascripts";
 import { DECK } from "@/lib/deck-colors";
@@ -135,7 +136,24 @@ export function LinguaScriptSession({ exerciseIds, onSessionComplete }: LinguaSc
           }
           setMeaningPool(((pool.data || []) as any[]).map((r) => r.translation).filter(Boolean));
           if (lp.data) setProfile({ level: (lp.data as any).cefr_level || "a2", interests: (lp.data as any).interests || [] });
-          setBand(await loadVocabBand(learningLanguage, maxRank));
+          const vb = await loadVocabBand(learningLanguage, maxRank);
+          setBand(vb);
+          // Every word gets a meaning so the listening round always runs.
+          const missing = rows.filter((r) => !(r.saved_word_id && m[r.saved_word_id]));
+          if (missing.length) {
+            const { data: byWord } = await supabase
+              .from("saved_words")
+              .select("word, translation")
+              .eq("user_id", user.id)
+              .eq("language", learningLanguage)
+              .in("word", missing.map((r) => r.target_word));
+            const own2 = new Map(((byWord || []) as any[]).map((r) => [cleanToken(r.word), r.translation]));
+            for (const r of missing) {
+              const t = cleanToken(r.target_word);
+              const tr = own2.get(t) || vb.find((v) => cleanToken(v.word) === t)?.translation;
+              if (tr) m[`ex:${r.id}`] = tr;
+            }
+          }
         }
         setMeanings(m);
         setStateChangedAt(sc);
@@ -144,7 +162,8 @@ export function LinguaScriptSession({ exerciseIds, onSessionComplete }: LinguaSc
         // Build interleaved rounds.
         const order = rows.map((_, i) => i);
         const s: Step[] = [
-          ...order.filter((i) => rows[i].saved_word_id && m[rows[i].saved_word_id!]).map((i) => ({ type: "recognise" as const, ex: i })),
+          ...order.filter((i) => m[rows[i].saved_word_id || ""] || m[`ex:${rows[i].id}`]).map((i) => ({ type: "recognise" as const, ex: i })),
+          ...shuffle(order).map((i) => ({ type: "dictation" as const, ex: i })),
           ...shuffle(order).map((i) => ({ type: "gap-fill" as const, ex: i })),
           ...shuffle(order).map((i) => ({ type: "active-recall" as const, ex: i })),
           { type: "linguascript" },
@@ -160,6 +179,8 @@ export function LinguaScriptSession({ exerciseIds, onSessionComplete }: LinguaSc
     run();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [exerciseIds]);
+
+  const meaningOf = (e: Exercise) => (e.saved_word_id && meanings[e.saved_word_id]) || meanings[`ex:${e.id}`];
 
   const log = (id: string) => (logs.current[id] ||= {});
 
@@ -226,7 +247,7 @@ export function LinguaScriptSession({ exerciseIds, onSessionComplete }: LinguaSc
       }
 
       // Fresh, clean sentence at the learner's own level for later visits.
-      const meaning = ex.saved_word_id ? meanings[ex.saved_word_id] : undefined;
+      const meaning = meaningOf(ex);
       const needsNew = next >= 2 || !isCleanSentence(ex.sentence, ex.target_word, learningLanguage);
       if (needsNew && meaning && learningLanguage) {
         void generateLinguaScriptFromWord({
@@ -327,9 +348,10 @@ export function LinguaScriptSession({ exerciseIds, onSessionComplete }: LinguaSc
   const ex = current.ex != null ? exercises[current.ex] : undefined;
   const roundLabel: Record<string, string> = {
     recognise: "Round 1 · Listen",
-    "gap-fill": "Round 2 · Fill the gap",
-    "active-recall": "Round 3 · Recall",
-    linguascript: "Round 4 · Use it",
+    dictation: "Round 2 · Hear & type",
+    "gap-fill": "Round 3 · Fill the gap",
+    "active-recall": "Round 4 · Recall",
+    linguascript: "Round 5 · Say it & use it",
   };
 
   return (
@@ -361,14 +383,28 @@ export function LinguaScriptSession({ exerciseIds, onSessionComplete }: LinguaSc
           <RecogniseStep
             key={`${ex.id}-r-${current.retry ?? 0}`}
             word={ex.target_word}
-            meaning={meanings[ex.saved_word_id!]}
-            distractors={meaningDistractors(ex.target_word, meanings[ex.saved_word_id!], band, meaningPool)}
+            meaning={meaningOf(ex)!}
+            distractors={meaningDistractors(ex.target_word, meaningOf(ex)!, band, meaningPool)}
             language={learningLanguage}
             sentence={isCleanSentence(ex.sentence, ex.target_word, learningLanguage) ? ex.sentence : undefined}
             sentenceTranslation={ex.translation}
             pairHint={pairHint(ex.target_word, learningLanguage)}
             onComplete={(ok) => {
               if (!current.retry) log(ex.id).recogniseOk = ok;
+              if (ok) setSessionXp((p) => p + 5);
+              advance(!ok);
+            }}
+          />
+        )}
+
+        {current.type === "dictation" && ex && (
+          <DictationStep
+            key={`${ex.id}-d-${current.retry ?? 0}`}
+            word={ex.target_word}
+            language={learningLanguage}
+            meaning={meaningOf(ex)}
+            onComplete={(ok) => {
+              if (!current.retry && !ok) log(ex.id).slip = true;
               if (ok) setSessionXp((p) => p + 5);
               advance(!ok);
             }}
