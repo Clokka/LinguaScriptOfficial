@@ -6,6 +6,8 @@ import { ActiveRecallReview } from "@/components/ActiveRecallReview";
 import { LinguaScriptCreation } from "@/components/LinguaScriptCreation";
 import { DictationStep } from "@/components/DictationStep";
 import { SpeakStep, speakingSupported } from "@/components/SpeakStep";
+import { speakWord } from "@/components/RecogniseStep";
+import { Volume2 } from "lucide-react";
 import { RecogniseStep } from "@/components/RecogniseStep";
 import { generateLinguaScriptFromWord } from "@/lib/linguascripts";
 import { DECK } from "@/lib/deck-colors";
@@ -438,6 +440,10 @@ export function LinguaScriptSession({ exerciseIds, onSessionComplete }: LinguaSc
           const answer = tokens[gapIndex] ?? ex.target_word;
           const distractors = gapDistractors(answer, band, exercises.map((e) => e.target_word));
           return (
+            <>
+          <button type="button" onClick={() => speakWord(ex.sentence, learningLanguage)} className="mb-3 inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold" style={{ background: `${GREEN}22`, color: GREEN }}>
+            <Volume2 className="h-4 w-4" /> Hear the sentence
+          </button>
             <GapFillChallenge
               key={`${ex.id}-g-${current.retry ?? 0}`}
               words={tokens}
@@ -455,12 +461,17 @@ export function LinguaScriptSession({ exerciseIds, onSessionComplete }: LinguaSc
                 advance(true);
               }}
             />
+            </>
           );
         })()}
 
         {current.type === "active-recall" && ex && (() => {
           const { unit } = tokensWithUnit(ex.sentence, ex.target_word, learningLanguage);
           return (
+            <>
+          <button type="button" onClick={() => speakWord(ex.sentence, learningLanguage)} className="mb-3 inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold" style={{ background: `${GREEN}22`, color: GREEN }}>
+            <Volume2 className="h-4 w-4" /> Hear it
+          </button>
             <ActiveRecallReview
               key={`${ex.id}-a-${current.retry ?? 0}`}
               exerciseId={ex.id}
@@ -471,6 +482,7 @@ export function LinguaScriptSession({ exerciseIds, onSessionComplete }: LinguaSc
               onComplete={(data) => handleRecall(data, ex, current)}
               onSkip={() => handleRecall({ outcome: "revealed" as RecallOutcome, hintsUsed: 0, xpEarned: 0 }, ex, current)}
             />
+            </>
           );
         })()}
 
