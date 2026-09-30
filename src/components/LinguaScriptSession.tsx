@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { GapFillChallenge } from "@/components/GapFillChallenge";
 import { ActiveRecallReview } from "@/components/ActiveRecallReview";
@@ -11,8 +11,26 @@ import { Loader2, ArrowRight } from "lucide-react";
 import { useLineBlast } from "@/hooks/useLineBlast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/hooks/useAuth";
-import { nextState, coerceDeckState, type DeckState } from "@/lib/vocab";
+import { coerceDeckState, type DeckState } from "@/lib/vocab";
 import type { RecallOutcome } from "@/lib/activeRecall";
+import {
+  shuffle,
+  tokensWithUnit,
+  pairHint,
+  isCleanSentence,
+  loadVocabBand,
+  gapDistractors,
+  meaningDistractors,
+  nextStage,
+  dueDate,
+  beforeToday,
+  INTERVALS,
+  type VocabRow,
+  type RecallResult,
+} from "@/lib/lsTeaching";
+import { headlineBand, loadFrequencyCoverage } from "@/lib/frequencyCoverage";
+
+const GREEN = DECK.green;
 
 interface Exercise {
   id: string;
@@ -20,85 +38,81 @@ interface Exercise {
   sentence: string;
   translation: string;
   word_state: DeckState;
-  /** The saved_words row this exercise was generated from, if any — the
-   *  write target for Active Recall's deck promotion. Older rows created
-   *  before this column was backfilled can be null. */
   saved_word_id: string | null;
+  stage?: number | null;
 }
+
+type StepType = "recognise" | "gap-fill" | "active-recall";
 
 /**
- * gap-fill and active-recall now carry `exerciseIndex` because they used to
- * each pick their own word independently — gap-fill hardcoded exercises[0],
- * recall rotated through exercises[stageIndex % length] — so a session could
- * warm up on one word and test memory on a different one entirely. One index
- * per stage is what makes "the same word climbs the ladder" true rather than
- * aspirational.
+ * Interleaved rounds instead of massed practice: every word is heard first,
+ * then every word is gapped, then every word is recalled. Minutes pass between
+ * seeing a word and having to retrieve it — the "desirable difficulty" that
+ * makes recall evidence of learning rather than short-term echo. Misses are
+ * re-queued at the end of their round (relearning) up to twice.
  */
-interface SessionStage {
-  type: "recognise" | "gap-fill" | "active-recall" | "linguascript" | "complete";
-  exerciseIndex?: number;
+interface Step {
+  type: StepType | "linguascript" | "complete";
+  ex?: number;
+  retry?: number;
 }
 
+interface WordLog {
+  recogniseOk?: boolean;
+  gapFirstTry?: boolean;
+  recall?: RecallResult;
+}
+
+const MAX_RETRIES = 2;
+
 interface LinguaScriptSessionProps {
-  exerciseIds: string[]; // IDs of exercises for this session
+  exerciseIds: string[];
   onSessionComplete: (data: { totalXp: number; exercises: string[] }) => void;
 }
 
-export function LinguaScriptSession({
-  exerciseIds,
-  onSessionComplete,
-}: LinguaScriptSessionProps) {
+export function LinguaScriptSession({ exerciseIds, onSessionComplete }: LinguaScriptSessionProps) {
   const { user } = useAuth();
+  const { learningLanguage, nativeLanguage } = useLanguage() as any;
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [loading, setLoading] = useState(true);
-  const [stageIndex, setStageIndex] = useState(0);
+  const [steps, setSteps] = useState<Step[]>([]);
+  const [idx, setIdx] = useState(0);
   const [sessionXp, setSessionXp] = useState(0);
-  const { learningLanguage, nativeLanguage } = useLanguage() as any;
-  // Word meaning per saved word id, plus a pool of other meanings for options.
   const [meanings, setMeanings] = useState<Record<string, string>>({});
+  const [stateChangedAt, setStateChangedAt] = useState<Record<string, string | null>>({});
   const [meaningPool, setMeaningPool] = useState<string[]>([]);
+  const [band, setBand] = useState<VocabRow[]>([]);
+  const [profile, setProfile] = useState<{ level: string; interests: string[] }>({ level: "a2", interests: [] });
+  const [summary, setSummary] = useState<{ toNext: number | null; nextBand: number | null }>({ toNext: null, nextBand: null });
+  const logs = useRef<Record<string, WordLog>>({});
+  const writes = useRef<PromiseLike<unknown>[]>([]);
+  const [finishing, setFinishing] = useState(false);
 
-  /**
-   * The blast is for a LinguaScript's sentence turning fully green, never for
-   * clearing a stage.
-   *
-   * Stages are ordinary progress — gap-fill, recall, production — and firing
-   * the celebration on each one spent it three times per word on things the
-   * learner did not experience as a breakthrough. The breakthrough is the
-   * sentence becoming readable end to end.
-   */
   const blast = useLineBlast({ language: learningLanguage });
 
-  // Arm every sentence up front, before any stage can change the deck.
   useEffect(() => {
     for (const ex of exercises) blast.armLine(ex.sentence);
   }, [exercises, blast.ready, blast]);
 
-  /** Blast any sentence in this session that just became fully green. */
   const checkSentences = useCallback(() => {
-    let fired = false;
-    for (const ex of exercises) {
-      if (blast.completeLine(ex.sentence)) fired = true;
-    }
-    return fired;
+    for (const ex of exercises) blast.completeLine(ex.sentence);
   }, [exercises, blast]);
 
-  // Load exercises
+  // Load exercises + everything the rounds need.
   useEffect(() => {
-    const loadExercises = async () => {
+    const run = async () => {
       try {
-        const { data, error } = await supabase
-          .from("linguascripts")
-          .select("*")
-          .in("id", exerciseIds);
-
+        const { data, error } = await supabase.from("linguascripts").select("*").in("id", exerciseIds);
         if (error) throw error;
-        const rows = (data || []) as any[];
-        const ids = rows.map((r) => r.saved_word_id).filter(Boolean);
+        const rows = ((data || []) as any[]).map((r) => ({ ...r, word_state: coerceDeckState(r.word_state) })) as Exercise[];
+        const ids = rows.map((r) => r.saved_word_id).filter(Boolean) as string[];
+        const m: Record<string, string> = {};
+        const sc: Record<string, string | null> = {};
+        let maxRank = 400;
         if (user && learningLanguage) {
-          const [own, pool] = await Promise.all([
+          const [own, pool, lp] = await Promise.all([
             ids.length
-              ? supabase.from("saved_words").select("id, translation").in("id", ids)
+              ? supabase.from("saved_words").select("id, translation, state_changed_at, frequency_rank").in("id", ids)
               : Promise.resolve({ data: [] as any[] }),
             supabase
               .from("saved_words")
@@ -106,173 +120,156 @@ export function LinguaScriptSession({
               .eq("user_id", user.id)
               .eq("language", learningLanguage)
               .not("translation", "is", null)
-              .limit(60),
+              .limit(80),
+            supabase
+              .from("language_profiles")
+              .select("cefr_level, interests")
+              .eq("user_id", user.id)
+              .eq("language", learningLanguage)
+              .maybeSingle(),
           ]);
-          const m: Record<string, string> = {};
-          for (const r of (own.data || []) as any[]) if (r.translation) m[r.id] = r.translation;
-          setMeanings(m);
+          for (const r of (own.data || []) as any[]) {
+            if (r.translation) m[r.id] = r.translation;
+            sc[r.id] = r.state_changed_at;
+            if (r.frequency_rank) maxRank = Math.max(maxRank, r.frequency_rank);
+          }
           setMeaningPool(((pool.data || []) as any[]).map((r) => r.translation).filter(Boolean));
+          if (lp.data) setProfile({ level: (lp.data as any).cefr_level || "a2", interests: (lp.data as any).interests || [] });
+          setBand(await loadVocabBand(learningLanguage, maxRank));
         }
-        setExercises(
-          rows.map((row) => ({
-            ...row,
-            word_state: coerceDeckState(row.word_state),
-          })) as Exercise[],
-        );
+        setMeanings(m);
+        setStateChangedAt(sc);
+        setExercises(rows);
+
+        // Build interleaved rounds.
+        const order = rows.map((_, i) => i);
+        const s: Step[] = [
+          ...order.filter((i) => rows[i].saved_word_id && m[rows[i].saved_word_id!]).map((i) => ({ type: "recognise" as const, ex: i })),
+          ...shuffle(order).map((i) => ({ type: "gap-fill" as const, ex: i })),
+          ...shuffle(order).map((i) => ({ type: "active-recall" as const, ex: i })),
+          { type: "linguascript" },
+          { type: "complete" },
+        ];
+        setSteps(s);
       } catch (err) {
         console.error("Error loading exercises:", err);
       } finally {
         setLoading(false);
       }
     };
-
-    loadExercises();
+    run();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [exerciseIds]);
 
-  // Gap-fill then recall, per word, in order — then one production stage
-  // covering every word, then complete. See the SessionStage comment above
-  // for why the per-word index matters.
-  const generateStages = useCallback((): SessionStage[] => {
-    if (exercises.length === 0) return [];
+  const log = (id: string) => (logs.current[id] ||= {});
 
-    const stages: SessionStage[] = [];
-    exercises.forEach((ex, i) => {
-      if (ex.saved_word_id && meanings[ex.saved_word_id]) {
-        stages.push({ type: "recognise", exerciseIndex: i });
-      }
-      stages.push({ type: "gap-fill", exerciseIndex: i });
-      stages.push({ type: "active-recall", exerciseIndex: i });
+  /** Advance; if the item was missed, re-queue it at the end of its round. */
+  const advance = useCallback((requeue: boolean) => {
+    setSteps((prev) => {
+      const cur = prev[idx];
+      if (!requeue || !cur || (cur.retry ?? 0) >= MAX_RETRIES) return prev;
+      let end = idx + 1;
+      while (end < prev.length && prev[end].type === cur.type) end++;
+      const next = [...prev];
+      next.splice(end, 0, { ...cur, retry: (cur.retry ?? 0) + 1 });
+      return next;
     });
-    stages.push({ type: "linguascript" });
-    stages.push({ type: "complete" });
-    return stages;
-  }, [exercises, meanings]);
+    setIdx((p) => p + 1);
+  }, [idx]);
 
-  const stages = generateStages();
-
-  const handleGapFillComplete = useCallback(() => {
-    setStageIndex((prev) => prev + 1);
-  }, []);
-
-  /**
-   * Promote the deck on a clean recall only. An assisted recall still earns
-   * XP but holds the word's current position — retrieval with a hint is real
-   * work, but it is the unaided recall that is evidence the word is learned.
-   * `nextState` is forward-only, so a promotion here can never demote a word
-   * that recall alone would demote.
-   */
-  const handleActiveRecallComplete = useCallback(
-    async (
-      data: { outcome: RecallOutcome; hintsUsed: number; xpEarned: number },
-      exercise: Exercise,
-    ) => {
-      if (data.xpEarned > 0) setSessionXp((prev) => prev + data.xpEarned);
-
-      if (data.outcome === "clean") {
-        const promoted = nextState(exercise.word_state, 0, true);
-        if (promoted !== exercise.word_state) {
-          setExercises((prev) =>
-            prev.map((e) => (e.id === exercise.id ? { ...e, word_state: promoted } : e)),
-          );
-          blast.markGreen(exercise.target_word);
-
-          if (user && exercise.saved_word_id) {
-            await supabase
-              .from("saved_words")
-              .update({ state: promoted, state_changed_at: new Date().toISOString() } as any)
-              .eq("id", exercise.saved_word_id)
-              .eq("user_id", user.id);
-          }
-        }
-        // Recall can be what pushes a word green and completes its sentence.
-        checkSentences();
-      } else {
-        blast.breakCombo();
-      }
-
-      // linguascript_reviews already has a method_used constraint expecting
-      // 'active-recall' rows, and its whole purpose is Phase 2 spaced-
-      // repetition data — performance, first-try success — none of which
-      // existed anywhere until now. performance is a rough 0-100 proxy for
-      // that later use, not a precision score.
-      if (user) {
-        const performance = data.outcome === "clean" ? 100 : data.outcome === "assisted" ? 50 : 0;
-        void supabase.from("linguascript_reviews").insert({
-          linguascript_id: exercise.id,
+  /** Schedule + promote once per word, from its first recall attempt. */
+  const commitWord = useCallback(
+    (ex: Exercise, recall: RecallResult) => {
+      if (!user) return;
+      const l = log(ex.id);
+      const slipped = l.recogniseOk === false || l.gapFirstTry === false;
+      const next = nextStage(Number(ex.stage ?? 0), recall, slipped);
+      writes.current.push(
+        supabase
+          .from("linguascripts")
+          .update({ stage: next, scheduled_for: dueDate(next).toISOString(), status: "started" } as any)
+          .eq("id", ex.id)
+          .eq("user_id", user.id)
+          .then(),
+      );
+      writes.current.push(
+        supabase.from("linguascript_reviews").insert({
+          linguascript_id: ex.id,
           user_id: user.id,
           method_used: "active-recall",
-          performance,
-          first_try_correct: data.outcome === "clean" && data.hintsUsed === 0,
+          performance: recall === "clean" ? (slipped ? 75 : 100) : recall === "assisted" ? 50 : 0,
+          first_try_correct: recall === "clean" && !slipped,
           session_id: `session_${Date.now()}`,
-        } as any);
+        } as any).then(),
+      );
 
-        // Real spacing: clean recall climbs the ladder 1→3→7→21→60 days,
-        // a hint holds the step, a reveal drops back to tomorrow.
-        const INTERVALS = [1, 3, 7, 21, 60];
-        const cur = Number((exercise as any).stage ?? 0);
-        const next =
-          data.outcome === "clean"
-            ? Math.min(cur + 1, INTERVALS.length - 1)
-            : data.outcome === "assisted"
-              ? cur
-              : 0;
-        const due = new Date(Date.now() + INTERVALS[next] * 86400000);
-        void supabase
-          .from("linguascripts")
-          .update({ stage: next, scheduled_for: due.toISOString(), status: "started" } as any)
-          .eq("id", exercise.id)
-          .eq("user_id", user.id);
-
-        // Fresh context: once a word is on step 3+ (7 days out), swap its
-        // sentence so the next visit meets the word in a new line.
-        const meaning = exercise.saved_word_id ? meanings[exercise.saved_word_id] : undefined;
-        if (next >= 2 && meaning && learningLanguage) {
-          void generateLinguaScriptFromWord({
-            word: exercise.target_word,
-            translation: meaning,
-            interests: [],
-            cefLevel: "B1",
-            language: learningLanguage,
-            wordState: exercise.word_state,
-            nativeLanguage: nativeLanguage || "en",
-          }).then((fresh) => {
-            if (!fresh?.sentence || !fresh.sentence.toLowerCase().includes(exercise.target_word.toLowerCase())) return;
-            void supabase
-              .from("linguascripts")
-              .update({ sentence: fresh.sentence, translation: fresh.translation || exercise.translation } as any)
-              .eq("id", exercise.id)
-              .eq("user_id", user.id);
-          });
+      // Promotion: red→orange on a clean recall; orange→green only when the
+      // word was last promoted on an earlier day (remembered across a sleep).
+      let promoted: DeckState = ex.word_state;
+      if (recall === "clean") {
+        if (ex.word_state === "red") promoted = "orange";
+        else if (ex.word_state === "orange" && ex.saved_word_id && beforeToday(stateChangedAt[ex.saved_word_id])) promoted = "green";
+      }
+      if (promoted !== ex.word_state) {
+        setExercises((prev) => prev.map((e) => (e.id === ex.id ? { ...e, word_state: promoted } : e)));
+        if (promoted === "green") blast.markGreen(ex.target_word);
+        if (ex.saved_word_id) {
+          writes.current.push(
+            supabase
+              .from("saved_words")
+              .update({ state: promoted, state_changed_at: new Date().toISOString() } as any)
+              .eq("id", ex.saved_word_id)
+              .eq("user_id", user.id)
+              .then(),
+          );
         }
       }
 
-      setStageIndex((prev) => prev + 1);
+      // Fresh, clean sentence at the learner's own level for later visits.
+      const meaning = ex.saved_word_id ? meanings[ex.saved_word_id] : undefined;
+      const needsNew = next >= 2 || !isCleanSentence(ex.sentence, ex.target_word, learningLanguage);
+      if (needsNew && meaning && learningLanguage) {
+        void generateLinguaScriptFromWord({
+          word: ex.target_word,
+          translation: meaning,
+          interests: profile.interests,
+          cefLevel: profile.level.toUpperCase(),
+          language: learningLanguage,
+          wordState: promoted,
+          nativeLanguage: nativeLanguage || "en",
+        }).then((fresh) => {
+          if (!fresh?.sentence || !isCleanSentence(fresh.sentence, ex.target_word, learningLanguage)) return;
+          void supabase
+            .from("linguascripts")
+            .update({ sentence: fresh.sentence, translation: fresh.translation || ex.translation } as any)
+            .eq("id", ex.id)
+            .eq("user_id", user.id);
+        });
+      }
     },
-    [blast, checkSentences, user, meanings, learningLanguage, nativeLanguage],
+    [user, stateChangedAt, meanings, learningLanguage, nativeLanguage, profile, blast],
   );
 
-  const handleLinguaScriptComplete = useCallback(
-    (data: { sentences: any[]; totalXp: number }) => {
-      setSessionXp((prev) => prev + data.totalXp);
-      // Production is the last stage, so this is the session's best chance for
-      // a sentence to have gone fully green.
-      checkSentences();
-
-      // Save performance data
-      saveSentenceData(data.sentences);
-
-      // Move to complete
-      setStageIndex((prev) => prev + 1);
+  const handleRecall = useCallback(
+    (data: { outcome: RecallOutcome; hintsUsed: number; xpEarned: number }, ex: Exercise, step: Step) => {
+      if (data.xpEarned > 0) setSessionXp((p) => p + data.xpEarned);
+      const result: RecallResult =
+        data.outcome === "clean" ? "clean" : data.outcome === "assisted" ? "assisted" : "failed";
+      if (!step.retry) {
+        log(ex.id).recall = result;
+        commitWord(ex, result);
+      }
+      if (result === "clean") checkSentences();
+      else blast.breakCombo();
+      advance(result === "failed");
     },
-    [checkSentences]
+    [commitWord, checkSentences, blast, advance],
   );
 
   const saveSentenceData = async (sentences: any[]) => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const reviews = sentences.map((s) => ({
+    if (!user) return;
+    const reviews = sentences
+      .map((s) => ({
         linguascript_id: exercises.find((e) => e.target_word === s.word)?.id,
         user_id: user.id,
         method_used: "linguascript",
@@ -280,202 +277,198 @@ export function LinguaScriptSession({
         user_text: s.userText,
         ai_feedback: s.feedback,
         session_id: `session_${Date.now()}`,
-      }));
-
-      await supabase.from("linguascript_reviews").insert(reviews);
-    } catch (err) {
-      console.error("Error saving sentence data:", err);
-    }
+      }))
+      .filter((r) => r.linguascript_id);
+    if (reviews.length) writes.current.push(supabase.from("linguascript_reviews").insert(reviews as any).then());
   };
 
-  const handleSessionComplete = useCallback(() => {
-    onSessionComplete({
-      totalXp: sessionXp,
-      exercises: exerciseIds,
-    });
-  }, [sessionXp, exerciseIds, onSessionComplete]);
+  const current = steps[idx];
 
-  const handleSkip = useCallback(() => {
-    blast.breakCombo();
-    setStageIndex((prev) => Math.min(prev + 1, stages.length - 1));
-  }, [stages.length, blast]);
+  // Ladder distance for the end screen.
+  useEffect(() => {
+    if (current?.type !== "complete" || !learningLanguage) return;
+    void Promise.all(writes.current).then(async () => {
+      const b = headlineBand(await loadFrequencyCoverage(learningLanguage));
+      if (b) setSummary({ toNext: Math.max(0, b.total - b.known), nextBand: b.band });
+    });
+  }, [current?.type, learningLanguage]);
+
+  const stats = useMemo(() => {
+    const vals = Object.values(logs.current);
+    const clean = vals.filter((v) => v.recall === "clean").length;
+    return { clean, total: exercises.length };
+  }, [exercises.length, current?.type]);
+
+  const finish = async () => {
+    setFinishing(true);
+    await Promise.allSettled(writes.current);
+    onSessionComplete({ totalXp: sessionXp, exercises: exerciseIds });
+  };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-950 to-slate-900">
+      <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
-          <Loader2 className="w-8 h-8 text-amber-400 animate-spin" />
-          <p className="text-slate-400">Loading session...</p>
+          <Loader2 className="h-8 w-8 animate-spin" style={{ color: GREEN }} />
+          <p className="text-muted-foreground">Loading session...</p>
         </div>
       </div>
     );
   }
 
-  if (exercises.length === 0) {
+  if (exercises.length === 0 || !current) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-950 to-slate-900">
-        <div className="text-center">
-          <p className="text-slate-400">No exercises found</p>
-        </div>
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <p className="text-muted-foreground">No exercises found</p>
       </div>
     );
   }
 
-  const currentStage = stages[stageIndex];
-  const currentExercise =
-    currentStage.exerciseIndex != null ? exercises[currentStage.exerciseIndex] : undefined;
-  const wordNumber = currentStage.exerciseIndex != null ? currentStage.exerciseIndex + 1 : null;
+  const ex = current.ex != null ? exercises[current.ex] : undefined;
+  const roundLabel: Record<string, string> = {
+    recognise: "Round 1 · Listen",
+    "gap-fill": "Round 2 · Fill the gap",
+    "active-recall": "Round 3 · Recall",
+    linguascript: "Round 4 · Use it",
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 to-slate-900 p-6">
-      {/* Session Progress */}
-      <div className="container mx-auto max-w-4xl mb-8">
-        <div className="flex items-center justify-between mb-4">
+    <div className="min-h-screen bg-background p-6 text-foreground">
+      <div className="container mx-auto mb-8 max-w-2xl">
+        <div className="mb-4 flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-black" style={{ color: DECK.green }}>LinguaScripts</h1>
-            <p className="text-sm text-slate-400">
-              {stageIndex + 1} of {stages.length - 1} stages
+            <h1 className="text-2xl font-black" style={{ color: GREEN }}>LinguaScripts</h1>
+            <p className="text-sm text-muted-foreground">
+              {roundLabel[current.type] ?? "Done"}
+              {current.retry ? " · one more try" : ""}
             </p>
           </div>
           <div className="text-right">
-            <p className="text-2xl font-black text-emerald-400">{sessionXp} XP</p>
-            <p className="text-xs text-slate-400">earned so far</p>
+            <p className="text-2xl font-black" style={{ color: GREEN }}>{sessionXp} XP</p>
+            <p className="text-xs text-muted-foreground">earned so far</p>
           </div>
         </div>
-
-        {/* Progress Bar */}
-        <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+        <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
           <div
             className="h-full transition-all duration-300"
-            style={{
-              background: DECK.green,
-              width: `${((stageIndex + 1) / stages.length) * 100}%`,
-            }}
+            style={{ background: GREEN, width: `${((idx + 1) / steps.length) * 100}%` }}
           />
         </div>
       </div>
 
-      {/* Stage Content */}
-      <div className="container mx-auto max-w-4xl">
-        {currentStage.type === "recognise" && currentExercise && (
-          <div>
-            <p className="text-sm text-muted-foreground mb-4">
-              Word {wordNumber} of {exercises.length} — Listen
-            </p>
-            <RecogniseStep
-              key={currentExercise.id}
-              word={currentExercise.target_word}
-              meaning={meanings[currentExercise.saved_word_id!]}
-              distractors={meaningPool}
-              language={learningLanguage}
-              onComplete={(ok) => {
-                if (ok) setSessionXp((p) => p + 5);
-                setStageIndex((p) => p + 1);
-              }}
-            />
-          </div>
+      <div className="container mx-auto max-w-2xl">
+        {current.type === "recognise" && ex && (
+          <RecogniseStep
+            key={`${ex.id}-r-${current.retry ?? 0}`}
+            word={ex.target_word}
+            meaning={meanings[ex.saved_word_id!]}
+            distractors={meaningDistractors(ex.target_word, meanings[ex.saved_word_id!], band, meaningPool)}
+            language={learningLanguage}
+            sentence={isCleanSentence(ex.sentence, ex.target_word, learningLanguage) ? ex.sentence : undefined}
+            sentenceTranslation={ex.translation}
+            pairHint={pairHint(ex.target_word, learningLanguage)}
+            onComplete={(ok) => {
+              if (!current.retry) log(ex.id).recogniseOk = ok;
+              if (ok) setSessionXp((p) => p + 5);
+              advance(!ok);
+            }}
+          />
         )}
 
-        {currentStage.type === "gap-fill" && currentExercise && (() => {
-          const clean = (w: string) => w.toLowerCase().replace(/[.,!?;:«»"'¿¡…]/g, "");
-          const target = clean(currentExercise.target_word);
-          const tokens = currentExercise.sentence.split(/\s+/);
-          const gi = Math.max(0, tokens.findIndex((w) => clean(w) === target || clean(w).includes(target)));
-          // Four different options: the answer plus 3 real words from this
-          // session / sentence / the learner's meanings pool — never duplicates
-          // of the answer and never a placeholder.
-          const seen = new Set([target]);
-          const pool = [
-            ...exercises.map((e) => e.target_word),
-            ...tokens.filter((_, i) => i !== gi),
-          ];
-          const distractors: string[] = [];
-          for (const w of pool) {
-            const c = clean(w);
-            if (!c || seen.has(c) || c.length < 2) continue;
-            seen.add(c);
-            distractors.push(c);
-            if (distractors.length === 3) break;
-          }
+        {current.type === "gap-fill" && ex && (() => {
+          const { tokens, gapIndex } = tokensWithUnit(ex.sentence, ex.target_word, learningLanguage);
+          const answer = tokens[gapIndex] ?? ex.target_word;
+          const distractors = gapDistractors(answer, band, exercises.map((e) => e.target_word));
           return (
-            <div>
-              <p className="text-sm text-muted-foreground mb-4">
-                Word {wordNumber} of {exercises.length} — Fill the gap
-              </p>
-              <GapFillChallenge
-                words={tokens}
-                gapIndex={gi}
-                distractors={distractors}
-                tier={currentExercise.word_state === "green" ? "orange" : currentExercise.word_state}
-                translation={currentExercise.translation}
-                onComplete={handleGapFillComplete}
-                onSkip={handleSkip}
-              />
-            </div>
+            <GapFillChallenge
+              key={`${ex.id}-g-${current.retry ?? 0}`}
+              words={tokens}
+              gapIndex={gapIndex}
+              distractors={distractors}
+              tier={ex.word_state === "green" ? "orange" : ex.word_state}
+              translation={ex.translation}
+              onComplete={(firstTry) => {
+                if (!current.retry) log(ex.id).gapFirstTry = firstTry;
+                advance(!firstTry);
+              }}
+              onSkip={() => {
+                if (!current.retry) log(ex.id).gapFirstTry = false;
+                blast.breakCombo();
+                advance(true);
+              }}
+            />
           );
         })()}
 
-        {currentStage.type === "active-recall" && currentExercise && (
-          <div>
-            <p className="text-sm text-muted-foreground mb-4">
-              Word {wordNumber} of {exercises.length} — Recall
-            </p>
+        {current.type === "active-recall" && ex && (() => {
+          const { unit } = tokensWithUnit(ex.sentence, ex.target_word, learningLanguage);
+          return (
             <ActiveRecallReview
-              exerciseId={currentExercise.id}
-              sentence={currentExercise.sentence}
-              targetWord={currentExercise.target_word}
-              translation={currentExercise.translation}
+              key={`${ex.id}-a-${current.retry ?? 0}`}
+              exerciseId={ex.id}
+              sentence={ex.sentence}
+              targetWord={unit || ex.target_word}
+              translation={ex.translation}
               language={learningLanguage}
-              onComplete={(data) => handleActiveRecallComplete(data, currentExercise)}
-              onSkip={handleSkip}
+              onComplete={(data) => handleRecall(data, ex, current)}
+              onSkip={() => handleRecall({ outcome: "revealed" as RecallOutcome, hintsUsed: 0, xpEarned: 0 }, ex, current)}
             />
-          </div>
-        )}
+          );
+        })()}
 
-        {currentStage.type === "linguascript" && (
+        {current.type === "linguascript" && (
           <LinguaScriptCreation
             items={exercises.map((e) => ({
               word: e.target_word,
               example: e.sentence,
               exampleTranslation: e.translation,
             }))}
-            onComplete={handleLinguaScriptComplete}
-            onSkip={handleSkip}
+            onComplete={(data) => {
+              setSessionXp((p) => p + data.totalXp);
+              checkSentences();
+              void saveSentenceData(data.sentences);
+              setIdx((p) => p + 1);
+            }}
+            onSkip={() => setIdx((p) => p + 1)}
           />
         )}
 
-        {currentStage.type === "complete" && (
-          <div className="rounded-2xl border border-[#34C759]/40 bg-card p-8 text-center">
-            <div className="mb-6">
-              <p className="text-4xl font-black text-[#34C759] mb-2">{sessionXp} XP</p>
-              <p className="text-muted-foreground">Session complete</p>
-            </div>
-            <p className="text-foreground mb-6">
-              You listened, filled gaps, recalled and wrote with {exercises.length} words.
+        {current.type === "complete" && (
+          <div className="rounded-2xl border p-8 text-center" style={{ borderColor: `${GREEN}55`, background: `${GREEN}14` }}>
+            <p className="mb-2 text-4xl font-black" style={{ color: GREEN }}>{sessionXp} XP</p>
+            <p className="text-muted-foreground">Session complete</p>
+            <p className="mt-6 text-lg font-bold">
+              {stats.clean} / {stats.total} words recalled without help
             </p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Words you nailed come back in {INTERVALS[1]}–{INTERVALS[2]} days. Words you missed come back tomorrow.
+            </p>
+            {summary.nextBand != null && summary.toNext != null && (
+              <p className="mt-4 text-sm">
+                {summary.toNext === 0 ? (
+                  <>You know every word in the top <b>{summary.nextBand.toLocaleString()}</b>.</>
+                ) : (
+                  <>
+                    <b style={{ color: GREEN }}>{summary.toNext}</b> more word{summary.toNext !== 1 ? "s" : ""} to reach the top{" "}
+                    <b>{summary.nextBand.toLocaleString()}</b>
+                  </>
+                )}
+              </p>
+            )}
             <button
-              onClick={handleSessionComplete}
-              className="w-full rounded-xl bg-[#34C759] px-6 py-3 font-semibold text-background"
+              onClick={finish}
+              disabled={finishing}
+              className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl px-6 py-3 font-semibold text-background disabled:opacity-60"
+              style={{ background: GREEN }}
             >
-              <span>Back to LinguaScripts</span>
-              <ArrowRight className="w-4 h-4 ml-2 inline" />
+              {finishing ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Back to LinguaScripts <ArrowRight className="h-4 w-4" /></>}
             </button>
           </div>
         )}
       </div>
 
-      {/* The celebration, from the same component the landing demo uses. */}
-      <canvas
-        ref={blast.canvasRef}
-        aria-hidden="true"
-        className="pointer-events-none fixed inset-0 z-40 h-full w-full"
-      />
-      <LineBlastOverlay
-        praise={blast.praise}
-        floatXp={blast.floatXp}
-        glowKey={blast.glowKey}
-        placement="screen"
-      />
+      <canvas ref={blast.canvasRef} aria-hidden="true" className="pointer-events-none fixed inset-0 z-40 h-full w-full" />
+      <LineBlastOverlay praise={blast.praise} floatXp={blast.floatXp} glowKey={blast.glowKey} placement="screen" />
     </div>
   );
 }
