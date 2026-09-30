@@ -74,8 +74,9 @@ export function useLinguaScriptStatus() {
     dayStart.setHours(0, 0, 0, 0);
     const { data: revs } = await supabase
       .from("linguascript_reviews")
-      .select("linguascript_id")
+      .select("linguascript_id, linguascripts!inner(language)")
       .eq("user_id", user.id)
+      .eq("linguascripts.language", learningLanguage)
       .gte("created_at", dayStart.toISOString());
     const reviewedToday = new Set((revs ?? []).map((r: any) => r.linguascript_id)).size;
 

@@ -59,8 +59,9 @@ export default function LinguaScripts() {
           .limit(1000),
         supabase
           .from("linguascript_reviews")
-          .select("linguascript_id")
+          .select("linguascript_id, linguascripts!inner(language)")
           .eq("user_id", user.id)
+          .eq("linguascripts.language", learningLanguage)
           .gte("created_at", start.toISOString()),
         supabase
           .from("saved_words")
