@@ -362,6 +362,18 @@ export function LinguaScriptSession({ exerciseIds, onSessionComplete }: LinguaSc
     speak: "Round 5 · Say it",
     linguascript: "Round 6 · Use it",
   };
+  // Plain first-language help for beginners (Hindi first).
+  const roundHelp: Record<string, Record<string, string>> = {
+    hi: {
+      recognise: "शब्द सुनें और उसका सही अर्थ चुनें।",
+      dictation: "शब्द सुनें और जो सुना वह टाइप करें।",
+      "gap-fill": "वाक्य में खाली जगह के लिए सही शब्द चुनें।",
+      "active-recall": "अर्थ देखे बिना शब्द याद करें।",
+      speak: "माइक दबाएँ और वाक्य ज़ोर से बोलें।",
+      linguascript: "इस शब्द से अपना एक वाक्य लिखें।",
+    },
+  };
+  const help = roundHelp[nativeLanguage]?.[current.type];
 
   return (
     <div className="min-h-screen bg-background p-6 text-foreground">
@@ -373,6 +385,7 @@ export function LinguaScriptSession({ exerciseIds, onSessionComplete }: LinguaSc
               {roundLabel[current.type] ?? "Done"}
               {current.retry ? " · one more try" : ""}
             </p>
+            {help && <p className="mt-1 text-sm text-muted-foreground" lang={nativeLanguage}>{help}</p>}
           </div>
           <div className="text-right">
             <p className="text-2xl font-black" style={{ color: GREEN }}>{sessionXp} XP</p>
