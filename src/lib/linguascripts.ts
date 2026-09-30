@@ -131,7 +131,7 @@ export async function generateLinguaScriptFromWord(params: {
 
     return {
       sentence: data?.sentence || "",
-      translation: data?.englishTranslation || "",
+      translation: data?.nativeTranslation || data?.englishTranslation || "",
     };
   } catch (err) {
     console.error("Failed to generate LinguaScript:", err);

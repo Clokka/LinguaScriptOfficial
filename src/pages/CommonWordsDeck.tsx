@@ -1,3 +1,4 @@
+import { getNativeLanguage, overlayNative } from "@/lib/nativeGloss";
 // "Most common words" deck — the frequency list, in order, as flashcards.
 // Words the learner doesn't know yet are added to saved_words (red) when they
 // start studying, so reviews flow through the normal SRS.
@@ -58,11 +59,11 @@ export default function CommonWordsDeck() {
       .eq("language", language)
       .order("rank")
       .limit(b);
-    const list = (data as CoreWord[]) || [];
+    const list = await overlayNative((data as CoreWord[]) || [], language, await getNativeLanguage(user?.id));
     setWords(list);
     setSaved(await loadSaved(list));
     setLoading(false);
-  }, [language, loadSaved]);
+  }, [language, loadSaved, user]);
 
   useEffect(() => { load(); }, [load]);
 

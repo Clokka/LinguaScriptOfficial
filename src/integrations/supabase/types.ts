@@ -1900,6 +1900,33 @@ export type Database = {
         }
         Relationships: []
       }
+      vocab_translations: {
+        Row: {
+          created_at: string
+          id: string
+          language: string
+          native_language: string
+          translation: string
+          word: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          language: string
+          native_language: string
+          translation: string
+          word: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          language?: string
+          native_language?: string
+          translation?: string
+          word?: string
+        }
+        Relationships: []
+      }
       watch_history: {
         Row: {
           completion_pct: number
