@@ -11,14 +11,42 @@ const TTS: Record<string, string> = {
   pl: "pl-PL", sv: "sv-SE", en: "en-GB",
 };
 
+function pickVoice(lang: string): SpeechSynthesisVoice | undefined {
+  const voices = window.speechSynthesis.getVoices();
+  const base = lang.split("-")[0].toLowerCase();
+  return (
+    voices.find((v) => v.lang.toLowerCase() === lang.toLowerCase()) ||
+    voices.find((v) => v.lang.toLowerCase().replace("_", "-").startsWith(base))
+  );
+}
+
+/**
+ * Speak a word with a real voice for that language. Voices load late on
+ * many phones (getVoices() is empty at first), which made the first
+ * playback silent or use the English voice — so wait for them.
+ */
 export function speakWord(word: string, language: string) {
   try {
-    if (!("speechSynthesis" in window)) return;
-    window.speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(word);
-    u.lang = TTS[language] || language;
-    u.rate = 0.85;
-    window.speechSynthesis.speak(u);
+    if (!("speechSynthesis" in window) || !word) return;
+    const synth = window.speechSynthesis;
+    const lang = TTS[language] || language;
+    const go = () => {
+      synth.cancel();
+      const u = new SpeechSynthesisUtterance(word);
+      u.lang = lang;
+      const v = pickVoice(lang);
+      if (v) u.voice = v;
+      u.rate = 0.85;
+      synth.resume();
+      synth.speak(u);
+    };
+    if (synth.getVoices().length) go();
+    else {
+      let done = false;
+      const once = () => { if (!done) { done = true; go(); } };
+      synth.addEventListener?.("voiceschanged", once, { once: true } as any);
+      setTimeout(once, 400);
+    }
   } catch {
     /* no audio available */
   }
