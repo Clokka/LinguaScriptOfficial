@@ -19,7 +19,12 @@ function getSR(): any {
 
 /** True when this browser can check speech in this language. */
 export function speakingSupported(language: string) {
-  return !!getSR() && !!LANG_MAP[language?.toLowerCase()];
+  if (!LANG_MAP[language?.toLowerCase()]) return false;
+  return !!getSR() || canRecord();
+}
+
+function canRecord() {
+  return typeof window !== "undefined" && !!navigator.mediaDevices?.getUserMedia && typeof (window as any).MediaRecorder !== "undefined";
 }
 
 const norm = (s: string) =>
@@ -48,6 +53,10 @@ export function SpeakStep({
   const [recording, setRecording] = useState(false);
   const [heard, setHeard] = useState<string | null>(null);
   const [tries, setTries] = useState(0);
+  // Phones without speech recognition (e.g. iPhone Safari): record, play
+  // yourself back next to the native voice, and judge it yourself.
+  const useRecorder = !getSR();
+  const [clip, setClip] = useState<string | null>(null);
 
   useEffect(() => {
     speakWord(target, language);
@@ -60,8 +69,30 @@ export function SpeakStep({
   const pct = spoken && t.length ? Math.round((t.filter((w) => spoken.has(w)).length / t.length) * 100) : 0;
   const ok = wordHit && pct >= 60;
 
-  const start = () => {
+  const start = async () => {
     if (recording) { try { recRef.current?.stop(); } catch { /* ignore */ } return; }
+    if (useRecorder) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const mr = new (window as any).MediaRecorder(stream);
+        const chunks: Blob[] = [];
+        mr.ondataavailable = (e: any) => chunks.push(e.data);
+        mr.onstop = () => {
+          stream.getTracks().forEach((t) => t.stop());
+          const url = URL.createObjectURL(new Blob(chunks, { type: mr.mimeType || "audio/mp4" }));
+          setClip(url);
+          setTries((n) => n + 1);
+          setRecording(false);
+          new Audio(url).play().catch(() => {});
+        };
+        recRef.current = mr;
+        setClip(null);
+        setRecording(true);
+        mr.start();
+        setTimeout(() => { if (mr.state === "recording") mr.stop(); }, 8000);
+      } catch { setRecording(false); }
+      return;
+    }
     const SR = getSR();
     if (!SR) return;
     const rec = new SR();
@@ -119,6 +150,20 @@ export function SpeakStep({
         <p className="text-xs text-muted-foreground">{recording ? "Listening…" : "Tap and speak"}</p>
       </div>
 
+      {useRecorder && clip && (
+        <div className="mt-4 rounded-xl bg-muted p-4 text-center">
+          <p className="text-sm font-semibold">Compare: does yours sound like the voice?</p>
+          <div className="mt-3 flex justify-center gap-2">
+            <button onClick={() => new Audio(clip).play().catch(() => {})} className="rounded-lg border px-3 py-1.5 text-sm">Play mine</button>
+            <button onClick={() => speakWord(target, language)} className="rounded-lg border px-3 py-1.5 text-sm">Play voice</button>
+          </div>
+          <div className="mt-3 flex justify-center gap-2">
+            <button onClick={() => onComplete(true)} className="rounded-lg px-4 py-2 text-sm font-semibold text-background" style={{ background: GREEN }}>Sounded right</button>
+            <button onClick={start} className="rounded-lg border px-4 py-2 text-sm">Try again</button>
+          </div>
+        </div>
+      )}
+
       {heard !== null && (
         <div className="mt-4 rounded-xl p-4 text-center" style={{ background: ok ? `${GREEN}18` : "hsl(var(--muted))" }}>
           <p className="font-semibold" style={{ color: ok ? GREEN : undefined }}>
@@ -131,7 +176,7 @@ export function SpeakStep({
         <button onClick={() => onComplete(false)} className="text-sm text-muted-foreground underline">
           Can't speak now
         </button>
-        {(ok || tries >= 2) && (
+        {!useRecorder && (ok || tries >= 2) && (
           <button
             onClick={() => onComplete(ok)}
             className="inline-flex items-center gap-2 rounded-xl px-5 py-2 font-semibold text-background"
