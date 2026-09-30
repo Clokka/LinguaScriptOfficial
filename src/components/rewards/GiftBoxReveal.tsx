@@ -1,8 +1,11 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Gem, Gift } from "lucide-react";
+import { Gem } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { GiftUnboxScene, type GiftUnboxHandle } from "@/components/pets/GiftUnboxScene";
+
+const CHAMELEON_GLB = "/pets/Chameleon_Animations.glb";
 
 export interface GiftContents {
   title: string;
