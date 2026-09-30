@@ -79,7 +79,7 @@ export function AdminCustomFeeds() {
   const addTopic = async () => {
     if (!selected) return;
     const label = form.label.trim();
-    const lang = form.lang.trim().toLowerCase();
+    let lang = form.lang.trim().toLowerCase();
     const phrases = form.phrases.split("\n").map((p) => p.trim()).filter(Boolean).slice(0, 3);
     const fallback = form.fallback.trim();
     if (!label) { toast({ title: "Give the topic a name", variant: "destructive" }); return; }
@@ -88,8 +88,16 @@ export function AdminCustomFeeds() {
       return;
     }
     if (phrases.length > 0 && !lang) {
-      toast({ title: "Which language are the phrases in?", description: "e.g. it, fr, es", variant: "destructive" });
-      return;
+      const { data: prof } = await supabase
+        .from("profiles")
+        .select("learning_language")
+        .eq("user_id", selected.user_id)
+        .maybeSingle();
+      lang = String((prof as any)?.learning_language || "").toLowerCase();
+      if (!lang) {
+        toast({ title: "Type the language code in the small box", description: "e.g. it, fr, es — next to the topic name", variant: "destructive" });
+        return;
+      }
     }
     setSaving(true);
     const { data: { user } } = await supabase.auth.getUser();
