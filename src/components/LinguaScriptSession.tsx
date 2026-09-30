@@ -28,6 +28,7 @@ import {
   INTERVALS,
   type VocabRow,
   type RecallResult,
+  cleanToken,
 } from "@/lib/lsTeaching";
 import { headlineBand, loadFrequencyCoverage } from "@/lib/frequencyCoverage";
 
@@ -43,7 +44,7 @@ interface Exercise {
   stage?: number | null;
 }
 
-type StepType = "recognise" | "gap-fill" | "active-recall";
+type StepType = "recognise" | "dictation" | "gap-fill" | "active-recall";
 
 /**
  * Interleaved rounds instead of massed practice: every word is heard first,
@@ -60,6 +61,7 @@ interface Step {
 
 interface WordLog {
   recogniseOk?: boolean;
+  slip?: boolean;
   gapFirstTry?: boolean;
   recall?: RecallResult;
 }
@@ -203,7 +205,7 @@ export function LinguaScriptSession({ exerciseIds, onSessionComplete }: LinguaSc
     (ex: Exercise, recall: RecallResult) => {
       if (!user) return;
       const l = log(ex.id);
-      const slipped = l.recogniseOk === false || l.gapFirstTry === false;
+      const slipped = l.recogniseOk === false || l.gapFirstTry === false || !!l.slip;
       const next = nextStage(Number(ex.stage ?? 0), recall, slipped);
       writes.current.push(
         supabase
