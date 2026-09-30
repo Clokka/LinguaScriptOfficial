@@ -353,7 +353,7 @@ export function LinguaScriptSession({ exerciseIds, onSessionComplete }: LinguaSc
     dictation: "Round 2 · Hear & type",
     "gap-fill": "Round 3 · Fill the gap",
     "active-recall": "Round 4 · Recall",
-    linguascript: "Round 5 · Say it & use it",
+    linguascript: "Round 5 · Use it",
   };
 
   return (
