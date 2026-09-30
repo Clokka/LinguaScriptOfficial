@@ -1,3 +1,4 @@
+import { getNativeLanguage, overlayNative } from "@/lib/nativeGloss";
 import { supabase } from "@/integrations/supabase/client";
 
 export interface PreTeachItem {
@@ -79,6 +80,11 @@ export async function gradePreTeachVocab(opts: {
       .lte("rank", cap)
       .in("word", chunk);
     if (data) vocab.push(...data);
+  }
+  {
+    const native = await getNativeLanguage(opts.userId);
+    const over = await overlayNative(vocab, lang, native);
+    vocab.splice(0, vocab.length, ...over);
   }
 
   // Drop words the learner already knows (green).
