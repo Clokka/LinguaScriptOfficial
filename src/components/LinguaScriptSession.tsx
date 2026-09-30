@@ -85,7 +85,7 @@ export function LinguaScriptSession({ exerciseIds, onSessionComplete }: LinguaSc
   const [profile, setProfile] = useState<{ level: string; interests: string[] }>({ level: "a2", interests: [] });
   const [summary, setSummary] = useState<{ toNext: number | null; nextBand: number | null }>({ toNext: null, nextBand: null });
   const logs = useRef<Record<string, WordLog>>({});
-  const writes = useRef<Promise<unknown>[]>([]);
+  const writes = useRef<PromiseLike<unknown>[]>([]);
   const [finishing, setFinishing] = useState(false);
 
   const blast = useLineBlast({ language: learningLanguage });
