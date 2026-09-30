@@ -4,6 +4,7 @@ import { GapFillChallenge } from "@/components/GapFillChallenge";
 import { ActiveRecallReview } from "@/components/ActiveRecallReview";
 import { LinguaScriptCreation } from "@/components/LinguaScriptCreation";
 import { DictationStep } from "@/components/DictationStep";
+import { SpeakStep, speakingSupported } from "@/components/SpeakStep";
 import { RecogniseStep } from "@/components/RecogniseStep";
 import { generateLinguaScriptFromWord } from "@/lib/linguascripts";
 import { DECK } from "@/lib/deck-colors";
@@ -44,7 +45,7 @@ interface Exercise {
   stage?: number | null;
 }
 
-type StepType = "recognise" | "dictation" | "gap-fill" | "active-recall";
+type StepType = "recognise" | "dictation" | "gap-fill" | "active-recall" | "speak";
 
 /**
  * Interleaved rounds instead of massed practice: every word is heard first,
@@ -168,6 +169,7 @@ export function LinguaScriptSession({ exerciseIds, onSessionComplete }: LinguaSc
           ...shuffle(order).map((i) => ({ type: "dictation" as const, ex: i })),
           ...shuffle(order).map((i) => ({ type: "gap-fill" as const, ex: i })),
           ...shuffle(order).map((i) => ({ type: "active-recall" as const, ex: i })),
+          ...(speakingSupported(learningLanguage) ? shuffle(order).map((i) => ({ type: "speak" as const, ex: i })) : []),
           { type: "linguascript" },
           { type: "complete" },
         ];
@@ -353,7 +355,8 @@ export function LinguaScriptSession({ exerciseIds, onSessionComplete }: LinguaSc
     dictation: "Round 2 · Hear & type",
     "gap-fill": "Round 3 · Fill the gap",
     "active-recall": "Round 4 · Recall",
-    linguascript: "Round 5 · Use it",
+    speak: "Round 5 · Say it",
+    linguascript: "Round 6 · Use it",
   };
 
   return (
@@ -453,6 +456,20 @@ export function LinguaScriptSession({ exerciseIds, onSessionComplete }: LinguaSc
             />
           );
         })()}
+
+        {current.type === "speak" && ex && (
+          <SpeakStep
+            key={`${ex.id}-s`}
+            word={ex.target_word}
+            sentence={isCleanSentence(ex.sentence, ex.target_word, learningLanguage) ? ex.sentence : undefined}
+            translation={ex.translation}
+            language={learningLanguage}
+            onComplete={(ok) => {
+              if (ok) setSessionXp((p) => p + 5);
+              setIdx((p) => p + 1);
+            }}
+          />
+        )}
 
         {current.type === "linguascript" && (
           <LinguaScriptCreation
