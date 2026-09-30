@@ -18,6 +18,7 @@ import { Pencil } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { getIntegrations, saveIntegrations, type IntegrationKey, type IntegrationConfig } from "@/lib/integrations";
 import { AdminProGrants } from "@/components/AdminProGrants";
+import { AdminCustomFeeds } from "@/components/AdminCustomFeeds";
 import { AdminProGiftLinks } from "@/components/AdminProGiftLinks";
 import { AdminProChameleonGiveaway } from "@/components/AdminProChameleonGiveaway";
 import { AdminVideoSearchCache } from "@/components/AdminVideoSearchCache";
@@ -381,6 +382,8 @@ const Admin = () => {
         <AdminBlogEditor />
 
         <AdminProGrants />
+
+        <AdminCustomFeeds />
 
         <AdminProGiftLinks />
         <AdminProChameleonGiveaway />
