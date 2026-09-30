@@ -634,7 +634,10 @@ const SceneClickWord = ({ content }: { content: LangContent }) => {
             borderRadius: 99,
             border: `2px solid ${DECK.orange}`,
             transform: `translate(-50%, 0) scale(${1 + click * 0.6})`,
-            opacity: interpolate(click, [0, 1], [0.9, 0]),
+            opacity: interpolate(click, [0, 1], [0.9, 0], {
+              extrapolateLeft: "clamp",
+              extrapolateRight: "clamp",
+            }),
           }}
         />
         {popup > 0 && (
