@@ -1,3 +1,5 @@
+import { useRef } from "react";
+import { cachedDue, loadDue, type DueSummary } from "@/lib/lsDue";
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -93,7 +95,7 @@ export default function LinguaScripts() {
       apply(d, new Map());
       setLoading(false);
       // Most-common-first ordering refines the queue a moment later.
-      const words = Array.from(new Set(d.rows.filter((r) => d.dueIds.includes(r.id)).map((r) => r.target_word))).slice(0, 300);
+      const words = Array.from(new Set(d.rows.filter((r) => d.dueIds.includes(r.id)).map((r) => r.target_word))).slice(0, 300) as string[];
       if (words.length) {
         const { data: rk } = await supabase
           .from("saved_words")
