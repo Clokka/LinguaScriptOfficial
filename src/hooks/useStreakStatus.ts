@@ -5,6 +5,8 @@ import { useXp } from "@/contexts/XpContext";
 import { DEFAULT_WORD_GOAL, wordGoalForVideos, minuteGoalForVideos } from "@/lib/progressStats";
 import { emitStreakIgnited } from "@/components/StreakCelebrationModal";
 import { dailyGoalSpikeIntensity } from "@/lib/dailyGoalSpike";
+import { consumeStreakFreeze } from "@/lib/rewards";
+import { toast } from "@/hooks/use-toast";
 
 export interface StreakStatus {
   loading: boolean;
@@ -97,7 +99,16 @@ export function useStreakStatus(): StreakStatus {
     // goal the learner never agreed to.
     const streakEarned = wordsGoalMet;
     let streakCount = (profile as any)?.streak_count ?? 0;
-    const lastStreakDate: string | null = (profile as any)?.last_streak_date ?? null;
+    let lastStreakDate: string | null = (profile as any)?.last_streak_date ?? null;
+    // Missed exactly one day: a held streak freeze bridges the gap (server-checked).
+    const twoDaysAgo = new Date(Date.now() - 2 * 86400000).toISOString().split("T")[0];
+    if (lastStreakDate === twoDaysAgo && streakCount > 0) {
+      const used = await consumeStreakFreeze().catch(() => false);
+      if (used) {
+        lastStreakDate = yesterdayStr();
+        toast({ title: "🧊 Streak freeze used", description: `Your ${streakCount}-day streak is safe.` });
+      }
+    }
     const alreadyMarkedToday = (activity as any)?.goal_met === true;
 
     // Ignite streak lazily once both goals are met

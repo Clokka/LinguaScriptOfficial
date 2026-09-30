@@ -1,3 +1,4 @@
+import { getNativeLanguage, overlayNative } from "@/lib/nativeGloss";
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { GapFillChallenge } from "@/components/GapFillChallenge";
@@ -76,7 +77,8 @@ interface LinguaScriptSessionProps {
 
 export function LinguaScriptSession({ exerciseIds, onSessionComplete }: LinguaScriptSessionProps) {
   const { user } = useAuth();
-  const { learningLanguage, nativeLanguage } = useLanguage() as any;
+  const { learningLanguage } = useLanguage() as any;
+  const [nativeLanguage, setNativeLanguage] = useState("en");
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [loading, setLoading] = useState(true);
   const [steps, setSteps] = useState<Step[]>([]);
@@ -139,7 +141,9 @@ export function LinguaScriptSession({ exerciseIds, onSessionComplete }: LinguaSc
           }
           setMeaningPool(((pool.data || []) as any[]).map((r) => r.translation).filter(Boolean));
           if (lp.data) setProfile({ level: (lp.data as any).cefr_level || "a2", interests: (lp.data as any).interests || [] });
-          const vb = await loadVocabBand(learningLanguage, maxRank);
+          const native = await getNativeLanguage(user.id);
+          setNativeLanguage(native);
+          const vb = await overlayNative(await loadVocabBand(learningLanguage, maxRank), learningLanguage, native);
           setBand(vb);
           // Every word gets a meaning so the listening round always runs.
           const missing = rows.filter((r) => !(r.saved_word_id && m[r.saved_word_id]));
@@ -358,6 +362,18 @@ export function LinguaScriptSession({ exerciseIds, onSessionComplete }: LinguaSc
     speak: "Round 5 · Say it",
     linguascript: "Round 6 · Use it",
   };
+  // Plain first-language help for beginners (Hindi first).
+  const roundHelp: Record<string, Record<string, string>> = {
+    hi: {
+      recognise: "शब्द सुनें और उसका सही अर्थ चुनें।",
+      dictation: "शब्द सुनें और जो सुना वह टाइप करें।",
+      "gap-fill": "वाक्य में खाली जगह के लिए सही शब्द चुनें।",
+      "active-recall": "अर्थ देखे बिना शब्द याद करें।",
+      speak: "माइक दबाएँ और वाक्य ज़ोर से बोलें।",
+      linguascript: "इस शब्द से अपना एक वाक्य लिखें।",
+    },
+  };
+  const help = roundHelp[nativeLanguage]?.[current.type];
 
   return (
     <div className="min-h-screen bg-background p-6 text-foreground">
@@ -369,6 +385,7 @@ export function LinguaScriptSession({ exerciseIds, onSessionComplete }: LinguaSc
               {roundLabel[current.type] ?? "Done"}
               {current.retry ? " · one more try" : ""}
             </p>
+            {help && <p className="mt-1 text-sm text-muted-foreground" lang={nativeLanguage}>{help}</p>}
           </div>
           <div className="text-right">
             <p className="text-2xl font-black" style={{ color: GREEN }}>{sessionXp} XP</p>

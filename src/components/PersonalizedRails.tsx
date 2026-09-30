@@ -4,7 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { getLanguageLabel } from "@/lib/languages";
-import { INTERESTS, interestById, interestQueries } from "@/lib/interests";
+import { INTERESTS, interestById, interestQueries, type Interest } from "@/lib/interests";
+import { customTopicQueries, customTopicRailId, fetchCustomFeedTopics, type CustomFeedTopic } from "@/lib/customFeedTopics";
 import { recordFeedEvent } from "@/lib/feedSignals";
 import { rankByComprehension } from "@/lib/videoRecommendation";
 import { cefrSearchModifier } from "@/lib/cefrQueryModifiers";
@@ -93,6 +94,9 @@ function feedScore(it: YTItem): number {
 function sortFeed(items: YTItem[]): YTItem[] {
   return items.map((it, i) => ({ it, i })).sort((a, b) => feedScore(b.it) - feedScore(a.it) || a.i - b.i).map((x) => x.it);
 }
+/** An onboarding interest, or an admin-curated topic carrying its own search phrases. */
+type RailDef = Interest & { custom?: CustomFeedTopic };
+
 function roundRobin(lists: YTItem[][]): YTItem[] {
   const out: YTItem[] = [];
   const max = Math.max(0, ...lists.map((l) => l.length));
@@ -131,6 +135,9 @@ export const PersonalizedRails = ({
   // taste signal than the onboarding checkbox itself. Reorders which 3
   // interests get rail slots; never changes the underlying interest list.
   const [interestWeights, setInterestWeights] = useState<Record<string, number>>({});
+  // Admin-curated topics for this learner (e.g. pottery, with exact Italian
+  // search phrases) — always get the top rail slots.
+  const [customTopics, setCustomTopics] = useState<CustomFeedTopic[]>([]);
 
   const langLabel = useMemo(() => getLanguageLabel(learningLanguage), [learningLanguage]);
 
@@ -144,11 +151,14 @@ export const PersonalizedRails = ({
 
   // Per-interest rails: cap to 3 so we don't burn YouTube quota. Ordered by
   // actual pick history (falls back to onboarding order for ties/unpicked).
-  const interestRailDefs = useMemo(() => {
-    return [...selectedInterests]
-      .sort((a, b) => (interestWeights[b.id] || 0) - (interestWeights[a.id] || 0))
-      .slice(0, 5);
-  }, [selectedInterests, interestWeights]);
+  const interestRailDefs = useMemo<RailDef[]>(() => {
+    const custom: RailDef[] = [...customTopics]
+      .sort((a, b) => (interestWeights[customTopicRailId(b)] || 0) - (interestWeights[customTopicRailId(a)] || 0))
+      .map((t) => ({ id: customTopicRailId(t), label: t.label, emoji: t.emoji, query: t.fallback_query || t.label, custom: t }));
+    const onboarding = [...selectedInterests]
+      .sort((a, b) => (interestWeights[b.id] || 0) - (interestWeights[a.id] || 0));
+    return [...custom, ...onboarding].slice(0, Math.max(5, custom.length));
+  }, [customTopics, selectedInterests, interestWeights]);
 
   const [interestRails, setInterestRails] = useState<Record<string, YTItem[]>>({});
 
@@ -159,18 +169,21 @@ export const PersonalizedRails = ({
     if (!user) {
       setCefrLevel(null);
       setInterestWeights({});
+      setCustomTopics([]);
       return;
     }
     void (async () => {
-      const [profile, signalsRes] = await Promise.all([
+      const [profile, signalsRes, custom] = await Promise.all([
         getLanguageProfile(user.id, learningLanguage),
         (supabase as any)
           .from("user_interest_signals")
           .select("interest_id, picks")
           .eq("user_id", user.id)
           .eq("language", learningLanguage.toLowerCase()),
+        fetchCustomFeedTopics(user.id),
       ]);
       if (cancelled) return;
+      setCustomTopics(custom);
       setCefrLevel(profile?.cefr_level || null);
       const weights: Record<string, number> = {};
       for (const row of (signalsRes?.data as any[]) || []) weights[row.interest_id] = row.picks;
@@ -189,11 +202,22 @@ export const PersonalizedRails = ({
       const lang = learningLanguage;
 
       // Favourite interest gets 2 search phrases, others 1 — keeps quota sane.
+      // Custom topics are hand-written for one learner, so all their phrases
+      // run (up to 3), exactly as written: the CEFR modifier is English
+      // ("for beginners easy slow") and would drag a phrase like "ceramica al
+      // tornio" towards English videos. The phrase is in the cache key so
+      // admin edits show up.
       const interestSearches = interestRailDefs.map((i, idx) => {
-        const qs = interestQueries(i, lang, langLabel).slice(0, idx === 0 ? 2 : 1);
+        const qs = i.custom
+          ? customTopicQueries(i.custom, lang, langLabel)
+          : interestQueries(i, lang, langLabel).slice(0, idx === 0 ? 2 : 1);
         return Promise.all(
           qs.map((q, qi) =>
-            cachedSearch(`rails:i2:${lang}:${i.id}:${qi}:${cefrKey}`, `${q}${cefrMod ? ` ${cefrMod}` : ""}`, lang),
+            cachedSearch(
+              i.custom ? `rails:c:${lang}:${i.id}:${q}` : `rails:i2:${lang}:${i.id}:${qi}:${cefrKey}`,
+              i.custom ? q : `${q}${cefrMod ? ` ${cefrMod}` : ""}`,
+              lang,
+            ),
           ),
         ).then((rs) => ({
           items: dedupe(rs.flatMap((r) => r.items)),
@@ -272,7 +296,7 @@ export const PersonalizedRails = ({
     return (
       <Rail
         key={i.id}
-        title={first ? `${i.emoji} ${i.label} in ${langLabel}` : `${i.emoji} Because you like ${i.label}`}
+        title={first ? `${i.emoji} ${i.label} in ${langLabel}` : i.custom ? `${i.emoji} ${i.label}, picked for you` : `${i.emoji} Because you like ${i.label}`}
         subtitle={first ? "Short clips first — tap one and start saving words." : undefined}
       >
         {items.map((it) => (

@@ -55,6 +55,7 @@ import { LevelBadge } from "@/components/LevelBadge";
 import { passesContentLengthPolicy } from "@/lib/contentLengthPolicy";
 import { BrandMark } from "@/components/BrandMark";
 import { DailyGoalTally } from "@/components/DailyGoalTally";
+import { DailyChestCard } from "@/components/rewards/DailyChestCard";
 import { useDailyWordGoal } from "@/hooks/useDailyWordGoal";
 
 const INTERESTS_BY_ID: Record<string, Interest> = Object.fromEntries(
@@ -542,6 +543,7 @@ const Browse = () => {
                 variant="card"
                 className="mb-6"
               />
+              <DailyChestCard goalMet={dailyGoal.goal > 0 && dailyGoal.savedToday >= dailyGoal.goal} />
 
               {/* LinguaScripts Alerts - Top Priority */}
               {lsRemaining > 0 && (

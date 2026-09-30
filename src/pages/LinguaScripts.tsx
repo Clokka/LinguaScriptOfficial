@@ -47,7 +47,17 @@ export default function LinguaScripts() {
       const tomorrowEnd = new Date(start.getTime() + 2 * 86400000);
       const weekEnd = new Date(start.getTime() + 8 * 86400000);
 
-      const [all, reviews, words, cov] = await Promise.all([
+      // Coverage is slow; load it in the background so the page shows at once.
+      const covPromise = loadFrequencyCoverage(learningLanguage);
+      const deckCount = (state: string) =>
+        supabase
+          .from("saved_words")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", user.id)
+          .eq("language", learningLanguage)
+          .eq("state", state);
+
+      const [all, reviews, red, orange, green] = await Promise.all([
         supabase
           .from("linguascripts")
           .select("id, target_word, scheduled_for")
@@ -59,29 +69,38 @@ export default function LinguaScripts() {
           .limit(1000),
         supabase
           .from("linguascript_reviews")
-          .select("linguascript_id")
+          .select("linguascript_id, linguascripts!inner(language)")
           .eq("user_id", user.id)
+          .eq("linguascripts.language", learningLanguage)
           .gte("created_at", start.toISOString()),
-        supabase
-          .from("saved_words")
-          .select("word, state, frequency_rank, next_review")
-          .eq("user_id", user.id)
-          .eq("language", learningLanguage)
-          .limit(20000),
-        loadFrequencyCoverage(learningLanguage),
+        deckCount("red"),
+        deckCount("orange"),
+        deckCount("green"),
       ]);
 
       const rows = (all.data || []) as Row[];
       const done = new Set(((reviews.data || []) as any[]).map((r) => r.linguascript_id)).size;
-      const wordRows = (words.data || []) as any[];
+      const d = { red: red.count ?? 0, orange: orange.count ?? 0, green: green.count ?? 0 };
+
+      // Frequency ranks only for words that are due now.
+      const dueWords = Array.from(
+        new Set(rows.filter((r) => new Date(r.scheduled_for) <= now).map((r) => r.target_word)),
+      ).slice(0, 300);
       const rank = new Map<string, number>();
-      const d = { red: 0, orange: 0, green: 0 };
-      for (const w of wordRows) {
-        if (w.frequency_rank) rank.set(String(w.word).toLowerCase(), w.frequency_rank);
-        if (w.state in d) (d as any)[w.state]++;
+      if (dueWords.length) {
+        const { data: rk } = await supabase
+          .from("saved_words")
+          .select("word, frequency_rank")
+          .eq("user_id", user.id)
+          .eq("language", learningLanguage)
+          .in("word", dueWords);
+        for (const w of (rk || []) as any[]) {
+          if (w.frequency_rank) rank.set(String(w.word).toLowerCase(), w.frequency_rank);
+        }
       }
 
-      const currentBand = headlineBand(cov)?.band ?? null;
+      const currentBand: number | null = null;
+      covPromise.then((cov) => setBand(headlineBand(cov)?.band ?? null)).catch(() => {});
 
       // Due now, current frequency milestone first, then most common first.
       const due = rows
@@ -103,7 +122,6 @@ export default function LinguaScripts() {
         week: rows.filter((r) => new Date(r.scheduled_for) > now).length,
       });
       setDecks(d);
-      setBand(currentBand);
     } catch (e) {
       console.error("LinguaScripts load failed", e);
     } finally {
