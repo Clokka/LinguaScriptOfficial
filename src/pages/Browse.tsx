@@ -116,6 +116,9 @@ const Browse = () => {
   const initialTab: TabKey = location.pathname.startsWith("/discover") ? "discover" : "home";
   const [activeTab, setActiveTab] = useState<TabKey>(initialTab);
   const dailyGoal = useDailyWordGoal();
+  const lsRemaining = linguaScriptStatus
+    ? Math.min(linguaScriptStatus.linguascriptsPending, Math.max(0, (dailyGoal.goal || 0) - (linguaScriptStatus.reviewedToday ?? 0)))
+    : 0;
   const [showLinguaScriptSession, setShowLinguaScriptSession] = useState(false);
   useEffect(() => {
     if (location.pathname.startsWith("/discover")) setActiveTab("discover");
