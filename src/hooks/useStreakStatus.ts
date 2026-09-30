@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useXp } from "@/contexts/XpContext";
 import { DEFAULT_WORD_GOAL, wordGoalForVideos, minuteGoalForVideos } from "@/lib/progressStats";
 import { emitStreakIgnited } from "@/components/StreakCelebrationModal";
+import { dailyGoalSpikeIntensity } from "@/lib/dailyGoalSpike";
 
 export interface StreakStatus {
   loading: boolean;
@@ -42,6 +44,7 @@ function yesterdayStr() {
  */
 export function useStreakStatus(): StreakStatus {
   const { user } = useAuth();
+  const { award } = useXp();
   const [state, setState] = useState<StreakStatus>({
     loading: true,
     videoGoal: 1,
@@ -130,6 +133,12 @@ export function useStreakStatus(): StreakStatus {
         wordsReviewed,
         minutesWatched,
       });
+
+      // Reaching today's word goal is a guaranteed level-up (see
+      // XpContext.award's daily_goal_reached case) — the whole point is that
+      // whatever goal the learner picked, 1 word or 20, hitting it always
+      // pays off the same way. Intensity is cosmetic only, never the reward.
+      award("daily_goal_reached", { intensity: dailyGoalSpikeIntensity(newCount) });
     }
 
     setState({

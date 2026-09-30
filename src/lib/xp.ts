@@ -10,7 +10,8 @@ export type XpAction =
   | "session_end"
   | "video_watch"
   | "reinforcement"
-  | "line_blast";
+  | "line_blast"
+  | "daily_goal_reached";
 
 /**
  * XP for one completed line, before the combo multiplier.
@@ -130,6 +131,11 @@ export function xpForAction(action: XpAction, meta: XpMeta = {}): number {
       if (n >= 5) return 10;
       return 0;
     }
+    // Computed in XpContext.award(), not here — the whole point is a bonus
+    // sized to whatever gap remains to the next level, and this pure function
+    // has no access to the learner's current XP total.
+    case "daily_goal_reached":
+      return 0;
   }
 }
 

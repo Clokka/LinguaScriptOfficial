@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useStreakStatus } from "@/hooks/useStreakStatus";
 import { StreakFlame } from "./StreakFlame";
 import { DailyGoalPicker } from "./DailyGoalPicker";
+import { ChameleonMascot } from "./ChameleonMascot";
 import { normalizeWordGoal, videoGoalForWords } from "@/lib/progressStats";
 
 const dismissKey = (uid: string) => `briefing:${uid}:${new Date().toISOString().split("T")[0]}`;
@@ -121,8 +122,15 @@ export const DailyBriefing = () => {
             <X className="h-4 w-4" />
           </button>
 
+          {/* A small welcome moment on open — reinforcement for showing up
+              at all, separate from and before the streak/goal state below. */}
+          <div className="flex flex-col items-center pt-6 pb-1">
+            <ChameleonMascot tier="green" party style={{ width: 64 }} />
+            <p className="mt-1 text-xs font-semibold text-white/60">Welcome back!</p>
+          </div>
+
           {/* The flame carries the state; the number carries the fact. */}
-          <div className="flex flex-col items-center px-7 pb-2 pt-9 text-center">
+          <div className="flex flex-col items-center px-7 pb-2 pt-3 text-center">
             <StreakFlame active={streak.streakActive} size={112} />
             <p className="mt-1 text-5xl font-black tabular-nums tracking-tight text-white">
               {streak.streakCount}

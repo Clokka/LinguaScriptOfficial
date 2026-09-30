@@ -32,17 +32,48 @@ const LABELS: Record<XpAction, string> = {
   video_watch: "Video watched",
   reinforcement: "Reinforcement",
   line_blast: "Line complete",
+  daily_goal_reached: "Daily goal reached",
 };
 
 const prefersReducedMotion = () =>
   typeof window !== "undefined" &&
   window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+/** Lightweight CSS/framer particle burst for a "big"/"massive" daily-goal
+ *  spike — no canvas, matching StreakCelebrationModal's existing pattern
+ *  rather than pulling in the line-blast canvas confetti system. */
+const SpikeBurst = ({ count }: { count: number }) => (
+  <div className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden">
+    {Array.from({ length: count }).map((_, i) => {
+      const angle = (i / count) * Math.PI * 2;
+      const dist = 140 + Math.random() * 160;
+      const x = Math.cos(angle) * dist;
+      const y = Math.sin(angle) * dist;
+      const colors = ["#34C759", "#FBBF24", "#FF8A00", "#22D3EE"];
+      const color = colors[i % colors.length];
+      return (
+        <span
+          key={i}
+          className="absolute block rounded-full animate-bounce-in"
+          style={{
+            width: 6 + Math.random() * 6,
+            height: 6 + Math.random() * 6,
+            background: color,
+            boxShadow: `0 0 14px ${color}`,
+            transform: `translate(${x}px, ${y}px)`,
+          }}
+        />
+      );
+    })}
+  </div>
+);
+
 export const XpToast = () => {
   const {
     recentGain,
     leveledUpTo,
     levelUpReward,
+    spikeIntensity,
     gems,
     consumeLevelUp,
     award,
@@ -136,16 +167,32 @@ export const XpToast = () => {
           </Suspense>
         ) : (
           <div className="fixed inset-0 z-[110] flex items-center justify-center pointer-events-none">
+            {spikeIntensity === "big" && <SpikeBurst count={18} />}
+            {spikeIntensity === "massive" && <SpikeBurst count={36} />}
             <div className="glass-panel-strong p-8 text-center animate-bounce-in pointer-events-auto">
-              <div className="w-16 h-16 mx-auto mb-3 rounded-full bg-gradient-accent flex items-center justify-center shadow-glow-accent">
-                <Trophy className="w-8 h-8 text-accent-foreground" />
+              <div
+                className={cn(
+                  "mx-auto mb-3 rounded-full bg-gradient-accent flex items-center justify-center shadow-glow-accent",
+                  spikeIntensity === "massive" ? "w-24 h-24" : spikeIntensity === "big" ? "w-20 h-20" : "w-16 h-16",
+                )}
+              >
+                <Trophy
+                  className={cn(
+                    "text-accent-foreground",
+                    spikeIntensity === "massive" ? "w-12 h-12" : spikeIntensity === "big" ? "w-10 h-10" : "w-8 h-8",
+                  )}
+                />
               </div>
               <div className="text-sm uppercase tracking-widest text-muted-foreground">
-                {levelUpReward?.tier === "grand"
-                  ? "Grand milestone"
-                  : levelUpReward?.tier === "major"
-                    ? "Milestone"
-                    : "Level up"}
+                {spikeIntensity === "massive"
+                  ? "Massive daily win"
+                  : spikeIntensity === "big"
+                    ? "Big daily win"
+                    : levelUpReward?.tier === "grand"
+                      ? "Grand milestone"
+                      : levelUpReward?.tier === "major"
+                        ? "Milestone"
+                        : "Level up"}
               </div>
               <div className="text-4xl font-black gradient-text mt-1">
                 Level {leveledUpTo}

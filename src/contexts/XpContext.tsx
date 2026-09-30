@@ -20,8 +20,10 @@ import {
   persistXP,
   syncLevelRewards,
   xpForAction,
+  xpForLevel,
 } from "@/lib/xp";
 import { rewardForLevel, type LevelReward } from "@/lib/levelRewards";
+import type { SpikeIntensity } from "@/lib/dailyGoalSpike";
 
 interface RecentGain {
   amount: number;
@@ -40,7 +42,11 @@ interface XpContextValue {
   leveledUpTo: number | null;
   /** Reward for the level just reached, for the celebration UI. */
   levelUpReward: LevelReward | null;
-  award: (action: XpAction, meta?: XpMeta) => number;
+  /** Set only when the level-up came from reaching today's word goal — how
+   *  big the celebration should feel, never how much it pays (see
+   *  dailyGoalSpike.ts). Null for an ordinary XP level-up. */
+  spikeIntensity: SpikeIntensity | null;
+  award: (action: XpAction, meta?: XpMeta & { intensity?: SpikeIntensity }) => number;
   consumeLevelUp: () => void;
 }
 
@@ -52,6 +58,7 @@ export function XpProvider({ children }: { children: ReactNode }) {
   const [gems, setGems] = useState<number>(0);
   const [recentGain, setRecentGain] = useState<RecentGain | null>(null);
   const [leveledUpTo, setLeveledUpTo] = useState<number | null>(null);
+  const [spikeIntensity, setSpikeIntensity] = useState<SpikeIntensity | null>(null);
   const prevLevelRef = useRef<number>(1);
   // Mirrors `xp` synchronously so award() can compute the next total without
   // doing side effects inside a state updater (updaters must stay pure).
@@ -121,8 +128,14 @@ export function XpProvider({ children }: { children: ReactNode }) {
   }, [user]);
 
   const award = useCallback(
-    (action: XpAction, meta?: XpMeta) => {
-      const amount = xpForAction(action, meta);
+    (action: XpAction, meta?: XpMeta & { intensity?: SpikeIntensity }) => {
+      // Reaching today's word goal is a guaranteed level-up, not a fixed XP
+      // grant — the bonus is exactly whatever's left to the next threshold,
+      // so it works the same way whether today's goal was 1 word or 20.
+      const amount =
+        action === "daily_goal_reached"
+          ? Math.max(1, xpForLevel(levelFromXP(xpRef.current).level + 1) - xpRef.current)
+          : xpForAction(action, meta);
       if (amount <= 0) return 0;
 
       const next = xpRef.current + amount;
@@ -132,6 +145,7 @@ export function XpProvider({ children }: { children: ReactNode }) {
       if (level > prevLevelRef.current) {
         prevLevelRef.current = level;
         setLeveledUpTo(level);
+        setSpikeIntensity(action === "daily_goal_reached" ? (meta?.intensity ?? "normal") : null);
         if (user) {
           // Server grants the reward idempotently and returns the balance,
           // so a replayed level-up can never double-pay.
@@ -168,8 +182,12 @@ export function XpProvider({ children }: { children: ReactNode }) {
         recentGain,
         leveledUpTo,
         levelUpReward: leveledUpTo != null ? rewardForLevel(leveledUpTo) : null,
+        spikeIntensity,
         award,
-        consumeLevelUp: () => setLeveledUpTo(null),
+        consumeLevelUp: () => {
+          setLeveledUpTo(null);
+          setSpikeIntensity(null);
+        },
       }}
     >
       {children}
