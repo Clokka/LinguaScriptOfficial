@@ -3,7 +3,7 @@ import {
   Body, Button, Container, Head, Heading, Hr, Html, Preview, Section, Text,
 } from 'npm:@react-email/components@0.0.22'
 import type { TemplateEntry } from './registry.ts'
-import { BrandHeader } from './brand-header.tsx'
+import { BrandFooterMark, BrandHeader } from './brand-header.tsx'
 
 // Sent once when a Stripe Checkout Session expires unpaid — the card was
 // declined, or the buyer left before finishing. Triggered by payments-webhook.
@@ -24,6 +24,7 @@ const Email = ({ name = 'there', retryUrl = 'https://linguascript.co.uk/upgrade'
       <Text style={p}>If it keeps failing, reply to this email and we'll help you sort it out.</Text>
       <Hr style={hr} />
       <Text style={footer}>You're getting this one-time email because you started a checkout on LinguaScript.</Text>
+      <BrandFooterMark />
     </Container></Body></Html>
 )
 

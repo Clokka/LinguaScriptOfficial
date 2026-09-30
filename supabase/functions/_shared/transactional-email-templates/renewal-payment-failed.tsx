@@ -3,7 +3,7 @@ import {
   Body, Button, Container, Head, Heading, Hr, Html, Preview, Section, Text,
 } from 'npm:@react-email/components@0.0.22'
 import type { TemplateEntry } from './registry.ts'
-import { BrandHeader } from './brand-header.tsx'
+import { BrandFooterMark, BrandHeader } from './brand-header.tsx'
 
 // Sent once per invoice when a Pro renewal charge fails. Stripe keeps
 // retrying the card on its own schedule; this just tells the customer so
@@ -25,6 +25,7 @@ const Email = ({ name = 'there', billingUrl = 'https://linguascript.co.uk/profil
       <Text style={p}>Open your profile and tap <strong>Manage billing</strong>. If you need help, just reply to this email.</Text>
       <Hr style={hr} />
       <Text style={footer}>You're getting this because a payment for your LinguaScript Pro subscription failed.</Text>
+      <BrandFooterMark />
     </Container></Body></Html>
 )
 
