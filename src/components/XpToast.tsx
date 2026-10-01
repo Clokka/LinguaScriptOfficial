@@ -33,6 +33,8 @@ const LABELS: Record<XpAction, string> = {
   reinforcement: "Reinforcement",
   line_blast: "Line complete",
   daily_goal_reached: "Daily goal reached",
+  return_gift: "Daily gift",
+  mission_bonus: "Mission complete",
 };
 
 const prefersReducedMotion = () =>
