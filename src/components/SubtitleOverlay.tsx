@@ -56,6 +56,8 @@ interface SubtitleOverlayProps {
   onMarkKnown?: (word: Word) => void;
   nativeLanguage?: string;
   contentLanguage?: string;
+  /** Pre-teach picks: unsaved occurrences get a gold "tap me" ring. */
+  targetWords?: Set<string>;
 }
 
 // Canonical LinguaScript deck palette. These hexes MUST stay identical to
@@ -80,6 +82,7 @@ export const SubtitleOverlay = ({
   onMarkKnown,
   nativeLanguage,
   contentLanguage,
+  targetWords,
 }: SubtitleOverlayProps) => {
   const [selectedWord, setSelectedWord] = useState<Word | null>(null);
   const [popupPosition, setPopupPosition] = useState({ x: 0, y: 0 });
@@ -369,6 +372,7 @@ export const SubtitleOverlay = ({
 
   const renderWords = () => {
     const textWords = primaryText.split(" ");
+    let rings = 0;
     return textWords.map((text, index) => {
       const wordData = words.find(
         (w) => w.text.toLowerCase() === text.toLowerCase().replace(/[.,!?]/g, "")
@@ -378,6 +382,9 @@ export const SubtitleOverlay = ({
       // A green word the learner hasn't witnessed yet renders GOLD, not green
       // — the promotion is a reward to be claimed, not a status to be shown.
       const isGold = goldTokens.has(token);
+      const isTarget =
+        !isGold && !deckState && !!wordData && !!targetWords?.has(token) && rings < 3;
+      if (isTarget) rings++;
       // Saved words render in their exact deck colour (red/orange/green);
       // unknown words stay bright white to draw the eye.
       const deckColor = isGold
@@ -399,6 +406,7 @@ export const SubtitleOverlay = ({
             // click-through so the video controls underneath remain reachable.
             (wordData || isGold) && "cursor-pointer pointer-events-auto rounded hover:bg-white/10",
             deckColor ? "font-semibold" : "text-white font-medium",
+            isTarget && "ls-target-ring font-semibold",
           )}
           style={
             deckColor
