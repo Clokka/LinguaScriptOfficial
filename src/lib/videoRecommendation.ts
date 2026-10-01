@@ -9,6 +9,7 @@
 import { fetchCaptionsFromBrowser } from "@/lib/browserCaptionFetcher";
 import { tokenize, learningZone, type LearningZone } from "@/lib/understanding";
 import { scoreTokens } from "@/lib/videoComprehension";
+import { COVERAGE, rankScore, isShowable } from "@/lib/coverage";
 import { loadDeckIndex, type SavedWordLite } from "@/lib/vocab";
 
 /**
@@ -18,8 +19,8 @@ import { loadDeckIndex, type SavedWordLite } from "@/lib/vocab";
  * 10-20%-unknown guess — below ~95% known, sentence-level parsing starts
  * getting effortful rather than just individual-word gaps.
  */
-export const IDEAL_MIN = 95;
-export const IDEAL_MAX = 98;
+export const IDEAL_MIN = COVERAGE.MIN;
+export const IDEAL_MAX = COVERAGE.IDEAL;
 
 export interface ScoredCandidate {
   videoId: string;
@@ -30,9 +31,7 @@ export interface ScoredCandidate {
 
 /** 0 inside the ideal band, otherwise how far outside it (either direction). */
 export function distanceFromIdeal(pct: number): number {
-  if (pct < IDEAL_MIN) return IDEAL_MIN - pct;
-  if (pct > IDEAL_MAX) return pct - IDEAL_MAX;
-  return 0;
+  return rankScore(pct);
 }
 
 /** Score one candidate video against a learner's real known-word deck. */
@@ -90,6 +89,7 @@ export async function rankByComprehension<T extends { videoId: string }>(
     .filter((s): s is { item: T; score: ScoredCandidate & { comprehensionPct: number; zone: LearningZone } } =>
       s.score.comprehensionPct !== null && s.score.zone !== null,
     )
+    .filter((s) => isShowable(s.score.comprehensionPct))
     .map((s) => ({ item: s.item, comprehensionPct: s.score.comprehensionPct, zone: s.score.zone }));
   usable.sort((a, b) => distanceFromIdeal(a.comprehensionPct) - distanceFromIdeal(b.comprehensionPct));
   return usable;
