@@ -2162,6 +2162,7 @@ export type Database = {
       accept_school_invite: { Args: { _token: string }; Returns: string }
       add_friend_by_code: { Args: { _code: string }; Returns: string }
       add_friend_by_user_id: { Args: { _target: string }; Returns: string }
+      admin_fill_vocab_translations: { Args: { _rows: Json }; Returns: number }
       admin_grant_pro: {
         Args: { _days?: number; _user_id: string }
         Returns: boolean
