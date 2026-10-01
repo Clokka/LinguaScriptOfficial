@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Mail, Lock, User } from "lucide-react";
 import { BrandMark } from "@/components/BrandMark";
 import { useToast } from "@/hooks/use-toast";
+import { useT } from "@/i18n";
+import { UiLanguageSwitcher } from "@/components/UiLanguageSwitcher";
 
 function GoogleIcon() {
   return (
@@ -30,6 +32,7 @@ const Auth = () => {
   const [googleLoading, setGoogleLoading] = useState(false);
 
   const navigate = useNavigate();
+  const { t } = useT();
   const [searchParams] = useSearchParams();
   const inviteToken = searchParams.get("invite");
   const next = searchParams.get("next") || "/discover";
@@ -99,7 +102,13 @@ const Auth = () => {
         toast({ title: "Login failed", description: error.message, variant: "destructive" });
       } else {
         await acceptInviteIfAny();
-        navigate(next);
+        // Returning learners go straight in — never back through onboarding.
+        const { data: u } = await supabase.auth.getUser();
+        const { data: prof } = await supabase.from("profiles")
+          .select("onboarded, cef_level").eq("user_id", u.user?.id ?? "").maybeSingle();
+        const done = Boolean((prof as any)?.onboarded || (prof as any)?.cef_level);
+        if (done) { try { localStorage.removeItem("ls.onboardingState.v1"); } catch { /* ignore */ } }
+        navigate(done ? next : "/onboarding", { replace: true });
       }
     } else {
       const { error } = await supabase.auth.signUp({
@@ -130,12 +139,13 @@ const Auth = () => {
       <div className="absolute inset-0 bg-gradient-hero pointer-events-none" />
       <div className="relative z-10 w-full max-w-md">
         <div className="text-center mb-8">
+          <div className="flex justify-end mb-2"><UiLanguageSwitcher /></div>
           <BrandMark variant="lockup" size={44} className="mx-auto mb-5" />
           <h1 className="text-3xl font-bold text-foreground">
-            {isLogin ? "Welcome back" : "Join LinguaScript"}
+            {isLogin ? t("welcomeBack") : t("joinLs")}
           </h1>
           <p className="text-muted-foreground mt-2">
-            {isLogin ? "Sign in to continue learning" : "Create your account to start learning"}
+            {isLogin ? t("signInSub") : t("signUpSub")}
           </p>
         </div>
 
@@ -152,14 +162,14 @@ const Auth = () => {
               disabled={googleLoading}
             >
               <GoogleIcon />
-              {googleLoading ? "Signing in…" : "Continue with Google"}
+              {googleLoading ? t("signingIn") : t("google")}
             </Button>
           </div>
 
 
           <div className="flex items-center gap-3">
             <div className="flex-1 h-px bg-border" />
-            <span className="text-xs text-muted-foreground">or</span>
+            <span className="text-xs text-muted-foreground">{t("or")}</span>
             <div className="flex-1 h-px bg-border" />
           </div>
 
@@ -168,7 +178,7 @@ const Auth = () => {
               <div className="relative">
                 <User className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
                 <Input
-                  placeholder="Display name"
+                  placeholder={t("displayName")}
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
                   className="pl-10 bg-secondary/50 border-border"
@@ -179,7 +189,7 @@ const Auth = () => {
               <Mail className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
               <Input
                 type="email"
-                placeholder="Email"
+                placeholder={t("email")}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -190,7 +200,7 @@ const Auth = () => {
               <Lock className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
               <Input
                 type="password"
-                placeholder="Password"
+                placeholder={t("password")}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -199,18 +209,18 @@ const Auth = () => {
               />
             </div>
             <Button type="submit" variant="hero" size="lg" className="w-full" disabled={loading}>
-              {loading ? "Loading..." : isLogin ? "Sign In" : "Create Account"}
+              {loading ? t("loading") : isLogin ? t("signIn") : t("createAccount")}
             </Button>
           </form>
         </div>
 
         <p className="text-center text-muted-foreground mt-6 text-sm">
-          {isLogin ? "Don't have an account?" : "Already have an account?"}{" "}
+          {isLogin ? t("noAccount") : t("haveAccount")}{" "}
           <button
             onClick={() => setIsLogin(!isLogin)}
             className="text-primary hover:underline font-medium"
           >
-            {isLogin ? "Sign up" : "Sign in"}
+            {isLogin ? t("signUp") : t("signInLink")}
           </button>
         </p>
       </div>

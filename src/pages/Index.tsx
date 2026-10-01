@@ -31,13 +31,13 @@ const Index = () => {
 
       const { data } = await supabase
         .from("profiles")
-        .select("onboarded")
+        .select("onboarded, cef_level")
         .eq("user_id", user.id)
         .maybeSingle();
       if (!cancelled) {
         // Only same-origin app paths are honoured.
         setNext(pendingNext && pendingNext.startsWith("/") && !pendingNext.startsWith("//") ? pendingNext : null);
-        setOnboarded(Boolean((data as { onboarded?: boolean } | null)?.onboarded));
+        setOnboarded(Boolean((data as any)?.onboarded || (data as any)?.cef_level));
       }
     })();
     return () => {
