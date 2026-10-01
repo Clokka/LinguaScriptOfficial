@@ -3,8 +3,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useXp } from "@/contexts/XpContext";
 import { DEFAULT_WORD_GOAL, wordGoalForVideos, minuteGoalForVideos } from "@/lib/progressStats";
-import { keepStreak, STREAK_EVENT } from "@/lib/streak";
+import { emitStreakIgnited } from "@/components/StreakCelebrationModal";
 import { dailyGoalSpikeIntensity } from "@/lib/dailyGoalSpike";
+import { consumeStreakFreeze } from "@/lib/rewards";
+import { toast } from "@/hooks/use-toast";
 
 export interface StreakStatus {
   loading: boolean;
@@ -28,7 +30,7 @@ export interface StreakStatus {
 }
 
 function todayStr() {
-  return new Date().toLocaleDateString("en-CA");
+  return new Date().toISOString().split("T")[0];
 }
 
 function yesterdayStr() {
@@ -95,21 +97,60 @@ export function useStreakStatus(): StreakStatus {
     // The word goal alone ignites the streak. watchGoalMet is still surfaced so
     // the UI can celebrate it, but it is a bonus and never a second, hidden
     // goal the learner never agreed to.
-    // Streak is kept server-side by one real learning action (keep_streak);
-    // the daily goal is the mission and pays the guaranteed level-up.
+    const streakEarned = wordsGoalMet;
     let streakCount = (profile as any)?.streak_count ?? 0;
-    const sr = await keepStreak();
-    let streakKept = false;
-    if (sr) { streakCount = sr.streak; streakKept = sr.kept; }
-    const alreadyMarkedToday = (activity as any)?.goal_met === true;
-    if (wordsGoalMet && !alreadyMarkedToday) {
-      await supabase.from("activity_log").upsert(
-        { user_id: user.id, date: today, minutes_watched: minutesWatched, videos_watched: videosWatched, words_reviewed: wordsReviewed, goal_met: true },
-        { onConflict: "user_id,date" },
-      );
-      award("daily_goal_reached", { intensity: dailyGoalSpikeIntensity(streakCount) });
+    let lastStreakDate: string | null = (profile as any)?.last_streak_date ?? null;
+    // Missed exactly one day: a held streak freeze bridges the gap (server-checked).
+    const twoDaysAgo = new Date(Date.now() - 2 * 86400000).toISOString().split("T")[0];
+    if (lastStreakDate === twoDaysAgo && streakCount > 0) {
+      const used = await consumeStreakFreeze().catch(() => false);
+      if (used) {
+        lastStreakDate = yesterdayStr();
+        toast({ title: "🧊 Streak freeze used", description: `Your ${streakCount}-day streak is safe.` });
+      }
     }
-    const streakEarned = streakKept;
+    const alreadyMarkedToday = (activity as any)?.goal_met === true;
+
+    // Ignite streak lazily once both goals are met
+    if (streakEarned && !alreadyMarkedToday) {
+      const continuing = lastStreakDate === yesterdayStr();
+      const sameDay = lastStreakDate === today;
+      const newCount = sameDay ? streakCount : continuing ? streakCount + 1 : 1;
+
+      // Upsert today's activity_log row with goal_met=true
+      await supabase
+        .from("activity_log")
+        .upsert(
+          {
+            user_id: user.id,
+            date: today,
+            minutes_watched: minutesWatched,
+            videos_watched: videosWatched,
+            words_reviewed: wordsReviewed,
+            goal_met: true,
+          },
+          { onConflict: "user_id,date" },
+        );
+
+      await supabase
+        .from("profiles")
+        .update({ streak_count: newCount, last_streak_date: today } as any)
+        .eq("user_id", user.id);
+      streakCount = newCount;
+
+      // Fire celebration event (once per ignition, guarded by alreadyMarkedToday above)
+      emitStreakIgnited({
+        streakCount: newCount,
+        wordsReviewed,
+        minutesWatched,
+      });
+
+      // Reaching today's word goal is a guaranteed level-up (see
+      // XpContext.award's daily_goal_reached case) — the whole point is that
+      // whatever goal the learner picked, 1 word or 20, hitting it always
+      // pays off the same way. Intensity is cosmetic only, never the reward.
+      award("daily_goal_reached", { intensity: dailyGoalSpikeIntensity(newCount) });
+    }
 
     setState({
       loading: false,
@@ -129,9 +170,6 @@ export function useStreakStatus(): StreakStatus {
 
   useEffect(() => {
     void load();
-    const on = () => void load();
-    window.addEventListener(STREAK_EVENT, on);
-    return () => window.removeEventListener(STREAK_EVENT, on);
   }, [load]);
 
   return { ...state, refresh: load };

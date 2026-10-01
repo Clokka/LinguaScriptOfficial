@@ -14,7 +14,6 @@ import {
 } from "@/lib/rewards";
 import { GiftBoxReveal, type GiftContents } from "./GiftBoxReveal";
 import { GemShop } from "./GemShop";
-import { AchievementCosmetics } from "./AchievementCosmetics";
 
 type State = Awaited<ReturnType<typeof loadRewardState>>;
 
@@ -137,7 +136,6 @@ export function RewardsPanel() {
       </Button>
 
       <GiftBoxReveal open={!!gift} onClose={() => setGift(null)} contents={gift?.contents ?? null} onOpen={() => gift!.run()} />
-      <AchievementCosmetics />
       <GemShop open={shopOpen} onClose={() => setShopOpen(false)} state={s} />
     </div>
   );
