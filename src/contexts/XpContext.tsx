@@ -1,4 +1,5 @@
 // MOTIVATION LAYER — independent of SRS.
+import { syncTimezone } from "@/lib/streak";
 import {
   createContext,
   useCallback,
@@ -97,6 +98,7 @@ export function XpProvider({ children }: { children: ReactNode }) {
           .eq("user_id", user.id)
           .maybeSingle();
       }
+      void syncTimezone(user.id);
       const dbXp = ((row.data as any)?.xp_total as number | undefined) ?? 0;
       if (alive) setGems(((row.data as any)?.gems as number | undefined) ?? 0);
 

@@ -1,3 +1,4 @@
+import { noteLearningActivity } from "@/lib/streak";
 import { getNativeLanguage, overlayNative } from "@/lib/nativeGloss";
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -222,6 +223,7 @@ export function LinguaScriptSession({ exerciseIds, onSessionComplete }: LinguaSc
           .eq("user_id", user.id)
           .then(),
       );
+      noteLearningActivity();
       writes.current.push(
         supabase.from("linguascript_reviews").insert({
           linguascript_id: ex.id,

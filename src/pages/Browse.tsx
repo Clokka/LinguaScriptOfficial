@@ -55,6 +55,7 @@ import { LevelBadge } from "@/components/LevelBadge";
 import { passesContentLengthPolicy } from "@/lib/contentLengthPolicy";
 import { BrandMark } from "@/components/BrandMark";
 import { DailyGoalTally } from "@/components/DailyGoalTally";
+import { DailyReturnCard } from "@/components/rewards/DailyReturnCard";
 import { DailyChestCard } from "@/components/rewards/DailyChestCard";
 import { useDailyWordGoal } from "@/hooks/useDailyWordGoal";
 
@@ -543,6 +544,7 @@ const Browse = () => {
                 variant="card"
                 className="mb-6"
               />
+              <DailyReturnCard goal={dailyGoal.goal} done={dailyGoal.savedToday} />
               <DailyChestCard goalMet={dailyGoal.goal > 0 && dailyGoal.savedToday >= dailyGoal.goal} />
 
               {/* LinguaScripts Alerts - Top Priority */}

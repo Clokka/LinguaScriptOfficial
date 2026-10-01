@@ -11,7 +11,9 @@ export type XpAction =
   | "video_watch"
   | "reinforcement"
   | "line_blast"
-  | "daily_goal_reached";
+  | "daily_goal_reached"
+  | "return_gift"
+  | "mission_bonus";
 
 /**
  * XP for one completed line, before the combo multiplier.
@@ -136,6 +138,12 @@ export function xpForAction(action: XpAction, meta: XpMeta = {}): number {
     // has no access to the learner's current XP total.
     case "daily_goal_reached":
       return 0;
+    // Small "you came back" XP — deliberately tiny next to learning XP.
+    case "return_gift":
+      return 10;
+    // Completing today's mission (daily goal) — server checks goal_met.
+    case "mission_bonus":
+      return 50;
   }
 }
 
@@ -205,29 +213,18 @@ export async function syncLevelRewards(level: number): Promise<number | null> {
  * Caller already updated optimistic state in XpContext.
  */
 export async function persistXP(
-  userId: string,
-  newTotal: number,
+  _userId: string,
+  _newTotal: number,
   newLevel: number,
   action: XpAction,
   amount: number,
   meta?: XpMeta,
 ) {
-  void supabase
-    .from("profiles")
-    .update({ xp_total: newTotal, xp_level: newLevel } as any)
-    .eq("user_id", userId)
-    .then(({ error }) => {
-      if (error) console.error("[xp] profile update failed", error);
-    });
-  void supabase
-    .from("xp_events")
-    .insert({
-      user_id: userId,
-      action,
-      amount,
-      meta: meta ?? null,
-    } as any)
-    .then(({ error }) => {
-      if (error) console.error("[xp] event insert failed", error);
+  // Server validates the action, caps the amount and writes xp_total/xp_level —
+  // the client can no longer write those columns directly.
+  void (supabase as any)
+    .rpc("grant_xp", { p_action: action, p_amount: amount, p_level: newLevel, p_meta: meta ?? null })
+    .then(({ error }: any) => {
+      if (error) console.error("[xp] grant failed", error);
     });
 }
