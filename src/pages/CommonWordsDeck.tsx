@@ -12,7 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LANGUAGES } from "@/lib/languages";
-import { loadFrequencyCoverage, headlineBand, type CoverageBand } from "@/lib/frequencyCoverage";
+import { loadFrequencyCoverage, headlineBand, unlockedBand, type CoverageBand } from "@/lib/frequencyCoverage";
 import { FrequencyCoverageCard } from "@/components/FrequencyCoverageCard";
 import { Check, Lock } from "lucide-react";
 import { normalizeToken, type DeckState } from "@/lib/vocab";
@@ -57,7 +57,7 @@ export default function CommonWordsDeck() {
     const bs = await loadFrequencyCoverage(language);
     setBands(bs);
     const asked = Number(params.get("band"));
-    const unlocked = headlineBand(bs)?.band || 50;
+    const unlocked = unlockedBand(bs);
     // Decks unlock in order: finish Top 50 to open Top 100, and so on.
     const b = asked >= 50 && asked <= unlocked && asked % 50 === 0 ? asked : unlocked;
     setBand(b);
@@ -140,11 +140,11 @@ export default function CommonWordsDeck() {
               {Array.from({ length: 60 }, (_, i) => (i + 1) * 50).map((b) => {
                 const cur = bands.find((x) => x.band === b);
                 const prev = bands.find((x) => x.band === b - 50);
-                const sliceKnown = Math.max(0, (cur?.known ?? 0) - (prev?.known ?? 0));
+                const sliceKnown = Math.max(0, ((cur?.known ?? 0) + (cur?.assumed ?? 0)) - ((prev?.known ?? 0) + (prev?.assumed ?? 0)));
                 const sliceTotal = Math.max(0, (cur?.total ?? b) - (prev?.total ?? b - 50));
                 const done = sliceTotal > 0 && sliceKnown >= sliceTotal;
-                const next = headlineBand(bands)?.band === b;
-                const locked = b > (headlineBand(bands)?.band ?? 50);
+                const next = unlockedBand(bands) === b;
+                const locked = b > unlockedBand(bands);
                 return (
                   <button
                     key={b}
