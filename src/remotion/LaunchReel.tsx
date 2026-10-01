@@ -284,8 +284,7 @@ const DualCaptionBar = ({ lang }: { lang: Lang }) => {
           maxWidth: 1400,
           padding: "14px 28px",
           borderRadius: 14,
-          background: "rgba(8,8,11,.72)",
-          backdropFilter: "blur(10px)",
+          background: "rgba(8,8,11,.92)",
           textAlign: "center",
         }}
       >
@@ -478,8 +477,7 @@ const SceneIntro = () => {
             bottom: 24 - (1 - panelUp) * 60,
             opacity: panelUp,
             borderRadius: 18,
-            background: "rgba(20,20,26,.72)",
-            backdropFilter: "blur(14px)",
+            background: "rgba(20,20,26,.94)",
             border: "1px solid rgba(255,255,255,.14)",
             padding: "18px 22px",
             display: "flex",
@@ -564,8 +562,7 @@ const SceneName = ({
             right: 20,
             top: 18,
             borderRadius: 12,
-            background: "rgba(20,20,26,.72)",
-            backdropFilter: "blur(14px)",
+            background: "rgba(20,20,26,.94)",
             border: "1px solid rgba(255,255,255,.14)",
             padding: "8px 12px",
             display: "flex",
@@ -648,8 +645,7 @@ const SceneClickWord = ({ content }: { content: LangContent }) => {
               bottom: 92,
               transform: `translate(-50%, ${(1 - popup) * 14}px) scale(${popup})`,
               opacity: popup,
-              background: "rgba(20,20,26,.85)",
-              backdropFilter: "blur(14px)",
+              background: "rgba(20,20,26,.96)",
               border: "1px solid rgba(255,255,255,.14)",
               borderRadius: 16,
               padding: "16px 22px",
@@ -689,8 +685,7 @@ const SceneSave = ({ content }: { content: LangContent }) => {
             bottom: 92,
             transform: `translate(calc(-50% + ${fly * 380}px), ${-fly * 90}px) scale(${1 - fly * 0.5})`,
             opacity: 1 - Math.max(0, fly - 0.6) * 2.4,
-            background: "rgba(20,20,26,.9)",
-            backdropFilter: "blur(14px)",
+            background: "rgba(20,20,26,.96)",
             border: "1px solid rgba(255,255,255,.14)",
             borderRadius: 16,
             padding: "16px 22px",
@@ -958,6 +953,12 @@ export const LaunchReel = ({ lang = "fr" }: { lang?: Lang }) => {
   const content = CONTENT[lang];
   return (
     <AbsoluteFill style={{ fontFamily: FONT, color: "#fff" }}>
+      {/* ChameleonMascot's .ls-cham rules use wall-clock CSS transition/animation
+          (tier colour fade, idle bob) for the live app. Remotion captures frames
+          independently of wall-clock time, so those rules race the capture and
+          produce a non-monotonic colour jump at tier-change frames (scene 7).
+          Disable them only inside this composition. */}
+      <style>{`.ls-cham, .ls-cham * { transition: none !important; animation: none !important; }`}</style>
       <Sequence from={SCENES.problem.from} durationInFrames={SCENES.problem.dur}>
         <SceneProblem content={content} />
       </Sequence>
