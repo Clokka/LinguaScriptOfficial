@@ -1,3 +1,4 @@
+import { noteLearningActivity } from "@/lib/streak";
 import { coverageBadge } from "@/lib/coverage";
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
@@ -847,7 +848,8 @@ const Watch = () => {
 
   const logWatchTime = async (minutes: number) => {
     if (!user) return;
-    const today = new Date().toISOString().split("T")[0];
+    if (minutes > 0) noteLearningActivity();
+    const today = new Date().toLocaleDateString("en-CA");
     const { data: existing } = await supabase
       .from("activity_log")
       .select("id, minutes_watched")
@@ -933,7 +935,7 @@ const Watch = () => {
     let initialState: DeckState = "red";
     let initialReviewCount = 0;
     let initialTimesCorrect = 0;
-    let initialNextReview = new Date().toISOString().split("T")[0];
+    let initialNextReview = new Date().toLocaleDateString("en-CA");
     const { data: existingSame } = await supabase
       .from("saved_words")
       .select("state, review_count, times_correct, next_review")
@@ -1047,7 +1049,7 @@ const Watch = () => {
     }
 
     if (!film) return;
-    const today = new Date().toISOString().split("T")[0];
+    const today = new Date().toLocaleDateString("en-CA");
     const { error } = await supabase.from("saved_words").upsert({
       user_id: user.id,
       word: trimmed,
