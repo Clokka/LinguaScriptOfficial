@@ -497,7 +497,7 @@ export function LinguaScriptSession({ exerciseIds, onSessionComplete }: LinguaSc
 
         {current.type === "linguascript" && (
           <LinguaScriptCreation
-            language={exercises[0]?.language || learningLanguage || "fr"}
+            language={learningLanguage || "fr"}
             nativeLanguage={nativeLanguage || "en"}
             items={exercises.map((e) => ({
               word: e.target_word,
