@@ -355,7 +355,7 @@ const Flashcards = () => {
             </button>
 
             {/* Starter decks */}
-            {starterDecks.length > 0 && (
+            {false && starterDecks.length > 0 && (
               <section>
                 <div className="flex items-center gap-2 mb-4">
                   <Sparkles className="w-5 h-5 text-primary" />
