@@ -1041,6 +1041,7 @@ export type Database = {
           streak_count: number
           streak_freezes: number
           streak_rescue_for_streak: number | null
+          timezone: string
           updated_at: string
           user_id: string
           username: string | null
@@ -1091,6 +1092,7 @@ export type Database = {
           streak_count?: number
           streak_freezes?: number
           streak_rescue_for_streak?: number | null
+          timezone?: string
           updated_at?: string
           user_id: string
           username?: string | null
@@ -1141,6 +1143,7 @@ export type Database = {
           streak_count?: number
           streak_freezes?: number
           streak_rescue_for_streak?: number | null
+          timezone?: string
           updated_at?: string
           user_id?: string
           username?: string | null
@@ -1464,28 +1467,46 @@ export type Database = {
       }
       shop_items: {
         Row: {
+          description: string | null
           emoji: string
+          glb_path: string | null
           id: string
           kind: string
           name: string
           price: number
+          rarity: string
+          rule: Json | null
+          slot: string | null
           sort_order: number
+          unlock: string
         }
         Insert: {
+          description?: string | null
           emoji?: string
+          glb_path?: string | null
           id: string
           kind: string
           name: string
           price: number
+          rarity?: string
+          rule?: Json | null
+          slot?: string | null
           sort_order?: number
+          unlock?: string
         }
         Update: {
+          description?: string | null
           emoji?: string
+          glb_path?: string | null
           id?: string
           kind?: string
           name?: string
           price?: number
+          rarity?: string
+          rule?: Json | null
+          slot?: string | null
           sort_order?: number
+          unlock?: string
         }
         Relationships: []
       }
@@ -2221,10 +2242,12 @@ export type Database = {
           total_words: number
         }[]
       }
+      check_achievements: { Args: { p_language?: string }; Returns: Json }
       claim_daily_chest: { Args: never; Returns: Json }
       claim_gift_link: { Args: { p_token: string }; Returns: Json }
       claim_pro_chameleon_link: { Args: { _token: string }; Returns: Json }
       claim_pro_gift_link: { Args: { _token: string }; Returns: Json }
+      claim_return_gift: { Args: never; Returns: Json }
       claim_streak_reward: { Args: { p_days: number }; Returns: Json }
       create_daily_linguascript: {
         Args: {
@@ -2357,6 +2380,15 @@ export type Database = {
         Returns: Json
       }
       grant_item: { Args: { _item: string; _uid: string }; Returns: undefined }
+      grant_xp: {
+        Args: {
+          p_action: string
+          p_amount: number
+          p_level: number
+          p_meta?: Json
+        }
+        Returns: Json
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -2368,6 +2400,7 @@ export type Database = {
         Args: { _school_id: string; _user_id: string }
         Returns: boolean
       }
+      keep_streak: { Args: never; Returns: Json }
       level_box_item: { Args: { p_level: number }; Returns: string }
       level_reward_gems: { Args: { p_level: number }; Returns: number }
       list_school_students: {
@@ -2384,6 +2417,8 @@ export type Database = {
           xp_total: number
         }[]
       }
+      local_midnight: { Args: { _uid: string }; Returns: string }
+      local_today: { Args: { _uid: string }; Returns: string }
       move_to_dlq: {
         Args: {
           dlq_name: string
