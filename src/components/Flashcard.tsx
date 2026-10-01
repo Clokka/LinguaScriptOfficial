@@ -49,6 +49,8 @@ interface FlashcardProps {
   grammarNote?: string;
   onCorrect: () => void;
   onIncorrect: () => void;
+  /** Move the card one deck down (green→orange, orange→red). */
+  onDemote?: () => void;
 }
 
 export const Flashcard = ({
@@ -69,6 +71,7 @@ export const Flashcard = ({
   grammarNote,
   onCorrect,
   onIncorrect,
+  onDemote,
 }: FlashcardProps) => {
   const [isFlipped, setIsFlipped] = useState(false);
   const { speak } = useLanguage();
@@ -251,6 +254,17 @@ export const Flashcard = ({
             <Check className="w-5 h-5 mr-2" />
             Got it!
           </Button>
+        </div>
+      )}
+      {isFlipped && onDemote && (
+        <div className="flex justify-center mt-3">
+          <button
+            type="button"
+            onClick={() => { setIsFlipped(false); onDemote(); }}
+            className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+          >
+            {state === "green" ? "Not sure? Move back to Learning" : "Not sure? Move back to Unknown"}
+          </button>
         </div>
       )}
     </div>

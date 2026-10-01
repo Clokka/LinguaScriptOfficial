@@ -237,6 +237,7 @@ export const FlashcardReview = ({ cards: initialCards, onClose, onCardReviewed, 
   };
 
   const handleCorrect = () => {
+    playDing("success");
     setCorrect((prev) => prev + 1);
     void logReview();
     award("review_card", { correct: true });
@@ -245,11 +246,35 @@ export const FlashcardReview = ({ cards: initialCards, onClose, onCardReviewed, 
   };
 
   const handleIncorrect = () => {
+    playDing("soft");
     setIncorrect((prev) => prev + 1);
     void logReview();
     award("review_card", { correct: false });
     promoteDeckState(false);
     advance(correct + incorrect + 1);
+  };
+
+  /** Learner isn't sure any more — move the card one deck down, due today. */
+  const handleDemote = () => {
+    const card = cards[currentIndex];
+    if (!card) return;
+    const prev = (card.state ?? "red") as DeckState;
+    if (prev === "red") return;
+    const down: DeckState = prev === "green" ? "orange" : "red";
+    const today = new Date().toISOString().slice(0, 10);
+    setCards((cs) => cs.map((c, i) => (i === currentIndex ? { ...c, state: down } : c)));
+    onCardReviewed?.(card.id, { state: down, times_correct: card.times_correct ?? 0 });
+    if (user && !card.id.startsWith("guest-")) {
+      void supabase
+        .from("saved_words")
+        .update({ state: down, next_review: today, state_changed_at: new Date().toISOString() } as any)
+        .eq("id", card.id)
+        .eq("user_id", user.id)
+        .then(({ error }) => error && console.error("[demote]", error));
+    }
+    playDing("soft");
+    toast(`Moved back to ${down === "orange" ? "Learning" : "Unknown"}`);
+    advance(correct + incorrect);
   };
 
   const progress = ((currentIndex + (isComplete ? 1 : 0)) / cards.length) * 100;
