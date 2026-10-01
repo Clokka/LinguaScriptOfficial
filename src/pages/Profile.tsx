@@ -27,6 +27,7 @@ import { Camera, ArrowLeft, Save, Loader2, LogOut, Check } from "lucide-react";
 import { INTERESTS } from "@/lib/interests";
 import { useToast } from "@/hooks/use-toast";
 import { MyLanguagesPanel } from "@/components/MyLanguagesPanel";
+import { DailyWordGoalSetting } from "@/components/DailyWordGoalSetting";
 import { PetGallery } from "@/components/pets/PetGallery";
 import { RewardsPanel } from "@/components/rewards/RewardsPanel";
 import { usePet } from "@/contexts/PetContext";
@@ -360,6 +361,7 @@ const Profile = () => {
 
           {/* Languages you're learning (up to 5, each with its own mode) */}
           <MyLanguagesPanel nativeLanguage={nativeLanguage} />
+          <DailyWordGoalSetting />
 
           {/* Hobbies — drives the "Because you like X" rails and interest-matched
               YouTube channel subscriptions, so changing these reshapes the feed. */}
