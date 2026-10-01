@@ -40,7 +40,7 @@ export const LandingChameleonDemo = () => {
   const rootRef = useRef<HTMLDivElement>(null);
   const inView = useInView(rootRef, { once: true, margin: "120px" });
   const [words, setWords] = useState<Word[]>(INITIAL);
-  const [god, setGod] = useState(false);
+  const god = false;
   const godTimer = useRef<number>(0);
 
   const weight = (w: Word) => (w.fn ? 0.25 : 1);
@@ -68,17 +68,11 @@ export const LandingChameleonDemo = () => {
         return { ...w, state: (w.state === "red" ? "orange" : "green") as WordState };
       });
       const full = next.every((w) => w.state === "green");
-      if (full && !god) {
-        setGod(true);
-        clearTimeout(godTimer.current);
-        godTimer.current = window.setTimeout(() => setGod(false), 2600);
-      }
       return next;
     });
   };
 
   const reset = () => {
-    setGod(false);
     clearTimeout(godTimer.current);
     setWords(INITIAL);
   };
@@ -109,11 +103,6 @@ export const LandingChameleonDemo = () => {
             transform: `scale(${god ? 1.3 : 0.85 + (pct / 100) * 0.35})`,
           }}
         />
-        {god && (
-          <div className="pointer-events-none absolute top-1 z-10 rounded-full border border-amber-300/60 bg-black/50 px-3 py-1 text-xs font-black tracking-wide text-amber-300 backdrop-blur">
-            ✦ HYPER MODE ✦
-          </div>
-        )}
         {inView && (
           <img
             src="/mascot/chameleon.png"
