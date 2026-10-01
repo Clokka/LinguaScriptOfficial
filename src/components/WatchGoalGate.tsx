@@ -12,13 +12,19 @@ const key = () => `ls-watch-seconds-${new Date().toISOString().slice(0, 10)}`;
 interface Props {
   goal: number; // words per day == minutes per day
   playerRef: React.MutableRefObject<any>;
+  /** Words saved today; 0 means the learner watched without saving anything. */
+  savedToday?: number;
 }
 
-export function WatchGoalGate({ goal, playerRef }: Props) {
+export function WatchGoalGate({ goal, playerRef, savedToday = 0 }: Props) {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const secondsRef = useRef<number>(Number(localStorage.getItem(key()) || 0));
   const limit = Math.max(1, goal) * 60;
+  // "Save one first" lets them keep watching until a word is saved.
+  const [grace, setGrace] = useState(false);
+  const graceRef = useRef(false);
+  graceRef.current = grace && savedToday === 0;
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -27,7 +33,7 @@ export function WatchGoalGate({ goal, playerRef }: Props) {
       if (!playing) return;
       secondsRef.current += 1;
       localStorage.setItem(key(), String(secondsRef.current));
-      if (secondsRef.current >= limit) {
+      if (secondsRef.current >= limit && !graceRef.current) {
         try { playerRef.current?.pauseVideo?.(); } catch { /* noop */ }
         setOpen(true);
       }
@@ -45,6 +51,40 @@ export function WatchGoalGate({ goal, playerRef }: Props) {
   }, [open, playerRef]);
 
   if (!open) return null;
+  const noWords = savedToday === 0;
+  if (noWords) {
+    return createPortal(
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-background/90 backdrop-blur-md p-6">
+        <div className="w-full max-w-sm rounded-2xl border border-[#FBBF24]/50 bg-card p-6 text-center">
+          <div className="flex justify-center"><BrandMark variant="pin" size={48} /></div>
+          <p className="mt-4 text-xs font-semibold uppercase tracking-wider text-[#FBBF24]">
+            One more thing
+          </p>
+          <h2 className="mt-1 text-2xl font-bold text-foreground">Save one word first</h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            You've watched your {goal} {goal === 1 ? "minute" : "minutes"} but saved no words yet. Tap a word with a gold circle to save it.
+          </p>
+          <button
+            onClick={() => {
+              setGrace(true);
+              setOpen(false);
+              try { playerRef.current?.playVideo?.(); } catch { /* noop */ }
+            }}
+            className="mt-5 flex w-full items-center justify-center gap-2 rounded-full bg-[#FBBF24] py-3 font-semibold text-background"
+          >
+            Keep watching and save one
+          </button>
+          <button
+            onClick={() => navigate("/discover")}
+            className="mt-2 flex w-full items-center justify-center gap-2 rounded-full border border-border py-3 font-semibold text-foreground"
+          >
+            Skip today
+          </button>
+        </div>
+      </div>,
+      document.body,
+    );
+  }
   return createPortal(
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-background/90 backdrop-blur-md p-6">
       <div className="w-full max-w-sm rounded-2xl border border-[#34C759]/40 bg-card p-6 text-center">
