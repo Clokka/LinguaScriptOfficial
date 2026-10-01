@@ -1,3 +1,4 @@
+import { coverageTier, type CoverageTier } from "@/lib/coverage";
 // LinguaScript's primary metric: "How green is the language?"
 //
 // Every visible token contributes a weight to a green-percentage score.

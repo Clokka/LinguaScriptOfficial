@@ -7,6 +7,7 @@ import { getLanguageLabel } from "@/lib/languages";
 import { INTERESTS, interestById, interestQueries, type Interest } from "@/lib/interests";
 import { customTopicQueries, customTopicRailId, fetchCustomFeedTopics, type CustomFeedTopic } from "@/lib/customFeedTopics";
 import { recordFeedEvent } from "@/lib/feedSignals";
+import { TIER_CLASS, TIER_LABEL, coverageBadge, rankScore, isShowable } from "@/lib/coverage";
 import { rankByComprehension } from "@/lib/videoRecommendation";
 import { cefrSearchModifier } from "@/lib/cefrQueryModifiers";
 import { getLanguageProfile } from "@/lib/languageProfiles";
@@ -31,18 +32,7 @@ const DIFF_BADGE: Record<string, string> = {
   advanced: "bg-rose-500/15 text-rose-300 border-rose-500/30",
 };
 
-const ZONE_BADGE: Record<LearningZone, string> = {
-  "too-easy": "bg-sky-500/15 text-sky-300 border-sky-500/30",
-  ideal: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
-  stretch: "bg-amber-500/15 text-amber-300 border-amber-500/30",
-  "too-hard": "bg-rose-500/15 text-rose-300 border-rose-500/30",
-};
-const ZONE_LABEL: Record<LearningZone, string> = {
-  "too-easy": "Already know this",
-  ideal: "Ideal for you",
-  stretch: "A stretch",
-  "too-hard": "Very hard",
-};
+const ZONE_BADGE = TIER_CLASS;
 
 function fmtDur(s?: number) {
   if (!s) return "";
@@ -86,8 +76,8 @@ function feedScore(it: YTItem): number {
   if (d > 0 && d <= 360) s += 3;
   else if (d > 0 && d <= 720) s += 1;
   if (typeof it.comprehensionPct === "number") {
-    s += Math.max(0, 4 - Math.abs(94 - it.comprehensionPct) / 3);
-    if (it.zone === "too-hard") s -= 2;
+    // Coverage dominates: 98% first, then 95–98, then challenging.
+    s += 10 - Math.min(10, rankScore(it.comprehensionPct) / 30);
   }
   return s;
 }
@@ -263,7 +253,7 @@ export const PersonalizedRails = ({
           (perMap[i.id] || []).map((it) => {
             const r = byId.get(it.videoId);
             return r ? { ...it, comprehensionPct: r.comprehensionPct, zone: r.zone } : it;
-          }),
+          }).filter((it) => typeof it.comprehensionPct !== "number" || isShowable(it.comprehensionPct)),
         );
       });
       setInterestRails(scored);
@@ -393,7 +383,7 @@ const YTCard = ({
       ) : null}
       {it.zone ? (
         <span className={`absolute top-2 left-2 text-[10px] px-1.5 py-0.5 rounded border ${ZONE_BADGE[it.zone]}`}>
-          {typeof it.comprehensionPct === "number" ? `${it.comprehensionPct}% · ` : ""}{ZONE_LABEL[it.zone]}
+          {typeof it.comprehensionPct === "number" ? coverageBadge(it.comprehensionPct) : TIER_LABEL[it.zone]}
         </span>
       ) : it.difficulty ? (
         <span className={`absolute top-2 left-2 text-[10px] px-1.5 py-0.5 rounded border ${DIFF_BADGE[it.difficulty]}`}>

@@ -203,7 +203,7 @@ const Browse = () => {
     fetchProfile();
     // Public films only (RLS now also enforces this)
     supabase.from("films").select("*").eq("is_public", true).order("created_at", { ascending: false }).then(({ data }) => {
-      setDiscoverFilms((data || []).filter(passesContentLengthPolicy));
+      setDiscoverFilms((data || []).filter(passesContentLengthPolicy).filter((f: any) => (f.language || "").toLowerCase() === (learningLanguage || "").toLowerCase()));
     });
     // Curated catalog rows with their pinned films — filter to user's learning language (or global rows where language IS NULL)
     (async () => {
