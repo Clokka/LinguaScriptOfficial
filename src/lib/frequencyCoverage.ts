@@ -35,3 +35,12 @@ export function headlineBand(bands: CoverageBand[]): CoverageBand | null {
   const sorted = [...bands].sort((a, b) => a.band - b.band);
   return sorted.find((b) => b.known < b.total) ?? sorted[sorted.length - 1];
 }
+
+/**
+ * Deck unlocking: the first band not yet fully known, where words assumed
+ * from the learner's starting level count as known (they already know them).
+ */
+export function unlockedBand(bands: CoverageBand[]): number {
+  const sorted = [...bands].sort((a, b) => a.band - b.band);
+  return (sorted.find((b) => b.known + b.assumed < b.total) ?? sorted[sorted.length - 1])?.band ?? 50;
+}
