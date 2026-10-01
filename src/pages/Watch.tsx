@@ -1,3 +1,4 @@
+import { coverageBadge } from "@/lib/coverage";
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, Loader2, Download, Maximize, Minimize, X } from "lucide-react";
@@ -692,7 +693,7 @@ const Watch = () => {
       // One-shot pre-watch hint.
       if (!preWatchToastFiredRef.current) {
         preWatchToastFiredRef.current = true;
-        toast.message(`Estimated understanding: ${comp.pct}%`, {
+        toast.message(coverageBadge(comp.pct), {
           description: zoneMessage(comp.pct),
           duration: 4000,
           position: "top-center",
