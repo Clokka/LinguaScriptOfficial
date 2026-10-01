@@ -11,6 +11,7 @@ import { useXp } from "@/contexts/XpContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { getLanguageLabel } from "@/lib/languages";
 import { toast } from "sonner";
+import { playDing } from "@/lib/sound";
 import { Image as ImageIcon, Type } from "lucide-react";
 
 type Direction = "learn-to-native" | "native-to-learn";
@@ -408,6 +409,7 @@ export const FlashcardReview = ({ cards: initialCards, onClose, onCardReviewed, 
         direction={direction}
         onCorrect={handleCorrect}
         onIncorrect={handleIncorrect}
+        onDemote={currentCard.state && currentCard.state !== "red" ? handleDemote : undefined}
       />
 
 
