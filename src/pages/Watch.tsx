@@ -1,3 +1,4 @@
+import { coverageBadge } from "@/lib/coverage";
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, Loader2, Download, Maximize, Minimize, X } from "lucide-react";
@@ -456,6 +457,11 @@ const Watch = () => {
   // be the video + the teaching cursor, never an ad.
   const [adDone, setAdDone] = useState(tourActive);
   const finishPreTeach = useCallback(() => setAdDone(true), []);
+  // Words picked by the pre-teach scan; unsaved ones get a gold ring while watching.
+  const [targetWords, setTargetWords] = useState<Set<string>>(new Set());
+  const handlePreTeachWords = useCallback((ws: string[]) => {
+    setTargetWords(new Set(ws.map((w) => normalizeToken(w))));
+  }, []);
 
   const [cssFullscreen, setCssFullscreen] = useState(false);
   const toggleFullscreen = useCallback(async () => {
@@ -687,7 +693,7 @@ const Watch = () => {
       // One-shot pre-watch hint.
       if (!preWatchToastFiredRef.current) {
         preWatchToastFiredRef.current = true;
-        toast.message(`Estimated understanding: ${comp.pct}%`, {
+        toast.message(coverageBadge(comp.pct), {
           description: zoneMessage(comp.pct),
           duration: 4000,
           position: "top-center",
@@ -863,7 +869,7 @@ const Watch = () => {
   const saveWordToFlashcards = async (word: { id: string; text: string; translation: string; pronunciation: string; ipa: string }) => {
     let { translation, pronunciation, ipa } = word;
     const context = currentSubtitle?.primary || "";
-    const langCode = learningLanguage || film?.language || "fr";
+    const langCode = film?.language || learningLanguage || "fr";
     const fromLang = getLanguageLabel(langCode);
     const toLang = getLanguageLabel(nativeLanguage);
 
@@ -1010,7 +1016,7 @@ const Watch = () => {
     const trimmed = phrase.trim();
     if (!trimmed) return;
     const context = currentSubtitle?.primary || trimmed;
-    const langCode = learningLanguage || film?.language || "fr";
+    const langCode = film?.language || learningLanguage || "fr";
     const fromLang = getLanguageLabel(langCode);
     const toLang = getLanguageLabel(nativeLanguage);
 
@@ -1091,7 +1097,7 @@ const Watch = () => {
   };
 
   const markWordKnown = async (word: { text: string; translation?: string }) => {
-    const langCode = learningLanguage || film?.language || "fr";
+    const langCode = film?.language || learningLanguage || "fr";
     if (!user) {
       saveGuestWord({
         word: word.text,
@@ -1162,7 +1168,7 @@ const Watch = () => {
 
   // Load the deck used to evaluate challenge-worthy lines (same language the
   // words are saved under, matching the subtitle colouring).
-  const challengeLang = learningLanguage || film?.language || "fr";
+  const challengeLang = film?.language || learningLanguage || "fr";
   useEffect(() => {
     let alive = true;
     loadDeckIndex(user?.id ?? null, challengeLang).then((m) => { if (alive) setChallengeDeck(m); });
@@ -1272,7 +1278,7 @@ const Watch = () => {
   if ((isMobile || isPhoneLandscape) && !isFullscreen) {
     const header = (
       <div className="flex items-center gap-2 p-2 bg-black/80 backdrop-blur z-20">
-        {user && <WatchGoalGate goal={dailyGoal.goal} playerRef={playerRef} />}
+        {user && <WatchGoalGate goal={dailyGoal.goal} playerRef={playerRef} savedToday={dailyGoal.savedToday} />}
         <Button data-tour="page-back" variant="ghost" size="icon" onClick={() => navigate("/discover")} className="text-white hover:bg-white/10 shrink-0 h-9 w-9">
           <ArrowLeft className="w-5 h-5" />
         </Button>
@@ -1315,11 +1321,12 @@ const Watch = () => {
         {!adDone && (subtitles.length ? (
             <PreTeachCard
               lines={preTeachLines}
-              language={learningLanguage || film.language || "fr"}
+              language={film.language || learningLanguage || "fr"}
               level={(languageContext as any)?.cefrLevel ?? (film as any).cefr_level ?? null}
               goal={dailyGoal.goal}
               userId={user?.id}
               onComplete={finishPreTeach}
+              onWords={handlePreTeachWords}
             />
           ) : <ChameleonLoader onComplete={finishPreTeach} duration={captionsLoading ? 12000 : 5000} />)}
         {cssFullscreen && (
@@ -1358,6 +1365,7 @@ const Watch = () => {
           primaryText={currentSubtitle.primary}
           secondaryText={currentSubtitle.secondary}
           words={currentSubtitle.words}
+          targetWords={targetWords}
           mode={subtitleMode}
           onSaveWord={saveWordToFlashcards}
           onSavePhrase={savePhrase}
@@ -1425,7 +1433,7 @@ const Watch = () => {
 
   return (
     <div className="min-h-screen bg-black flex flex-col">
-      {user && <WatchGoalGate goal={dailyGoal.goal} playerRef={playerRef} />}
+      {user && <WatchGoalGate goal={dailyGoal.goal} playerRef={playerRef} savedToday={dailyGoal.savedToday} />}
       <div className="flex items-center gap-3 p-4 bg-black/80 backdrop-blur z-20">
         <Button data-tour="page-back" variant="ghost" size="icon" onClick={() => navigate("/discover")} className="text-white hover:bg-white/10">
           <ArrowLeft className="w-5 h-5" />
@@ -1486,11 +1494,12 @@ const Watch = () => {
           {!adDone && (subtitles.length ? (
             <PreTeachCard
               lines={preTeachLines}
-              language={learningLanguage || film.language || "fr"}
+              language={film.language || learningLanguage || "fr"}
               level={(languageContext as any)?.cefrLevel ?? (film as any).cefr_level ?? null}
               goal={dailyGoal.goal}
               userId={user?.id}
               onComplete={finishPreTeach}
+              onWords={handlePreTeachWords}
             />
           ) : <ChameleonLoader onComplete={finishPreTeach} duration={captionsLoading ? 12000 : 5000} />)}
 
@@ -1515,6 +1524,7 @@ const Watch = () => {
                 primaryText={currentSubtitle.primary}
                 secondaryText={currentSubtitle.secondary}
                 words={currentSubtitle.words}
+                targetWords={targetWords}
                 mode={subtitleMode}
                 onSaveWord={saveWordToFlashcards}
                 onSavePhrase={savePhrase}

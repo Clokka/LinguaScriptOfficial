@@ -32,6 +32,19 @@ export async function loadFrequencyCoverage(language: string): Promise<CoverageB
 /** Smallest band not yet finished; the largest once everything is known. */
 export function headlineBand(bands: CoverageBand[]): CoverageBand | null {
   if (bands.length === 0) return null;
-  const sorted = [...bands].sort((a, b) => a.band - b.band);
+  // Counts every word the learner knows (learned + known from their level),
+  // so the headline always moves on to the next unfinished deck.
+  const sorted = [...bands]
+    .map((b) => ({ ...b, known: Math.min(b.total, b.known + b.assumed), assumed: 0 }))
+    .sort((a, b) => a.band - b.band);
   return sorted.find((b) => b.known < b.total) ?? sorted[sorted.length - 1];
+}
+
+/**
+ * Deck unlocking: the first band not yet fully known, where words assumed
+ * from the learner's starting level count as known (they already know them).
+ */
+export function unlockedBand(bands: CoverageBand[]): number {
+  const sorted = [...bands].sort((a, b) => a.band - b.band);
+  return (sorted.find((b) => b.known + b.assumed < b.total) ?? sorted[sorted.length - 1])?.band ?? 50;
 }

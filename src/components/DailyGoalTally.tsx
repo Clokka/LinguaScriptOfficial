@@ -53,17 +53,17 @@ export function DailyGoalTally({ savedToday, goal, variant = "pill", className }
     <div
       className={cn(
         "rounded-2xl border p-5",
-        reached ? "border-[#34C759]/40 bg-[#34C759]/10" : "border-white/10 bg-white/[0.03]",
+        "border-[#34C759]/35 bg-[#34C759]/[0.08]",
         className,
       )}
     >
       <div className="flex items-center justify-between gap-4">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+          <p className="text-xs font-bold uppercase tracking-widest text-[#34C759]">
             Today's goal
           </p>
           <p className="mt-1 text-2xl font-bold tabular-nums text-foreground">
-            {Math.min(savedToday, goal)} <span className="text-muted-foreground">/ {goal} words</span>
+            <span className="text-[#34C759]">{Math.min(savedToday, goal)}</span> <span className="text-foreground">/ {goal} words</span>
           </p>
         </div>
         {reached && (
@@ -79,7 +79,7 @@ export function DailyGoalTally({ savedToday, goal, variant = "pill", className }
       <div className="mt-4 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
         <div
           className="h-full rounded-full transition-all duration-500"
-          style={{ width: `${pct}%`, background: reached ? "#34C759" : "#FF8A00" }}
+          style={{ width: `${pct}%`, background: "#34C759" }}
         />
       </div>
 

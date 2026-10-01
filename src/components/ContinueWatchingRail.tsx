@@ -5,6 +5,8 @@ import { useNavigate } from "react-router-dom";
 import { Play, ChevronRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { coverageBadge } from "@/lib/coverage";
 import { cn } from "@/lib/utils";
 import { getLanguageLabel, getLanguageFlag } from "@/lib/languages";
 
@@ -21,50 +23,59 @@ interface Row {
 
 export function ContinueWatchingRail() {
   const { user } = useAuth();
+  const { learningLanguage } = useLanguage();
   const navigate = useNavigate();
   const [rows, setRows] = useState<Row[] | null>(null);
 
   useEffect(() => {
     if (!user) { setRows([]); return; }
     let alive = true;
+    const lang = (learningLanguage || "").toLowerCase();
     (async () => {
+      // Built from watch history (any started, unfinished video) in the
+      // active language only — not from scored results, which only exist
+      // after a fuller watch.
+      const { data: wh } = await supabase
+        .from("watch_history")
+        .select("film_id, title, thumbnail_url, language, completion_pct, watched_at")
+        .eq("user_id", user.id)
+        .eq("language", lang)
+        .not("film_id", "is", null)
+        .lt("completion_pct", 90)
+        .order("watched_at", { ascending: false })
+        .limit(12);
+      const list = (wh as any[]) || [];
+      if (list.length === 0) { if (alive) setRows([]); return; }
+      const ids = list.map((r) => r.film_id);
       const { data: vc } = await supabase
         .from("video_comprehension" as any)
-        .select("content_id, content_type, latest_score, first_score, watch_count, last_watched_at")
+        .select("content_id, latest_score, first_score, watch_count")
         .eq("user_id", user.id)
         .eq("content_type", "film")
-        .lt("latest_score", 95)
-        .order("last_watched_at", { ascending: false })
-        .limit(12);
-      const list = (vc as any[]) || [];
-      if (list.length === 0) { if (alive) setRows([]); return; }
-      const ids = list.map((r) => r.content_id);
-      const { data: films } = await supabase
-        .from("films")
-        .select("id, title, thumbnail_url, language")
-        .in("id", ids);
-      const fmap = new Map<string, any>();
-      for (const f of (films as any[]) || []) fmap.set(f.id, f);
-      const out: Row[] = list
-        .map((r) => {
-          const f = fmap.get(r.content_id);
-          if (!f) return null;
-          return {
-            film_id: r.content_id,
-            title: f.title,
-            thumbnail_url: f.thumbnail_url,
-            language: f.language,
-            last_watched_at: r.last_watched_at,
-            watch_count: Number(r.watch_count || 1),
-            first_score: Number(r.first_score),
-            latest_score: Number(r.latest_score),
-          } as Row;
-        })
-        .filter(Boolean) as Row[];
+        .in("content_id", ids);
+      const vmap = new Map<string, any>();
+      for (const v of (vc as any[]) || []) vmap.set(v.content_id, v);
+      const seen = new Set<string>();
+      const out: Row[] = [];
+      for (const r of list) {
+        if (seen.has(r.film_id)) continue;
+        seen.add(r.film_id);
+        const v = vmap.get(r.film_id);
+        out.push({
+          film_id: r.film_id,
+          title: r.title || "Video",
+          thumbnail_url: r.thumbnail_url,
+          language: r.language,
+          last_watched_at: r.watched_at,
+          watch_count: Number(v?.watch_count || 1),
+          first_score: v ? Number(v.first_score) : NaN,
+          latest_score: v ? Number(v.latest_score) : NaN,
+        });
+      }
       if (alive) setRows(out);
     })();
     return () => { alive = false; };
-  }, [user]);
+  }, [user, learningLanguage]);
 
   if (!user || !rows || rows.length === 0) return null;
 
@@ -78,7 +89,8 @@ export function ContinueWatchingRail() {
       </div>
       <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin">
         {rows.map((r) => {
-          const delta = Math.round(r.latest_score - r.first_score);
+          const scored = Number.isFinite(r.latest_score);
+          const delta = scored ? Math.round(r.latest_score - r.first_score) : 0;
           const up = delta > 0;
           return (
             <button
@@ -95,9 +107,11 @@ export function ContinueWatchingRail() {
                 <div className="absolute top-2 left-2 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-black/70 text-white">
                   Watch #{r.watch_count}
                 </div>
-                <div className="absolute bottom-2 left-2 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-emerald-500/90 text-white">
-                  {Math.round(r.latest_score)}%
-                </div>
+                {scored && (
+                  <div className="absolute bottom-2 left-2 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-black/70 text-white">
+                    {coverageBadge(r.latest_score)}
+                  </div>
+                )}
                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                   <div className="w-10 h-10 rounded-full bg-primary/90 flex items-center justify-center">
                     <ChevronRight className="w-4 h-4 text-primary-foreground" />
@@ -107,12 +121,12 @@ export function ContinueWatchingRail() {
               <p className="text-sm text-foreground truncate font-medium">{r.title}</p>
               <div className="flex items-center justify-between text-[11px] text-muted-foreground mt-0.5">
                 <span>{getLanguageFlag(r.language ?? "fr")} {getLanguageLabel(r.language ?? "fr")}</span>
-                <span className={cn(
+                {scored && <span className={cn(
                   "font-semibold",
                   up ? "text-emerald-300" : delta < 0 ? "text-rose-300" : "text-muted-foreground"
                 )}>
                   {up ? "+" : ""}{delta}%
-                </span>
+                </span>}
               </div>
             </button>
           );

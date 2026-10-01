@@ -308,3 +308,15 @@
     to { opacity: 1; transform: scale(1); }
   }
 }
+
+/* Pre-teach target word: gold ring nudging the learner to tap it. */
+.ls-target-ring {
+  border-radius: 9999px;
+  padding: 0 0.3em;
+  box-shadow: 0 0 0 2px #FBBF24, 0 0 14px rgba(251, 191, 36, 0.55);
+  animation: ls-target-pulse 1.6s ease-in-out infinite;
+}
+@keyframes ls-target-pulse {
+  0%, 100% { box-shadow: 0 0 0 2px #FBBF24, 0 0 8px rgba(251, 191, 36, 0.35); }
+  50% { box-shadow: 0 0 0 3px #FBBF24, 0 0 18px rgba(251, 191, 36, 0.7); }
+}

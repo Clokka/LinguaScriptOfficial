@@ -52,13 +52,12 @@ export function FrequencyCoverageCard({ language }: Props) {
         </p>
       ) : (
         <p className="mt-2 text-2xl font-bold leading-tight text-foreground">
-          You know <span className="tabular-nums text-[#34C759]">{pct}%</span> of the{" "}
-          {headline.band.toLocaleString()} most important {languageName} words
+          You know <span className="tabular-nums text-[#34C759]">{headline.known.toLocaleString()}</span> of the{" "}
+          {headline.band.toLocaleString()} most common {languageName} words
         </p>
       )}
       <p className="mt-2 text-sm tabular-nums text-muted-foreground">
-        {headline.known.toLocaleString()} / {headline.total.toLocaleString()} known
-        {!complete && ` · next milestone: top ${next.toLocaleString()}`}
+        {!complete && `Next deck: Top ${next.toLocaleString()}`}
       </p>
       <div className="mt-4 h-2 w-full overflow-hidden rounded-full bg-foreground/10">
         <div className="h-full rounded-full bg-[#34C759]" style={{ width: `${pct}%` }} />

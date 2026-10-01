@@ -84,7 +84,6 @@ type TabKey = "home" | "discover" | "calendar" | "settings";
 
 const SIDEBAR_ITEMS: { icon: typeof Home; label: string; key: TabKey | "flashcards" | "vocabulary" | "friends" | "linguascripts" }[] = [
   { icon: Home, label: "Home", key: "home" },
-  { icon: Compass, label: "Discover", key: "discover" },
   { icon: Target, label: "Comprehension", key: "vocabulary" },
   { icon: Library, label: "LinguaScripts", key: "linguascripts" },
   { icon: BookOpen, label: "Flashcards", key: "flashcards" },
@@ -114,7 +113,7 @@ const Browse = () => {
   const tour = useTour();
   const { status: linguaScriptStatus, loading: statusLoading, refetch: refetchStatus } = useLinguaScriptStatus();
 
-  const initialTab: TabKey = location.pathname.startsWith("/discover") ? "discover" : "home";
+  const initialTab: TabKey = "home";
   const [activeTab, setActiveTab] = useState<TabKey>(initialTab);
   const dailyGoal = useDailyWordGoal();
   const lsRemaining = linguaScriptStatus
@@ -122,7 +121,7 @@ const Browse = () => {
     : 0;
   const [showLinguaScriptSession, setShowLinguaScriptSession] = useState(false);
   useEffect(() => {
-    if (location.pathname.startsWith("/discover")) setActiveTab("discover");
+    setActiveTab((t) => (t === "discover" ? "home" : t));
   }, [location.pathname]);
   const [lessons, setLessons] = useState<UserLesson[]>([]);
   const [loadingLessons, setLoadingLessons] = useState(true);
@@ -203,7 +202,7 @@ const Browse = () => {
     fetchProfile();
     // Public films only (RLS now also enforces this)
     supabase.from("films").select("*").eq("is_public", true).order("created_at", { ascending: false }).then(({ data }) => {
-      setDiscoverFilms((data || []).filter(passesContentLengthPolicy));
+      setDiscoverFilms((data || []).filter(passesContentLengthPolicy).filter((f: any) => (f.language || "").toLowerCase() === (learningLanguage || "").toLowerCase()));
     });
     // Curated catalog rows with their pinned films — filter to user's learning language (or global rows where language IS NULL)
     (async () => {
@@ -559,9 +558,9 @@ const Browse = () => {
                   wordsReviewedToday={linguaScriptStatus.reviewedToday ?? 0}
                   newWordsCaptured={0}
                   onContinueWatching={() => {
-                    setActiveTab("discover");
+                    setActiveTab("home");
                   }}
-                  onDiscover={() => setActiveTab("discover")}
+                  onDiscover={() => setActiveTab("home")}
                 />
               )}
 
@@ -606,7 +605,7 @@ const Browse = () => {
               onWatchYoutube={importYoutubeId}
             />
           ) : null}
-          {activeTab === "discover" && (
+          {false && (
             <DiscoverCatalog defaultLanguage={learningLanguage} />
           )}
           {activeTab === "calendar" && (
