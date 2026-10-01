@@ -205,29 +205,18 @@ export async function syncLevelRewards(level: number): Promise<number | null> {
  * Caller already updated optimistic state in XpContext.
  */
 export async function persistXP(
-  userId: string,
-  newTotal: number,
+  _userId: string,
+  _newTotal: number,
   newLevel: number,
   action: XpAction,
   amount: number,
   meta?: XpMeta,
 ) {
-  void supabase
-    .from("profiles")
-    .update({ xp_total: newTotal, xp_level: newLevel } as any)
-    .eq("user_id", userId)
-    .then(({ error }) => {
-      if (error) console.error("[xp] profile update failed", error);
-    });
-  void supabase
-    .from("xp_events")
-    .insert({
-      user_id: userId,
-      action,
-      amount,
-      meta: meta ?? null,
-    } as any)
-    .then(({ error }) => {
-      if (error) console.error("[xp] event insert failed", error);
+  // Server validates the action, caps the amount and writes xp_total/xp_level —
+  // the client can no longer write those columns directly.
+  void (supabase as any)
+    .rpc("grant_xp", { p_action: action, p_amount: amount, p_level: newLevel, p_meta: meta ?? null })
+    .then(({ error }: any) => {
+      if (error) console.error("[xp] grant failed", error);
     });
 }
