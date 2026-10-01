@@ -77,11 +77,19 @@ const Onboarding = () => {
     } catch { /* ignore */ }
   }, [step, native, target, level, mode, school, wordGoal, goal, goalSaved, showOnLeaderboard, dualClicked, interests]);
 
-  // Load any existing profile values (auth optional — anonymous users see onboarding too)
+  // Load existing profile once. Already-onboarded learners skip straight to
+  // the app; a resumed session keeps the choices the user already made.
+  const profileLoaded = useRef(false);
   useEffect(() => {
-    if (!user) return;
-    supabase.from("profiles").select("*").eq("user_id", user.id).single().then(({ data }) => {
-      if (data) {
+    if (!user || profileLoaded.current) return;
+    profileLoaded.current = true;
+    supabase.from("profiles").select("*").eq("user_id", user.id).maybeSingle().then(({ data }) => {
+      if ((data as any)?.onboarded) {
+        try { localStorage.removeItem(ONBOARDING_KEY); } catch { /* ignore */ }
+        navigate("/discover", { replace: true });
+        return;
+      }
+      if (data && !initialPersisted) {
         if (data.native_language) setNative(data.native_language);
         if ((data as any).cef_level) setLevel((data as any).cef_level as Level);
         if ((data as any).learning_goal) setGoal((data as any).learning_goal);
@@ -142,51 +150,50 @@ const Onboarding = () => {
     });
   };
 
+  // Saving runs in the background so the screen never sits frozen on a slow
+  // network; `saving` only locks the button against double taps.
   const next = async () => {
-    // Remember the choice even before there is an account, so signing up later
-    // in the flow can never lose it.
+    if (saving) return;
     if (step === 0 && target) {
       try { localStorage.setItem(PENDING_LANGUAGE_KEY, target); } catch { /* ignore */ }
     }
     if (step === 0 && user) {
       const isTotalBeginner = level === "beginner";
-      // "beginner" isn't a real CEFR value — store A1 as the nominal level
-      // so every other CEFR-tier feature (progress tracking, advancement,
-      // Fast Track) works normally; totalBeginner below is what actually
-      // stops any vocabulary being pre-marked as known.
       const storedLevel = isTotalBeginner ? "a1" : (level as string);
-      await supabase.from("profiles").update({
-        native_language: native,
-        learning_language: target,
-        cef_level: storedLevel,
-        school: school.trim() || null,
-        daily_word_goal: wordGoal,
-        // Still written because the watch-time stat reads it, but it is now
-        // derived from the word goal rather than the other way round.
-        daily_video_goal: videoGoalForWords(wordGoal),
-      } as any).eq("user_id", user.id);
       setLearningLanguage(target);
-      if (level) {
-        // Creates this learner's per-language profile (mode + level), seeds
-        // the vocabulary they should already know (skipped entirely for a
-        // total beginner — see totalBeginner), and tops up their Fast
-        // Track red queue.
-        await addLanguageProfile({
-          userId: user.id,
-          language: target,
-          mode,
-          level: storedLevel,
-          totalBeginner: isTotalBeginner,
-        });
-      }
+      const snapshot = { native, target, school, wordGoal, mode, level };
+      setStep((s) => s + 1);
+      void (async () => {
+        const { error } = await supabase.from("profiles").update({
+          native_language: snapshot.native,
+          learning_language: snapshot.target,
+          cef_level: storedLevel,
+          school: snapshot.school.trim() || null,
+          daily_word_goal: snapshot.wordGoal,
+          daily_video_goal: videoGoalForWords(snapshot.wordGoal),
+        } as any).eq("user_id", user.id);
+        if (error) toast.error(t("saveFailed"));
+        if (snapshot.level) {
+          try {
+            await addLanguageProfile({
+              userId: user.id,
+              language: snapshot.target,
+              mode: snapshot.mode,
+              level: storedLevel,
+              totalBeginner: isTotalBeginner,
+            });
+          } catch { /* seeding retried from Profile; never block onboarding */ }
+        }
+      })();
+      return;
     }
     if (step === 1 && user) {
-      await supabase.from("profiles").update({ interests } as any).eq("user_id", user.id);
+      void supabase.from("profiles").update({ interests } as any).eq("user_id", user.id);
     }
     if (step < totalSteps - 1) {
       setStep((s) => s + 1);
     } else {
-      // finish
+      setSaving(true);
       if (user) {
         await supabase.from("profiles").update({
           onboarded: true,
@@ -196,6 +203,7 @@ const Onboarding = () => {
       }
       try { localStorage.removeItem(ONBOARDING_KEY); } catch { /* ignore */ }
       playDing("success");
+      setSaving(false);
       navigate("/discover");
     }
   };
