@@ -11,7 +11,9 @@ export type XpAction =
   | "video_watch"
   | "reinforcement"
   | "line_blast"
-  | "daily_goal_reached";
+  | "daily_goal_reached"
+  | "return_gift"
+  | "mission_bonus";
 
 /**
  * XP for one completed line, before the combo multiplier.
@@ -136,6 +138,12 @@ export function xpForAction(action: XpAction, meta: XpMeta = {}): number {
     // has no access to the learner's current XP total.
     case "daily_goal_reached":
       return 0;
+    // Small "you came back" XP — deliberately tiny next to learning XP.
+    case "return_gift":
+      return 10;
+    // Completing today's mission (daily goal) — server checks goal_met.
+    case "mission_bonus":
+      return 50;
   }
 }
 
