@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.local_today(uuid), public.local_midnight(uuid) FROM authenticated;
