@@ -105,8 +105,8 @@ const Auth = () => {
         // Returning learners go straight in — never back through onboarding.
         const { data: u } = await supabase.auth.getUser();
         const { data: prof } = await supabase.from("profiles")
-          .select("onboarded, learning_language").eq("user_id", u.user?.id ?? "").maybeSingle();
-        const done = Boolean((prof as any)?.onboarded || (prof as any)?.learning_language);
+          .select("onboarded, cef_level").eq("user_id", u.user?.id ?? "").maybeSingle();
+        const done = Boolean((prof as any)?.onboarded || (prof as any)?.cef_level);
         if (done) { try { localStorage.removeItem("ls.onboardingState.v1"); } catch { /* ignore */ } }
         navigate(done ? next : "/onboarding", { replace: true });
       }
