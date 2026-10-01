@@ -14,7 +14,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { LANGUAGES } from "@/lib/languages";
 import { loadFrequencyCoverage, headlineBand, type CoverageBand } from "@/lib/frequencyCoverage";
 import { FrequencyCoverageCard } from "@/components/FrequencyCoverageCard";
-import { Check } from "lucide-react";
+import { Check, Lock } from "lucide-react";
 import { normalizeToken, type DeckState } from "@/lib/vocab";
 
 interface CoreWord { rank: number; word: string; translation: string; cefr_level: string | null }
@@ -57,7 +57,9 @@ export default function CommonWordsDeck() {
     const bs = await loadFrequencyCoverage(language);
     setBands(bs);
     const asked = Number(params.get("band"));
-    const b = asked >= 50 && asked <= 3000 && asked % 50 === 0 ? asked : headlineBand(bs)?.band || 50;
+    const unlocked = headlineBand(bs)?.band || 50;
+    // Decks unlock in order: finish Top 50 to open Top 100, and so on.
+    const b = asked >= 50 && asked <= unlocked && asked % 50 === 0 ? asked : unlocked;
     setBand(b);
     // Each deck is the next 50 words by frequency, stacked on the decks below it.
     const { data } = await supabase
@@ -142,14 +144,17 @@ export default function CommonWordsDeck() {
                 const sliceTotal = Math.max(0, (cur?.total ?? b) - (prev?.total ?? b - 50));
                 const done = sliceTotal > 0 && sliceKnown >= sliceTotal;
                 const next = headlineBand(bands)?.band === b;
+                const locked = b > (headlineBand(bands)?.band ?? 50);
                 return (
                   <button
                     key={b}
+                    disabled={locked}
+                    aria-label={locked ? `Top ${b} locked — finish the deck before it` : `Top ${b}`}
                     onClick={() => setParams({ band: String(b) })}
-                    className={`rounded-xl border px-2 py-2 text-left transition ${b === band ? "border-primary bg-primary/10" : next ? "border-primary/50" : "border-border"} ${!done && !next && b > (headlineBand(bands)?.band ?? 50) ? "opacity-60" : ""}`}
+                    className={`rounded-xl border px-2 py-2 text-left transition ${b === band ? "border-primary bg-primary/10" : next ? "border-primary/50" : "border-border"} ${locked ? "opacity-50 cursor-not-allowed" : ""}`}
                   >
                     <span className="flex items-center gap-1 text-xs font-bold text-foreground">
-                      Top {b.toLocaleString()} {done && <Check className="w-3 h-3 text-emerald-500" />}
+                      Top {b.toLocaleString()} {done && <Check className="w-3 h-3 text-emerald-500" />}{locked && <Lock className="w-3 h-3 text-muted-foreground" />}
                     </span>
                     <span className="text-[11px] tabular-nums text-muted-foreground">{sliceKnown}/{sliceTotal || 50}</span>
                   </button>
