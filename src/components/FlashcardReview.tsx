@@ -1,3 +1,4 @@
+import { noteLearningActivity } from "@/lib/streak";
 import { useState, useEffect, useRef } from "react";
 import { Flashcard } from "./Flashcard";
 import { Button } from "./ui/button";
@@ -121,6 +122,7 @@ export const FlashcardReview = ({ cards: initialCards, onClose, onCardReviewed, 
 
   const logReview = async () => {
     if (!user) return;
+    noteLearningActivity();
     const today = new Date().toISOString().split("T")[0];
     const { data: existing } = await supabase
       .from("activity_log")

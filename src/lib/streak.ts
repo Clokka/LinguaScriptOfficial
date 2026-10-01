@@ -25,7 +25,9 @@ export async function keepStreak(): Promise<StreakResult | null> {
       void checkAchievements();
     }
     if (r.kept) keptToday = localDay();
-    window.dispatchEvent(new CustomEvent(STREAK_EVENT, { detail: r }));
+    // Only on a NEW keep — listeners reload and call keepStreak again, which
+    // then returns already=true, so this can never loop.
+    if (r.kept && !r.already) window.dispatchEvent(new CustomEvent(STREAK_EVENT, { detail: r }));
     return r;
   })().finally(() => { setTimeout(() => { inflight = null; }, 0); });
   return inflight;
