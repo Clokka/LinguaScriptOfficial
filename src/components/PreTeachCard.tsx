@@ -11,6 +11,8 @@ interface Props {
   goal: number;
   userId?: string | null;
   onComplete: () => void;
+  /** Reports the chosen words so the player can ring them in the subtitles. */
+  onWords?: (words: string[]) => void;
 }
 
 const speak = (text: string, lang: string) => {
@@ -30,7 +32,7 @@ const shuffle = <T,>(a: T[]) => [...a].sort(() => Math.random() - 0.5);
  * Pre-teach (PPP "Present" + a quick warmer) before the video plays.
  * Shows as many key words as the learner's daily goal, with the option to add more.
  */
-export const PreTeachCard = ({ lines, language, level, goal, userId, onComplete }: Props) => {
+export const PreTeachCard = ({ lines, language, level, goal, userId, onComplete, onWords }: Props) => {
   const [pool, setPool] = useState<PreTeachItem[] | null>(null);
   const [shown, setShown] = useState(goal);
   const [stage, setStage] = useState<"present" | "warmup">("present");
@@ -55,6 +57,9 @@ export const PreTeachCard = ({ lines, language, level, goal, userId, onComplete 
   }, [pool, onComplete]);
 
   const items = useMemo(() => (pool ?? []).slice(0, shown), [pool, shown]);
+  useEffect(() => {
+    if (pool) onWords?.(items.map((i) => i.item));
+  }, [items, pool, onWords]);
 
   const question = useMemo(() => {
     const it = items[qi];

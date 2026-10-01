@@ -20,6 +20,9 @@ interface LinguaScriptCreationProps {
   items: CreationItem[];
   onComplete: (data: { sentences: Sentence[]; totalXp: number }) => void;
   onSkip: () => void;
+  /** Language the sentences are written in (the word's own language). */
+  language: string;
+  nativeLanguage?: string;
 }
 
 /**
@@ -27,7 +30,7 @@ interface LinguaScriptCreationProps {
  * straight away. Writing five unsupported sentences at once was the hardest
  * possible task with the slowest possible feedback.
  */
-export function LinguaScriptCreation({ items, onComplete, onSkip }: LinguaScriptCreationProps) {
+export function LinguaScriptCreation({ items, onComplete, onSkip, language, nativeLanguage = "en" }: LinguaScriptCreationProps) {
   const [idx, setIdx] = useState(0);
   const [text, setText] = useState("");
   const [done, setDone] = useState<Sentence[]>([]);
@@ -41,7 +44,7 @@ export function LinguaScriptCreation({ items, onComplete, onSkip }: LinguaScript
     setError(null);
     setBusy(true);
     try {
-      const [r] = await evaluateLinguaScripts([{ word: item.word, text }]);
+      const [r] = await evaluateLinguaScripts([{ word: item.word, text }], language, nativeLanguage);
       setResult({ word: item.word, userText: text, score: r?.score ?? 0, feedback: r?.feedback ?? "" });
     } catch {
       setError("We couldn't check that just now. Try again in a moment.");

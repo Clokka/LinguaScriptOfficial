@@ -63,7 +63,9 @@ export async function evaluateLinguaScript(
  * Batch evaluate multiple sentences
  */
 export async function evaluateLinguaScripts(
-  sentences: Array<{ word: string; text: string }>
+  sentences: Array<{ word: string; text: string }>,
+  language: string,
+  nativeLanguage = "en",
 ): Promise<EvaluationResult[]> {
   // Two bugs lived here. The URL pointed at /api/evaluate-linguascripts, which
   // does not exist — this is a Vite SPA with no proxy and no rewrite config, so
@@ -71,7 +73,7 @@ export async function evaluateLinguaScripts(
   // bare array, while the edge function destructures `{ sentences }`, so even a
   // correctly addressed call would have been rejected as malformed.
   const { data, error } = await supabase.functions.invoke("evaluate-linguascripts", {
-    body: { sentences },
+    body: { sentences, language, nativeLanguage },
   });
 
   if (error) throw new Error(error.message || "Failed to evaluate linguascripts");

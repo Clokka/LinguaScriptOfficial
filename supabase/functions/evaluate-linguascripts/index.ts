@@ -24,10 +24,22 @@ interface EvaluationResult {
   feedback: string;
 }
 
+function langName(code: string): string {
+  try {
+    return new Intl.DisplayNames(["en"], { type: "language" }).of(code) || code;
+  } catch {
+    return code;
+  }
+}
+
 async function evaluateSentences(
-  sentences: SentenceToEvaluate[]
+  sentences: SentenceToEvaluate[],
+  language: string,
+  nativeLanguage: string,
 ): Promise<EvaluationResult[]> {
-  const prompt = `You are a language learning evaluator. Evaluate these French sentences using tiered scoring.
+  const prompt = `You are a language learning evaluator. The learner is writing in ${langName(language)} (code "${language}"). Their first language is ${langName(nativeLanguage)}.
+Evaluate these ${langName(language)} sentences using tiered scoring. Judge them ONLY as ${langName(language)} — never correct them into another language.
+Write the feedback in ${langName(nativeLanguage)}; quote any corrected words in ${langName(language)}.
 
 Scoring rules:
 - 50 XP: Perfect grammar and usage (native-level)
@@ -112,7 +124,7 @@ serve(async (req) => {
   }
 
   try {
-    const { sentences } = await req.json();
+    const { sentences, language, nativeLanguage } = await req.json();
 
     if (!sentences || !Array.isArray(sentences)) {
       return new Response(
@@ -121,7 +133,13 @@ serve(async (req) => {
       );
     }
 
-    const results = await evaluateSentences(sentences);
+    if (!language || typeof language !== "string") {
+      return new Response(
+        JSON.stringify({ error: "Invalid request: language required" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    const results = await evaluateSentences(sentences, language, typeof nativeLanguage === "string" && nativeLanguage ? nativeLanguage : "en");
 
     return new Response(JSON.stringify(results), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
