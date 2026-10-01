@@ -8,6 +8,7 @@ import { lazy, Suspense } from "react";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { XpProvider } from "@/contexts/XpContext";
 import { TourProvider } from "@/contexts/TourContext";
+import { I18nProvider } from "@/i18n";
 import { TourOverlay } from "@/components/TourOverlay";
 import { DailyBriefing } from "@/components/DailyBriefing";
 import { StreakCelebrationModal } from "@/components/StreakCelebrationModal";
@@ -98,7 +99,7 @@ const App = () => (
         <BrowserRouter>
           <XpProvider>
             <PetProvider>
-            <TourProvider>
+            <I18nProvider><TourProvider>
               <Suspense fallback={<RouteFallback />}>
               <Routes>
                 <Route path="/" element={<Index />} />
@@ -169,7 +170,7 @@ const App = () => (
               <XpToast />
               <InterestsPromptModal />
               {/* PetCompanion removed per user request */}
-            </TourProvider>
+            </TourProvider></I18nProvider>
             </PetProvider>
           </XpProvider>
         </BrowserRouter>

@@ -1,4 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useT } from "@/i18n";
+import { UiLanguageSwitcher } from "@/components/UiLanguageSwitcher";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowRight, ArrowLeft, Check, Trophy } from "lucide-react";
@@ -40,6 +42,8 @@ const Onboarding = () => {
   const { setLearningLanguage } = useLanguage();
   const { start: startTour } = useTour();
   const [enteringDemo, setEnteringDemo] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const { t, setLang } = useT();
   // Intro video for the chosen language. Null when we have nothing in that
   // language — we show the step without a video rather than playing French.
   const [introVideoId, setIntroVideoId] = useState<string | null>(null);
@@ -228,7 +232,7 @@ const Onboarding = () => {
     <div className="min-h-screen bg-[#0b1215] text-white antialiased">
       <header className="sticky top-0 z-50 bg-[#0b1215]/90 backdrop-blur-xl border-b border-white/5">
         <div className="max-w-2xl mx-auto px-6 h-16 flex items-center justify-between">
-          <img src={brandLockup.url} alt="LinguaScript" className="h-6 w-auto" />
+          <div className="flex items-center gap-3"><img src={brandLockup.url} alt="LinguaScript" className="h-6 w-auto" /><UiLanguageSwitcher /></div>
           {/* Dot pager, not a segmented bar — same idiom as the app's own
               mobile intro tour (mobile/app/tour.tsx). */}
           <div className="flex items-center gap-2">
@@ -255,24 +259,25 @@ const Onboarding = () => {
           >
             {step === 0 && (
               <Card>
-                <Title>Let's tune LinguaScript to you.</Title>
-                <Sub>Tell us your languages and current level — this powers translations and recommendations.</Sub>
+                <Title>{t("obTitle")}</Title>
+                <Sub>{t("obSub")}</Sub>
 
                 <div className="mt-8 space-y-6">
                   {/* Neither list excludes the other language: a French speaker must be
                       able to pick French as their native tongue even while French is
                       still the default learning language. Picking the same language on
                       both sides simply clears the other side. */}
-                  <Field label="I speak (native)">
+                  <Field label={t("iSpeak")}>
                     <LangSelect
                       value={native}
                       onChange={(v) => {
                         setNative(v);
+                        setLang(v);
                         if (v === target) setTarget("");
                       }}
                     />
                   </Field>
-                  <Field label="I want to learn">
+                  <Field label={t("iLearn")}>
                     <LearningLanguageSelect
                       value={target}
                       onChange={(v) => {
@@ -282,7 +287,7 @@ const Onboarding = () => {
                     />
                   </Field>
 
-                  <Field label="How do you want to learn?">
+                  <Field label={t("howLearn")}>
                     <div className="grid gap-2">
                       {(Object.keys(MODE_META) as LearningMode[]).map((m) => (
                         <button
@@ -304,7 +309,7 @@ const Onboarding = () => {
                     </div>
                   </Field>
 
-                  <Field label="My current level">
+                  <Field label={t("myLevel")}>
                     <div className="flex flex-wrap gap-2">
                       {LEVELS.map((l) => (
                         <button
@@ -316,7 +321,7 @@ const Onboarding = () => {
                               : "bg-white/[0.02] border-white/10 text-white/75 hover:border-[#34C759]/60"
                           }`}
                         >
-                          {l === "beginner" ? "I'm a total beginner" : l}
+                          {l === "beginner" ? t("totalBeginner") : l}
                         </button>
                       ))}
                     </div>
@@ -328,7 +333,7 @@ const Onboarding = () => {
                     )}
                   </Field>
 
-                  <Field label="School (optional)">
+                  <Field label={t("schoolOptional")}>
                     <Input
                       value={school}
                       onChange={(e) => setSchool(e.target.value)}
@@ -551,14 +556,14 @@ const Onboarding = () => {
             className="rounded-full text-white/60 hover:text-white hover:bg-white/[0.04]"
           >
             <ArrowLeft className="w-4 h-4" />
-            Back
+            {t("back")}
           </Button>
           <Button
             onClick={next}
-            disabled={!canContinue}
+            disabled={!canContinue || saving}
             className="h-12 px-7 rounded-2xl bg-[#34C759] hover:bg-[#2CB350] text-white font-bold shadow-[0_8px_24px_-8px_rgba(52,199,89,0.5)] gap-2 disabled:opacity-40"
           >
-            {step === totalSteps - 1 ? "Start learning" : "Next"}
+            {saving ? t("saving") : step === totalSteps - 1 ? t("startLearning") : t("next")}
             <ArrowRight className="w-4 h-4" />
           </Button>
         </div>
