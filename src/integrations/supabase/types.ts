@@ -2244,6 +2244,7 @@ export type Database = {
       }
       check_achievements: { Args: { p_language?: string }; Returns: Json }
       claim_daily_chest: { Args: never; Returns: Json }
+      claim_free_pet: { Args: { p_pet_id: string }; Returns: Json }
       claim_gift_link: { Args: { p_token: string }; Returns: Json }
       claim_pro_chameleon_link: { Args: { _token: string }; Returns: Json }
       claim_pro_gift_link: { Args: { _token: string }; Returns: Json }
