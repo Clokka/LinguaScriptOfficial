@@ -15,7 +15,7 @@ import { ChameleonMascot, type ChameleonTier } from "@/components/ChameleonMasco
 import { DECK } from "@/lib/deck-colors";
 
 /**
- * "Watch. Learn. Understand." — the Chrome extension launch reel.
+ * "Free. Fun. Accessible." — the Chrome extension launch reel.
  *
  * Every scene reuses the real brand primitives (ChameleonMascot, DECK) the
  * same way GreenTransition/HedgehogGiveaway already do, rather than
@@ -916,7 +916,7 @@ const SceneOutro = () => {
           transform: `translateY(${(1 - tagline) * 14}px)`,
         }}
       >
-        Watch. Learn. Understand.
+        Free. Fun. Accessible.
       </div>
       <div
         style={{
