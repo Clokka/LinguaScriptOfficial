@@ -29,3 +29,6 @@ project_id = "ffephracinqeylfhqkiz"
     verify_jwt = true
   [functions.youtube-subscribe]
     verify_jwt = true
+
+[functions.speak-word]
+verify_jwt = false
