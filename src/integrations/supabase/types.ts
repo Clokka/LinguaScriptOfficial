@@ -2475,6 +2475,10 @@ export type Database = {
           watch_number: number
         }[]
       }
+      reset_to_absolute_beginner: {
+        Args: { _language: string }
+        Returns: number
+      }
       reveal_green_word: { Args: { p_word_id: string }; Returns: Json }
       safe_display_name: {
         Args: { _display: string; _user_id: string; _username: string }
