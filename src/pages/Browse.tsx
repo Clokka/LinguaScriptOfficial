@@ -28,6 +28,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTour } from "@/contexts/TourContext";
 import { useToast } from "@/hooks/use-toast";
+import { useT } from "@/i18n";
 import { getLanguageLabel, getLanguageFlag, LANGUAGES } from "@/lib/languages";
 import { ensureSubtitleTracks } from "@/lib/subtitleSync";
 import {
@@ -109,6 +110,7 @@ const Browse = () => {
   const { user, loading: authLoading } = useAuth();
   const { learningLanguage, setLearningLanguage } = useLanguage();
   const { toast } = useToast();
+  const { setLang: setUiLang } = useT();
   const tour = useTour();
   const { status: linguaScriptStatus, loading: statusLoading, refetch: refetchStatus } = useLinguaScriptStatus();
 
@@ -441,6 +443,7 @@ const Browse = () => {
       ...(settingsLearning ? { learning_language: settingsLearning } : {}),
     } as any).eq("user_id", user.id);
     if (settingsLearning) setLearningLanguage(settingsLearning);
+    setUiLang(nativeLanguage);
     toast({ title: "Settings saved!" });
     setSavingSettings(false);
   };
