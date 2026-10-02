@@ -85,7 +85,6 @@ type TabKey = "home" | "discover" | "calendar" | "settings";
 const SIDEBAR_ITEMS: { icon: typeof Home; label: string; key: TabKey | "flashcards" | "vocabulary" | "friends" | "linguascripts" }[] = [
   { icon: Home, label: "Home", key: "home" },
   { icon: Target, label: "Comprehension", key: "vocabulary" },
-  { icon: Library, label: "LinguaScripts", key: "linguascripts" },
   { icon: BookOpen, label: "Flashcards", key: "flashcards" },
   { icon: Users, label: "Friends", key: "friends" },
   { icon: CalendarIcon, label: "Calendar", key: "calendar" },
@@ -545,7 +544,7 @@ const Browse = () => {
               <DailyChestCard goalMet={dailyGoal.goal > 0 && dailyGoal.savedToday >= dailyGoal.goal} />
 
               {/* LinguaScripts Alerts - Top Priority */}
-              {lsRemaining > 0 && (
+              {false && lsRemaining > 0 && (
                 <LinguaScriptsPendingAlert
                   count={lsRemaining}
                   estimatedTime={Math.ceil(linguaScriptStatus.linguascriptsPending * 1)}
@@ -553,7 +552,7 @@ const Browse = () => {
                 />
               )}
 
-              {lsRemaining === 0 && (linguaScriptStatus.reviewedToday ?? 0) > 0 && (
+              {false && lsRemaining === 0 && (linguaScriptStatus.reviewedToday ?? 0) > 0 && (
                 <LinguaScriptsCompleteCard
                   wordsReviewedToday={linguaScriptStatus.reviewedToday ?? 0}
                   newWordsCaptured={0}
