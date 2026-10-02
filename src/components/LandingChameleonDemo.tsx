@@ -1,10 +1,13 @@
-// "The mascot that turns green when you do" — interactive landing demo using
-// the original flat chameleon illustration. Click the red words to save/review
-// them (red→orange→green); the meter and the chameleon's colour (via CSS
-// hue-rotate) track your progress. Hit 100% for a gold/blue hyper state.
+// "The mascot that turns green when you do" — interactive landing demo.
+// Click the red words to save/review them (red→orange→green); the meter and
+// the chameleon's colour track your progress using the real brand mascot
+// (the same ChameleonMascot used everywhere else), not the legacy PNG/
+// hue-rotate hack. At 100% the chameleon is simply green — the old gold/blue
+// "hyper mode" state has been removed.
 import { useMemo, useRef, useState } from "react";
-import { motion, useInView } from "framer-motion";
+import { useInView } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { ChameleonMascot, type ChameleonTier } from "@/components/ChameleonMascot";
 
 type WordState = "green" | "red" | "orange";
 interface Word {
@@ -40,8 +43,6 @@ export const LandingChameleonDemo = () => {
   const rootRef = useRef<HTMLDivElement>(null);
   const inView = useInView(rootRef, { once: true, margin: "120px" });
   const [words, setWords] = useState<Word[]>(INITIAL);
-  const [god, setGod] = useState(false);
-  const godTimer = useRef<number>(0);
 
   const weight = (w: Word) => (w.fn ? 0.25 : 1);
   const pct = useMemo(() => {
@@ -55,33 +56,18 @@ export const LandingChameleonDemo = () => {
 
   const allGreen = pct === 100;
   const stateColor = allGreen ? GREEN : rampColor(pct);
-
-  // The illustration is orange (~25°). Rotate hue from red (0%) to green (100%).
-  const skinFilter = god
-    ? "hue-rotate(18deg) saturate(1.7) brightness(1.15) drop-shadow(0 0 26px rgba(59,130,246,0.9))"
-    : `hue-rotate(${-25 + (pct / 100) * 120}deg) saturate(${1 + (pct / 100) * 0.25})`;
+  const tier: ChameleonTier = allGreen ? "green" : pct >= 40 ? "orange" : "red";
 
   const advance = (i: number) => {
-    setWords((prev) => {
-      const next = prev.map((w, j) => {
+    setWords((prev) =>
+      prev.map((w, j) => {
         if (j !== i || w.fn) return w;
         return { ...w, state: (w.state === "red" ? "orange" : "green") as WordState };
-      });
-      const full = next.every((w) => w.state === "green");
-      if (full && !god) {
-        setGod(true);
-        clearTimeout(godTimer.current);
-        godTimer.current = window.setTimeout(() => setGod(false), 2600);
-      }
-      return next;
-    });
+      }),
+    );
   };
 
-  const reset = () => {
-    setGod(false);
-    clearTimeout(godTimer.current);
-    setWords(INITIAL);
-  };
+  const reset = () => setWords(INITIAL);
 
   const wordColor: Record<WordState, string> = {
     red: "text-red-400",
@@ -91,11 +77,6 @@ export const LandingChameleonDemo = () => {
 
   return (
     <div ref={rootRef} className="grid grid-cols-1 items-center gap-10 lg:grid-cols-2">
-      <style>{`
-        @keyframes cham-bob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
-        @media (prefers-reduced-motion: reduce){ .cham-bob{ animation:none !important } }
-      `}</style>
-
       {/* Chameleon stage */}
       <div className="relative mx-auto flex h-[320px] w-full max-w-[460px] items-center justify-center">
         <div
@@ -104,34 +85,22 @@ export const LandingChameleonDemo = () => {
           style={{
             width: 280,
             height: 220,
-            background: god ? "#7dd3fc" : stateColor,
-            opacity: god ? 0.7 : 0.14 + (pct / 100) * 0.4,
-            transform: `scale(${god ? 1.3 : 0.85 + (pct / 100) * 0.35})`,
+            background: stateColor,
+            opacity: 0.14 + (pct / 100) * 0.4,
+            transform: `scale(${0.85 + (pct / 100) * 0.35})`,
           }}
         />
-        {god && (
-          <div className="pointer-events-none absolute top-1 z-10 rounded-full border border-amber-300/60 bg-black/50 px-3 py-1 text-xs font-black tracking-wide text-amber-300 backdrop-blur">
-            ✦ HYPER MODE ✦
-          </div>
-        )}
         {inView && (
-          <img
-            src="/mascot/chameleon.png"
-            alt="LinguaScript chameleon mascot"
-            className="cham-bob relative z-[2] w-[360px] max-w-full transition-[filter] duration-500"
-            style={{ filter: skinFilter, animation: "cham-bob 4s ease-in-out infinite" }}
-            draggable={false}
-          />
+          <div className="relative z-[2] w-[300px] max-w-full">
+            <ChameleonMascot tier={tier} party={allGreen} />
+          </div>
         )}
       </div>
 
       {/* Interactive panel — mirrors the concept */}
       <div className="rounded-2xl border border-border/60 bg-background/40 p-6 backdrop-blur">
         <div className="mb-4 flex items-center gap-3">
-          <span
-            className="text-3xl font-black tabular-nums transition-colors duration-500"
-            style={{ color: god ? "#fcd34d" : stateColor }}
-          >
+          <span className="text-3xl font-black tabular-nums transition-colors duration-500" style={{ color: stateColor }}>
             {pct}%
           </span>
           <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
@@ -141,7 +110,7 @@ export const LandingChameleonDemo = () => {
         <div className="mb-5 h-2 overflow-hidden rounded-full bg-secondary/50">
           <div
             className="h-full rounded-full transition-all duration-500"
-            style={{ width: `${pct}%`, background: god ? "linear-gradient(90deg,#fcd34d,#60a5fa)" : stateColor }}
+            style={{ width: `${pct}%`, background: stateColor }}
           />
         </div>
 
