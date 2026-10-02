@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Volume2, Check, X, RotateCcw } from "lucide-react";
+import { Volume2, Check, X, RotateCcw, ArrowDown } from "lucide-react";
 import { Button } from "./ui/button";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/contexts/LanguageContext";
