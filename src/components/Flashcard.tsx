@@ -258,13 +258,15 @@ export const Flashcard = ({
       )}
       {isFlipped && onDemote && (
         <div className="flex justify-center mt-3">
-          <button
+          <Button
             type="button"
+            variant="destructive"
+            size="sm"
             onClick={() => { setIsFlipped(false); onDemote(); }}
-            className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
           >
-            {state === "green" ? "Not sure? Move back to Learning" : "Not sure? Move back to Unknown"}
-          </button>
+            <ArrowDown className="w-4 h-4 mr-1" />
+            {state === "green" ? "Too hard – back to Learning" : "Too hard – back to Unknown"}
+          </Button>
         </div>
       )}
     </div>

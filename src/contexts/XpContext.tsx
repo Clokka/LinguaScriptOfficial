@@ -145,6 +145,7 @@ export function XpProvider({ children }: { children: ReactNode }) {
       if (level > prevLevelRef.current) {
         prevLevelRef.current = level;
         setLeveledUpTo(level);
+        try { localStorage.setItem("ls.lastLevelUpDay", new Date().toLocaleDateString("en-CA")); } catch { /* ignore */ }
         setSpikeIntensity(action === "daily_goal_reached" ? (meta?.intensity ?? "normal") : null);
         if (user) {
           // Server grants the reward idempotently and returns the balance,

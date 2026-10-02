@@ -237,12 +237,25 @@ export const FlashcardReview = ({ cards: initialCards, onClose, onCardReviewed, 
     }
   };
 
+  /** Guaranteed daily level-up: the first time a learner reviews a few cards
+   *  (or finishes a short session) on a day with no level-up yet, top XP up to
+   *  the next level so the chameleon celebration fires at least once a day. */
+  const maybeDailyLevelUp = (reviewed: number) => {
+    if (reviewed < Math.min(5, cards.length)) return;
+    const today = new Date().toLocaleDateString("en-CA");
+    try {
+      if (localStorage.getItem("ls.lastLevelUpDay") === today) return;
+    } catch { /* ignore */ }
+    award("daily_goal_reached");
+  };
+
   const handleCorrect = () => {
     playDing("success");
     setCorrect((prev) => prev + 1);
     void logReview();
     award("review_card", { correct: true });
     promoteDeckState(true);
+    maybeDailyLevelUp(correct + incorrect + 1);
     advance(correct + incorrect + 1);
   };
 
@@ -252,6 +265,7 @@ export const FlashcardReview = ({ cards: initialCards, onClose, onCardReviewed, 
     void logReview();
     award("review_card", { correct: false });
     promoteDeckState(false);
+    maybeDailyLevelUp(correct + incorrect + 1);
     advance(correct + incorrect + 1);
   };
 
