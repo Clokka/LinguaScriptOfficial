@@ -447,11 +447,23 @@ const Watch = () => {
   // be the video + the teaching cursor, never an ad.
   const [adDone, setAdDone] = useState(tourActive);
   const finishPreTeach = useCallback(() => setAdDone(true), []);
-  // Words picked by the pre-teach scan; unsaved ones get a gold ring while watching.
-  const [targetWords, setTargetWords] = useState<Set<string>>(new Set());
+  // Gold rings: pre-teach picks first, then unlearned words from the learner's
+  // current Top-N frequency deck. The overlay caps rings per line.
+  const [preTeachWords, setPreTeachWords] = useState<string[]>([]);
+  const [focusWords, setFocusWords] = useState<string[]>([]);
   const handlePreTeachWords = useCallback((ws: string[]) => {
-    setTargetWords(new Set(ws.map((w) => normalizeToken(w))));
+    setPreTeachWords(ws.map((w) => normalizeToken(w)));
   }, []);
+  const targetWords = useMemo(() => new Set([...preTeachWords, ...focusWords]), [preTeachWords, focusWords]);
+  const focusLang = film?.language || learningLanguage;
+  useEffect(() => {
+    if (!user?.id || !focusLang) return;
+    let alive = true;
+    import("@/lib/focusDeck").then(({ focusRingWords }) => focusRingWords(user.id, focusLang))
+      .then((ws) => { if (alive) setFocusWords(ws); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [user?.id, focusLang]);
 
   const [cssFullscreen, setCssFullscreen] = useState(false);
   const toggleFullscreen = useCallback(async () => {
