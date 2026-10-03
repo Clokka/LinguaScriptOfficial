@@ -2307,6 +2307,13 @@ export type Database = {
           total_words: number
         }[]
       }
+      frequency_reviewing: {
+        Args: { _language: string }
+        Returns: {
+          band: number
+          reviewing_words: number
+        }[]
+      }
       gen_friend_code: { Args: never; Returns: string }
       get_daily_linguascripts: {
         Args: { p_language: string; p_user_id: string }
