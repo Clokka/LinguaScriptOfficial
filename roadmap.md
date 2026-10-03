@@ -8,3 +8,4 @@
 
 - [x] Fix chameleon clipping (word-saved + level-up)
 - [x] Watch page: 'Words saved X/goal' bar under video with Review in Flashcards button (no forced stop)
+- [ ] Level downgrade (e.g. C1→B1): decide what happens to stored words (waiting on user)
