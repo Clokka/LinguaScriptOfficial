@@ -104,6 +104,18 @@ const Flashcards = () => {
       // Always fetch fresh from Supabase — the Chrome extension can write to
       // saved_words too, so cached state would go stale. Large accounts exceed
       // the Data API's default 1,000-row window, so page through everything.
+      // Today's 10 new words from the focus (Top N) deck join the pile first.
+      if (learningLanguage) {
+        const key = `ls.focusTopUp.${learningLanguage}`;
+        const today = new Date().toDateString();
+        if (localStorage.getItem(key) !== today) {
+          try {
+            const { topUpDailyNew } = await import("@/lib/focusDeck");
+            const r = await topUpDailyNew(user.id, learningLanguage);
+            if (r) localStorage.setItem(key, today);
+          } catch (e) { console.warn("[focusDeck]", e); }
+        }
+      }
       const pageSize = 1000;
       let from = 0;
       const rows: SavedWord[] = [];
