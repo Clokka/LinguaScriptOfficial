@@ -15,6 +15,13 @@
       "when": 1791005794230,
       "tag": "0001_fast_frequency_coverage",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791007118052,
+      "tag": "0002_frequency_reviewing",
+      "breakpoints": true
     }
   ]
 }
