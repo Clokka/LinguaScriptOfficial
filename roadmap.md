@@ -7,4 +7,4 @@
 - [x] Restore a balanced responsive level-up chameleon size
 
 - [x] Fix chameleon clipping (word-saved + level-up)
-- [ ] Watch page: 'Words saved X/goal' bar under video with Review in Flashcards button (no forced stop)
+- [x] Watch page: 'Words saved X/goal' bar under video with Review in Flashcards button (no forced stop)

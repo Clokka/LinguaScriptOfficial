@@ -110,7 +110,7 @@ const Flashcards = () => {
       while (true) {
         let q = supabase
           .from("saved_words")
-          .select("id, word, translation, pronunciation, ipa, context, language, next_review, review_count, state, times_correct, is_phrase, ease_factor, interval_days, image_url, lemma, lemma_translation, is_inflected, grammar_note")
+          .select("id, word, translation, pronunciation, ipa, context, language, next_review, review_count, state, times_correct, is_phrase, ease_factor, interval_days, image_url, lemma, lemma_translation, is_inflected, grammar_note, created_at")
           .eq("user_id", user.id)
           .order("next_review", { ascending: true, nullsFirst: true })
           .range(from, from + pageSize - 1);
@@ -126,6 +126,13 @@ const Flashcards = () => {
         rows.push(...batch);
         if (batch.length < pageSize) break;
         from += pageSize;
+      }
+      // Coming from the video word counter: today's new words go first.
+      if (new URLSearchParams(window.location.search).get("focus") === "today") {
+        const start = new Date();
+        start.setHours(0, 0, 0, 0);
+        const isToday = (r: any) => r.created_at && new Date(r.created_at) >= start;
+        rows.sort((a, b) => Number(isToday(b)) - Number(isToday(a)));
       }
       setAllCards(rows);
     }
