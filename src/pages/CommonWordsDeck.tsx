@@ -16,6 +16,7 @@ import { loadFrequencyCoverage, headlineBand, unlockedBand, type CoverageBand } 
 import { FrequencyCoverageCard } from "@/components/FrequencyCoverageCard";
 import { Check, Lock } from "lucide-react";
 import { normalizeToken, type DeckState } from "@/lib/vocab";
+import { topUpDailyNew, DAILY_NEW } from "@/lib/focusDeck";
 
 interface CoreWord { rank: number; word: string; translation: string; cefr_level: string | null }
 interface Saved { id: string; word: string; state: DeckState; times_correct: number; translation: string; pronunciation: string; ipa: string }
@@ -38,6 +39,9 @@ export default function CommonWordsDeck() {
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
   const [reviewCards, setReviewCards] = useState<any[]>([]);
+  const [addedToday, setAddedToday] = useState(0);
+  const [dueNow, setDueNow] = useState(0);
+  const [justDone, setJustDone] = useState<number | null>(null);
 
   const loadSaved = useCallback(async (list: CoreWord[]) => {
     const map = new Map<string, Saved>();
@@ -54,10 +58,24 @@ export default function CommonWordsDeck() {
 
   const load = useCallback(async () => {
     setLoading(true);
+    if (user) {
+      const r = await topUpDailyNew(user.id, language).catch(() => null);
+      setAddedToday(r?.addedToday ?? 0);
+      const { count } = await supabase.from("saved_words").select("id", { count: "exact", head: true })
+        .eq("user_id", user.id).eq("language", language).lte("next_review", new Date().toISOString().slice(0, 10));
+      setDueNow(count ?? 0);
+    }
     const bs = await loadFrequencyCoverage(language);
     setBands(bs);
     const asked = Number(params.get("band"));
     const unlocked = unlockedBand(bs);
+    // One-line "deck complete" note the first time a new deck unlocks.
+    const doneKey = `ls.focusBand.${language}`;
+    const prevBand = Number(localStorage.getItem(doneKey) || 0);
+    if (bs.length) {
+      if (prevBand && unlocked > prevBand) setJustDone(unlocked - 50);
+      localStorage.setItem(doneKey, String(unlocked));
+    }
     // Decks unlock in order: finish Top 50 to open Top 100, and so on.
     const b = asked >= 50 && asked <= unlocked && asked % 50 === 0 ? asked : unlocked;
     setBand(b);
@@ -134,6 +152,19 @@ export default function CommonWordsDeck() {
       ) : (
         <div className="max-w-3xl mx-auto px-6 py-8 space-y-6">
           <FrequencyCoverageCard language={language} />
+          {justDone && (
+            <p className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-2 text-sm font-semibold text-emerald-500">
+              Top {justDone.toLocaleString()} complete. Top {(justDone + 50).toLocaleString()} unlocked.
+            </p>
+          )}
+          {user && (
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-border px-4 py-3">
+              <p className="text-sm text-muted-foreground">
+                Today: <span className="font-semibold text-foreground">{Math.min(addedToday, DAILY_NEW)} new words added</span> · {dueNow} to review
+              </p>
+              <Button size="sm" onClick={() => navigate("/flashcards")}>Review</Button>
+            </div>
+          )}
           <section>
             <p className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Decks</p>
             <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
