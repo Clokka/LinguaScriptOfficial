@@ -99,7 +99,7 @@ export function WatchGoalGate({ goal, playerRef, savedToday = 0 }: Props) {
           Time to lock in your words. Review your cards to turn them green.
         </p>
         <button
-          onClick={() => navigate("/linguascript")}
+          onClick={() => navigate("/flashcards")}
           className="mt-5 flex w-full items-center justify-center gap-2 rounded-full bg-[#34C759] py-3 font-semibold text-background"
         >
           <Layers className="h-5 w-5" /> Review cards
