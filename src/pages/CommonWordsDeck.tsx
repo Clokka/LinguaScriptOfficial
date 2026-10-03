@@ -12,7 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LANGUAGES } from "@/lib/languages";
-import { loadFrequencyCoverage, headlineBand, unlockedBand, type CoverageBand } from "@/lib/frequencyCoverage";
+import { loadFrequencyCoverage, headlineBand, unlockedBand, doneCount, type CoverageBand } from "@/lib/frequencyCoverage";
 import { FrequencyCoverageCard } from "@/components/FrequencyCoverageCard";
 import { Check, Lock } from "lucide-react";
 import { normalizeToken, type DeckState } from "@/lib/vocab";
@@ -171,7 +171,7 @@ export default function CommonWordsDeck() {
               {Array.from({ length: 60 }, (_, i) => (i + 1) * 50).map((b) => {
                 const cur = bands.find((x) => x.band === b);
                 const prev = bands.find((x) => x.band === b - 50);
-                const sliceKnown = Math.max(0, ((cur?.known ?? 0) + (cur?.assumed ?? 0)) - ((prev?.known ?? 0) + (prev?.assumed ?? 0)));
+                const sliceKnown = Math.max(0, doneCount(cur) - doneCount(prev));
                 const sliceTotal = Math.max(0, (cur?.total ?? b) - (prev?.total ?? b - 50));
                 const done = sliceTotal > 0 && sliceKnown >= sliceTotal;
                 const next = unlockedBand(bands) === b;
