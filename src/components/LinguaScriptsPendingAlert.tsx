@@ -20,7 +20,7 @@ export function LinguaScriptsPendingAlert({ count, onStart }: LinguaScriptsPendi
   const today = Math.min(count, goal || count);
   const start = () => {
     if (onStart) onStart();
-    else navigate("/linguascript");
+    else navigate("/flashcards");
   };
   return (
     <div
@@ -28,7 +28,7 @@ export function LinguaScriptsPendingAlert({ count, onStart }: LinguaScriptsPendi
       style={{ borderColor: `${GREEN}55`, background: `${GREEN}14` }}
     >
       <p className="mb-2 text-xs font-bold uppercase tracking-widest" style={{ color: GREEN }}>
-        LinguaScripts
+        Flashcards
       </p>
       <h2 className="text-2xl font-extrabold leading-tight text-white">
         <span style={{ color: GREEN }}>{today}</span> word{today !== 1 ? "s" : ""} to review today

@@ -368,7 +368,7 @@ const Watch = () => {
       nudgedRef.current = true;
       toast.success(`Daily goal reached — ${dailyGoal.goal} words saved`, {
         description: "Review them now while they're fresh.",
-        action: { label: "Review", onClick: () => navigate("/linguascript") },
+        action: { label: "Review", onClick: () => navigate("/flashcards") },
         duration: 8000,
       });
     }
