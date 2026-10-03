@@ -358,21 +358,10 @@ const Watch = () => {
   const savedTodayRef = useRef(0);
   const dailyGoal = useDailyWordGoal();
 
-  // One nudge per day, fired the moment the goal is met: the point of the goal
-  // is to hand the learner over to review, not to congratulate them and stop.
-  const nudgedRef = useRef(false);
+  // Progress and the review button live in the word counter under the video.
   const registerDailySave = useCallback(() => {
     dailyGoal.bump();
-    const next = dailyGoal.savedToday + 1;
-    if (!nudgedRef.current && next >= dailyGoal.goal) {
-      nudgedRef.current = true;
-      toast.success(`Daily goal reached — ${dailyGoal.goal} words saved`, {
-        description: "Review them now while they're fresh.",
-        action: { label: "Review", onClick: () => navigate("/flashcards") },
-        duration: 8000,
-      });
-    }
-  }, [dailyGoal, navigate]);
+  }, [dailyGoal]);
   const { learningLanguage, languageContext, isContentLocked } = useLanguage();
   const { award } = useXp();
   const { triggerReaction } = usePet();
