@@ -47,6 +47,7 @@ import { PronunciationJudge } from "@/components/PronunciationJudge";
 import { DailyGoalTally } from "@/components/DailyGoalTally";
 import { useDailyWordGoal } from "@/hooks/useDailyWordGoal";
 import { WatchGoalGate } from "@/components/WatchGoalGate";
+import { WatchWordCounter } from "@/components/WatchWordCounter";
 
 interface FilmData {
   id: string;
@@ -1411,6 +1412,15 @@ const Watch = () => {
                 </Button>
               </div>
             )}
+            {user && (
+              <div className="px-2 pt-2">
+                <WatchWordCounter
+                  savedToday={dailyGoal.savedToday}
+                  goal={dailyGoal.goal}
+                  onReview={() => navigate("/flashcards?focus=today")}
+                />
+              </div>
+            )}
             {subtitleBlock}
             {!isLandscape && pcNudge}
           </div>
@@ -1544,6 +1554,14 @@ const Watch = () => {
           )}
 
         </div>
+        {user && !isFullscreen && (
+          <WatchWordCounter
+            savedToday={dailyGoal.savedToday}
+            goal={dailyGoal.goal}
+            onReview={() => navigate("/flashcards?focus=today")}
+            className="max-w-5xl mt-3"
+          />
+        )}
       </div>
 
       {showReinforce && comprehension && film && (
