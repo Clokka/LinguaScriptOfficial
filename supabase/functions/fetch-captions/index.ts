@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { YouTubeTranscriptApi } from "npm:@hallelx/youtube-transcript@0.2.0";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -8,6 +9,62 @@ const corsHeaders = {
 interface Sub { start: number; end: number; text: string }
 
 const SUPADATA_API_KEY = Deno.env.get('SUPADATA_API_KEY') || '';
+
+const VARIANTS: Record<string, string[]> = {
+  zh: ['zh', 'zh-Hans', 'zh-CN', 'zh-Hant', 'zh-TW'],
+  pt: ['pt', 'pt-BR', 'pt-PT'],
+  es: ['es', 'es-419', 'es-ES'],
+  en: ['en', 'en-US', 'en-GB'],
+};
+const variantsOf = (lang: string) => VARIANTS[lang] || [lang];
+
+// ── Free path: YouTube's own caption tracks via the open-source
+// @hallelx/youtube-transcript library (no API key, no credits). YouTube
+// sometimes blocks cloud IPs, so this is tried first with a short time budget
+// and Supadata (paid) stays as the fallback.
+const FREE_TIME_BUDGET_MS = 10000;
+
+const freeApi = new YouTubeTranscriptApi({
+  fetchFn: (input, init) => fetch(input, { ...init, signal: init?.signal ?? AbortSignal.timeout(8000) }),
+});
+
+function mapFreeSnippets(snippets: { text: string; start: number; duration: number }[]): Sub[] {
+  return snippets
+    .map((s) => ({ start: s.start, end: s.start + s.duration, text: (s.text || '').trim() }))
+    .filter((s) => s.text.length > 0);
+}
+
+async function fetchFreeTracks(videoId: string, lang: string, native: string): Promise<{ learning: Sub[]; native: Sub[] }> {
+  const list = await freeApi.list(videoId);
+  // findTranscript prefers human-made tracks, then auto-generated ones.
+  const learningTrack = list.findTranscript(variantsOf(lang));
+  const learning = mapFreeSnippets((await learningTrack.fetch()).snippets);
+  if (native === lang) return { learning, native: learning };
+
+  let nativeSubs: Sub[] = [];
+  try {
+    nativeSubs = mapFreeSnippets((await list.findTranscript(variantsOf(native)).fetch()).snippets);
+  } catch {
+    // No native track — ask YouTube to auto-translate the learning track.
+    const target = variantsOf(native).find((code) =>
+      learningTrack.translationLanguages.some((t) => t.languageCode === code));
+    if (target) {
+      try {
+        nativeSubs = mapFreeSnippets((await learningTrack.translate(target).fetch()).snippets);
+      } catch (e: any) {
+        console.log(`Free native translation failed: ${e.message}`);
+      }
+    }
+  }
+  return { learning, native: nativeSubs };
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error(`timed out after ${ms}ms`)), ms)),
+  ]);
+}
 
 async function supadataFetch(url: string): Promise<Response> {
   // Retry on 429 with exponential backoff
@@ -96,10 +153,6 @@ serve(async (req) => {
   }
 
   try {
-    if (!SUPADATA_API_KEY) {
-      throw new Error('SUPADATA_API_KEY not configured');
-    }
-
     const { videoId, language, nativeLanguage } = await req.json();
     if (!videoId) {
       return new Response(JSON.stringify({ error: 'videoId required' }), {
@@ -115,40 +168,27 @@ serve(async (req) => {
     let nativeSubs: Sub[] = [];
     let learningError: string | null = null;
     let nativeError: string | null = null;
+    let source = 'youtube-free';
 
-    const VARIANTS: Record<string, string[]> = {
-      zh: ['zh', 'zh-Hans', 'zh-CN', 'zh-Hant', 'zh-TW'],
-      pt: ['pt', 'pt-BR', 'pt-PT'],
-      es: ['es', 'es-419', 'es-ES'],
-      en: ['en', 'en-US', 'en-GB'],
-    };
-    for (const variant of VARIANTS[lang] || [lang]) {
-      try {
-        learning = await fetchSupadataTranscript(videoId, variant);
-        learningError = null;
-        if (learning.length) break;
-      } catch (e: any) {
-        learningError = e.message;
-        console.log(`Learning lang fetch failed (${variant}): ${e.message}`);
-        await new Promise((r) => setTimeout(r, 1200));
-      }
+    try {
+      const free = await withTimeout(fetchFreeTracks(videoId, lang, native), FREE_TIME_BUDGET_MS);
+      learning = free.learning;
+      nativeSubs = free.native;
+      console.log(`Free path: learning=${learning.length}, native=${nativeSubs.length}`);
+    } catch (e: any) {
+      console.log(`Free path failed (${e?.constructor?.name}): ${String(e?.message).slice(0, 200)}`);
     }
 
-    if (native !== lang) {
-      // Space requests out to respect free-plan rate limit (~1 req/sec)
-      await new Promise((r) => setTimeout(r, 1500));
-      try {
-        nativeSubs = await fetchSupadataTranscript(videoId, native);
-      } catch (e: any) {
-        nativeError = e.message;
-        console.log(`Native lang fetch failed: ${e.message}`);
-      }
-    } else {
-      nativeSubs = learning;
+    // Free path found nothing in the learning language → paid fallback.
+    // (A missing native track alone is fine: the client AI-translates it.)
+    if (!learning.length) {
+      source = 'supadata';
+      if (!SUPADATA_API_KEY) throw new Error('SUPADATA_API_KEY not configured');
+      ({ learning, nativeSubs, learningError, nativeError } = await fetchViaSupadata(videoId, lang, native));
     }
 
-    // Detect duplicate: Supadata sometimes returns original-language track when
-    // requested native language isn't available. Compare first few segments.
+    // Detect duplicate: providers sometimes return the original-language track
+    // when the requested native language isn't available. Compare first few segments.
     if (native !== lang && learning.length && nativeSubs.length) {
       const sampleSize = Math.min(5, learning.length, nativeSubs.length);
       let identical = 0;
@@ -162,7 +202,7 @@ serve(async (req) => {
       }
     }
 
-    console.log(`Final: learning=${learning.length}, native=${nativeSubs.length}`);
+    console.log(`Final (${source}): learning=${learning.length}, native=${nativeSubs.length}`);
 
     return new Response(JSON.stringify({
       subtitles: learning,
@@ -171,7 +211,7 @@ serve(async (req) => {
       nativeLanguage: native,
       count: learning.length,
       nativeCount: nativeSubs.length,
-      source: 'supadata',
+      source,
       ...(learningError ? { learningError } : {}),
       ...(nativeError ? { nativeError } : {}),
     }), {
@@ -184,3 +224,37 @@ serve(async (req) => {
     });
   }
 });
+
+async function fetchViaSupadata(videoId: string, lang: string, native: string) {
+  let learning: Sub[] = [];
+  let nativeSubs: Sub[] = [];
+  let learningError: string | null = null;
+  let nativeError: string | null = null;
+
+  for (const variant of variantsOf(lang)) {
+    try {
+      learning = await fetchSupadataTranscript(videoId, variant);
+      learningError = null;
+      if (learning.length) break;
+    } catch (e: any) {
+      learningError = e.message;
+      console.log(`Learning lang fetch failed (${variant}): ${e.message}`);
+      await new Promise((r) => setTimeout(r, 1200));
+    }
+  }
+
+  if (native !== lang) {
+    // Space requests out to respect free-plan rate limit (~1 req/sec)
+    await new Promise((r) => setTimeout(r, 1500));
+    try {
+      nativeSubs = await fetchSupadataTranscript(videoId, native);
+    } catch (e: any) {
+      nativeError = e.message;
+      console.log(`Native lang fetch failed: ${e.message}`);
+    }
+  } else {
+    nativeSubs = learning;
+  }
+
+  return { learning, nativeSubs, learningError, nativeError };
+}
