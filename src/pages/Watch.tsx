@@ -894,7 +894,7 @@ const Watch = () => {
     if (!translation) {
       try {
         const { data, error } = await supabase.functions.invoke("translate-word", {
-          body: { word: word.text, context, fromLanguage: fromLang, toLanguage: toLang },
+          body: { word: word.text, context, fromLanguage: fromLang, toLanguage: toLang, fromCode: langCode, toCode: nativeLanguage },
         });
         if (!error && data) {
           translation = data.translation || "";
@@ -1031,7 +1031,7 @@ const Watch = () => {
     let translation = "";
     try {
       const { data, error } = await supabase.functions.invoke("translate-word", {
-        body: { word: trimmed, context, fromLanguage: fromLang, toLanguage: toLang },
+        body: { word: trimmed, context, fromLanguage: fromLang, toLanguage: toLang, fromCode: langCode, toCode: nativeLanguage },
       });
       if (!error && data) {
         translation = data.contextTranslation || data.translation || "";

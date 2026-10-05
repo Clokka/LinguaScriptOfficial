@@ -5,12 +5,14 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-async function callAI(apiKey: string, system: string, user: string) {
+async function callAI(apiKey: string, system: string, user: string, model = 'google/gemini-2.5-flash') {
   const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
     method: 'POST',
     headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    // A stuck gateway call must not leave the learner staring at "Translating...".
+    signal: AbortSignal.timeout(12000),
     body: JSON.stringify({
-      model: 'google/gemini-2.5-flash',
+      model,
       messages: [
         { role: 'system', content: system },
         { role: 'user', content: user },
@@ -29,11 +31,31 @@ async function callAI(apiKey: string, system: string, user: string) {
   return JSON.parse(content);
 }
 
+// The AI gateway runs on workspace credits; when they run out (402), it is
+// rate limited (429) or it times out, fall back to a cheaper model and then to
+// Google's free translate endpoint so a click always gets *some* meaning.
+async function callAIWithFallback(apiKey: string, system: string, user: string) {
+  try {
+    return await callAI(apiKey, system, user);
+  } catch (e) {
+    console.warn('Primary model failed, trying flash-lite:', (e as Error).message);
+    return await callAI(apiKey, system, user, 'google/gemini-2.5-flash-lite');
+  }
+}
+
+async function googleTranslate(text: string, from: string, to: string): Promise<string> {
+  const url = `https://translate.googleapis.com/translate_a/single?client=gtx&dt=t&sl=${encodeURIComponent(from)}&tl=${encodeURIComponent(to)}&q=${encodeURIComponent(text)}`;
+  const res = await fetch(url, { signal: AbortSignal.timeout(6000) });
+  if (!res.ok) throw new Error(`Google translate fallback failed: ${res.status}`);
+  const data = await res.json();
+  return (data?.[0] ?? []).map((seg: unknown[]) => seg?.[0] ?? '').join('').trim();
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
   try {
-    const { word, context, fromLanguage, toLanguage } = await req.json();
+    const { word, context, fromLanguage, toLanguage, fromCode, toCode } = await req.json();
     if (!word) {
       return new Response(JSON.stringify({ error: 'word is required' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -78,7 +100,21 @@ Return ONLY valid JSON with these exact fields:
 }`;
 
 
-    let result = await callAI(apiKey, system, userPrompt);
+    let result;
+    try {
+      result = await callAIWithFallback(apiKey, system, userPrompt);
+    } catch (aiError) {
+      console.error('All AI models failed, using Google fallback:', (aiError as Error).message);
+      const translation = await googleTranslate(String(word), fromCode || 'auto', toCode || 'en');
+      const contextTranslation = context && context !== word
+        ? await googleTranslate(String(context), fromCode || 'auto', toCode || 'en').catch(() => '')
+        : translation;
+      return new Response(JSON.stringify({
+        translation, contextTranslation, pronunciation: '', ipa: '',
+        lemma: word, lemmaTranslation: translation, pos: 'other', isInflected: false, grammarNote: '',
+        fallback: true,
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
 
     // Retry once if the AI echoed the source word
     if (
@@ -87,7 +123,7 @@ Return ONLY valid JSON with these exact fields:
       result.translation.trim().toLowerCase() === String(word).trim().toLowerCase()
     ) {
       console.warn('AI echoed source word, retrying with stricter prompt');
-      result = await callAI(
+      result = await callAIWithFallback(
         apiKey,
         system,
         `Give ONLY the ${to} meaning of the ${from} word "${word}". The "translation" field MUST be a ${to} word, never "${word}". ${context ? `Sentence: "${context}".` : ''} Return the same JSON schema as before.`

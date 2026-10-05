@@ -301,31 +301,50 @@ export const SubtitleOverlay = ({
       return;
     }
 
-    setSelectedWord({ ...word, translation: "Translating...", pronunciation: "", ipa: "" });
+    // Languages written without spaces (Japanese, Chinese, Thai) arrive as one
+    // whole-line "word". The dual subtitle already holds that line's meaning,
+    // so show it instantly instead of waiting on the network.
+    const normalizeLine = (t: string) => t.replace(/[\s。、.,!?！？]/g, "");
+    const lineFallback =
+      secondaryText && normalizeLine(word.text) === normalizeLine(primaryText) ? secondaryText : "";
+
+    setSelectedWord({ ...word, translation: lineFallback || "Translating...", pronunciation: "", ipa: "" });
     setTranslating(true);
+
+    const applyResult = (translation: string, pronunciation = "", ipa = "") => {
+      word.translation = translation;
+      word.pronunciation = pronunciation;
+      word.ipa = ipa;
+      setSelectedWord({ ...word, translation, pronunciation, ipa });
+    };
 
     try {
       const fromLang = getLanguageLabel(effectiveLang);
       const toLang = getLanguageLabel(nativeLanguage || "en");
 
       const { data, error } = await supabase.functions.invoke("translate-word", {
-        body: { word: word.text, context: primaryText, fromLanguage: fromLang, toLanguage: toLang },
+        body: {
+          word: word.text,
+          context: primaryText,
+          fromLanguage: fromLang,
+          toLanguage: toLang,
+          fromCode: effectiveLang,
+          toCode: nativeLanguage || "en",
+        },
       });
 
-      if (!error && data) {
-        const translated = {
-          ...word,
-          translation: data.translation || "",
-          pronunciation: data.pronunciation || "",
-          ipa: data.ipa || "",
-        };
-        setSelectedWord(translated);
-        word.translation = translated.translation;
-        word.pronunciation = translated.pronunciation;
-        word.ipa = translated.ipa;
+      if (!error && data?.translation) {
+        applyResult(data.translation, data.pronunciation || "", data.ipa || "");
+      } else {
+        console.error("Word translation failed:", error ?? data?.error);
+        // Never leave the popup stuck on the placeholder.
+        if (lineFallback) applyResult(lineFallback);
+        else setSelectedWord({ ...word, translation: "Couldn't translate right now — tap the word again", pronunciation: "", ipa: "" });
       }
     } catch (e) {
       console.error("Word translation failed:", e);
+      if (lineFallback) applyResult(lineFallback);
+      else setSelectedWord({ ...word, translation: "Couldn't translate right now — tap the word again", pronunciation: "", ipa: "" });
     } finally {
       setTranslating(false);
     }
