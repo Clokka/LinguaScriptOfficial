@@ -46,6 +46,8 @@ import { INTERESTS, type Interest } from "@/lib/interests";
 import { PersonalizedRails } from "@/components/PersonalizedRails";
 import { HomeCatalogRows } from "@/components/HomeCatalogRows";
 import { ContinueWatchingRail } from "@/components/ContinueWatchingRail";
+import { ChameleonQuestCard } from "@/components/ChameleonQuestCard";
+import { useChameleonQuest } from "@/lib/chameleonQuest";
 import { DiscoverCatalog } from "@/components/DiscoverCatalog";
 import { useLinguaScriptStatus } from "@/hooks/useLinguaScriptStatus";
 import { LinguaScriptsPendingAlert } from "@/components/LinguaScriptsPendingAlert";
@@ -731,10 +733,34 @@ const HomeTab = ({
   onWatchYoutube: (ytId: string, titleHint?: string, thumbHint?: string) => Promise<void>;
 }) => {
   const { learningLanguage } = useLanguage();
+  const { user } = useAuth();
+  const lang = (learningLanguage || "").toLowerCase();
+  const { quest, complete, clear } = useChameleonQuest(user?.id ?? null, lang);
+  // One video at a time: until the Chameleon video is fully green, the rest
+  // of Discover is a preview of what levelling up unlocks.
+  const locked = !!quest && !quest.masteredAt;
   return (
     <div className="space-y-8">
 
-      {/* Primary action — pick up the quest. */}
+      {/* Primary action — the one video the learner is turning green. */}
+      <ChameleonQuestCard userId={user?.id ?? null} language={lang} quest={quest} onComplete={complete} onClear={clear} />
+
+      <div className="relative">
+      {locked && (
+        <div className="absolute inset-x-0 top-0 z-10 flex justify-center pt-10 pointer-events-none">
+          <div className="glass-panel-strong rounded-2xl px-5 py-4 text-center max-w-sm shadow-float pointer-events-auto">
+            <p className="text-2xl mb-1" aria-hidden>🔒</p>
+            <p className="font-semibold text-foreground">Turn your video green to unlock more</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Rewatching one video is how the chameleon adapts. Every word green = level up.
+            </p>
+          </div>
+        </div>
+      )}
+      <div
+        className={cn("space-y-8", locked && "pointer-events-none select-none blur-[3px] opacity-40 max-h-[70vh] overflow-hidden")}
+        aria-hidden={locked || undefined}
+      >
       <ContinueWatchingRail />
 
       {/* Live YouTube recommendations by onboarding hobby + learning language.
@@ -772,6 +798,8 @@ const HomeTab = ({
 
       {/* Admin-curated rails — the new browsing surface. */}
       <HomeCatalogRows />
+      </div>
+      </div>
 
       {/* Subtle entry to the full analytics page. */}
       <div className="pt-4">
