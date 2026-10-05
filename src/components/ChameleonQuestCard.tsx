@@ -34,22 +34,9 @@ export function ChameleonQuestCard({ userId, language, quest, onComplete, onClea
     }
   }, [summary?.mastered, quest, onComplete, triggerReaction]);
 
-  if (!quest) {
-    return (
-      <section className="glass-panel-strong rounded-2xl p-6 border border-emerald-500/20">
-        <p className="text-xs uppercase tracking-widest text-emerald-300 mb-1">The Chameleon Method</p>
-        <h2 className="text-xl font-bold text-foreground mb-2">🦎 Pick your Chameleon video</h2>
-        <p className="text-sm text-muted-foreground max-w-2xl">
-          Choose <strong className="text-foreground">one</strong> video below that fits your level. Rewatch it
-          over the week and watch every word change from{" "}
-          <span className="text-rose-300 font-semibold">red</span> to{" "}
-          <span className="text-orange-300 font-semibold">orange</span> to{" "}
-          <span className="text-emerald-300 font-semibold">green</span>. Turn the whole video green to level up
-          and unlock new videos.
-        </p>
-      </section>
-    );
-  }
+  // No intro card when nothing is picked: the quest is offered in context
+  // (Watch header, end-of-watch screen) instead of as Discover copy.
+  if (!quest) return null;
 
   const mastered = !!quest.masteredAt || !!summary?.mastered;
 
