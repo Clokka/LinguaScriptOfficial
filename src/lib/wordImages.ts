@@ -3,6 +3,13 @@
 // saved_words so it's a one-time cost per word, not per review.
 import { supabase } from "@/integrations/supabase/client";
 
+/**
+ * Off: Openverse's first hit for a word is often unrelated (a circuit board
+ * for "person"), and a wrong picture teaches the wrong meaning. Flashcards
+ * are text ↔ text until images can be matched reliably.
+ */
+export const IMAGE_CARDS_ENABLED = false;
+
 export interface WordImageResult {
   url: string;
   license?: string;
@@ -11,7 +18,7 @@ export interface WordImageResult {
 
 /** Calls the edge function only — does not touch the database. */
 export async function fetchWordImage(query: string): Promise<WordImageResult | null> {
-  if (!query.trim()) return null;
+  if (!IMAGE_CARDS_ENABLED || !query.trim()) return null;
   try {
     const { data, error } = await supabase.functions.invoke("fetch-word-image", {
       body: { query },

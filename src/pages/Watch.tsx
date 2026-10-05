@@ -5,7 +5,7 @@ import { ArrowLeft, Loader2, Download, Maximize, Minimize, X } from "lucide-reac
 import { Button } from "@/components/ui/button";
 import { SubtitleOverlay } from "@/components/SubtitleOverlay";
 import { GapFillChallenge } from "@/components/GapFillChallenge";
-import { loadDeckIndex, normalizeToken, SavedWordLite, DeckState, coerceDeckState, maxState, bestStateForLemma } from "@/lib/vocab";
+import { loadDeckIndex, normalizeToken, SavedWordLite, DeckState, coerceDeckState, maxState, bestStateForLemma, needsTranslation } from "@/lib/vocab";
 import { buildExerciseOptions } from "@/lib/linguascripts";
 import { cacheWordImageByWord } from "@/lib/wordImages";
 import { supabase } from "@/integrations/supabase/client";
@@ -892,8 +892,9 @@ const Watch = () => {
     let isInflected = false;
     let grammarNote: string | null = null;
 
-    // If translation is empty, fetch it from AI
-    if (!translation) {
+    // If translation is missing (or still the popup's placeholder), fetch it.
+    if (needsTranslation(translation)) {
+      translation = "";
       try {
         const { data, error } = await supabase.functions.invoke("translate-word", {
           body: { word: word.text, context, fromLanguage: fromLang, toLanguage: toLang },

@@ -8,6 +8,7 @@ import { getLanguageLabel } from "@/lib/languages";
 import {
   DeckState,
   SavedWordLite,
+  TRANSLATION_PENDING,
   loadDeckIndex,
   normalizeToken,
 } from "@/lib/vocab";
@@ -301,7 +302,7 @@ export const SubtitleOverlay = ({
       return;
     }
 
-    setSelectedWord({ ...word, translation: "Translating...", pronunciation: "", ipa: "" });
+    setSelectedWord({ ...word, translation: TRANSLATION_PENDING, pronunciation: "", ipa: "" });
     setTranslating(true);
 
     try {
@@ -323,9 +324,13 @@ export const SubtitleOverlay = ({
         word.translation = translated.translation;
         word.pronunciation = translated.pronunciation;
         word.ipa = translated.ipa;
+      } else {
+        console.error("Word translation failed:", error);
+        setSelectedWord({ ...word, translation: "", pronunciation: "", ipa: "" });
       }
     } catch (e) {
       console.error("Word translation failed:", e);
+      setSelectedWord({ ...word, translation: "", pronunciation: "", ipa: "" });
     } finally {
       setTranslating(false);
     }

@@ -69,6 +69,17 @@ export const STATE_META: Record<DeckState, {
   },
 };
 
+/**
+ * Shown in the word popup while a translation loads. It must never be saved:
+ * a failed lookup used to leave it in place, and cards were stored with
+ * "Translating..." as their meaning.
+ */
+export const TRANSLATION_PENDING = "Translating...";
+
+/** True when a stored translation is missing or is the loading placeholder. */
+export const needsTranslation = (t: string | null | undefined): boolean =>
+  !t || !t.trim() || t.trim() === TRANSLATION_PENDING;
+
 /** Coerce a stored state string into a valid DeckState (defaults to red). */
 export const coerceDeckState = (raw: string | null | undefined): DeckState =>
   raw === "green" ? "green" : raw === "orange" ? "orange" : "red";

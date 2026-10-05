@@ -88,7 +88,11 @@ export const WordPopup = ({ word, position, language, translating, deckColor, on
             <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
               Translation
             </p>
-            <p className="text-foreground font-medium">{word.translation}</p>
+            {word.translation ? (
+              <p className="text-foreground font-medium">{word.translation}</p>
+            ) : (
+              <p className="text-muted-foreground text-sm">Couldn't translate this right now. Tap the word again to retry.</p>
+            )}
           </div>
 
           <div className="bg-muted/50 rounded-lg p-3">

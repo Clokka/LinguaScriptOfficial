@@ -4,6 +4,7 @@ import { Button } from "./ui/button";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/contexts/LanguageContext";
 import type { DeckState } from "@/lib/vocab";
+import { needsTranslation } from "@/lib/vocab";
 
 /** Same hexes as the subtitle overlay — one word, one colour, everywhere. */
 const DECK_COLORS: Record<DeckState, string> = {
@@ -87,7 +88,11 @@ export const Flashcard = ({
   // happened to click — "manges" should teach "manger", not "manges = eat".
   const useLemma = !!isInflected && !!lemma && lemma.toLowerCase() !== word.toLowerCase();
   const learningWord = useLemma ? lemma! : word;
-  const learningMeaning = useLemma && lemmaTranslation ? lemmaTranslation : translation;
+  // A card saved during a translation outage is repaired by FlashcardReview;
+  // until then, never show the old "Translating..." placeholder as a meaning.
+  const learningMeaning = useLemma && lemmaTranslation
+    ? lemmaTranslation
+    : needsTranslation(translation) ? "…" : translation;
 
   // Image mode always leads with the learning-language word — the point is
   // recalling the picture from the word, not choosing a translation direction.

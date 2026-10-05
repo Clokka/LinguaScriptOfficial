@@ -5,8 +5,8 @@ import { X, ChevronLeft, ChevronRight, Trophy, ArrowLeftRight } from "lucide-rea
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { DeckState, nextState, applySrsReview, syncLemmaState } from "@/lib/vocab";
-import { cacheWordImage } from "@/lib/wordImages";
+import { DeckState, nextState, applySrsReview, syncLemmaState, needsTranslation } from "@/lib/vocab";
+import { cacheWordImage, IMAGE_CARDS_ENABLED } from "@/lib/wordImages";
 import { useXp } from "@/contexts/XpContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { getLanguageLabel } from "@/lib/languages";
@@ -67,6 +67,7 @@ export const FlashcardReview = ({ cards: initialCards, onClose, onCardReviewed, 
     return (localStorage.getItem(DIR_KEY) as Direction) || "native-to-learn";
   });
   const [cardType, setCardType] = useState<CardType>(() => {
+    if (!IMAGE_CARDS_ENABLED) return "text";
     return (localStorage.getItem(CARD_TYPE_KEY) as CardType) || "text";
   });
   // DB writes fire in the background — we never block the UI on them.
@@ -118,6 +119,40 @@ export const FlashcardReview = ({ cards: initialCards, onClose, onCardReviewed, 
       setCards((prev) => prev.map((c) => (c.id === card.id ? { ...c, image_url: url } : c)));
     });
   }, [cardType, currentIndex, cards]);
+
+  // Repair cards saved while translation was failing (stored as empty or as
+  // the popup's "Translating..." placeholder): translate once when shown and
+  // write the result back so the card is fixed for good.
+  const translationRepairInFlight = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const card = cards[currentIndex];
+    if (!card || !needsTranslation(card.translation) || card.id.startsWith("guest-")) return;
+    if (translationRepairInFlight.current.has(card.id)) return;
+    translationRepairInFlight.current.add(card.id);
+    (async () => {
+      const { data, error } = await supabase.functions.invoke("translate-word", {
+        body: {
+          word: card.word,
+          context: card.context,
+          fromLanguage: getLanguageLabel(card.language || languageContext || ""),
+          toLanguage: getLanguageLabel(nativeLang),
+        },
+      });
+      const translation = typeof data?.translation === "string" ? data.translation.trim() : "";
+      if (error || !translation) {
+        console.error("Flashcard translation repair failed:", error);
+        return;
+      }
+      const patch = {
+        translation,
+        pronunciation: card.pronunciation || data.pronunciation || "",
+        ipa: card.ipa || data.ipa || "",
+      };
+      setCards((prev) => prev.map((c) => (c.id === card.id ? { ...c, ...patch } : c)));
+      const { error: saveError } = await supabase.from("saved_words").update(patch).eq("id", card.id);
+      if (saveError) console.error("Failed to save repaired translation:", saveError);
+    })();
+  }, [currentIndex, cards, nativeLang, languageContext]);
 
   const logReview = async () => {
     if (!user) return;
@@ -383,6 +418,7 @@ export const FlashcardReview = ({ cards: initialCards, onClose, onCardReviewed, 
             ? `${getLanguageLabel(nativeLang)} → ${getLanguageLabel(cardLang)}`
             : `${getLanguageLabel(cardLang)} → ${getLanguageLabel(nativeLang)}`}
         </Button>
+        {IMAGE_CARDS_ENABLED && (
         <Button
           variant="outline"
           size="sm"
@@ -392,6 +428,7 @@ export const FlashcardReview = ({ cards: initialCards, onClose, onCardReviewed, 
           {cardType === "text" ? <Type className="w-3.5 h-3.5" /> : <ImageIcon className="w-3.5 h-3.5" />}
           {cardType === "text" ? "Text ↔ Text" : "Text ↔ Image"}
         </Button>
+        )}
       </div>
 
       {/* Progress bar */}

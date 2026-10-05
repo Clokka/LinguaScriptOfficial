@@ -5,6 +5,24 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
+/**
+ * The Lovable AI gateway answers 402 when the workspace is out of AI credits
+ * and 429 when rate-limited. Pass those through with a readable reason, so a
+ * translation outage says why instead of a bare 500.
+ */
+class GatewayError extends Error {
+  constructor(public status: number) {
+    super(
+      status === 402 ? 'AI credits exhausted on the Lovable AI gateway (402) — top up in Lovable workspace settings'
+      : status === 429 ? 'Lovable AI gateway rate limit hit (429) — try again shortly'
+      : `Translation API failed: ${status}`,
+    );
+  }
+}
+
+const errorStatus = (error: unknown) =>
+  error instanceof GatewayError && (error.status === 402 || error.status === 429) ? error.status : 500;
+
 async function callAI(apiKey: string, system: string, user: string) {
   const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
     method: 'POST',
@@ -21,7 +39,7 @@ async function callAI(apiKey: string, system: string, user: string) {
   if (!response.ok) {
     const err = await response.text();
     console.error('AI API error:', response.status, err);
-    throw new Error(`Translation API failed: ${response.status}`);
+    throw new GatewayError(response.status);
   }
   const data = await response.json();
   let content = data.choices?.[0]?.message?.content || '{}';
@@ -100,7 +118,7 @@ Return ONLY valid JSON with these exact fields:
   } catch (error) {
     console.error('Translation error:', error);
     return new Response(JSON.stringify({ error: (error as Error).message }), {
-      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      status: errorStatus(error), headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   }
 });
