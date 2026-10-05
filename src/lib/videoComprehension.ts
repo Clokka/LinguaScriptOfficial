@@ -21,7 +21,7 @@ export interface VideoComprehension {
 const ORANGE_WEIGHT = 0.5;
 
 /** Fetch every stored subtitle line for a film+language, in any order. */
-async function fetchSubtitleTokens(filmId: string, language: string): Promise<string[]> {
+export async function fetchSubtitleTokens(filmId: string, language: string): Promise<string[]> {
   const { data, error } = await supabase
     .from("subtitles")
     .select("text")
