@@ -403,6 +403,9 @@ const Watch = () => {
   const [captionsLoading, setCaptionsLoading] = useState(false);
   const [captionsStatus, setCaptionsStatus] = useState<string | null>(null);
   const [captionsError, setCaptionsError] = useState<string | null>(null);
+  // Set when a YouTube video can't be used because it has no captions in the
+  // learning language — the page then shows a blocking screen, not the player.
+  const [captionBlock, setCaptionBlock] = useState<{ missing: boolean; detail: string | null } | null>(null);
   const [showLearningBreak, setShowLearningBreak] = useState(false);
   const sessionSavedRef = useRef<QuizWord[]>([]);
   const breakTriggeredRef = useRef(false);
@@ -590,6 +593,7 @@ const Watch = () => {
     const run = async () => {
       setCaptionsLoading(true);
       setCaptionsError(null);
+      setCaptionBlock(null);
       setCaptionsStatus(null);
 
       // ── Case A: Admin/library film — stored SRTs only ──
@@ -643,7 +647,9 @@ const Watch = () => {
         const res = await loadAllCaptions(
           film.id, ytId, primaryLang, secondaryLang,
           (msg) => { if (!cancelled) setCaptionsStatus(msg); },
-          [film.language || "", secondaryLang, "en"],
+          // No fallback languages: a video without learning-language captions
+          // can't be used, so it's blocked below instead of shown in English.
+          [],
         );
         primary = res.primary;
         secondary = res.secondary;
@@ -664,11 +670,11 @@ const Watch = () => {
           });
         }
       } else {
-        const detail = loadError ? ` (${loadError})` : "";
-        setCaptionsError(
-          `Could not load ${getLanguageLabel(primaryLang)} captions for this video${detail}. ` +
-          `YouTube may not provide captions for it, or our caption provider is at its daily limit. Please try another video.`,
-        );
+        // "No … captions on YouTube" means the video truly lacks a track;
+        // anything else (timeout, provider limit) is a temporary failure.
+        const missing = !loadError || /no \S+ captions/i.test(loadError);
+        setCaptionBlock({ missing, detail: loadError });
+        setCaptionsStatus(null);
       }
       setCaptionsLoading(false);
     };
@@ -1270,6 +1276,34 @@ const Watch = () => {
         onBack={() => navigate("/discover")}
         onUpgrade={() => navigate("/pricing")}
       />
+    );
+  }
+
+  if (captionBlock) {
+    const langLabel = getLanguageLabel(learningLanguage || film.language || "fr");
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-6">
+        <div className="max-w-sm text-center space-y-4">
+          <div className="text-5xl" aria-hidden>🚫</div>
+          <h1 className="text-xl font-bold text-foreground">Can't use this video</h1>
+          <p className="text-muted-foreground">
+            {captionBlock.missing
+              ? `This video has no ${langLabel} captions on YouTube, so LinguaScript can't turn it into a lesson.`
+              : `We couldn't load ${langLabel} captions for this video right now. Please try again later.`}
+          </p>
+          <p className="text-sm text-muted-foreground">
+            {captionBlock.missing
+              ? `Tip: pick a video where YouTube's CC menu lists ${langLabel}.`
+              : captionBlock.detail}
+          </p>
+          <div className="flex flex-col gap-2 pt-2">
+            <Button onClick={() => navigate("/discover")}>Find another video</Button>
+            {!captionBlock.missing && (
+              <Button variant="ghost" onClick={() => window.location.reload()}>Try again</Button>
+            )}
+          </div>
+        </div>
+      </div>
     );
   }
 
