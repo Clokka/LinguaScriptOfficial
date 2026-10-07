@@ -58,7 +58,7 @@ import { LevelBadge } from "@/components/LevelBadge";
 import { passesContentLengthPolicy } from "@/lib/contentLengthPolicy";
 import { BrandMark } from "@/components/BrandMark";
 import { DailyGoalTally } from "@/components/DailyGoalTally";
-import { DailyChestCard } from "@/components/rewards/DailyChestCard";
+import { ProLockDialog } from "@/components/ProLockDialog";
 import { useDailyWordGoal } from "@/hooks/useDailyWordGoal";
 
 const INTERESTS_BY_ID: Record<string, Interest> = Object.fromEntries(
@@ -110,8 +110,10 @@ const Browse = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, loading: authLoading } = useAuth();
-  const { learningLanguage, setLearningLanguage } = useLanguage();
+  const { learningLanguage, setLearningLanguage, isPro } = useLanguage();
   const { toast } = useToast();
+  // New videos (pasted links, YouTube picks) are a Pro feature.
+  const [proLockOpen, setProLockOpen] = useState(false);
   const { setLang: setUiLang } = useT();
   const tour = useTour();
   const { status: linguaScriptStatus, loading: statusLoading, refetch: refetchStatus } = useLinguaScriptStatus();
@@ -236,6 +238,10 @@ const Browse = () => {
     if (!user) {
       toast({ title: "Sign in required", description: "Please sign in to save lessons.", variant: "destructive" });
       navigate("/auth");
+      return;
+    }
+    if (!isPro) {
+      setProLockOpen(true);
       return;
     }
     const ytId = getYouTubeId(pasteUrl);
@@ -363,6 +369,10 @@ const Browse = () => {
       navigate("/auth");
       return;
     }
+    if (!isPro) {
+      setProLockOpen(true);
+      return;
+    }
     setCreating(true);
     try {
       let title = titleHint || "YouTube Video";
@@ -452,6 +462,7 @@ const Browse = () => {
 
   return (
     <div className="min-h-screen bg-background flex">
+      <ProLockDialog open={proLockOpen} onOpenChange={setProLockOpen} />
       {/* Sidebar */}
       <aside className="hidden md:flex flex-col w-52 bg-card border-r border-border py-6 shrink-0">
           <button onClick={() => navigate("/")} className="flex items-center px-5 mb-8" aria-label="LinguaScript home">
@@ -546,7 +557,6 @@ const Browse = () => {
                 variant="card"
                 className="mb-6"
               />
-              <DailyChestCard goalMet={dailyGoal.goal > 0 && dailyGoal.savedToday >= dailyGoal.goal} />
 
               {/* LinguaScripts Alerts - Top Priority */}
               {false && lsRemaining > 0 && (
@@ -590,6 +600,8 @@ const Browse = () => {
                 interests={interests}
                 nativeLanguage={nativeLanguage}
                 onWatchYoutube={importYoutubeId}
+                isPro={isPro}
+                onLocked={() => setProLockOpen(true)}
               />
             </div>
           ) : activeTab === "home" ? (
@@ -607,6 +619,8 @@ const Browse = () => {
               interests={interests}
               nativeLanguage={nativeLanguage}
               onWatchYoutube={importYoutubeId}
+              isPro={isPro}
+              onLocked={() => setProLockOpen(true)}
             />
           ) : null}
           {false && (
@@ -717,6 +731,7 @@ const CatalogStrip = ({ title, films, navigate }: { title: string; films: any[];
 /* ── HOME TAB ── */
 const HomeTab = ({
   lessons, loading, pasteUrl, setPasteUrl, creating, createLesson, deleteLesson, navigate, discoverFilms, catalogRows, interests, nativeLanguage, onWatchYoutube,
+  isPro, onLocked,
 }: {
   lessons: UserLesson[];
   loading: boolean;
@@ -731,6 +746,8 @@ const HomeTab = ({
   interests: string[];
   nativeLanguage: string;
   onWatchYoutube: (ytId: string, titleHint?: string, thumbHint?: string) => Promise<void>;
+  isPro: boolean;
+  onLocked: () => void;
 }) => {
   const { learningLanguage } = useLanguage();
   const { user } = useAuth();
@@ -765,10 +782,25 @@ const HomeTab = ({
 
       {/* Live YouTube recommendations by onboarding hobby + learning language.
           Existed as a component but was never mounted anywhere in the app. */}
-      <PersonalizedRails interests={interests} nativeLanguage={nativeLanguage} onWatch={onWatchYoutube} importing={creating} />
+      {/* YouTube picks are new videos, a Pro feature — free learners get the library. */}
+      {isPro && (
+        <PersonalizedRails interests={interests} nativeLanguage={nativeLanguage} onWatch={onWatchYoutube} importing={creating} />
+      )}
 
-      {/* Paste YouTube Link */}
-      <div className="glass-panel-strong p-6 rounded-2xl">
+      {/* Paste YouTube Link — shown locked to free learners; a tap opens the Pro lock. */}
+      <div className="glass-panel-strong p-6 rounded-2xl relative">
+        {!isPro && (
+          <button
+            type="button"
+            onClick={onLocked}
+            aria-label="Pro feature"
+            className="absolute inset-0 z-10 flex items-start justify-end rounded-2xl p-4"
+          >
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-400 text-black shadow">
+              <Lock className="h-4 w-4" />
+            </span>
+          </button>
+        )}
         <h2 className="text-lg font-bold text-foreground mb-1">Paste a YouTube Link</h2>
         <p className="text-sm text-muted-foreground mb-4">
           We'll fetch the subtitle tracks, save them, and turn the video into an interactive lesson.

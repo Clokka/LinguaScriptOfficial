@@ -163,6 +163,24 @@ async function sendCheckoutRecovery(session: any) {
 
 // A renewal charge failed. Stripe retries the card itself; we email once per
 // invoice (on the first failed attempt) so the customer can update their card.
+// Stripe fires trial_will_end three days before a trial converts. The honest
+// reminder promised at checkout: when it ends, and how to cancel.
+async function sendTrialEnding(subscription: any) {
+  if (subscription.status !== "trialing" || !subscription.trial_end) return;
+  const user = await lookupUser(subscription.metadata?.userId);
+  if (!user.email) {
+    console.log("trial_will_end with no email to remind", subscription.id);
+    return;
+  }
+  const endDate = new Date(subscription.trial_end * 1000)
+    .toLocaleDateString("en-GB", { day: "numeric", month: "long" });
+  await sendEmail("trial-ending", user.email, `trial-ending-${subscription.id}`, {
+    name: user.name,
+    endDate,
+    manageUrl: `${SITE_URL}/profile`,
+  });
+}
+
 // First-time subscription invoices are skipped — those failures happen inside
 // checkout and are covered by sendCheckoutRecovery when the session expires.
 async function sendRenewalPaymentFailed(invoice: any) {
@@ -213,6 +231,9 @@ Deno.serve(async (req) => {
         break;
       case "invoice.payment_failed":
         await sendRenewalPaymentFailed(event.data.object);
+        break;
+      case "customer.subscription.trial_will_end":
+        await sendTrialEnding(event.data.object);
         break;
       default:
         console.log("Unhandled event:", event.type);
