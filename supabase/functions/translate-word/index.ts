@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { freeTranslate } from "../_shared/freeTranslate.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -41,12 +42,6 @@ serve(async (req) => {
     }
 
     const apiKey = Deno.env.get('LOVABLE_API_KEY');
-    if (!apiKey) {
-      return new Response(JSON.stringify({ error: 'API key not configured' }), {
-        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
-
     const from = fromLanguage || 'French';
     const to = toLanguage || 'English';
 
@@ -78,20 +73,45 @@ Return ONLY valid JSON with these exact fields:
 }`;
 
 
-    let result = await callAI(apiKey, system, userPrompt);
+    let result: any = null;
+    try {
+      if (!apiKey) throw new Error('LOVABLE_API_KEY not configured');
+      let result = await callAI(apiKey, system, userPrompt);
 
-    // Retry once if the AI echoed the source word
-    if (
-      result.translation &&
-      typeof result.translation === 'string' &&
-      result.translation.trim().toLowerCase() === String(word).trim().toLowerCase()
-    ) {
-      console.warn('AI echoed source word, retrying with stricter prompt');
-      result = await callAI(
-        apiKey,
-        system,
-        `Give ONLY the ${to} meaning of the ${from} word "${word}". The "translation" field MUST be a ${to} word, never "${word}". ${context ? `Sentence: "${context}".` : ''} Return the same JSON schema as before.`
-      );
+      // Retry once if the AI echoed the source word
+      if (
+        result.translation &&
+        typeof result.translation === 'string' &&
+        result.translation.trim().toLowerCase() === String(word).trim().toLowerCase()
+      ) {
+        console.warn('AI echoed source word, retrying with stricter prompt');
+        result = await callAI(
+          apiKey,
+          system,
+          `Give ONLY the ${to} meaning of the ${from} word "${word}". The "translation" field MUST be a ${to} word, never "${word}". ${context ? `Sentence: "${context}".` : ''} Return the same JSON schema as before.`
+        );
+      }
+
+    } catch (aiError) {
+      // AI gateway out of credits (402), rate-limited (429) or down — fall
+      // back to the free translator so the learner still gets a meaning.
+      console.warn('AI translation unavailable, using free fallback:', (aiError as Error).message);
+      const [wordRes, contextRes] = await Promise.all([
+        freeTranslate(String(word), from, to),
+        context ? freeTranslate(String(context), from, to).catch(() => null) : Promise.resolve(null),
+      ]);
+      result = {
+        translation: wordRes.text,
+        pronunciation: wordRes.romanization,
+        ipa: isChinese ? wordRes.romanization : '',
+        contextTranslation: contextRes?.text || '',
+        lemma: String(word),
+        lemmaTranslation: wordRes.text,
+        pos: 'other',
+        isInflected: false,
+        grammarNote: '',
+        source: 'free-fallback',
+      };
     }
 
     return new Response(JSON.stringify(result), {
