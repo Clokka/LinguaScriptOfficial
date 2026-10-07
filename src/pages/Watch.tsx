@@ -49,6 +49,7 @@ import { DailyGoalTally } from "@/components/DailyGoalTally";
 import { useDailyWordGoal } from "@/hooks/useDailyWordGoal";
 import { WatchGoalGate } from "@/components/WatchGoalGate";
 import { WatchWordCounter } from "@/components/WatchWordCounter";
+import { VideoBlockedScreen, type VideoBlockKind } from "@/components/VideoBlockedScreen";
 
 interface FilmData {
   id: string;
@@ -222,8 +223,11 @@ async function loadAllCaptions(
 
   // 2) Fetch via edge function (proxies InnerTube + tlang to avoid CORS)
   let edgeFailure: string | null = null;
-  // Set when the server refused a paid subtitle download (daily cap reached).
-  let limitReached = false;
+  // Set when the server won't load a new (uncached) video for this learner:
+  // "locked" = free plan, "limit" = today's new video already used.
+  let blockReason: "locked" | "limit" | null = null;
+  // Set when the video has no subtitle track in the learning language.
+  let noSubtitles = false;
   if (!primary.length || (primaryLang !== secondaryLang && !secondary.length)) {
     onStatus(`Downloading ${getLanguageLabel(primaryLang)} & ${getLanguageLabel(secondaryLang)} captions…`);
     try {
@@ -240,7 +244,9 @@ async function loadAllCaptions(
         console.warn("Edge caption fetch error:", error);
       } else if (data) {
         if (data.learningError) edgeFailure = data.learningError;
-        if (data.limitReached) limitReached = true;
+        if (data.locked) blockReason = "locked";
+        else if (data.limitReached) blockReason = "limit";
+        if (data.noSubtitles) noSubtitles = true;
         if (!primary.length && data.subtitles?.length) {
           primary = data.subtitles;
           await persistTrack(filmId, primaryLang, primary);
@@ -261,7 +267,8 @@ async function loadAllCaptions(
     }
 
     // Fallback A: browser-side InnerTube fetch (bypasses paid provider quotas).
-    if (!primary.length || (primaryLang !== secondaryLang && !secondary.length)) {
+    // Never for a video the server refused: new videos are a Pro feature.
+    if (!blockReason && (!primary.length || (primaryLang !== secondaryLang && !secondary.length))) {
       onStatus("Provider unavailable — trying direct fetch…");
       try {
         const browserRes = await fetchCaptionsFromBrowser(videoId, primaryLang, secondaryLang);
@@ -332,9 +339,9 @@ async function loadAllCaptions(
       if (secondary.length) await persistTrack(filmId, secondaryLang, secondary);
     }
 
-    if (!primary.length && edgeFailure) {
+    if (!primary.length && (edgeFailure || blockReason || noSubtitles)) {
       // Surface via thrown error so caller can show it.
-      throw Object.assign(new Error(edgeFailure), { limitReached });
+      throw Object.assign(new Error(edgeFailure || blockReason || "No subtitles"), { blockReason, noSubtitles });
     }
   }
 
@@ -410,7 +417,7 @@ const Watch = () => {
   const [captionsError, setCaptionsError] = useState<string | null>(null);
   // Set when a YouTube video can't be used because it has no captions in the
   // learning language — the page then shows a blocking screen, not the player.
-  const [captionBlock, setCaptionBlock] = useState<{ missing: boolean; limitReached?: boolean; detail: string | null } | null>(null);
+  const [captionBlock, setCaptionBlock] = useState<VideoBlockKind | null>(null);
   const [showLearningBreak, setShowLearningBreak] = useState(false);
   const sessionSavedRef = useRef<QuizWord[]>([]);
   const breakTriggeredRef = useRef(false);
@@ -647,7 +654,8 @@ const Watch = () => {
       let primary: SubtitleSegment[] = [];
       let secondary: SubtitleSegment[] = [];
       let loadError: string | null = null;
-      let limitReached = false;
+      let blockReason: "locked" | "limit" | null = null;
+      let noSubtitles = false;
       let usedLang = primaryLang;
       try {
         const res = await loadAllCaptions(
@@ -662,7 +670,8 @@ const Watch = () => {
         usedLang = res.primaryLang;
       } catch (e: any) {
         loadError = e?.message || "Caption fetch failed";
-        limitReached = !!e?.limitReached;
+        blockReason = e?.blockReason ?? null;
+        noSubtitles = !!e?.noSubtitles;
       }
 
       if (cancelled) return;
@@ -679,8 +688,8 @@ const Watch = () => {
       } else {
         // "No … captions on YouTube" means the video truly lacks a track;
         // anything else (timeout, provider limit) is a temporary failure.
-        const missing = !limitReached && (!loadError || /no \S+ captions/i.test(loadError));
-        setCaptionBlock({ missing, limitReached, detail: loadError });
+        const missing = noSubtitles || !loadError || /no \S+ captions/i.test(loadError);
+        setCaptionBlock(blockReason ?? (missing ? "missing" : "error"));
         setCaptionsStatus(null);
       }
       setCaptionsLoading(false);
@@ -1320,39 +1329,7 @@ const Watch = () => {
   }
 
   if (captionBlock) {
-    const langLabel = getLanguageLabel(learningLanguage || film.language || "fr");
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-6">
-        <div className="max-w-sm text-center space-y-4">
-          <div className="text-5xl" aria-hidden>{captionBlock.limitReached ? "⏳" : "🚫"}</div>
-          <h1 className="text-xl font-bold text-foreground">
-            {captionBlock.limitReached ? "New videos are done for today" : "Can't use this video"}
-          </h1>
-          {captionBlock.limitReached ? (
-            <p className="text-muted-foreground">{captionBlock.detail}</p>
-          ) : (
-          <>
-          <p className="text-muted-foreground">
-            {captionBlock.missing
-              ? `This video has no ${langLabel} captions on YouTube, so LinguaScript can't turn it into a lesson.`
-              : `We couldn't load ${langLabel} captions for this video right now. Please try again later.`}
-          </p>
-          <p className="text-sm text-muted-foreground">
-            {captionBlock.missing
-              ? `Tip: pick a video where YouTube's CC menu lists ${langLabel}.`
-              : captionBlock.detail}
-          </p>
-          </>
-          )}
-          <div className="flex flex-col gap-2 pt-2">
-            <Button onClick={() => navigate("/discover")}>Find another video</Button>
-            {!captionBlock.missing && !captionBlock.limitReached && (
-              <Button variant="ghost" onClick={() => window.location.reload()}>Try again</Button>
-            )}
-          </div>
-        </div>
-      </div>
-    );
+    return <VideoBlockedScreen kind={captionBlock} />;
   }
 
   // ── MOBILE LAYOUT (<768px, or a phone turned sideways) — desktop layout below is untouched ──
@@ -1679,6 +1656,7 @@ const Watch = () => {
         <WatchResultsModal
           open={showReinforce}
           filmId={film.id}
+          filmTitle={film.title}
           language={(film.is_public ? (film.language || learningLanguage) : learningLanguage) || "fr"}
           isQuestVideo={chameleon.quest?.filmId === film.id}
           onMastered={chameleon.complete}

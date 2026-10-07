@@ -5,6 +5,7 @@
 import { useEffect } from "react";
 
 export type ChameleonTier = "red" | "orange" | "green";
+export type ChameleonMood = "happy" | "sad";
 
 // Exact SVG from the concept (the id was removed so multiple instances are safe).
 const CHAM_SVG = `
@@ -44,7 +45,24 @@ const CHAM_CSS = `
   @keyframes ls-cham-bob { 50% { transform: translateY(-5px); } }
   .ls-cham.party .cham-idle { animation: ls-cham-party .55s ease-in-out 3; }
   @keyframes ls-cham-party { 25% { transform: translateY(-10px) rotate(-2.5deg); } 75% { transform: translateY(-10px) rotate(2.5deg); } }
+  .ls-cham.dance .cham-idle { animation: ls-cham-party .55s ease-in-out infinite; }
+  .ls-cham.sad .cham-idle { animation-duration: 5s; }
 }`;
+
+// Same chameleon, sad: the smile flips into a frown, the gaze drops, a lid
+// droops over the eye and a tear falls. Kept for rare dead ends (a video with
+// no subtitles) — never next to an upgrade.
+const SAD_SVG = CHAM_SVG
+  .replace(
+    '<path d="M82 148 Q104 162 128 154"',
+    '<path d="M86 160 Q106 146 128 158"',
+  )
+  .replace(/transform="translate\(4.27 -1.42\)"/g, 'transform="translate(1 3.5)"')
+  .replace(
+    '</svg>',
+    '<path class="skin" d="M95 125 Q118 84 141 125 Q118 117 95 125 Z"></path>' +
+      '<path class="ls-cham-tear" d="M106 140 q-7 11 0 16 q7 -5 0 -16 Z" fill="#8fd3ff"></path></svg>',
+  );
 
 let injected = false;
 function useChameleonStyles() {
@@ -61,20 +79,25 @@ function useChameleonStyles() {
 export function ChameleonMascot({
   tier = "orange",
   party = false,
+  mood = "happy",
+  dance = false,
   className = "",
   style,
 }: {
   tier?: ChameleonTier;
   party?: boolean;
+  mood?: ChameleonMood;
+  /** Keeps dancing (the party wiggle on a loop) instead of three wiggles. */
+  dance?: boolean;
   className?: string;
   style?: React.CSSProperties;
 }) {
   useChameleonStyles();
   return (
     <div
-      className={`ls-cham tier-${tier}${party ? " party" : ""} ${className}`}
+      className={`ls-cham tier-${tier}${party ? " party" : ""}${mood === "sad" ? " sad" : ""}${dance ? " dance" : ""} ${className}`}
       style={style}
-      dangerouslySetInnerHTML={{ __html: CHAM_SVG }}
+      dangerouslySetInnerHTML={{ __html: mood === "sad" ? SAD_SVG : CHAM_SVG }}
     />
   );
 }

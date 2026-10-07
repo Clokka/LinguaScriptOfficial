@@ -1,6 +1,8 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { type StripeEnv, createStripeClient } from "../_shared/stripe.ts";
 
+const TRIAL_DAYS = 14;
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -129,6 +131,16 @@ Deno.serve(async (req) => {
     const isStudent = isAcademicEmail(verifiedEmail);
     const studentCoupon = isStudent ? await ensureStudentCoupon(stripe) : null;
 
+    // 14-day free trial, once per account: card required up front (see
+    // payment_method_collection), reminder email 3 days before it ends
+    // (payments-webhook, trial_will_end), cancel any time from Profile.
+    let trialDays: number | undefined;
+    if (isRecurring && userId) {
+      const { count } = await supabase.from("subscriptions")
+        .select("id", { count: "exact", head: true }).eq("user_id", userId);
+      if (!count) trialDays = TRIAL_DAYS;
+    }
+
     const session = await stripe.checkout.sessions.create({
       line_items: [{ price: stripePrice.id, quantity: quantity || 1 }],
       mode: isRecurring ? "subscription" : "payment",
@@ -148,7 +160,10 @@ Deno.serve(async (req) => {
       ...(userId && {
         metadata: { userId, ...(isStudent ? { student: "true" } : {}) },
         ...(isRecurring && {
-          subscription_data: { metadata: { userId, ...(isStudent ? { student: "true" } : {}) } },
+          subscription_data: {
+            metadata: { userId, ...(isStudent ? { student: "true" } : {}) },
+            ...(trialDays && { trial_period_days: trialDays }),
+          },
         }),
       }),
       managed_payments: { enabled: true },

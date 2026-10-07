@@ -12,10 +12,12 @@ import { usePet } from "@/contexts/PetContext";
 import { ChameleonWordMap } from "@/components/ChameleonWordMap";
 import { celebrateMastery, summarizeWordMap, useVideoWordMap } from "@/lib/chameleonQuest";
 import { useAuth } from "@/hooks/useAuth";
+import { ComprehensionJumpShare, isShareworthyJump } from "@/components/ComprehensionJumpShare";
 
 interface Props {
   open: boolean;
   filmId: string;
+  filmTitle?: string;
   /** Deck language the video's words are scored in. */
   language: string;
   /** This is the learner's Chameleon video — the word map is the headline. */
@@ -32,7 +34,7 @@ interface Props {
 }
 
 export function WatchResultsModal({
-  open, filmId, language, isQuestVideo, onMastered, onStartQuest, result, comprehension, durationMinutes, onClose, onReview,
+  open, filmId, filmTitle, language, isQuestVideo, onMastered, onStartQuest, result, comprehension, durationMinutes, onClose, onReview,
 }: Props) {
   const [sessions, setSessions] = useState<WatchSession[]>([]);
   const { triggerReaction } = usePet();
@@ -102,6 +104,10 @@ export function WatchResultsModal({
               : isFirst ? "🦎 Your Chameleon video's colours" : "🦎 Watch the chameleon adapt"
             : isFirst ? "Your starting comprehension" : "You understand more now"}
         </h3>
+
+        {result && isShareworthyJump(watchN, result.first_pct, latest) && (
+          <ComprehensionJumpShare firstPct={result.first_pct} newPct={latest} language={language} filmTitle={filmTitle} />
+        )}
 
         {/* Word map — every word in the video, flipping to its new colour. */}
         {tiles && tiles.length > 0 && (

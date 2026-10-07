@@ -10,16 +10,18 @@ CREATE TABLE IF NOT EXISTS public.caption_cache (
   PRIMARY KEY (video_id, language)
 );
 
--- One row per (user, video) that needed a paid Supadata download, used to cap
--- paid downloads per learner and for the whole app each day.
+-- Counts new videos per learner per language for the daily limit. Holds a
+-- keyed hash of (user, video), never the video id, and rows are deleted after
+-- 24 hours, so it can't be read as a watch history.
 CREATE TABLE IF NOT EXISTS public.caption_fetch_log (
   id BIGSERIAL PRIMARY KEY,
-  user_id UUID,
-  video_id TEXT NOT NULL,
+  user_id UUID NOT NULL,
+  language TEXT NOT NULL,
+  video_hash TEXT NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS caption_fetch_log_created_idx ON public.caption_fetch_log (created_at);
-CREATE INDEX IF NOT EXISTS caption_fetch_log_user_idx ON public.caption_fetch_log (user_id, created_at);
+CREATE INDEX IF NOT EXISTS caption_fetch_log_user_idx ON public.caption_fetch_log (user_id, language, created_at);
 
 -- Only the fetch-captions edge function (service role) reads or writes these.
 ALTER TABLE public.caption_cache ENABLE ROW LEVEL SECURITY;

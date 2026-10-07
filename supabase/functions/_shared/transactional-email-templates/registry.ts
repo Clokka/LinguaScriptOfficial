@@ -7,6 +7,7 @@ import { template as weeklyProgress } from './weekly-progress.tsx'
 import { template as monthlyRecap } from './monthly-recap.tsx'
 import { template as checkoutRecovery } from './checkout-recovery.tsx'
 import { template as renewalPaymentFailed } from './renewal-payment-failed.tsx'
+import { template as trialEnding } from './trial-ending.tsx'
 import type { ComponentType } from 'npm:react@18.3.1'
 
 export interface TemplateEntry {
@@ -27,4 +28,5 @@ export const TEMPLATES: Record<string, TemplateEntry> = {
   'monthly-recap': monthlyRecap,
   'checkout-recovery': checkoutRecovery,
   'renewal-payment-failed': renewalPaymentFailed,
+  'trial-ending': trialEnding,
 }
