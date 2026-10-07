@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { aiChat } from "../_shared/aiChat.ts";
 
 // Browsers block a cross-origin call without these, so the function was
 // unreachable from the app even once the client stopped posting to /api.
@@ -9,6 +8,9 @@ const corsHeaders = {
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
+
+const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+const LOVABLE_API_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
 interface SentenceToEvaluate {
   word: string;
@@ -68,15 +70,22 @@ Respond with ONLY a JSON array of objects with this structure:
 
 Do NOT include markdown code blocks. Only the raw JSON array.`;
 
-  const response = await aiChat({
-    model: "google/gemini-2.5-flash",
-    messages: [
-      {
-        role: "user",
-        content: prompt,
-      },
-    ],
-    temperature: 0.3,
+  const response = await fetch(LOVABLE_API_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: "google/gemini-2.5-flash",
+      messages: [
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+      temperature: 0.3,
+    }),
   });
 
   if (!response.ok) {

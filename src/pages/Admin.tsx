@@ -483,7 +483,7 @@ const Admin = () => {
               <Input
                 ref={fileInputRefOriginal}
                 type="file"
-                accept=".srt,.vtt,.txt"
+                accept=".srt"
                 onChange={(e) => setSrtFileOriginal(e.target.files?.[0] ?? null)}
                 className="bg-secondary/50 border-border"
               />
@@ -516,7 +516,7 @@ const Admin = () => {
               <Input
                 ref={fileInputRefSecondary}
                 type="file"
-                accept=".srt,.vtt,.txt"
+                accept=".srt"
                 onChange={(e) => setSrtFileSecondary(e.target.files?.[0] ?? null)}
                 className="bg-secondary/50 border-border"
               />
@@ -609,7 +609,7 @@ const Admin = () => {
                           <div key={slot.role}>
                             <input
                               type="file"
-                              accept=".srt,.vtt,.txt"
+                              accept=".srt"
                               className="hidden"
                               id={`srt-${film.id}-${slot.role}`}
                               onChange={(e) => {

@@ -320,10 +320,3 @@
   0%, 100% { box-shadow: 0 0 0 2px #FBBF24, 0 0 8px rgba(251, 191, 36, 0.35); }
   50% { box-shadow: 0 0 0 3px #FBBF24, 0 0 18px rgba(251, 191, 36, 0.7); }
 }
-
-/* Chameleon word map: a tile pops as it changes colour. */
-@keyframes chameleon-pop {
-  0% { transform: scale(1); }
-  45% { transform: scale(1.35); }
-  100% { transform: scale(1); }
-}

@@ -3,7 +3,6 @@ import { Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import Landing5 from "./Landing5";
 import { supabase } from "@/integrations/supabase/client";
-import { applyGuestOnboarding } from "@/lib/guestOnboarding";
 
 // Root route: unauthenticated visitors get the main landing page (Landing5).
 // Authenticated users go to /discover — unless they've never completed
@@ -35,14 +34,10 @@ const Index = () => {
         .select("onboarded, cef_level")
         .eq("user_id", user.id)
         .maybeSingle();
-      // A guest who already finished onboarding before signing in keeps
-      // their answers instead of being onboarded again.
-      const done = Boolean((data as any)?.onboarded || (data as any)?.cef_level)
-        || await applyGuestOnboarding(user.id);
       if (!cancelled) {
         // Only same-origin app paths are honoured.
         setNext(pendingNext && pendingNext.startsWith("/") && !pendingNext.startsWith("//") ? pendingNext : null);
-        setOnboarded(done);
+        setOnboarded(Boolean((data as any)?.onboarded || (data as any)?.cef_level));
       }
     })();
     return () => {

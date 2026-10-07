@@ -64,39 +64,10 @@ export function XpProvider({ children }: { children: ReactNode }) {
   // doing side effects inside a state updater (updaters must stay pure).
   const xpRef = useRef<number>(0);
 
-  // Awards still being saved; the server total is only trusted once none are
-  // in flight, otherwise an earlier reply would briefly undo a later award.
-  const pendingRef = useRef(0);
-
   const applyXp = useCallback((value: number) => {
     xpRef.current = value;
     setXp(value);
   }, []);
-
-  // Adopt the server's total (it may include XP from another tab or device).
-  // Levels gained elsewhere are absorbed silently — no popup for them here.
-  const reconcile = useCallback((serverTotal: number | null) => {
-    if (serverTotal == null || pendingRef.current > 0 || serverTotal === xpRef.current) return;
-    applyXp(serverTotal);
-    prevLevelRef.current = levelFromXP(serverTotal).level;
-  }, [applyXp]);
-
-  // A tab left open overnight would otherwise keep showing yesterday's XP.
-  useEffect(() => {
-    if (!user) return;
-    const refresh = async () => {
-      if (document.visibilityState !== "visible") return;
-      const { data } = await supabase
-        .from("profiles")
-        .select("xp_total")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      const dbXp = data?.xp_total;
-      if (typeof dbXp === "number") reconcile(dbXp);
-    };
-    document.addEventListener("visibilitychange", refresh);
-    return () => document.removeEventListener("visibilitychange", refresh);
-  }, [user, reconcile]);
 
   // Load XP on auth changes
   useEffect(() => {
@@ -142,7 +113,7 @@ export function XpProvider({ children }: { children: ReactNode }) {
         prevLevelRef.current = level;
       }
       if (guest > 0) {
-        await persistXP(user.id, total, "add_word", guest, { cards: 0 });
+        await persistXP(user.id, total, level, "add_word", guest, { cards: 0 });
       }
 
       // Back-fill any level rewards never granted (including levels that were
@@ -186,18 +157,14 @@ export function XpProvider({ children }: { children: ReactNode }) {
       }
 
       if (user) {
-        pendingRef.current += 1;
-        void persistXP(user.id, next, action, amount, meta).then((serverTotal) => {
-          pendingRef.current -= 1;
-          reconcile(serverTotal);
-        });
+        void persistXP(user.id, next, level, action, amount, meta);
       } else {
         setGuestXP(next);
       }
       setRecentGain({ amount, action, key: Date.now() + Math.random() });
       return amount;
     },
-    [user, applyXp, reconcile],
+    [user, applyXp],
   );
 
   const { level, current, nextLevelXP } = levelFromXP(xp);

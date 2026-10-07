@@ -1,20 +1,22 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { aiChat, hasAIKey } from "../_shared/aiChat.ts";
-import { freeTranslate } from "../_shared/freeTranslate.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-async function callAI(system: string, user: string) {
-  const response = await aiChat({
-    model: 'google/gemini-2.5-flash',
-    messages: [
-      { role: 'system', content: system },
-      { role: 'user', content: user },
-    ],
-    temperature: 0.2,
+async function callAI(apiKey: string, system: string, user: string) {
+  const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'google/gemini-2.5-flash',
+      messages: [
+        { role: 'system', content: system },
+        { role: 'user', content: user },
+      ],
+      temperature: 0.2,
+    }),
   });
   if (!response.ok) {
     const err = await response.text();
@@ -35,6 +37,13 @@ serve(async (req) => {
     if (!word) {
       return new Response(JSON.stringify({ error: 'word is required' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    const apiKey = Deno.env.get('LOVABLE_API_KEY');
+    if (!apiKey) {
+      return new Response(JSON.stringify({ error: 'API key not configured' }), {
+        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
 
@@ -69,44 +78,20 @@ Return ONLY valid JSON with these exact fields:
 }`;
 
 
-    let result: any = null;
-    try {
-      if (!hasAIKey()) throw new Error('No AI key configured');
-      let result = await callAI(system, userPrompt);
+    let result = await callAI(apiKey, system, userPrompt);
 
-      // Retry once if the AI echoed the source word
-      if (
-        result.translation &&
-        typeof result.translation === 'string' &&
-        result.translation.trim().toLowerCase() === String(word).trim().toLowerCase()
-      ) {
-        console.warn('AI echoed source word, retrying with stricter prompt');
-        result = await callAI(
-          system,
-          `Give ONLY the ${to} meaning of the ${from} word "${word}". The "translation" field MUST be a ${to} word, never "${word}". ${context ? `Sentence: "${context}".` : ''} Return the same JSON schema as before.`
-        );
-      }
-
-    } catch (aiError) {
-      // AI gateway out of credits (402), rate-limited (429) or down — fall
-      // back to the free translator so the learner still gets a meaning.
-      console.warn('AI translation unavailable, using free fallback:', (aiError as Error).message);
-      const [wordRes, contextRes] = await Promise.all([
-        freeTranslate(String(word), from, to),
-        context ? freeTranslate(String(context), from, to).catch(() => null) : Promise.resolve(null),
-      ]);
-      result = {
-        translation: wordRes.text,
-        pronunciation: wordRes.romanization,
-        ipa: isChinese ? wordRes.romanization : '',
-        contextTranslation: contextRes?.text || '',
-        lemma: String(word),
-        lemmaTranslation: wordRes.text,
-        pos: 'other',
-        isInflected: false,
-        grammarNote: '',
-        source: 'free-fallback',
-      };
+    // Retry once if the AI echoed the source word
+    if (
+      result.translation &&
+      typeof result.translation === 'string' &&
+      result.translation.trim().toLowerCase() === String(word).trim().toLowerCase()
+    ) {
+      console.warn('AI echoed source word, retrying with stricter prompt');
+      result = await callAI(
+        apiKey,
+        system,
+        `Give ONLY the ${to} meaning of the ${from} word "${word}". The "translation" field MUST be a ${to} word, never "${word}". ${context ? `Sentence: "${context}".` : ''} Return the same JSON schema as before.`
+      );
     }
 
     return new Response(JSON.stringify(result), {

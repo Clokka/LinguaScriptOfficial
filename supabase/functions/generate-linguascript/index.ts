@@ -1,19 +1,22 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { aiChat, hasAIKey } from "../_shared/aiChat.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-async function callAI(system: string, user: string) {
-  const response = await aiChat({
-    model: 'google/gemini-2.5-flash',
-    messages: [
-      { role: 'system', content: system },
-      { role: 'user', content: user },
-    ],
-    temperature: 0.7,
+async function callAI(apiKey: string, system: string, user: string) {
+  const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'google/gemini-2.5-flash',
+      messages: [
+        { role: 'system', content: system },
+        { role: 'user', content: user },
+      ],
+      temperature: 0.7,
+    }),
   });
 
   if (!response.ok) {
@@ -64,7 +67,8 @@ serve(async (req) => {
       });
     }
 
-    if (!hasAIKey()) {
+    const apiKey = Deno.env.get('LOVABLE_API_KEY');
+    if (!apiKey) {
       return new Response(JSON.stringify({ error: 'API key not configured' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -131,7 +135,7 @@ Requirements:
 
 Return ONLY valid JSON in the exact schema specified.`;
 
-    const result = await callAI(system, userPrompt) as GeneratedContent;
+    const result = await callAI(apiKey, system, userPrompt) as GeneratedContent;
 
     // Validate required fields
     if (!result.sentence || !result.translation || result.gapOptions?.distractors?.length !== 3) {

@@ -2291,10 +2291,6 @@ export type Database = {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
       }
-      downgrade_seeded_vocabulary: {
-        Args: { _language: string; _level: string; _mode?: string }
-        Returns: number
-      }
       email_queue_dispatch: { Args: never; Returns: undefined }
       enqueue_email: {
         Args: { payload: Json; queue_name: string }

@@ -323,15 +323,9 @@ export const SubtitleOverlay = ({
         word.translation = translated.translation;
         word.pronunciation = translated.pronunciation;
         word.ipa = translated.ipa;
-      } else {
-        // Never leave the popup stuck on "Translating..." — tapping the word
-        // again retries because word.translation is still empty.
-        console.error("Word translation failed:", error);
-        setSelectedWord({ ...word, translation: "Couldn't translate — tap the word to try again", pronunciation: "", ipa: "" });
       }
     } catch (e) {
       console.error("Word translation failed:", e);
-      setSelectedWord({ ...word, translation: "Couldn't translate — tap the word to try again", pronunciation: "", ipa: "" });
     } finally {
       setTranslating(false);
     }

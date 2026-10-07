@@ -151,7 +151,7 @@ export default function CommonWordsDeck() {
         <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
       ) : (
         <div className="max-w-3xl mx-auto px-6 py-8 space-y-6">
-          <FrequencyCoverageCard language={language} studyTo="/flashcards" />
+          <FrequencyCoverageCard language={language} />
           {justDone && (
             <p className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-2 text-sm font-semibold text-emerald-500">
               Top {justDone.toLocaleString()} complete. Top {(justDone + 50).toLocaleString()} unlocked.

@@ -1,4 +1,3 @@
-import { aiChat, hasAIKey } from "../_shared/aiChat.ts";
 const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -15,23 +14,28 @@ Deno.serve(async (req) => {
       return json({ error: "texts[] and to required" }, 400);
     }
     const list = texts.slice(0, 150).map((t) => String(t).slice(0, 400));
-    if (!hasAIKey()) return json({ error: "not configured" }, 500);
+    const key = Deno.env.get("LOVABLE_API_KEY");
+    if (!key) return json({ error: "not configured" }, 500);
 
-    const r = await aiChat({
-      model: "google/gemini-2.5-flash-lite",
-      messages: [
-        {
-          role: "system",
-          content:
-            `You translate user-interface strings of a language-learning app called LinguaScript into the language with ISO code "${to}". ` +
-            `Keep it short, friendly and natural for app buttons and labels. Keep emoji, numbers, punctuation and placeholders like {n} unchanged. ` +
-            `Never translate the brand names LinguaScript, LinguaScripts, YouTube, Netflix. If a string is not English, return it unchanged. ` +
-            `Return JSON {"translations": [...]} with exactly one string per input, same order.`,
-        },
-        { role: "user", content: JSON.stringify(list) },
-      ],
-      response_format: { type: "json_object" },
-      temperature: 0.2,
+    const r = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash-lite",
+        messages: [
+          {
+            role: "system",
+            content:
+              `You translate user-interface strings of a language-learning app called LinguaScript into the language with ISO code "${to}". ` +
+              `Keep it short, friendly and natural for app buttons and labels. Keep emoji, numbers, punctuation and placeholders like {n} unchanged. ` +
+              `Never translate the brand names LinguaScript, LinguaScripts, YouTube, Netflix. If a string is not English, return it unchanged. ` +
+              `Return JSON {"translations": [...]} with exactly one string per input, same order.`,
+          },
+          { role: "user", content: JSON.stringify(list) },
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.2,
+      }),
     });
     if (r.status === 429 || r.status === 402) return json({ error: "rate limited" }, r.status);
     if (!r.ok) return json({ error: "ai error" }, 502);

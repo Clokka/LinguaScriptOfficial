@@ -10,7 +10,6 @@ import { BrandMark } from "@/components/BrandMark";
 import { useToast } from "@/hooks/use-toast";
 import { useT } from "@/i18n";
 import { UiLanguageSwitcher } from "@/components/UiLanguageSwitcher";
-import { applyGuestOnboarding } from "@/lib/guestOnboarding";
 
 function GoogleIcon() {
   return (
@@ -107,8 +106,7 @@ const Auth = () => {
         const { data: u } = await supabase.auth.getUser();
         const { data: prof } = await supabase.from("profiles")
           .select("onboarded, cef_level").eq("user_id", u.user?.id ?? "").maybeSingle();
-        const done = Boolean((prof as any)?.onboarded || (prof as any)?.cef_level)
-          || (!!u.user && await applyGuestOnboarding(u.user.id));
+        const done = Boolean((prof as any)?.onboarded || (prof as any)?.cef_level);
         if (done) { try { localStorage.removeItem("ls.onboardingState.v1"); } catch { /* ignore */ } }
         navigate(done ? next : "/onboarding", { replace: true });
       }

@@ -21,7 +21,6 @@ import { DailyGoalPicker } from "@/components/DailyGoalPicker";
 import { DEFAULT_WORD_GOAL, videoGoalForWords, wordGoalForVideos } from "@/lib/progressStats";
 import { INTERESTS } from "@/lib/interests";
 import { MODE_META, addLanguageProfile, type LearningMode } from "@/lib/languageProfiles";
-import { rememberGuestOnboarding, applyGuestOnboarding } from "@/lib/guestOnboarding";
 
 // "beginner" is a true zero-knowledge start — not a CEFR level, a signal
 // that nothing should be pre-marked as already known. See addLanguageProfile's
@@ -88,8 +87,8 @@ const Onboarding = () => {
   useEffect(() => {
     if (!user || profileLoaded.current) return;
     profileLoaded.current = true;
-    supabase.from("profiles").select("*").eq("user_id", user.id).maybeSingle().then(async ({ data }) => {
-      if ((data as any)?.onboarded || await applyGuestOnboarding(user.id)) {
+    supabase.from("profiles").select("*").eq("user_id", user.id).maybeSingle().then(({ data }) => {
+      if ((data as any)?.onboarded) {
         try { localStorage.removeItem(ONBOARDING_KEY); } catch { /* ignore */ }
         navigate("/discover", { replace: true });
         return;
@@ -205,8 +204,6 @@ const Onboarding = () => {
           learning_goal: goal || null,
           interests,
         } as any).eq("user_id", user.id);
-      } else {
-        rememberGuest();
       }
       try { localStorage.removeItem(ONBOARDING_KEY); } catch { /* ignore */ }
       playDing("success");
@@ -214,11 +211,6 @@ const Onboarding = () => {
       navigate("/discover");
     }
   };
-
-  // A guest who finishes keeps their answers on the device; they are copied
-  // to the profile at sign-in so they are never onboarded twice.
-  const rememberGuest = () =>
-    rememberGuestOnboarding({ native, target, level, mode, school, wordGoal, goal, interests, showOnLeaderboard });
 
   const back = () => setStep((s) => Math.max(0, s - 1));
 
@@ -499,8 +491,6 @@ const Onboarding = () => {
                       toast.message("The demo couldn't load right now — let's get you started instead.");
                       if (user) {
                         await supabase.from("profiles").update({ onboarded: true }).eq("user_id", user.id);
-                      } else {
-                        rememberGuest();
                       }
                       setEnteringDemo(false);
                       navigate("/discover");
@@ -508,8 +498,6 @@ const Onboarding = () => {
                     }
                     if (user) {
                       await supabase.from("profiles").update({ onboarded: true }).eq("user_id", user.id);
-                    } else {
-                      rememberGuest();
                     }
                     setDualClicked(true);
                     startTour({ trainingFilmId: film.id });
