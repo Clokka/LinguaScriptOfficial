@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { YouTubeTranscriptApi } from "npm:@hallelx/youtube-transcript@0.2.0";
+import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -9,6 +10,60 @@ const corsHeaders = {
 interface Sub { start: number; end: number; text: string }
 
 const SUPADATA_API_KEY = Deno.env.get('SUPADATA_API_KEY') || '';
+
+// Paid Supadata downloads are capped so one busy day can't drain the plan.
+// Cached and free-YouTube videos never count. Override with Edge Function secrets.
+const PAID_PER_USER_PER_DAY = Number(Deno.env.get('CAPTION_DAILY_LIMIT_PER_USER') || 5);
+const PAID_TOTAL_PER_DAY = Number(Deno.env.get('CAPTION_DAILY_LIMIT_TOTAL') || 50);
+
+function serviceClient(): SupabaseClient | null {
+  const url = Deno.env.get('SUPABASE_URL');
+  const key = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  return url && key ? createClient(url, key, { auth: { persistSession: false } }) : null;
+}
+
+async function readCache(db: SupabaseClient | null, videoId: string, lang: string): Promise<Sub[]> {
+  if (!db) return [];
+  const { data } = await db.from('caption_cache').select('subtitles')
+    .eq('video_id', videoId).eq('language', lang).maybeSingle();
+  return Array.isArray(data?.subtitles) ? data.subtitles as Sub[] : [];
+}
+
+async function writeCache(db: SupabaseClient | null, videoId: string, lang: string, subs: Sub[], source: string) {
+  if (!db || !subs.length) return;
+  const { error } = await db.from('caption_cache')
+    .upsert({ video_id: videoId, language: lang, subtitles: subs, source }, { onConflict: 'video_id,language' });
+  if (error) console.log(`Cache write failed (${lang}): ${error.message}`);
+}
+
+async function userIdFrom(req: Request, db: SupabaseClient | null): Promise<string | null> {
+  const token = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
+  if (!db || !token) return null;
+  const { data } = await db.auth.getUser(token);
+  return data?.user?.id ?? null;
+}
+
+/** Returns null when a paid download is allowed (and records it), else a learner-facing reason. */
+async function claimPaidDownload(db: SupabaseClient | null, userId: string | null, videoId: string): Promise<string | null> {
+  if (!db) return null; // can't count without the database — don't block
+  if (!userId) return 'Sign in to load subtitles for new videos.';
+  const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+  const { data: mine } = await db.from('caption_fetch_log').select('video_id')
+    .eq('user_id', userId).gte('created_at', since);
+  const myVideos = new Set((mine || []).map((r: { video_id: string }) => r.video_id));
+  // Retrying a video already counted today is free.
+  if (myVideos.has(videoId)) return null;
+  if (myVideos.size >= PAID_PER_USER_PER_DAY) {
+    return `You've added ${PAID_PER_USER_PER_DAY} new videos today that needed a fresh subtitle download. Try this one again tomorrow, or pick a video from Discover. Those load straight away.`;
+  }
+  const { count } = await db.from('caption_fetch_log').select('id', { count: 'exact', head: true })
+    .gte('created_at', since);
+  if ((count ?? 0) >= PAID_TOTAL_PER_DAY) {
+    return 'Lots of new videos were added today, so new subtitle downloads are paused until tomorrow. Videos from Discover still work.';
+  }
+  await db.from('caption_fetch_log').insert({ user_id: userId, video_id: videoId });
+  return null;
+}
 
 const VARIANTS: Record<string, string[]> = {
   zh: ['zh', 'zh-Hans', 'zh-CN', 'zh-Hant', 'zh-TW'],
@@ -174,6 +229,24 @@ serve(async (req) => {
     const native = nativeLanguage || 'en';
     console.log(`=== fetch-captions: ${videoId}, learning=${lang}, native=${native} ===`);
 
+    // Shared cache: any learner who opened this video before already paid for
+    // its subtitles. A missing native track is AI-translated by the client.
+    const db = serviceClient();
+    const cachedLearning = await readCache(db, videoId, lang);
+    if (cachedLearning.length) {
+      const cachedNative = native === lang ? cachedLearning : await readCache(db, videoId, native);
+      console.log(`Cache hit: learning=${cachedLearning.length}, native=${cachedNative.length}`);
+      return new Response(JSON.stringify({
+        subtitles: cachedLearning,
+        nativeSubtitles: cachedNative,
+        language: lang,
+        nativeLanguage: native,
+        count: cachedLearning.length,
+        nativeCount: cachedNative.length,
+        source: 'cache',
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
     let learning: Sub[] = [];
     let nativeSubs: Sub[] = [];
     let learningError: string | null = null;
@@ -204,6 +277,13 @@ serve(async (req) => {
       // client's 30s window so the learner gets an answer either way.
       source = 'supadata';
       if (!SUPADATA_API_KEY) throw new Error('SUPADATA_API_KEY not configured');
+      const blocked = await claimPaidDownload(db, await userIdFrom(req, db), videoId);
+      if (blocked) {
+        return new Response(JSON.stringify({
+          subtitles: [], nativeSubtitles: [], language: lang, nativeLanguage: native,
+          count: 0, nativeCount: 0, source, learningError: blocked, limitReached: true,
+        }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
       const remaining = Math.max(5000, SERVER_BUDGET_MS - (Date.now() - startedAt));
       try {
         ({ learning, nativeSubs, learningError, nativeError } = await withTimeout(fetchViaSupadata(videoId, lang, native), remaining));
@@ -228,6 +308,8 @@ serve(async (req) => {
     }
 
     console.log(`Final (${source}): learning=${learning.length}, native=${nativeSubs.length}`);
+    await writeCache(db, videoId, lang, learning, source);
+    if (native !== lang) await writeCache(db, videoId, native, nativeSubs, source);
 
     return new Response(JSON.stringify({
       subtitles: learning,

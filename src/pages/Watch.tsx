@@ -222,6 +222,8 @@ async function loadAllCaptions(
 
   // 2) Fetch via edge function (proxies InnerTube + tlang to avoid CORS)
   let edgeFailure: string | null = null;
+  // Set when the server refused a paid subtitle download (daily cap reached).
+  let limitReached = false;
   if (!primary.length || (primaryLang !== secondaryLang && !secondary.length)) {
     onStatus(`Downloading ${getLanguageLabel(primaryLang)} & ${getLanguageLabel(secondaryLang)} captions…`);
     try {
@@ -238,6 +240,7 @@ async function loadAllCaptions(
         console.warn("Edge caption fetch error:", error);
       } else if (data) {
         if (data.learningError) edgeFailure = data.learningError;
+        if (data.limitReached) limitReached = true;
         if (!primary.length && data.subtitles?.length) {
           primary = data.subtitles;
           await persistTrack(filmId, primaryLang, primary);
@@ -331,7 +334,7 @@ async function loadAllCaptions(
 
     if (!primary.length && edgeFailure) {
       // Surface via thrown error so caller can show it.
-      throw new Error(edgeFailure);
+      throw Object.assign(new Error(edgeFailure), { limitReached });
     }
   }
 
@@ -407,7 +410,7 @@ const Watch = () => {
   const [captionsError, setCaptionsError] = useState<string | null>(null);
   // Set when a YouTube video can't be used because it has no captions in the
   // learning language — the page then shows a blocking screen, not the player.
-  const [captionBlock, setCaptionBlock] = useState<{ missing: boolean; detail: string | null } | null>(null);
+  const [captionBlock, setCaptionBlock] = useState<{ missing: boolean; limitReached?: boolean; detail: string | null } | null>(null);
   const [showLearningBreak, setShowLearningBreak] = useState(false);
   const sessionSavedRef = useRef<QuizWord[]>([]);
   const breakTriggeredRef = useRef(false);
@@ -644,6 +647,7 @@ const Watch = () => {
       let primary: SubtitleSegment[] = [];
       let secondary: SubtitleSegment[] = [];
       let loadError: string | null = null;
+      let limitReached = false;
       let usedLang = primaryLang;
       try {
         const res = await loadAllCaptions(
@@ -658,6 +662,7 @@ const Watch = () => {
         usedLang = res.primaryLang;
       } catch (e: any) {
         loadError = e?.message || "Caption fetch failed";
+        limitReached = !!e?.limitReached;
       }
 
       if (cancelled) return;
@@ -674,8 +679,8 @@ const Watch = () => {
       } else {
         // "No … captions on YouTube" means the video truly lacks a track;
         // anything else (timeout, provider limit) is a temporary failure.
-        const missing = !loadError || /no \S+ captions/i.test(loadError);
-        setCaptionBlock({ missing, detail: loadError });
+        const missing = !limitReached && (!loadError || /no \S+ captions/i.test(loadError));
+        setCaptionBlock({ missing, limitReached, detail: loadError });
         setCaptionsStatus(null);
       }
       setCaptionsLoading(false);
@@ -1319,8 +1324,14 @@ const Watch = () => {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-6">
         <div className="max-w-sm text-center space-y-4">
-          <div className="text-5xl" aria-hidden>🚫</div>
-          <h1 className="text-xl font-bold text-foreground">Can't use this video</h1>
+          <div className="text-5xl" aria-hidden>{captionBlock.limitReached ? "⏳" : "🚫"}</div>
+          <h1 className="text-xl font-bold text-foreground">
+            {captionBlock.limitReached ? "New videos are done for today" : "Can't use this video"}
+          </h1>
+          {captionBlock.limitReached ? (
+            <p className="text-muted-foreground">{captionBlock.detail}</p>
+          ) : (
+          <>
           <p className="text-muted-foreground">
             {captionBlock.missing
               ? `This video has no ${langLabel} captions on YouTube, so LinguaScript can't turn it into a lesson.`
@@ -1331,9 +1342,11 @@ const Watch = () => {
               ? `Tip: pick a video where YouTube's CC menu lists ${langLabel}.`
               : captionBlock.detail}
           </p>
+          </>
+          )}
           <div className="flex flex-col gap-2 pt-2">
             <Button onClick={() => navigate("/discover")}>Find another video</Button>
-            {!captionBlock.missing && (
+            {!captionBlock.missing && !captionBlock.limitReached && (
               <Button variant="ghost" onClick={() => window.location.reload()}>Try again</Button>
             )}
           </div>
