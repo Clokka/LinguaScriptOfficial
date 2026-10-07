@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { aiChat, hasAIKey } from "../_shared/aiChat.ts";
 import { freeTranslateLines } from "../_shared/freeTranslate.ts";
 
 const corsHeaders = {
@@ -20,14 +21,12 @@ serve(async (req) => {
       });
     }
 
-    const apiKey = Deno.env.get('LOVABLE_API_KEY');
-
     const from = fromLanguage || 'French';
     const to = toLanguage || 'English';
 
     let allTranslations: string[] = [];
     try {
-      if (!apiKey) throw new Error('LOVABLE_API_KEY not configured');
+      if (!hasAIKey()) throw new Error('No AI key configured');
       // Batch subtitles into chunks to avoid token limits
       const BATCH_SIZE = 50;
 
@@ -37,20 +36,13 @@ serve(async (req) => {
 
         const prompt = `Translate these ${from} subtitle lines to ${to}. Return ONLY the translations, one per line, numbered exactly like the input. Keep the same numbering. Be natural and conversational, not overly literal.\n\n${numberedLines}`;
 
-        const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${apiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'google/gemini-2.5-flash-lite',
-            messages: [
-              { role: 'system', content: `You are a professional subtitle translator. Translate from ${from} to ${to}. Return only numbered translations matching the input format. No explanations.` },
-              { role: 'user', content: prompt },
-            ],
-            temperature: 0.3,
-          }),
+        const response = await aiChat({
+          model: 'google/gemini-2.5-flash-lite',
+          messages: [
+            { role: 'system', content: `You are a professional subtitle translator. Translate from ${from} to ${to}. Return only numbered translations matching the input format. No explanations.` },
+            { role: 'user', content: prompt },
+          ],
+          temperature: 0.3,
         });
 
         if (!response.ok) {

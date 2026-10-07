@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { aiChat, hasAIKey } from "../_shared/aiChat.ts";
 import { freeTranslate } from "../_shared/freeTranslate.ts";
 
 const corsHeaders = {
@@ -6,18 +7,14 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-async function callAI(apiKey: string, system: string, user: string) {
-  const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: 'google/gemini-2.5-flash',
-      messages: [
-        { role: 'system', content: system },
-        { role: 'user', content: user },
-      ],
-      temperature: 0.2,
-    }),
+async function callAI(system: string, user: string) {
+  const response = await aiChat({
+    model: 'google/gemini-2.5-flash',
+    messages: [
+      { role: 'system', content: system },
+      { role: 'user', content: user },
+    ],
+    temperature: 0.2,
   });
   if (!response.ok) {
     const err = await response.text();
@@ -41,7 +38,6 @@ serve(async (req) => {
       });
     }
 
-    const apiKey = Deno.env.get('LOVABLE_API_KEY');
     const from = fromLanguage || 'French';
     const to = toLanguage || 'English';
 
@@ -75,8 +71,8 @@ Return ONLY valid JSON with these exact fields:
 
     let result: any = null;
     try {
-      if (!apiKey) throw new Error('LOVABLE_API_KEY not configured');
-      let result = await callAI(apiKey, system, userPrompt);
+      if (!hasAIKey()) throw new Error('No AI key configured');
+      let result = await callAI(system, userPrompt);
 
       // Retry once if the AI echoed the source word
       if (
@@ -86,7 +82,6 @@ Return ONLY valid JSON with these exact fields:
       ) {
         console.warn('AI echoed source word, retrying with stricter prompt');
         result = await callAI(
-          apiKey,
           system,
           `Give ONLY the ${to} meaning of the ${from} word "${word}". The "translation" field MUST be a ${to} word, never "${word}". ${context ? `Sentence: "${context}".` : ''} Return the same JSON schema as before.`
         );
