@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { translateWord } from "@/lib/browserTranslate";
 import { cn } from "@/lib/utils";
 import { WordPopup } from "./WordPopup";
 import { supabase } from "@/integrations/supabase/client";
@@ -305,31 +306,19 @@ export const SubtitleOverlay = ({
     setTranslating(true);
 
     try {
-      const fromLang = getLanguageLabel(effectiveLang);
-      const toLang = getLanguageLabel(nativeLanguage || "en");
-
-      const { data, error } = await supabase.functions.invoke("translate-word", {
-        body: { word: word.text, context: primaryText, fromLanguage: fromLang, toLanguage: toLang },
-      });
-
-      if (!error && data) {
-        const translated = {
-          ...word,
-          translation: data.translation || "",
-          pronunciation: data.pronunciation || "",
-          ipa: data.ipa || "",
-        };
-        setSelectedWord(translated);
-        word.translation = translated.translation;
-        word.pronunciation = translated.pronunciation;
-        word.ipa = translated.ipa;
-      } else {
-        // Never leave the popup stuck on "Translating..." — tapping the word
-        // again retries because word.translation is still empty.
-        console.error("Word translation failed:", error);
-        setSelectedWord({ ...word, translation: "Couldn't translate — tap the word to try again", pronunciation: "", ipa: "" });
-      }
+      const t = await translateWord(
+        (body) => supabase.functions.invoke("translate-word", { body }),
+        word.text, primaryText, effectiveLang, nativeLanguage || "en",
+        { from: getLanguageLabel(effectiveLang), to: getLanguageLabel(nativeLanguage || "en") },
+      );
+      const translated = { ...word, translation: t.translation, pronunciation: t.pronunciation, ipa: t.ipa };
+      setSelectedWord(translated);
+      word.translation = translated.translation;
+      word.pronunciation = translated.pronunciation;
+      word.ipa = translated.ipa;
     } catch (e) {
+      // Both the server and the browser fallback failed (offline?). Never
+      // leave the popup stuck; tapping again retries (translation still empty).
       console.error("Word translation failed:", e);
       setSelectedWord({ ...word, translation: "Couldn't translate — tap the word to try again", pronunciation: "", ipa: "" });
     } finally {
