@@ -194,8 +194,14 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      return new Response(JSON.stringify({ error: searchData?.error?.message || "YouTube error" }), {
-        status: searchRes.status,
+      // No cache: degrade softly (200 + empty items) so the app shows its
+      // fallback catalog instead of treating this as a crash.
+      console.warn("youtube-search upstream error", searchRes.status, searchData?.error?.message);
+      return new Response(JSON.stringify({
+        items: [],
+        unavailable: true,
+        reason: searchRes.status === 403 || searchRes.status === 429 ? "quota" : "upstream",
+      }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
