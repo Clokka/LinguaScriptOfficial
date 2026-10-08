@@ -49,6 +49,7 @@ import { useDailyWordGoal } from "@/hooks/useDailyWordGoal";
 import { WatchGoalGate } from "@/components/WatchGoalGate";
 import { WatchWordCounter } from "@/components/WatchWordCounter";
 import { VideoBlockedScreen, type VideoBlockKind } from "@/components/VideoBlockedScreen";
+import { checkPetMilestones } from "@/lib/pets";
 
 interface FilmData {
   id: string;
@@ -1609,10 +1610,15 @@ const Watch = () => {
           result={sessionResult}
           comprehension={comprehension}
           durationMinutes={sessionDurationMin}
-          onClose={() => setShowReinforce(false)}
+          onClose={() => {
+            setShowReinforce(false);
+            // A video-count pet (10 / 25 videos) shows after the results, not over them.
+            checkPetMilestones();
+          }}
           onReview={() => {
             setReinforcementPending();
             setShowReinforce(false);
+            checkPetMilestones();
             navigate("/flashcards");
           }}
         />

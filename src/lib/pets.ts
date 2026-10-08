@@ -134,3 +134,11 @@ export const RARITY_GLOW: Record<PetMeta["rarity"], string> = {
   rare: "shadow-[0_0_16px_rgba(96,165,250,0.2)]",
   legendary: "shadow-[0_0_24px_rgba(251,191,36,0.3)]",
 };
+
+/** Fired after moments that can earn a milestone pet (daily chest, a finished video). */
+export const PET_MILESTONES_EVENT = "linguascript:check-pet-milestones";
+
+/** Asks PetMilestoneUnlock to grant any streak/video pets the learner has earned. */
+export function checkPetMilestones() {
+  if (typeof window !== "undefined") window.dispatchEvent(new Event(PET_MILESTONES_EVENT));
+}
