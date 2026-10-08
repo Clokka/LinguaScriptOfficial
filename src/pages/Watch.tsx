@@ -50,6 +50,7 @@ import { WatchGoalGate } from "@/components/WatchGoalGate";
 import { WatchWordCounter } from "@/components/WatchWordCounter";
 import { VideoBlockedScreen, type VideoBlockKind } from "@/components/VideoBlockedScreen";
 import { checkPetMilestones } from "@/lib/pets";
+import { emitDailyGoalReached } from "@/lib/rewards";
 
 interface FilmData {
   id: string;
@@ -380,6 +381,19 @@ const Watch = () => {
   const videoWatchAwardedRef = useRef(false);
   const { registerPlayer, active: tourActive, step: tourStep } = useTour();
   const playerRef = useRef<any>(null);
+
+  // The moment the last word of today's goal is added, pause and hand over to
+  // the daily chest (DailyGoalChest). Only on the crossing, never on load.
+  const goalReachedRef = useRef<boolean | null>(null);
+  useEffect(() => {
+    if (!user || dailyGoal.loading || dailyGoal.goal <= 0) return;
+    const reached = dailyGoal.savedToday >= dailyGoal.goal;
+    if (goalReachedRef.current === false && reached) {
+      try { playerRef.current?.pauseVideo?.(); } catch { /* noop */ }
+      emitDailyGoalReached();
+    }
+    goalReachedRef.current = reached;
+  }, [user, dailyGoal.loading, dailyGoal.savedToday, dailyGoal.goal]);
   const intervalRef = useRef<ReturnType<typeof setInterval>>();
   const historyIntervalRef = useRef<ReturnType<typeof setInterval>>();
 

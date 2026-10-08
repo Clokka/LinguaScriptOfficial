@@ -82,3 +82,7 @@ export async function loadRewardState(userId: string) {
 
 export const REWARDS_CHANGED = "ls:rewards-changed";
 export const emitRewardsChanged = () => window.dispatchEvent(new Event(REWARDS_CHANGED));
+
+/** Fired the moment today's word goal (words added) is reached. */
+export const DAILY_GOAL_REACHED = "linguascript:daily-goal-reached";
+export const emitDailyGoalReached = () => window.dispatchEvent(new Event(DAILY_GOAL_REACHED));
