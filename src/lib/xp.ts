@@ -231,10 +231,19 @@ export async function persistXP(
   const { data, error } = await (supabase as any).rpc("increment_xp", { p_amount: amount });
   let total: number | null = typeof data === "number" ? data : null;
   if (error) {
-    // Until the increment_xp migration is applied, fall back to the old
-    // absolute write so XP still saves.
+    // Until the increment_xp migration is applied, fall back to writing the
+    // total — but never this device's total alone: a stale tab (or an old
+    // preview) writing its lower total wiped XP earned elsewhere, so learners
+    // kept falling back a level and re-reaching the same one every day. Add
+    // to what the server holds and never write a smaller number.
     console.error("[xp] increment_xp failed, writing total instead", error);
-    total = localTotal;
+    const { data: row } = await supabase
+      .from("profiles")
+      .select("xp_total")
+      .eq("user_id", userId)
+      .maybeSingle();
+    const serverTotal = typeof row?.xp_total === "number" ? row.xp_total : 0;
+    total = Math.max(localTotal, serverTotal + amount);
   }
   if (total == null) return null;
 
