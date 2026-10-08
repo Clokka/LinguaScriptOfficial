@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import { GOLD } from "@/lib/goldenReveal";
 import { prefersReducedMotion } from "@/lib/lineBlast";
-import { loadSnapshot, saveSnapshot, type TileState, type WordTile } from "@/lib/chameleonQuest";
+import { loadSnapshot, saveSnapshot, type TileState, type WordTile } from "@/lib/videoWordMap";
 
 const TILE_CLASS: Record<TileState, string> = {
   red: "bg-rose-500/15 text-rose-300 border-rose-500/40",
