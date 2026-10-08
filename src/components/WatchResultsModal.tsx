@@ -10,7 +10,7 @@ import { fetchFilmSessions, type WatchSession, type RecordResult } from "@/lib/w
 import type { VideoComprehension } from "@/lib/videoComprehension";
 import { usePet } from "@/contexts/PetContext";
 import { ChameleonWordMap } from "@/components/ChameleonWordMap";
-import { celebrateMastery, summarizeWordMap, useVideoWordMap } from "@/lib/chameleonQuest";
+import { summarizeWordMap, useVideoWordMap } from "@/lib/videoWordMap";
 import { useAuth } from "@/hooks/useAuth";
 import { ComprehensionJumpShare, isShareworthyJump } from "@/components/ComprehensionJumpShare";
 
@@ -20,12 +20,6 @@ interface Props {
   filmTitle?: string;
   /** Deck language the video's words are scored in. */
   language: string;
-  /** This is the learner's Chameleon video — the word map is the headline. */
-  isQuestVideo: boolean;
-  /** Marks the Chameleon video mastered; true only the first time. */
-  onMastered: () => boolean;
-  /** Offered when the learner has no Chameleon video in progress. */
-  onStartQuest?: () => void;
   result: RecordResult | null;
   comprehension: VideoComprehension;
   durationMinutes: number;
@@ -34,21 +28,13 @@ interface Props {
 }
 
 export function WatchResultsModal({
-  open, filmId, filmTitle, language, isQuestVideo, onMastered, onStartQuest, result, comprehension, durationMinutes, onClose, onReview,
+  open, filmId, filmTitle, language, result, comprehension, durationMinutes, onClose, onReview,
 }: Props) {
   const [sessions, setSessions] = useState<WatchSession[]>([]);
   const { triggerReaction } = usePet();
   const { user } = useAuth();
-  const [questStarted, setQuestStarted] = useState(false);
   const tiles = useVideoWordMap(open ? user?.id ?? null : null, open ? filmId : null, language, result?.watch_number ?? 0);
   const words = tiles ? summarizeWordMap(tiles) : null;
-
-  useEffect(() => {
-    if (open && isQuestVideo && words?.mastered && onMastered()) {
-      celebrateMastery();
-      triggerReaction("perfect");
-    }
-  }, [open, isQuestVideo, words?.mastered, onMastered, triggerReaction]);
 
   useEffect(() => {
     if (!open) return;
@@ -98,11 +84,7 @@ export function WatchResultsModal({
           <span>Watch #{watchN} · +{xp} XP</span>
         </div>
         <h3 className="relative text-xl sm:text-2xl font-bold text-foreground mb-4">
-          {isQuestVideo
-            ? words?.mastered
-              ? "🏆 Level up! The whole video is green."
-              : isFirst ? "🦎 Your Chameleon video's colours" : "🦎 Watch the chameleon adapt"
-            : isFirst ? "Your starting comprehension" : "You understand more now"}
+          {isFirst ? "Your starting comprehension" : "You understand more now"}
         </h3>
 
         {result && isShareworthyJump(watchN, result.first_pct, latest) && (
@@ -116,32 +98,14 @@ export function WatchResultsModal({
             {words && (
               <p className="text-xs text-muted-foreground mt-2 tabular-nums">
                 {words.mastered
-                  ? "Every word is green. New videos are unlocked!"
+                  ? "Every word is green 🦎"
                   : `${words.left} words left to turn green · 🟢 ${words.green + words.gold} · 🟠 ${words.orange} · 🔴 ${words.red}`}
               </p>
             )}
           </div>
         )}
 
-        {onStartQuest && !isQuestVideo && (
-          <div className="relative mb-4 rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3 text-sm">
-            {questStarted ? (
-              <p className="text-emerald-300 font-semibold">🦎 Locked in! Rewatch this video until every word is green.</p>
-            ) : (
-              <div className="flex items-center gap-3">
-                <p className="flex-1 text-muted-foreground">
-                  Like this one? Make it your Chameleon video and rewatch it until it's all green.
-                </p>
-                <Button size="sm" variant="hero" onClick={() => { onStartQuest(); setQuestStarted(true); }}>
-                  🦎 Make it mine
-                </Button>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Big number — the word map above already tells the Chameleon story. */}
-        {!isQuestVideo && (
+        {/* Big number */}
         <div className="relative flex items-baseline gap-3 mb-4 tabular-nums">
           {!isFirst && prev !== null && (
             <>
@@ -158,10 +122,9 @@ export function WatchResultsModal({
             </span>
           )}
         </div>
-        )}
 
         {/* Timeline */}
-        {!isQuestVideo && timeline.length > 0 && (
+        {timeline.length > 0 && (
           <div className="relative mb-5">
             <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1.5">
               <TrendingUp className="w-3 h-3" /> Your comprehension over time

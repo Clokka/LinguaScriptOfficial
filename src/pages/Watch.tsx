@@ -42,7 +42,6 @@ import {
 } from "@/lib/videoComprehension";
 import { recordWatchSession, type RecordResult } from "@/lib/watchSessions";
 import { WatchResultsModal } from "@/components/WatchResultsModal";
-import { isLockedByQuest, useChameleonQuest } from "@/lib/chameleonQuest";
 import { LearningBreakModal, type QuizWord } from "@/components/LearningBreakModal";
 import { PronunciationJudge } from "@/components/PronunciationJudge";
 import { DailyGoalTally } from "@/components/DailyGoalTally";
@@ -375,7 +374,6 @@ const Watch = () => {
     dailyGoal.bump();
   }, [dailyGoal]);
   const { learningLanguage, languageContext, isContentLocked } = useLanguage();
-  const chameleon = useChameleonQuest(user?.id ?? null, (learningLanguage || "").toLowerCase());
   const { award } = useXp();
   const { triggerReaction } = usePet();
   const videoWatchAwardedRef = useRef(false);
@@ -1295,39 +1293,6 @@ const Watch = () => {
     );
   }
 
-  // ── CHAMELEON QUEST LOCK ──
-  // One video at a time: until the learner's Chameleon video is fully green,
-  // other videos stay locked (they can still choose to switch).
-  if (isLockedByQuest(chameleon.quest, film.id)) {
-    const q = chameleon.quest!;
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-6">
-        <div className="max-w-sm text-center space-y-4">
-          <div className="text-5xl" aria-hidden>🦎🔒</div>
-          <h1 className="text-xl font-bold text-foreground">Finish your Chameleon video first</h1>
-          <p className="text-muted-foreground">
-            You're turning <strong className="text-foreground">{q.title}</strong> green. Rewatch it until every
-            word is green to level up and unlock new videos.
-          </p>
-          <div className="flex flex-col gap-2 pt-2">
-            <Button variant="hero" onClick={() => navigate(`/watch/${q.filmId}`)}>Rewatch my video</Button>
-            <Button
-              variant="outline"
-              onClick={() => {
-                if (window.confirm("Make this your Chameleon video instead? Your saved words stay safe.")) {
-                  chameleon.start({ id: film.id, title: film.title, thumbnail_url: film.thumbnail_url });
-                }
-              }}
-            >
-              Switch to this video
-            </Button>
-            <Button variant="ghost" onClick={() => navigate("/discover")}>Back to Discover</Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   if (captionBlock) {
     return <VideoBlockedScreen kind={captionBlock} />;
   }
@@ -1514,23 +1479,6 @@ const Watch = () => {
             {getLanguageFlag(film.language ?? "fr")} {getLanguageLabel(film.language ?? "fr")}
           </p>
         </div>
-        {chameleon.quest?.filmId === film.id && !chameleon.quest.masteredAt ? (
-          <span className="hidden sm:inline-flex text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
-            🦎 Your Chameleon video
-          </span>
-        ) : !chameleon.quest || chameleon.quest.masteredAt ? (
-          <Button
-            size="sm"
-            variant="outline"
-            className="border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/10"
-            onClick={() => {
-              chameleon.start({ id: film.id, title: film.title, thumbnail_url: film.thumbnail_url });
-              toast.success("🦎 This is your Chameleon video! Rewatch it until every word turns green.");
-            }}
-          >
-            🦎 Make this my video
-          </Button>
-        ) : null}
         <DailyGoalTally
           savedToday={dailyGoal.savedToday}
           goal={dailyGoal.goal}
@@ -1658,11 +1606,6 @@ const Watch = () => {
           filmId={film.id}
           filmTitle={film.title}
           language={(film.is_public ? (film.language || learningLanguage) : learningLanguage) || "fr"}
-          isQuestVideo={chameleon.quest?.filmId === film.id}
-          onMastered={chameleon.complete}
-          onStartQuest={!chameleon.quest || chameleon.quest.masteredAt
-            ? () => chameleon.start({ id: film.id, title: film.title, thumbnail_url: film.thumbnail_url })
-            : undefined}
           result={sessionResult}
           comprehension={comprehension}
           durationMinutes={sessionDurationMin}
