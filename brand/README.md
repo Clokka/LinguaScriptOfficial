@@ -42,15 +42,16 @@ all of:
 Three chameleons, one per deck state — the visual embodiment of the colour
 system. Same character, recoloured to red / orange / green.
 
-| Asset | State | Status |
-|-------|-------|--------|
-| `mascots/chameleon-green.png`  | 🟢 Known    | ⛔ TODO — add as a file upload |
-| `mascots/chameleon-orange.png` | 🟠 Learning | ⛔ TODO — add as a file upload |
-| `mascots/chameleon-red.png`    | 🔴 Unknown  | ⛔ TODO — add as a file upload |
-| `reference/chameleon-mascot.png` | Neutral mascot (existing) | ✅ present (from `public/mascot/`) |
+| Asset | State | Where |
+|-------|-------|-------|
+| `chameleon-green.png`  | 🟢 Known    | `src/assets/brand/chameleon-green.png.asset.json` (Lovable-hosted) |
+| `chameleon-orange.png` | 🟠 Learning | `src/assets/brand/chameleon-orange.png.asset.json` |
+| `chameleon-red.png`    | 🔴 Unknown  | `src/assets/brand/chameleon-red.png.asset.json` |
+| Neutral mascot | — | `public/mascot/chameleon.png` (copy in `reference/`) |
+| Rigged 3D chameleon | — | `public/pets/Chameleon_Animations.glb` |
 
-> The three coloured chameleons were shared inline in chat and are **not yet on
-> disk**. Re-attach them as **file uploads** and they'll be stored here.
+The full design system (logo, sizes, tokens, UX rules) for agents lives in
+`.claude/skills/linguascript-design/SKILL.md`.
 
 **Usage idea:** the deck-coloured chameleon is the natural celebration character
 when a word is saved into that deck (red on save, orange/green on promotion).
