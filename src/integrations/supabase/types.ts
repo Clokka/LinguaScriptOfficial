@@ -2249,6 +2249,7 @@ export type Database = {
       claim_pro_chameleon_link: { Args: { _token: string }; Returns: Json }
       claim_pro_gift_link: { Args: { _token: string }; Returns: Json }
       claim_return_gift: { Args: never; Returns: Json }
+      claim_pet_milestones: { Args: never; Returns: string[] }
       claim_streak_reward: { Args: { p_days: number }; Returns: Json }
       create_daily_linguascript: {
         Args: {

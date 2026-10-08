@@ -11,6 +11,7 @@ import { getLanguageLabel } from "@/lib/languages";
 import { supabase } from "@/integrations/supabase/client";
 import { claimDailyChest, emitRewardsChanged } from "@/lib/rewards";
 import { GiftBoxReveal, type GiftContents } from "@/components/rewards/GiftBoxReveal";
+import { checkPetMilestones } from "@/lib/pets";
 
 export interface StreakIgnitionDetail {
   streakCount: number;
@@ -66,6 +67,7 @@ export const StreakCelebrationModal = () => {
       .eq("user_id", user.id).eq("kind", "daily").eq("key", today)
       .maybeSingle();
     if (!data) setChest({ title: "Daily chest", gems: 0 });
+    else checkPetMilestones();
   };
 
   useEffect(() => {
@@ -224,7 +226,11 @@ export const StreakCelebrationModal = () => {
     </AnimatePresence>
     <GiftBoxReveal
       open={!!chest}
-      onClose={() => setChest(null)}
+      onClose={() => {
+        setChest(null);
+        // A streak milestone pet shows after the chest, never on top of it.
+        checkPetMilestones();
+      }}
       contents={chest}
       onOpen={async () => {
         const r = await claimDailyChest();
