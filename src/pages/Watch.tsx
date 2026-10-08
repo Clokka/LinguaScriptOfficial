@@ -50,6 +50,7 @@ import { WatchGoalGate } from "@/components/WatchGoalGate";
 import { WatchWordCounter } from "@/components/WatchWordCounter";
 import { VideoBlockedScreen, type VideoBlockKind } from "@/components/VideoBlockedScreen";
 import { checkPetMilestones } from "@/lib/pets";
+import { browserTranslateLines, translateWord } from "@/lib/browserTranslate";
 import { emitDailyGoalReached } from "@/lib/rewards";
 
 interface FilmData {
@@ -153,17 +154,26 @@ async function persistTrack(filmId: string, lang: string, subs: SubtitleSegment[
 
 async function translateTrack(subs: SubtitleSegment[], from: string, to: string): Promise<SubtitleSegment[]> {
   if (!subs.length || from === to) return [];
+  let lines: string[] = [];
   try {
     const { data, error } = await supabase.functions.invoke("translate-subtitles", {
       body: { subtitles: subs, fromLanguage: getLanguageLabel(from), toLanguage: getLanguageLabel(to) },
     });
-    if (error || !data?.translations?.length) return [];
-    return subs
-      .map((s, i) => ({ ...s, text: data.translations[i]?.translation || "" }))
-      .filter((s) => s.text.trim().length > 0);
-  } catch {
-    return [];
+    if (!error && data?.translations?.length) {
+      lines = subs.map((_, i) => data.translations[i]?.translation || "");
+    }
+  } catch { /* fall through to the browser */ }
+  // Server failed or came back empty: translate from the learner's browser.
+  if (!lines.some((l) => l.trim())) {
+    try {
+      lines = await browserTranslateLines(subs.map((s) => s.text), from, to);
+    } catch {
+      return [];
+    }
   }
+  return subs
+    .map((s, i) => ({ ...s, text: lines[i] || "" }))
+    .filter((s) => s.text.trim().length > 0);
 }
 
 /**
@@ -919,22 +929,25 @@ const Watch = () => {
     let isInflected = false;
     let grammarNote: string | null = null;
 
-    // If translation is empty, fetch it from AI
+    // A popup placeholder is not a meaning — never save it onto a card.
+    if (/^(Translating|Couldn't translate)/.test(translation || "")) translation = "";
+
+    // If translation is empty, fetch it (server first, browser fallback)
     if (!translation) {
       try {
-        const { data, error } = await supabase.functions.invoke("translate-word", {
-          body: { word: word.text, context, fromLanguage: fromLang, toLanguage: toLang },
-        });
-        if (!error && data) {
-          translation = data.translation || "";
-          pronunciation = data.pronunciation || "";
-          ipa = data.ipa || "";
-          lemma = data.lemma || null;
-          lemmaTranslation = data.lemmaTranslation || null;
-          pos = data.pos || null;
-          isInflected = !!data.isInflected;
-          grammarNote = data.grammarNote || null;
-        }
+        const t = await translateWord(
+          (body) => supabase.functions.invoke("translate-word", { body }),
+          word.text, context, langCode, nativeLanguage || "en",
+          { from: fromLang, to: toLang },
+        );
+        translation = t.translation;
+        pronunciation = t.pronunciation;
+        ipa = t.ipa;
+        lemma = t.lemma;
+        lemmaTranslation = t.lemmaTranslation;
+        pos = t.pos;
+        isInflected = t.isInflected;
+        grammarNote = t.grammarNote;
       } catch (e) {
         console.error("Word translation failed:", e);
       }
@@ -1059,12 +1072,12 @@ const Watch = () => {
 
     let translation = "";
     try {
-      const { data, error } = await supabase.functions.invoke("translate-word", {
-        body: { word: trimmed, context, fromLanguage: fromLang, toLanguage: toLang },
-      });
-      if (!error && data) {
-        translation = data.contextTranslation || data.translation || "";
-      }
+      const t = await translateWord(
+        (body) => supabase.functions.invoke("translate-word", { body }),
+        trimmed, context, langCode, nativeLanguage || "en",
+        { from: fromLang, to: toLang },
+      );
+      translation = t.contextTranslation || t.translation;
     } catch (e) {
       console.error("Phrase translation failed:", e);
     }

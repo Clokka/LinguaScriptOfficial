@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { browserTranslateLines } from "@/lib/browserTranslate";
 import { getLanguageLabel, subtitlesLookLikeWrongLanguage } from "@/lib/languages";
 import { fetchCaptionsFromBrowser } from "@/lib/browserCaptionFetcher";
 
@@ -74,6 +75,7 @@ export async function translateSubtitleTrack(
     return [];
   }
 
+  let lines: string[] = [];
   try {
     const { data, error } = await supabase.functions.invoke("translate-subtitles", {
       body: {
@@ -82,20 +84,23 @@ export async function translateSubtitleTrack(
         toLanguage: getLanguageLabel(toLanguage),
       },
     });
+    if (!error && data?.translations?.length) {
+      lines = subtitles.map((_, index) => data.translations[index]?.translation || "");
+    }
+  } catch { /* fall through to the browser */ }
 
-    if (error || !data?.translations?.length) {
+  // Server failed or came back empty: translate from the learner's browser.
+  if (!lines.some((line) => line.trim())) {
+    try {
+      lines = await browserTranslateLines(subtitles.map((subtitle) => subtitle.text), fromLanguage, toLanguage);
+    } catch {
       return [];
     }
-
-    return subtitles
-      .map((subtitle, index) => ({
-        ...subtitle,
-        text: data.translations[index]?.translation || "",
-      }))
-      .filter((subtitle) => subtitle.text.trim().length > 0);
-  } catch {
-    return [];
   }
+
+  return subtitles
+    .map((subtitle, index) => ({ ...subtitle, text: lines[index] || "" }))
+    .filter((subtitle) => subtitle.text.trim().length > 0);
 }
 
 export async function persistSubtitleTrack(
