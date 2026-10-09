@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1044081614556",
+    "project_id": "linguascript-497af",
+    "storage_bucket": "linguascript-497af.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1044081614556:android:47375ba918db417ae71e19",
+        "android_client_info": {
+          "package_name": "uk.co.linguascript.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDbq06pjt6VidKAztChHVqzsepzv6n93pY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

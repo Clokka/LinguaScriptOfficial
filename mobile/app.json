@@ -16,7 +16,7 @@
     "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "xyz.linguascript.app",
+      "bundleIdentifier": "uk.co.linguascript.app",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSUserNotificationUsageDescription": "LinguaScript sends daily study reminders and flashcard due notifications.",
@@ -24,7 +24,7 @@
       }
     },
     "android": {
-      "package": "xyz.linguascript.app",
+      "package": "uk.co.linguascript.app",
       "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",

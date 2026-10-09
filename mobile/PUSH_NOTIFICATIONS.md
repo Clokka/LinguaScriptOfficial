@@ -25,7 +25,7 @@ Expo talks to Firebase for us. Firebase just needs two files.
 1. Go to [console.firebase.google.com](https://console.firebase.google.com) → open **linguascript-497af**
 2. Click the **⚙️ gear** → **Project settings**
 3. Under **Your apps**, click **Add app** → the **Android** icon
-4. Android package name: **`xyz.linguascript.app`** (it has to match exactly!)
+4. Android package name: **`uk.co.linguascript.app`** (it has to match exactly!)
 5. Click **Register app** → **Download google-services.json**
 6. Put the file in the `mobile/` folder, next to `app.json`
 7. Commit it. This file is safe to put on GitHub because it's not a secret.
@@ -37,7 +37,7 @@ Expo talks to Firebase for us. Firebase just needs two files.
 1. Firebase → ⚙️ **Project settings** → **Service accounts** tab
 2. Click **Generate new private key** → **Generate key**. A `.json` file downloads.
 3. Go to [expo.dev](https://expo.dev) → your project **linguascript-chameleon**
-   → **Credentials** → **Android** → `xyz.linguascript.app`
+   → **Credentials** → **Android** → `uk.co.linguascript.app`
 4. Find **FCM V1 service account key** → **Add a service account key** → upload the file
 5. Delete the downloaded file from your Downloads folder afterwards 🧹
 

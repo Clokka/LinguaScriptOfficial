@@ -147,7 +147,7 @@ Only do this after Path B is working and you've tested the APK yourself.
    - Free
    - Accept declarations
 
-3. Note the **package name** it shows you (should be `xyz.linguascript.app`).
+3. Note the **package name** it shows you (should be `uk.co.linguascript.app`).
    If Play forces a different one, update `mobile/app.json` under
    `android.package` to match.
 
