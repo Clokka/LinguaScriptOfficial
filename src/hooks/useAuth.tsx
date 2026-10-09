@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { migrateGuestWords } from "@/lib/guestWords";
+import { syncTimezone } from "@/lib/syncTimezone";
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
@@ -18,6 +19,7 @@ export function useAuth() {
         if (event === "SIGNED_IN" && session?.user) {
           void migrateGuestWords(session.user.id);
         }
+        if (session?.user) void syncTimezone(session.user.id);
       }
     );
 
