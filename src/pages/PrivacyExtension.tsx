@@ -20,31 +20,37 @@ const PrivacyExtension = () => (
       <p className="text-sm text-muted-foreground mb-8">Last updated: 21 June 2026</p>
 
       <Section title="What the extension does">
-        The LinguaScript Chrome extension overlays dual-language subtitles on supported video
-        sites (e.g. YouTube), lets you click words for translations, and saves vocabulary to your
+        The LinguaScript Chrome extension overlays dual-language subtitles on Netflix and
+        YouTube, lets you click words for translations, and saves vocabulary to your
         LinguaScript account.
       </Section>
 
       <Section title="Permissions we request">
         <ul className="list-disc pl-5 space-y-1">
-          <li><b>Active tab / host permissions on video sites</b> — to inject the subtitle
-            overlay and read subtitle text from the page you are watching.</li>
+          <li><b>Host permissions on netflix.com and youtube.com</b> — to run the content
+            script that renders the subtitle overlay and reads subtitle text from the video
+            you are watching. Declared statically in the extension manifest, not injected
+            dynamically.</li>
+          <li><b>activeTab / tabs</b> — to detect whether your current tab is a supported
+            Netflix or YouTube watch page, so the extension's popup shows the right screen.</li>
           <li><b>Storage</b> — to keep your sign-in token, language preference, and a small
-            cache of recently translated words on your device.</li>
-          <li><b>Scripting</b> — to render the subtitle UI inside the video player.</li>
+            on-device cache of captured subtitle lines awaiting sync.</li>
         </ul>
       </Section>
 
       <Section title="Subtitle processing">
-        Subtitles are read from the page you are watching and sent to our backend only when a
-        translation is requested. We do not record the videos you watch, your camera, your
-        microphone, your browsing history, or any page content outside the video subtitles.
+        Subtitles are read from the page you are watching. When you click a word, its text is
+        sent to a translation service (Google Translate or MyMemory) to fetch a translation —
+        no other page content is sent anywhere. Saved words and your account data are stored
+        with our backend (Supabase). We do not record the videos you watch, your camera, your
+        microphone, or your general browsing history.
       </Section>
 
       <Section title="Local storage">
         The extension uses your browser's local storage for: your authentication token, your
-        active learning and native languages, and a short-lived cache of word translations. You
-        can clear this at any time from the extension's settings.
+        active learning and native languages, and a short-lived on-device cache of subtitle
+        lines captured from the page, cleared once they're synced to your account. You can
+        clear this at any time from the extension's settings.
       </Section>
 
       <Section title="Backend authentication">
