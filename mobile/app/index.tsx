@@ -3,16 +3,20 @@ import { View, ActivityIndicator, StyleSheet, Platform } from 'react-native';
 import { WebView } from 'react-native-webview';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
+import { createClient } from '@supabase/supabase-js';
 import { registerForPushAsync } from '@/native/notifications';
 import { supabase } from '@/lib/supabase';
 
 const APP_URL = 'https://linguascript.co.uk';
 const ONBOARDING_URL = 'https://linguascript.co.uk/onboarding';
 
-// The website keeps its Supabase session in localStorage. Hand the tokens to
-// the native client so it is signed in as the same user — device_tokens RLS
-// only lets a signed-in user save their own push token. Polls because the site
-// is a SPA: logging in there doesn't trigger a new page load.
+// The website keeps its Supabase session in localStorage. Send its access token
+// to native so the push token is saved as that user — device_tokens RLS only
+// lets a signed-in user save their own row. Only the access token is used
+// natively: refreshing the site's session from here too would rotate its
+// refresh token and could log the website out. Polls because the site is a
+// SPA: logging in there doesn't trigger a new page load, and the site's own
+// refreshes give us a fresh access token.
 const INJECT_SESSION_JS = `
 (function() {
   if (window.__lsSessionPoll) return true;
@@ -29,7 +33,6 @@ const INJECT_SESSION_JS = `
         type: 'session',
         userId: parsed.user && parsed.user.id,
         accessToken: parsed.access_token,
-        refreshToken: refresh,
       }));
     } catch (e) {}
   }
@@ -124,11 +127,16 @@ export default function AppScreen() {
         onMessage={(e) => {
           try {
             const msg = JSON.parse(e.nativeEvent.data);
-            if (msg.type === 'session' && msg.accessToken && msg.refreshToken) {
-              // onAuthStateChange below picks up the user and registers push.
-              supabase.auth
-                .setSession({ access_token: msg.accessToken, refresh_token: msg.refreshToken })
-                .catch((err) => console.warn('setSession from WebView failed', err));
+            if (msg.type === 'session' && msg.userId && msg.accessToken) {
+              const webClient = createClient(
+                process.env.EXPO_PUBLIC_SUPABASE_URL!,
+                process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!,
+                {
+                  auth: { persistSession: false, autoRefreshToken: false },
+                  global: { headers: { Authorization: `Bearer ${msg.accessToken}` } },
+                },
+              );
+              registerForPushAsync(msg.userId, webClient);
             }
           } catch (_) {}
         }}
