@@ -34,7 +34,11 @@ export function useDailyWordGoal(language?: string) {
       .gte("created_at", startOfDay.toISOString())
       // Words pre-marked as "known" when a language/level is set up are parked
       // at 2999-01-01 — they were never saved by the learner, so don't count them.
-      .lt("next_review", "2999-01-01");
+      .lt("next_review", "2999-01-01")
+      // Only words the learner added while watching. The daily 10 frequency-
+      // deck words (focusDeck.topUpDailyNew) and deck starts are added
+      // automatically with no film, and used to fill the goal to 8/8 on their own.
+      .not("film_id", "is", null);
     if (language) savedQuery = savedQuery.eq("language", language.toLowerCase());
 
     const [{ data: profile }, { count }, { data: langProfile }] = await Promise.all([
@@ -68,6 +72,16 @@ export function useDailyWordGoal(language?: string) {
   useEffect(() => {
     refresh();
   }, [refresh, language]);
+
+  // A tab left open past midnight would keep yesterday's tally; recount
+  // whenever the learner comes back to it.
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void refresh();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [refresh]);
 
   /** Optimistic bump for the moment a word is saved, before the refetch lands. */
   const bump = useCallback(() => setSavedToday((n) => n + 1), []);

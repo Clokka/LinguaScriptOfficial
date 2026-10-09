@@ -31,10 +31,12 @@ interface GiftUnboxSceneProps {
   onReady?: () => void;
   onOpenComplete?: () => void;
   size?: number;
+  /** Hide the dark ground disc (it reads as a grey slab on light backgrounds). */
+  hideGround?: boolean;
 }
 
 export const GiftUnboxScene = forwardRef<GiftUnboxHandle, GiftUnboxSceneProps>(
-  ({ petGlb = DEFAULT_PET_GLB, accessories = [], showFlowers = false, onReady, onOpenComplete, size = 320 }, ref) => {
+  ({ petGlb = DEFAULT_PET_GLB, accessories = [], showFlowers = false, onReady, onOpenComplete, size = 320, hideGround = false }, ref) => {
     const hostRef = useRef<HTMLDivElement>(null);
     const openFnRef = useRef<() => void>(() => {});
 
@@ -84,7 +86,7 @@ export const GiftUnboxScene = forwardRef<GiftUnboxHandle, GiftUnboxSceneProps>(
       const ground = new THREE.Mesh(groundGeom, groundMat);
       ground.rotation.x = -Math.PI / 2;
       ground.position.y = -0.55;
-      scene.add(ground);
+      if (!hideGround) scene.add(ground);
 
       // Flash sprite for the reveal moment
       const flashMat = new THREE.SpriteMaterial({
@@ -382,7 +384,7 @@ export const GiftUnboxScene = forwardRef<GiftUnboxHandle, GiftUnboxSceneProps>(
         renderer.domElement.remove();
       };
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [size, accessoriesKey, petGlb, showFlowers]);
+    }, [size, accessoriesKey, petGlb, showFlowers, hideGround]);
 
     return (
       <div
