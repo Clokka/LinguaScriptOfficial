@@ -25,23 +25,21 @@ export interface LevelCelebration {
   spread: number;
   /** Seconds the celebration holds before exiting. */
   hold: number;
-  /** Shown under "Level N!" — names the moment instead of repeating the number. */
-  caption: string;
 }
 
 const DEFAULT_LOOP = "Bounce";
 
 /** Levels 2–10. Level 1 is the starting state and never celebrates. */
 const RAMP: Record<number, LevelCelebration> = {
-  2: { intro: "Bounce", loop: DEFAULT_LOOP, particles: 90, spread: 65, hold: 2.0, caption: "First word saved" },
-  3: { intro: "Jump", loop: DEFAULT_LOOP, particles: 110, spread: 70, hold: 2.1, caption: "You're reviewing" },
-  4: { intro: "Clicked", loop: DEFAULT_LOOP, particles: 130, spread: 75, hold: 2.2, caption: "Getting the hang of it" },
-  5: { intro: "Spin", loop: DEFAULT_LOOP, particles: 160, spread: 85, hold: 2.5, caption: "Halfway to ten" },
-  6: { intro: "Roll", loop: DEFAULT_LOOP, particles: 180, spread: 90, hold: 2.4, caption: "Rolling" },
-  7: { intro: "Run", loop: DEFAULT_LOOP, particles: 200, spread: 95, hold: 2.5, caption: "Picking up speed" },
-  8: { intro: "Eat", loop: DEFAULT_LOOP, particles: 220, spread: 100, hold: 2.6, caption: "Appetite for words" },
-  9: { intro: "Fly", loop: DEFAULT_LOOP, particles: 250, spread: 110, hold: 2.8, caption: "Almost there" },
-  10: { intro: "Spin", loop: DEFAULT_LOOP, particles: 320, spread: 130, hold: 3.4, caption: "Double figures" },
+  2: { intro: "Bounce", loop: DEFAULT_LOOP, particles: 90, spread: 65, hold: 2.0 },
+  3: { intro: "Jump", loop: DEFAULT_LOOP, particles: 110, spread: 70, hold: 2.1 },
+  4: { intro: "Clicked", loop: DEFAULT_LOOP, particles: 130, spread: 75, hold: 2.2 },
+  5: { intro: "Spin", loop: DEFAULT_LOOP, particles: 160, spread: 85, hold: 2.5 },
+  6: { intro: "Roll", loop: DEFAULT_LOOP, particles: 180, spread: 90, hold: 2.4 },
+  7: { intro: "Run", loop: DEFAULT_LOOP, particles: 200, spread: 95, hold: 2.5 },
+  8: { intro: "Eat", loop: DEFAULT_LOOP, particles: 220, spread: 100, hold: 2.6 },
+  9: { intro: "Fly", loop: DEFAULT_LOOP, particles: 250, spread: 110, hold: 2.8 },
+  10: { intro: "Spin", loop: DEFAULT_LOOP, particles: 320, spread: 130, hold: 3.4 },
 };
 
 /** Everything past the ramp shares one solid celebration. */
@@ -51,7 +49,6 @@ const BEYOND: LevelCelebration = {
   particles: 200,
   spread: 90,
   hold: 2.4,
-  caption: "Level up",
 };
 
 export function celebrationForLevel(level: number): LevelCelebration {

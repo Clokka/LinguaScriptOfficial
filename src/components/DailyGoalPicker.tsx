@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Check, Sparkles } from "lucide-react";
+import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { WORD_GOAL_PRESETS } from "@/lib/progressStats";
 
@@ -64,10 +64,6 @@ export const DailyGoalPicker = ({ value, onChange, compact }: DailyGoalPickerPro
             </motion.button>
           );
         })}
-      </div>
-      <div className="flex items-start gap-2 text-xs text-neutral-500 leading-relaxed">
-        <Sparkles className="w-3.5 h-3.5 mt-0.5 text-orange-500 shrink-0" />
-        <p>Small and daily beats big and occasional. You can always do more.</p>
       </div>
     </div>
   );

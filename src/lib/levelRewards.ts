@@ -36,20 +36,12 @@ export interface LevelReward {
   level: number;
   gems: number;
   tier: MilestoneTier;
-  /** Short line shown under the level-up headline. */
-  blurb: string;
 }
 
 export function rewardForLevel(level: number): LevelReward {
   const gems = gemsForLevel(level);
   const tier = milestoneTier(level);
-  const blurb =
-    tier === "grand"
-      ? "Grand milestone — a big gem haul."
-      : tier === "major"
-        ? "Milestone level — bonus gems."
-        : "Every level pays out.";
-  return { level, gems, tier, blurb };
+  return { level, gems, tier };
 }
 
 /** Total gems a learner will have earned by the time they reach `level`. */

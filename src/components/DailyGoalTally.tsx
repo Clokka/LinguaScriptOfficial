@@ -82,12 +82,6 @@ export function DailyGoalTally({ savedToday, goal, variant = "pill", className }
           style={{ width: `${pct}%`, background: "#34C759" }}
         />
       </div>
-
-      <p className="mt-3 text-xs text-muted-foreground">
-        {reached
-          ? "Goal reached. A short review now is what makes it stick — then you're done for the day."
-          : "Small and daily beats big and occasional. Save a few words while you watch."}
-      </p>
     </div>
   );
 }
