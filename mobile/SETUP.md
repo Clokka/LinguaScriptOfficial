@@ -184,7 +184,7 @@ In Play Console, left sidebar → **Grow → Store presence → Main store listi
 
 Sidebar → **Policy → App content**:
 
-- **Privacy policy URL**: `https://linguascript.xyz/privacy`
+- **Privacy policy URL**: `https://linguascript.co.uk/privacy`
 - **Data safety**: click through the questionnaire. Answers are in
   `docs/data-safety.md` at the repo root — every field is filled in there.
 - **Content rating**: run the questionnaire. Answer honestly — LinguaScript

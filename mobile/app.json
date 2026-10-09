@@ -55,12 +55,12 @@
           "data": [
             {
               "scheme": "https",
-              "host": "linguascript.xyz",
+              "host": "linguascript.co.uk",
               "pathPrefix": "/gift"
             },
             {
               "scheme": "https",
-              "host": "linguascript.xyz",
+              "host": "linguascript.co.uk",
               "pathPrefix": "/friends"
             }
           ]
