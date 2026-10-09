@@ -10,6 +10,7 @@ import { getEnabledFallbackPlans, type StripeFallbackPlan, type StripePlanKey } 
 import { StripeEmbeddedCheckout } from "@/components/StripeEmbeddedCheckout";
 import { isPaymentsConfigured } from "@/lib/stripe";
 import { cn } from "@/lib/utils";
+import { TrialTimeline } from "@/components/TrialTimeline";
 
 const FEATURES = [
   "Unlimited learning languages — switch freely between French, Spanish, German, Italian and more",
@@ -45,7 +46,9 @@ const ORANGE = "#FF8A00";
 export default function Pricing() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { isPro, source, loading: subLoading, expiresAt } = useSubscription();
+  const { isPro, source, loading: subLoading, expiresAt, hasBillingAccount } = useSubscription();
+  // The 14-day trial is once per account (create-checkout checks the same).
+  const trialEligible = !!user && !isPro && !hasBillingAccount;
   const [stripePriceId, setStripePriceId] = useState<string | null>(null);
   const [plans, setPlans] = useState<Array<{ key: StripePlanKey } & StripeFallbackPlan>>([]);
   const [loadingPlans, setLoadingPlans] = useState(true);
@@ -138,6 +141,8 @@ export default function Pricing() {
           </div>
         )}
 
+        {trialEligible && stripeAvailable && <TrialTimeline className="mb-8" />}
+
         <div className="mb-10 grid gap-4 sm:grid-cols-3">
           {!stripeAvailable ? (
             <div className="col-span-full rounded-2xl border border-white/10 bg-white/[0.03] py-12 text-center text-sm text-white/40">
@@ -190,7 +195,7 @@ export default function Pricing() {
                     style={{ color: highlighted ? ORANGE : GREEN }}
                   >
                     <CreditCard className="h-4 w-4" />
-                    {isPro ? "Already Pro" : "Pay with card"}
+                    {isPro ? "Already Pro" : trialEligible && p.key !== "lifetime" ? "Try free for 14 days" : "Pay with card"}
                   </div>
                 </button>
               );

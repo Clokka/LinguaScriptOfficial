@@ -12,6 +12,8 @@ import { I18nProvider } from "@/i18n";
 import { TourOverlay } from "@/components/TourOverlay";
 import { DailyBriefing } from "@/components/DailyBriefing";
 import { StreakCelebrationModal } from "@/components/StreakCelebrationModal";
+import { PetMilestoneUnlock } from "@/components/pets/PetMilestoneUnlock";
+import { LevelUpGift } from "@/components/rewards/LevelUpGift";
 import { XpToast } from "@/components/XpToast";
 import { InterestsPromptModal } from "@/components/InterestsPromptModal";
 import { PetProvider } from "@/contexts/PetContext";
@@ -142,8 +144,8 @@ const App = () => (
                 <Route path="/mieoframes" element={<MieoFrames />} />
                 <Route path="/onboarding/mobile" element={<OnboardingMobile />} />
                 <Route path="/welcome" element={<OnboardingMobile />} />
-                <Route path="/linguascript" element={<LinguaScripts />} />
-                <Route path="/linguascripts" element={<Navigate to="/linguascript" replace />} />
+                <Route path="/linguascript" element={<Navigate to="/flashcards" replace />} />
+                <Route path="/linguascripts" element={<Navigate to="/flashcards" replace />} />
                 <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
                 <Route path="/blog" element={<Blog />} />
                 <Route path="/blog/:slug" element={<BlogPostPage />} />
@@ -167,6 +169,8 @@ const App = () => (
               <TourOverlay />
               <DailyBriefing />
               <StreakCelebrationModal />
+              <PetMilestoneUnlock />
+              <LevelUpGift />
               <XpToast />
               <InterestsPromptModal />
               {/* PetCompanion removed per user request */}

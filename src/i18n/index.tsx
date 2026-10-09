@@ -7,10 +7,13 @@
  */
 import { createContext, useCallback, useContext, useEffect, useState, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { AutoTranslate } from "./AutoTranslate";
 import { STRINGS, UI_LANGS, type StringKey, type UiLang } from "./strings";
 
 const KEY = "ls.uiLang";
-const isUi = (c: string | null | undefined): c is UiLang => !!c && (UI_LANGS as readonly string[]).includes(c);
+// Any app language is accepted: hand-written STRINGS cover some, and
+// AutoTranslate machine-translates the rest of the interface.
+const isUi = (c: string | null | undefined): c is UiLang => !!c && /^[a-z]{2,3}$/.test(c);
 
 export function detectUiLang(): UiLang {
   try {

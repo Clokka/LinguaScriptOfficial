@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Volume2, Check, X, RotateCcw } from "lucide-react";
+import { Volume2, Check, X, RotateCcw, ArrowDown } from "lucide-react";
 import { Button } from "./ui/button";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -101,7 +101,7 @@ export const Flashcard = ({
   const backSub = showLearningFirst ? pronunciation : ipa;
   const lemmaNote = useLemma && (
     <p className="text-xs text-muted-foreground/80 mt-1">
-      Seen here as <span className="italic">"{word}"</span>{grammarNote ? ` — ${grammarNote}` : ""}
+      Seen here as <span translate="no" className="italic">"{word}"</span>{grammarNote ? ` — ${grammarNote}` : ""}
     </p>
   );
   const frontHint = imageMode
@@ -135,7 +135,7 @@ export const Flashcard = ({
             )}
             style={showLearningFirst && deckColor ? { color: deckColor } : undefined}
           >
-            {frontText || "—"}
+            <span translate="no">{frontText || "—"}</span>
           </p>
           {showLearningFirst && romanisation ? (
             /* Pinyin carries the same deck colour as its character. */
@@ -152,7 +152,7 @@ export const Flashcard = ({
 
           {context && showLearningFirst && (
             <div className="mt-4 text-center space-y-1">
-              <p className="text-sm text-muted-foreground italic">"{context}"</p>
+              <p translate="no" className="text-sm text-muted-foreground italic">"{context}"</p>
             </div>
           )}
           {contextTranslation && !showLearningFirst && (
@@ -181,7 +181,7 @@ export const Flashcard = ({
                 )}
                 style={!showLearningFirst && deckColor ? { color: deckColor } : undefined}
               >
-                {backText || "—"}
+                <span translate="no">{backText || "—"}</span>
               </p>
               {!showLearningFirst && romanisation ? (
                 <p
@@ -199,7 +199,7 @@ export const Flashcard = ({
 
           {context && (
             <div className="mt-4 text-center space-y-1 border-t border-border/30 pt-3">
-              <p className="text-sm font-medium text-foreground/80 italic">"{context}"</p>
+              <p translate="no" className="text-sm font-medium text-foreground/80 italic">"{context}"</p>
               {contextTranslation && (
                 <p className="text-xs text-muted-foreground">"{contextTranslation}"</p>
               )}
@@ -258,13 +258,15 @@ export const Flashcard = ({
       )}
       {isFlipped && onDemote && (
         <div className="flex justify-center mt-3">
-          <button
+          <Button
             type="button"
+            variant="destructive"
+            size="sm"
             onClick={() => { setIsFlipped(false); onDemote(); }}
-            className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
           >
-            {state === "green" ? "Not sure? Move back to Learning" : "Not sure? Move back to Unknown"}
-          </button>
+            <ArrowDown className="w-4 h-4 mr-1" />
+            {state === "green" ? "Too hard – back to Learning" : "Too hard – back to Unknown"}
+          </Button>
         </div>
       )}
     </div>

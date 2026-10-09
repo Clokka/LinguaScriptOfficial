@@ -110,34 +110,19 @@ const Landing5 = () => {
 
         <HeroWordmarkBlast />
 
-        <motion.p
-          initial="hidden"
-          animate="visible"
-          custom={2}
-          variants={reveal}
-          className="mt-2 text-lg sm:text-xl text-white/60 max-w-xl mx-auto leading-relaxed"
-        >
-          The app that makes learning a language free, fun, and accessible to everyone.
-        </motion.p>
-
         <motion.div initial="hidden" animate="visible" custom={3} variants={reveal}>
-          <StoreBadges className="mt-9 mb-5" />
-          <p className="text-xs text-white/35">Free to start. No card, no trial countdown.</p>
+          <StoreBadges className="mt-9" />
         </motion.div>
       </Section>
 
       {/* ── 2. Line Blast — the first real thing you touch ── */}
       <Section className="py-20 border-t border-white/[0.06]">
         <Eyebrow>Line Blast</Eyebrow>
-        <h2 className="text-3xl sm:text-5xl font-extrabold tracking-tight leading-[1.08] mb-4">
+        <h2 className="text-3xl sm:text-5xl font-extrabold tracking-tight leading-[1.08] mb-12">
           Finish the line.
           <br />
           <span style={{ color: DECK.green }}>Watch it go green.</span>
         </h2>
-        <p className="text-white/45 max-w-xl mb-12">
-          Tap the words you already know. When the last one turns, the whole line is
-          yours. This is the real thing below, not a video of it.
-        </p>
 
         <div data-cursor="hot">
           <LineBlastDemo />
@@ -149,15 +134,11 @@ const Landing5 = () => {
         <div className="grid gap-12 md:grid-cols-2 md:items-center">
           <div>
             <Eyebrow>Your companion</Eyebrow>
-            <h2 className="text-3xl sm:text-5xl font-extrabold tracking-tight leading-[1.08] mb-5">
+            <h2 className="text-3xl sm:text-5xl font-extrabold tracking-tight leading-[1.08]">
               It changes colour
               <br />
               because you did.
             </h2>
-            <p className="text-white/45 max-w-md">
-              The chameleon wears your progress. Red when a scene is full of strangers,
-              green once you have earned it. It watches your cursor while it waits.
-            </p>
           </div>
           <div className="flex justify-center" data-cursor="hot">
             <Chameleon3D tier="green" size={360} />
@@ -171,16 +152,11 @@ const Landing5 = () => {
       {/* ── 5. LinguaScripts, live ── */}
       <Section className="py-24 border-t border-white/[0.06]">
         <Eyebrow>LinguaScripts</Eyebrow>
-        <h2 className="text-3xl sm:text-5xl font-extrabold tracking-tight leading-[1.08] mb-4">
+        <h2 className="text-3xl sm:text-5xl font-extrabold tracking-tight leading-[1.08] mb-12">
           Your words come back
           <br />
           as sentences.
         </h2>
-        <p className="text-white/45 max-w-xl mb-12">
-          Every word you save is rebuilt into a short exercise written around it, then
-          served back on the day you are about to forget it. Play one now. This is the
-          same exercise the app runs, minus your deck.
-        </p>
 
         <LinguaScriptsDemo />
       </Section>
@@ -188,16 +164,16 @@ const Landing5 = () => {
       {/* ── 6. Three colours ── */}
       <Section className="py-24 border-t border-white/[0.06]">
         <h2 className="text-3xl sm:text-5xl font-extrabold tracking-tight mb-14">
-          Three colours. That is the whole system.
+          Three colours.
         </h2>
         <div className="grid gap-8 sm:grid-cols-3">
           {[
-            { c: DECK.red, tier: "red" as const, n: "Red", d: "A word you have never met. Tap it once and it is saved.", label: "Unknown" },
-            { c: DECK.orange, tier: "orange" as const, n: "Orange", d: "You are learning it. It resurfaces until it sticks.", label: "Learning" },
-            { c: DECK.green, tier: "green" as const, n: "Green", d: "You know it. It stops interrupting and starts counting.", label: "Known" },
+            { c: DECK.red, tier: "red" as const, label: "Unknown" },
+            { c: DECK.orange, tier: "orange" as const, label: "Learning" },
+            { c: DECK.green, tier: "green" as const, label: "Known" },
           ].map((s, i) => (
             <motion.div
-              key={s.n}
+              key={s.label}
               initial="hidden"
               whileInView="visible"
               viewport={{ once: true, margin: "-80px" }}
@@ -207,11 +183,9 @@ const Landing5 = () => {
               <div className="w-24 mb-5">
                 <ChameleonMascot tier={s.tier} />
               </div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.2em] mb-2" style={{ color: s.c }}>
+              <p className="text-sm font-bold uppercase tracking-[0.2em]" style={{ color: s.c }}>
                 {s.label}
               </p>
-              <h3 className="text-xl font-bold mb-2">{s.n}</h3>
-              <p className="text-sm text-white/45 leading-relaxed">{s.d}</p>
             </motion.div>
           ))}
         </div>
@@ -224,47 +198,13 @@ const Landing5 = () => {
 
       {/* ── 8. A number, not a test ── */}
       <Section className="py-24 border-t border-white/[0.06]">
-        <h2 className="text-3xl sm:text-5xl font-extrabold tracking-tight mb-4">
+        <h2 className="text-3xl sm:text-5xl font-extrabold tracking-tight mb-12">
           A number, not a test.
         </h2>
-        <p className="text-white/45 max-w-xl mb-12">
-          LinguaScript never quizzes you cold. It tells you how much of the scene you
-          actually understood, and that number goes up on its own.
-        </p>
         <DeckCards />
         <p className="mt-6 text-xs text-white/35">
           One learner's vocabulary after a term of watching. Yours will look different.
         </p>
-      </Section>
-
-      {/* ── 9. Students and schools ── */}
-      <Section className="py-24 border-t border-white/[0.06]">
-        <Eyebrow>Students and schools</Eyebrow>
-        <h2 className="text-3xl sm:text-5xl font-extrabold tracking-tight leading-[1.08] mb-5">
-          Pro is free
-          <br />
-          if you are in school.
-        </h2>
-        <p className="text-white/45 max-w-xl mb-9">
-          Request a student account with your school email and we hand you Pro at no
-          cost. Teachers get a class dashboard with it. If you would rather not ask,
-          the basic plan is genuinely free and always will be.
-        </p>
-        <div className="flex flex-wrap items-center gap-4">
-          <MagneticButton
-            onClick={() => navigate("/thechameleonmethod")}
-            className="px-7 py-3.5 rounded-xl font-bold text-[#08080B]"
-            style={{ backgroundColor: DECK.green }}
-          >
-            Request a student account
-          </MagneticButton>
-          <button
-            onClick={() => navigate("/onboarding")}
-            className="text-sm font-semibold text-white/55 hover:text-white transition-colors"
-          >
-            Continue with the basic plan →
-          </button>
-        </div>
       </Section>
 
       {/* ── 10. CTA ── */}
@@ -272,13 +212,9 @@ const Landing5 = () => {
         <div className="w-36 mx-auto mb-8">
           <ChameleonMascot tier="green" party />
         </div>
-        <h2 className="text-4xl sm:text-6xl font-extrabold tracking-tight leading-[1.05] mb-6">
+        <h2 className="text-4xl sm:text-6xl font-extrabold tracking-tight leading-[1.05] mb-10">
           Start with tonight's episode.
         </h2>
-        <p className="text-white/50 max-w-lg mx-auto mb-10">
-          Press play on something you were going to watch anyway and save one word.
-          That is the whole sign up.
-        </p>
 
         <MagneticButton
           onClick={() => navigate("/onboarding")}

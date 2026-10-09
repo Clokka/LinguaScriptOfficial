@@ -9,10 +9,17 @@ import { cn } from "@/lib/utils";
 import { fetchFilmSessions, type WatchSession, type RecordResult } from "@/lib/watchSessions";
 import type { VideoComprehension } from "@/lib/videoComprehension";
 import { usePet } from "@/contexts/PetContext";
+import { ChameleonWordMap } from "@/components/ChameleonWordMap";
+import { summarizeWordMap, useVideoWordMap } from "@/lib/videoWordMap";
+import { useAuth } from "@/hooks/useAuth";
+import { ComprehensionJumpShare, isShareworthyJump } from "@/components/ComprehensionJumpShare";
 
 interface Props {
   open: boolean;
   filmId: string;
+  filmTitle?: string;
+  /** Deck language the video's words are scored in. */
+  language: string;
   result: RecordResult | null;
   comprehension: VideoComprehension;
   durationMinutes: number;
@@ -21,10 +28,13 @@ interface Props {
 }
 
 export function WatchResultsModal({
-  open, filmId, result, comprehension, durationMinutes, onClose, onReview,
+  open, filmId, filmTitle, language, result, comprehension, durationMinutes, onClose, onReview,
 }: Props) {
   const [sessions, setSessions] = useState<WatchSession[]>([]);
   const { triggerReaction } = usePet();
+  const { user } = useAuth();
+  const tiles = useVideoWordMap(open ? user?.id ?? null : null, open ? filmId : null, language, result?.watch_number ?? 0);
+  const words = tiles ? summarizeWordMap(tiles) : null;
 
   useEffect(() => {
     if (!open) return;
@@ -76,6 +86,24 @@ export function WatchResultsModal({
         <h3 className="relative text-xl sm:text-2xl font-bold text-foreground mb-4">
           {isFirst ? "Your starting comprehension" : "You understand more now"}
         </h3>
+
+        {result && isShareworthyJump(watchN, result.first_pct, latest) && (
+          <ComprehensionJumpShare firstPct={result.first_pct} newPct={latest} language={language} filmTitle={filmTitle} />
+        )}
+
+        {/* Word map — every word in the video, flipping to its new colour. */}
+        {tiles && tiles.length > 0 && (
+          <div className="relative mb-4">
+            <ChameleonWordMap tiles={tiles} filmId={filmId} className="max-h-40 overflow-y-auto pr-1" />
+            {words && (
+              <p className="text-xs text-muted-foreground mt-2 tabular-nums">
+                {words.mastered
+                  ? "Every word is green 🦎"
+                  : `${words.left} words left to turn green · 🟢 ${words.green + words.gold} · 🟠 ${words.orange} · 🔴 ${words.red}`}
+              </p>
+            )}
+          </div>
+        )}
 
         {/* Big number */}
         <div className="relative flex items-baseline gap-3 mb-4 tabular-nums">

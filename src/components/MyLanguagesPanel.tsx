@@ -28,10 +28,19 @@ import {
   listLanguageProfiles,
   removeLanguageProfile,
   updateLanguageProfile,
+  topUpPriorityWords,
   type LanguageProfile,
   type LearningMode,
 } from "@/lib/languageProfiles";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+
+// Absolute beginner = A1 with nothing pre-marked as known (seeded_level NULL),
+// the same signal onboarding's "Total beginner" uses.
+const BEGINNER = "beginner";
+const BEGINNER_LABEL = "Absolute beginner (below A1)";
+const levelValue = (p: LanguageProfile) =>
+  p.cefr_level === "a1" && !p.seeded_level ? BEGINNER : p.cefr_level;
 
 /**
  * "My languages" — up to 5 independent learning profiles. Each language keeps
@@ -51,6 +60,8 @@ export const MyLanguagesPanel = ({ nativeLanguage }: { nativeLanguage?: string }
   const [newLang, setNewLang] = useState("");
   const [newMode, setNewMode] = useState<LearningMode>("fluency");
   const [newLevel, setNewLevel] = useState<string>("a1");
+  const [resetLang, setResetLang] = useState<string | null>(null);
+  const [resetting, setResetting] = useState(false);
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -75,7 +86,8 @@ export const MyLanguagesPanel = ({ nativeLanguage }: { nativeLanguage?: string }
       userId: user.id,
       language: newLang,
       mode: newMode,
-      level: newLevel,
+      level: newLevel === BEGINNER ? "a1" : newLevel,
+      totalBeginner: newLevel === BEGINNER,
     });
     setSaving(false);
     if (error) {
@@ -94,7 +106,9 @@ export const MyLanguagesPanel = ({ nativeLanguage }: { nativeLanguage?: string }
     await load();
     toast({
       title: `${getLanguageLabel(newLang)} added`,
-      description: "Your known words for this level have been marked green.",
+      description: newLevel === BEGINNER
+        ? "Starting from zero — begin with the Top 50 deck."
+        : "Your known words for this level have been marked green.",
     });
   };
 
@@ -117,9 +131,28 @@ export const MyLanguagesPanel = ({ nativeLanguage }: { nativeLanguage?: string }
   // fresh on next load, so the feed adapts immediately without a reseed.
   const handleLevel = async (language: string, cefr_level: string) => {
     if (!user) return;
+    if (cefr_level === BEGINNER) {
+      setResetLang(language);
+      return;
+    }
     setProfiles((prev) => prev.map((p) => (p.language === language ? { ...p, cefr_level } : p)));
     await updateLanguageProfile(user.id, language, { cefr_level });
     toast({ title: `Level updated to ${cefr_level.toUpperCase()}`, description: "Your recommended videos will adjust to match." });
+  };
+
+  const confirmReset = async () => {
+    if (!user || !resetLang) return;
+    setResetting(true);
+    const { error } = await (supabase as any).rpc("reset_to_absolute_beginner", { _language: resetLang });
+    if (!error) await topUpPriorityWords(resetLang);
+    setResetting(false);
+    setResetLang(null);
+    if (error) {
+      toast({ title: "Couldn't reset", description: error.message, variant: "destructive" });
+      return;
+    }
+    await load();
+    toast({ title: "Starting from zero", description: "Begin with the Top 50 most common words." });
   };
 
   return (
@@ -204,11 +237,12 @@ export const MyLanguagesPanel = ({ nativeLanguage }: { nativeLanguage?: string }
 
                 <div className="mt-2 flex items-center gap-2">
                   <span className="text-[11px] text-muted-foreground shrink-0">Level</span>
-                  <Select value={p.cefr_level} onValueChange={(v) => handleLevel(p.language, v)}>
+                  <Select value={levelValue(p)} onValueChange={(v) => handleLevel(p.language, v)}>
                     <SelectTrigger className="h-8 text-xs bg-secondary/40 border-border/50">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value={BEGINNER}>{BEGINNER_LABEL}</SelectItem>
                       {CEFR_LEVELS.map((l) => (
                         <SelectItem key={l} value={l}>{l.toUpperCase()}</SelectItem>
                       ))}
@@ -292,6 +326,7 @@ export const MyLanguagesPanel = ({ nativeLanguage }: { nativeLanguage?: string }
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value={BEGINNER}>{BEGINNER_LABEL}</SelectItem>
                   {CEFR_LEVELS.map((l) => (
                     <SelectItem key={l} value={l}>
                       {l.toUpperCase()}
@@ -309,6 +344,24 @@ export const MyLanguagesPanel = ({ nativeLanguage }: { nativeLanguage?: string }
             <Button onClick={handleAdd} disabled={!newLang || saving}>
               {saving && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
               Add language
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={!!resetLang} onOpenChange={(o) => !o && setResetLang(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Start from zero?</DialogTitle>
+            <DialogDescription>
+              Words we assumed you knew from your starting level will be removed so you can learn
+              them from the Top 50 deck. Words you've learned yourself are kept.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setResetLang(null)}>Cancel</Button>
+            <Button onClick={confirmReset} disabled={resetting}>
+              {resetting && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
+              Start from zero
             </Button>
           </DialogFooter>
         </DialogContent>

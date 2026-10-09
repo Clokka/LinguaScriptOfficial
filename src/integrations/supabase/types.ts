@@ -2249,6 +2249,7 @@ export type Database = {
       claim_pro_chameleon_link: { Args: { _token: string }; Returns: Json }
       claim_pro_gift_link: { Args: { _token: string }; Returns: Json }
       claim_return_gift: { Args: never; Returns: Json }
+      claim_pet_milestones: { Args: never; Returns: string[] }
       claim_streak_reward: { Args: { p_days: number }; Returns: Json }
       create_daily_linguascript: {
         Args: {
@@ -2291,6 +2292,10 @@ export type Database = {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
       }
+      downgrade_seeded_vocabulary: {
+        Args: { _language: string; _level: string; _mode?: string }
+        Returns: number
+      }
       email_queue_dispatch: { Args: never; Returns: undefined }
       enqueue_email: {
         Args: { payload: Json; queue_name: string }
@@ -2305,6 +2310,13 @@ export type Database = {
           known_words: number
           pct: number
           total_words: number
+        }[]
+      }
+      frequency_reviewing: {
+        Args: { _language: string }
+        Returns: {
+          band: number
+          reviewing_words: number
         }[]
       }
       gen_friend_code: { Args: never; Returns: string }
@@ -2474,6 +2486,10 @@ export type Database = {
           prev_pct: number
           watch_number: number
         }[]
+      }
+      reset_to_absolute_beginner: {
+        Args: { _language: string }
+        Returns: number
       }
       reveal_green_word: { Args: { p_word_id: string }; Returns: Json }
       safe_display_name: {

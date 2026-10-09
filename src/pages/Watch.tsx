@@ -47,6 +47,10 @@ import { PronunciationJudge } from "@/components/PronunciationJudge";
 import { DailyGoalTally } from "@/components/DailyGoalTally";
 import { useDailyWordGoal } from "@/hooks/useDailyWordGoal";
 import { WatchGoalGate } from "@/components/WatchGoalGate";
+import { WatchWordCounter } from "@/components/WatchWordCounter";
+import { VideoBlockedScreen, type VideoBlockKind } from "@/components/VideoBlockedScreen";
+import { checkPetMilestones } from "@/lib/pets";
+import { browserTranslateLines, translateWord } from "@/lib/browserTranslate";
 
 interface FilmData {
   id: string;
@@ -149,17 +153,26 @@ async function persistTrack(filmId: string, lang: string, subs: SubtitleSegment[
 
 async function translateTrack(subs: SubtitleSegment[], from: string, to: string): Promise<SubtitleSegment[]> {
   if (!subs.length || from === to) return [];
+  let lines: string[] = [];
   try {
     const { data, error } = await supabase.functions.invoke("translate-subtitles", {
       body: { subtitles: subs, fromLanguage: getLanguageLabel(from), toLanguage: getLanguageLabel(to) },
     });
-    if (error || !data?.translations?.length) return [];
-    return subs
-      .map((s, i) => ({ ...s, text: data.translations[i]?.translation || "" }))
-      .filter((s) => s.text.trim().length > 0);
-  } catch {
-    return [];
+    if (!error && data?.translations?.length) {
+      lines = subs.map((_, i) => data.translations[i]?.translation || "");
+    }
+  } catch { /* fall through to the browser */ }
+  // Server failed or came back empty: translate from the learner's browser.
+  if (!lines.some((l) => l.trim())) {
+    try {
+      lines = await browserTranslateLines(subs.map((s) => s.text), from, to);
+    } catch {
+      return [];
+    }
   }
+  return subs
+    .map((s, i) => ({ ...s, text: lines[i] || "" }))
+    .filter((s) => s.text.trim().length > 0);
 }
 
 /**
@@ -220,6 +233,11 @@ async function loadAllCaptions(
 
   // 2) Fetch via edge function (proxies InnerTube + tlang to avoid CORS)
   let edgeFailure: string | null = null;
+  // Set when the server won't load a new (uncached) video for this learner:
+  // "locked" = free plan, "limit" = today's new video already used.
+  let blockReason: "locked" | "limit" | null = null;
+  // Set when the video has no subtitle track in the learning language.
+  let noSubtitles = false;
   if (!primary.length || (primaryLang !== secondaryLang && !secondary.length)) {
     onStatus(`Downloading ${getLanguageLabel(primaryLang)} & ${getLanguageLabel(secondaryLang)} captions…`);
     try {
@@ -236,6 +254,9 @@ async function loadAllCaptions(
         console.warn("Edge caption fetch error:", error);
       } else if (data) {
         if (data.learningError) edgeFailure = data.learningError;
+        if (data.locked) blockReason = "locked";
+        else if (data.limitReached) blockReason = "limit";
+        if (data.noSubtitles) noSubtitles = true;
         if (!primary.length && data.subtitles?.length) {
           primary = data.subtitles;
           await persistTrack(filmId, primaryLang, primary);
@@ -256,7 +277,8 @@ async function loadAllCaptions(
     }
 
     // Fallback A: browser-side InnerTube fetch (bypasses paid provider quotas).
-    if (!primary.length || (primaryLang !== secondaryLang && !secondary.length)) {
+    // Never for a video the server refused: new videos are a Pro feature.
+    if (!blockReason && (!primary.length || (primaryLang !== secondaryLang && !secondary.length))) {
       onStatus("Provider unavailable — trying direct fetch…");
       try {
         const browserRes = await fetchCaptionsFromBrowser(videoId, primaryLang, secondaryLang);
@@ -327,9 +349,9 @@ async function loadAllCaptions(
       if (secondary.length) await persistTrack(filmId, secondaryLang, secondary);
     }
 
-    if (!primary.length && edgeFailure) {
+    if (!primary.length && (edgeFailure || blockReason || noSubtitles)) {
       // Surface via thrown error so caller can show it.
-      throw new Error(edgeFailure);
+      throw Object.assign(new Error(edgeFailure || blockReason || "No subtitles"), { blockReason, noSubtitles });
     }
   }
 
@@ -358,21 +380,10 @@ const Watch = () => {
   const savedTodayRef = useRef(0);
   const dailyGoal = useDailyWordGoal();
 
-  // One nudge per day, fired the moment the goal is met: the point of the goal
-  // is to hand the learner over to review, not to congratulate them and stop.
-  const nudgedRef = useRef(false);
+  // Progress and the review button live in the word counter under the video.
   const registerDailySave = useCallback(() => {
     dailyGoal.bump();
-    const next = dailyGoal.savedToday + 1;
-    if (!nudgedRef.current && next >= dailyGoal.goal) {
-      nudgedRef.current = true;
-      toast.success(`Daily goal reached — ${dailyGoal.goal} words saved`, {
-        description: "Review them now while they're fresh.",
-        action: { label: "Review", onClick: () => navigate("/linguascript") },
-        duration: 8000,
-      });
-    }
-  }, [dailyGoal, navigate]);
+  }, [dailyGoal]);
   const { learningLanguage, languageContext, isContentLocked } = useLanguage();
   const { award } = useXp();
   const { triggerReaction } = usePet();
@@ -413,6 +424,9 @@ const Watch = () => {
   const [captionsLoading, setCaptionsLoading] = useState(false);
   const [captionsStatus, setCaptionsStatus] = useState<string | null>(null);
   const [captionsError, setCaptionsError] = useState<string | null>(null);
+  // Set when a YouTube video can't be used because it has no captions in the
+  // learning language — the page then shows a blocking screen, not the player.
+  const [captionBlock, setCaptionBlock] = useState<VideoBlockKind | null>(null);
   const [showLearningBreak, setShowLearningBreak] = useState(false);
   const sessionSavedRef = useRef<QuizWord[]>([]);
   const breakTriggeredRef = useRef(false);
@@ -457,11 +471,23 @@ const Watch = () => {
   // be the video + the teaching cursor, never an ad.
   const [adDone, setAdDone] = useState(tourActive);
   const finishPreTeach = useCallback(() => setAdDone(true), []);
-  // Words picked by the pre-teach scan; unsaved ones get a gold ring while watching.
-  const [targetWords, setTargetWords] = useState<Set<string>>(new Set());
+  // Gold rings: pre-teach picks first, then unlearned words from the learner's
+  // current Top-N frequency deck. The overlay caps rings per line.
+  const [preTeachWords, setPreTeachWords] = useState<string[]>([]);
+  const [focusWords, setFocusWords] = useState<string[]>([]);
   const handlePreTeachWords = useCallback((ws: string[]) => {
-    setTargetWords(new Set(ws.map((w) => normalizeToken(w))));
+    setPreTeachWords(ws.map((w) => normalizeToken(w)));
   }, []);
+  const targetWords = useMemo(() => new Set([...preTeachWords, ...focusWords]), [preTeachWords, focusWords]);
+  const focusLang = film?.language || learningLanguage;
+  useEffect(() => {
+    if (!user?.id || !focusLang) return;
+    let alive = true;
+    import("@/lib/focusDeck").then(({ focusRingWords }) => focusRingWords(user.id, focusLang))
+      .then((ws) => { if (alive) setFocusWords(ws); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [user?.id, focusLang]);
 
   const [cssFullscreen, setCssFullscreen] = useState(false);
   const toggleFullscreen = useCallback(async () => {
@@ -588,6 +614,7 @@ const Watch = () => {
     const run = async () => {
       setCaptionsLoading(true);
       setCaptionsError(null);
+      setCaptionBlock(null);
       setCaptionsStatus(null);
 
       // ── Case A: Admin/library film — stored SRTs only ──
@@ -636,18 +663,24 @@ const Watch = () => {
       let primary: SubtitleSegment[] = [];
       let secondary: SubtitleSegment[] = [];
       let loadError: string | null = null;
+      let blockReason: "locked" | "limit" | null = null;
+      let noSubtitles = false;
       let usedLang = primaryLang;
       try {
         const res = await loadAllCaptions(
           film.id, ytId, primaryLang, secondaryLang,
           (msg) => { if (!cancelled) setCaptionsStatus(msg); },
-          [film.language || "", secondaryLang, "en"],
+          // No fallback languages: a video without learning-language captions
+          // can't be used, so it's blocked below instead of shown in English.
+          [],
         );
         primary = res.primary;
         secondary = res.secondary;
         usedLang = res.primaryLang;
       } catch (e: any) {
         loadError = e?.message || "Caption fetch failed";
+        blockReason = e?.blockReason ?? null;
+        noSubtitles = !!e?.noSubtitles;
       }
 
       if (cancelled) return;
@@ -662,11 +695,11 @@ const Watch = () => {
           });
         }
       } else {
-        const detail = loadError ? ` (${loadError})` : "";
-        setCaptionsError(
-          `Could not load ${getLanguageLabel(primaryLang)} captions for this video${detail}. ` +
-          `YouTube may not provide captions for it, or our caption provider is at its daily limit. Please try another video.`,
-        );
+        // "No … captions on YouTube" means the video truly lacks a track;
+        // anything else (timeout, provider limit) is a temporary failure.
+        const missing = noSubtitles || !loadError || /no \S+ captions/i.test(loadError);
+        setCaptionBlock(blockReason ?? (missing ? "missing" : "error"));
+        setCaptionsStatus(null);
       }
       setCaptionsLoading(false);
     };
@@ -882,22 +915,25 @@ const Watch = () => {
     let isInflected = false;
     let grammarNote: string | null = null;
 
-    // If translation is empty, fetch it from AI
+    // A popup placeholder is not a meaning — never save it onto a card.
+    if (/^(Translating|Couldn't translate)/.test(translation || "")) translation = "";
+
+    // If translation is empty, fetch it (server first, browser fallback)
     if (!translation) {
       try {
-        const { data, error } = await supabase.functions.invoke("translate-word", {
-          body: { word: word.text, context, fromLanguage: fromLang, toLanguage: toLang },
-        });
-        if (!error && data) {
-          translation = data.translation || "";
-          pronunciation = data.pronunciation || "";
-          ipa = data.ipa || "";
-          lemma = data.lemma || null;
-          lemmaTranslation = data.lemmaTranslation || null;
-          pos = data.pos || null;
-          isInflected = !!data.isInflected;
-          grammarNote = data.grammarNote || null;
-        }
+        const t = await translateWord(
+          (body) => supabase.functions.invoke("translate-word", { body }),
+          word.text, context, langCode, nativeLanguage || "en",
+          { from: fromLang, to: toLang },
+        );
+        translation = t.translation;
+        pronunciation = t.pronunciation;
+        ipa = t.ipa;
+        lemma = t.lemma;
+        lemmaTranslation = t.lemmaTranslation;
+        pos = t.pos;
+        isInflected = t.isInflected;
+        grammarNote = t.grammarNote;
       } catch (e) {
         console.error("Word translation failed:", e);
       }
@@ -1022,12 +1058,12 @@ const Watch = () => {
 
     let translation = "";
     try {
-      const { data, error } = await supabase.functions.invoke("translate-word", {
-        body: { word: trimmed, context, fromLanguage: fromLang, toLanguage: toLang },
-      });
-      if (!error && data) {
-        translation = data.contextTranslation || data.translation || "";
-      }
+      const t = await translateWord(
+        (body) => supabase.functions.invoke("translate-word", { body }),
+        trimmed, context, langCode, nativeLanguage || "en",
+        { from: fromLang, to: toLang },
+      );
+      translation = t.contextTranslation || t.translation;
     } catch (e) {
       console.error("Phrase translation failed:", e);
     }
@@ -1271,6 +1307,10 @@ const Watch = () => {
     );
   }
 
+  if (captionBlock) {
+    return <VideoBlockedScreen kind={captionBlock} />;
+  }
+
   // ── MOBILE LAYOUT (<768px, or a phone turned sideways) — desktop layout below is untouched ──
   const isPhoneLandscape =
     isLandscape && typeof window !== "undefined" &&
@@ -1422,6 +1462,15 @@ const Watch = () => {
                 </Button>
               </div>
             )}
+            {user && (
+              <div className="px-2 pt-2">
+                <WatchWordCounter
+                  savedToday={dailyGoal.savedToday}
+                  goal={dailyGoal.goal}
+                  onReview={() => navigate("/flashcards?focus=today")}
+                />
+              </div>
+            )}
             {subtitleBlock}
             {!isLandscape && pcNudge}
           </div>
@@ -1555,19 +1604,34 @@ const Watch = () => {
           )}
 
         </div>
+        {user && !isFullscreen && (
+          <WatchWordCounter
+            savedToday={dailyGoal.savedToday}
+            goal={dailyGoal.goal}
+            onReview={() => navigate("/flashcards?focus=today")}
+            className="max-w-5xl mt-3"
+          />
+        )}
       </div>
 
       {showReinforce && comprehension && film && (
         <WatchResultsModal
           open={showReinforce}
           filmId={film.id}
+          filmTitle={film.title}
+          language={(film.is_public ? (film.language || learningLanguage) : learningLanguage) || "fr"}
           result={sessionResult}
           comprehension={comprehension}
           durationMinutes={sessionDurationMin}
-          onClose={() => setShowReinforce(false)}
+          onClose={() => {
+            setShowReinforce(false);
+            // A video-count pet (10 / 25 videos) shows after the results, not over them.
+            checkPetMilestones();
+          }}
           onReview={() => {
             setReinforcementPending();
             setShowReinforce(false);
+            checkPetMilestones();
             navigate("/flashcards");
           }}
         />

@@ -39,7 +39,7 @@ export function DailyGoalTally({ savedToday, goal, variant = "pill", className }
         </span>
         {reached && (
           <button
-            onClick={() => navigate("/linguascript")}
+            onClick={() => navigate("/flashcards")}
             className="ml-1 inline-flex items-center gap-1 rounded-full bg-[#34C759] px-2 py-0.5 text-[11px] font-bold text-black"
           >
             Review <ArrowRight className="h-3 w-3" />
@@ -68,7 +68,7 @@ export function DailyGoalTally({ savedToday, goal, variant = "pill", className }
         </div>
         {reached && (
           <button
-            onClick={() => navigate("/linguascript")}
+            onClick={() => navigate("/flashcards")}
             className="inline-flex items-center gap-2 rounded-full bg-[#34C759] px-4 py-2 text-sm font-bold text-black transition hover:brightness-110"
           >
             Review them <ArrowRight className="h-4 w-4" />
@@ -82,12 +82,6 @@ export function DailyGoalTally({ savedToday, goal, variant = "pill", className }
           style={{ width: `${pct}%`, background: "#34C759" }}
         />
       </div>
-
-      <p className="mt-3 text-xs text-muted-foreground">
-        {reached
-          ? "Goal reached. A short review now is what makes it stick — then you're done for the day."
-          : "Small and daily beats big and occasional. Save a few words while you watch."}
-      </p>
     </div>
   );
 }

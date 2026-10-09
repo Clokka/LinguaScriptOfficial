@@ -203,22 +203,19 @@ export async function syncLevelRewards(level: number): Promise<number | null> {
 /**
  * Background persistence. Never blocks UI.
  * Caller already updated optimistic state in XpContext.
+ *
+ * Adds `amount` server-side (increment_xp) rather than writing this device's
+ * total: a stale tab or second device writing its own total used to wipe XP
+ * earned elsewhere. Resolves to the authoritative total so the caller can
+ * reconcile, or null if it couldn't be read back.
  */
 export async function persistXP(
   userId: string,
-  newTotal: number,
-  newLevel: number,
+  localTotal: number,
   action: XpAction,
   amount: number,
   meta?: XpMeta,
-) {
-  void supabase
-    .from("profiles")
-    .update({ xp_total: newTotal, xp_level: newLevel } as any)
-    .eq("user_id", userId)
-    .then(({ error }) => {
-      if (error) console.error("[xp] profile update failed", error);
-    });
+): Promise<number | null> {
   void supabase
     .from("xp_events")
     .insert({
@@ -230,4 +227,31 @@ export async function persistXP(
     .then(({ error }) => {
       if (error) console.error("[xp] event insert failed", error);
     });
+
+  const { data, error } = await (supabase as any).rpc("increment_xp", { p_amount: amount });
+  let total: number | null = typeof data === "number" ? data : null;
+  if (error) {
+    // Until the increment_xp migration is applied, fall back to writing the
+    // total — but never this device's total alone: a stale tab (or an old
+    // preview) writing its lower total wiped XP earned elsewhere, so learners
+    // kept falling back a level and re-reaching the same one every day. Add
+    // to what the server holds and never write a smaller number.
+    console.error("[xp] increment_xp failed, writing total instead", error);
+    const { data: row } = await supabase
+      .from("profiles")
+      .select("xp_total")
+      .eq("user_id", userId)
+      .maybeSingle();
+    const serverTotal = typeof row?.xp_total === "number" ? row.xp_total : 0;
+    total = Math.max(localTotal, serverTotal + amount);
+  }
+  if (total == null) return null;
+
+  const level = levelFromXP(total).level;
+  const { error: levelError } = await supabase
+    .from("profiles")
+    .update(error ? { xp_total: total, xp_level: level } : { xp_level: level })
+    .eq("user_id", userId);
+  if (levelError) console.error("[xp] profile update failed", levelError);
+  return total;
 }

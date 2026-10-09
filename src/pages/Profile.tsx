@@ -26,6 +26,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Camera, ArrowLeft, Save, Loader2, LogOut, Check } from "lucide-react";
 import { INTERESTS } from "@/lib/interests";
 import { useToast } from "@/hooks/use-toast";
+import { useT } from "@/i18n";
 import { MyLanguagesPanel } from "@/components/MyLanguagesPanel";
 import { DailyWordGoalSetting } from "@/components/DailyWordGoalSetting";
 import { PetGallery } from "@/components/pets/PetGallery";
@@ -73,6 +74,7 @@ const Profile = () => {
   const { user, loading: authLoading, signOut } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { setLang } = useT();
 
   const [displayName, setDisplayName] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -275,6 +277,7 @@ const Profile = () => {
     if (error) {
       toast({ title: "Save failed", description: error.message, variant: "destructive" });
     } else {
+      setLang(nativeLanguage);
       toast({ title: "Profile updated!" });
     }
     setSaving(false);

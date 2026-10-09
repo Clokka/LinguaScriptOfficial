@@ -28,6 +28,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTour } from "@/contexts/TourContext";
 import { useToast } from "@/hooks/use-toast";
+import { useT } from "@/i18n";
 import { getLanguageLabel, getLanguageFlag, LANGUAGES } from "@/lib/languages";
 import { ensureSubtitleTracks } from "@/lib/subtitleSync";
 import {
@@ -55,7 +56,7 @@ import { LevelBadge } from "@/components/LevelBadge";
 import { passesContentLengthPolicy } from "@/lib/contentLengthPolicy";
 import { BrandMark } from "@/components/BrandMark";
 import { DailyGoalTally } from "@/components/DailyGoalTally";
-import { DailyChestCard } from "@/components/rewards/DailyChestCard";
+import { ProLockDialog } from "@/components/ProLockDialog";
 import { useDailyWordGoal } from "@/hooks/useDailyWordGoal";
 
 const INTERESTS_BY_ID: Record<string, Interest> = Object.fromEntries(
@@ -85,7 +86,6 @@ type TabKey = "home" | "discover" | "calendar" | "settings";
 const SIDEBAR_ITEMS: { icon: typeof Home; label: string; key: TabKey | "flashcards" | "vocabulary" | "friends" | "linguascripts" }[] = [
   { icon: Home, label: "Home", key: "home" },
   { icon: Target, label: "Comprehension", key: "vocabulary" },
-  { icon: Library, label: "LinguaScripts", key: "linguascripts" },
   { icon: BookOpen, label: "Flashcards", key: "flashcards" },
   { icon: Users, label: "Friends", key: "friends" },
   { icon: CalendarIcon, label: "Calendar", key: "calendar" },
@@ -108,8 +108,11 @@ const Browse = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, loading: authLoading } = useAuth();
-  const { learningLanguage, setLearningLanguage } = useLanguage();
+  const { learningLanguage, setLearningLanguage, isPro } = useLanguage();
   const { toast } = useToast();
+  // New videos (pasted links, YouTube picks) are a Pro feature.
+  const [proLockOpen, setProLockOpen] = useState(false);
+  const { setLang: setUiLang } = useT();
   const tour = useTour();
   const { status: linguaScriptStatus, loading: statusLoading, refetch: refetchStatus } = useLinguaScriptStatus();
 
@@ -233,6 +236,10 @@ const Browse = () => {
     if (!user) {
       toast({ title: "Sign in required", description: "Please sign in to save lessons.", variant: "destructive" });
       navigate("/auth");
+      return;
+    }
+    if (!isPro) {
+      setProLockOpen(true);
       return;
     }
     const ytId = getYouTubeId(pasteUrl);
@@ -360,6 +367,10 @@ const Browse = () => {
       navigate("/auth");
       return;
     }
+    if (!isPro) {
+      setProLockOpen(true);
+      return;
+    }
     setCreating(true);
     try {
       let title = titleHint || "YouTube Video";
@@ -442,12 +453,14 @@ const Browse = () => {
       ...(settingsLearning ? { learning_language: settingsLearning } : {}),
     } as any).eq("user_id", user.id);
     if (settingsLearning) setLearningLanguage(settingsLearning);
+    setUiLang(nativeLanguage);
     toast({ title: "Settings saved!" });
     setSavingSettings(false);
   };
 
   return (
     <div className="min-h-screen bg-background flex">
+      <ProLockDialog open={proLockOpen} onOpenChange={setProLockOpen} />
       {/* Sidebar */}
       <aside className="hidden md:flex flex-col w-52 bg-card border-r border-border py-6 shrink-0">
           <button onClick={() => navigate("/")} className="flex items-center px-5 mb-8" aria-label="LinguaScript home">
@@ -459,7 +472,7 @@ const Browse = () => {
             <button
               key={key}
               data-tour={`nav-${key}`}
-              onClick={() => key === "flashcards" ? navigate("/flashcards") : key === "vocabulary" ? navigate("/vocabulary") : key === "friends" ? navigate("/friends") : key === "linguascripts" ? navigate("/linguascript") : setActiveTab(key as TabKey)}
+              onClick={() => key === "flashcards" ? navigate("/flashcards") : key === "vocabulary" ? navigate("/vocabulary") : key === "friends" ? navigate("/friends") : key === "linguascripts" ? navigate("/flashcards") : setActiveTab(key as TabKey)}
               className={cn(
                 "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors",
                 activeTab === key
@@ -495,7 +508,7 @@ const Browse = () => {
                 <button
                   key={key}
                   data-tour={`nav-${key}`}
-                  onClick={() => key === "flashcards" ? navigate("/flashcards") : key === "vocabulary" ? navigate("/vocabulary") : key === "friends" ? navigate("/friends") : key === "linguascripts" ? navigate("/linguascript") : setActiveTab(key as TabKey)}
+                  onClick={() => key === "flashcards" ? navigate("/flashcards") : key === "vocabulary" ? navigate("/vocabulary") : key === "friends" ? navigate("/friends") : key === "linguascripts" ? navigate("/flashcards") : setActiveTab(key as TabKey)}
                   className={cn(
                     "p-2 rounded-lg transition-colors",
                     activeTab === key ? "bg-primary/15 text-primary" : "text-muted-foreground"
@@ -542,18 +555,17 @@ const Browse = () => {
                 variant="card"
                 className="mb-6"
               />
-              <DailyChestCard goalMet={dailyGoal.goal > 0 && dailyGoal.savedToday >= dailyGoal.goal} />
 
               {/* LinguaScripts Alerts - Top Priority */}
-              {lsRemaining > 0 && (
+              {false && lsRemaining > 0 && (
                 <LinguaScriptsPendingAlert
                   count={lsRemaining}
                   estimatedTime={Math.ceil(linguaScriptStatus.linguascriptsPending * 1)}
-                  onStart={() => navigate("/linguascript")}
+                  onStart={() => navigate("/flashcards")}
                 />
               )}
 
-              {lsRemaining === 0 && (linguaScriptStatus.reviewedToday ?? 0) > 0 && (
+              {false && lsRemaining === 0 && (linguaScriptStatus.reviewedToday ?? 0) > 0 && (
                 <LinguaScriptsCompleteCard
                   wordsReviewedToday={linguaScriptStatus.reviewedToday ?? 0}
                   newWordsCaptured={0}
@@ -586,6 +598,8 @@ const Browse = () => {
                 interests={interests}
                 nativeLanguage={nativeLanguage}
                 onWatchYoutube={importYoutubeId}
+                isPro={isPro}
+                onLocked={() => setProLockOpen(true)}
               />
             </div>
           ) : activeTab === "home" ? (
@@ -603,6 +617,8 @@ const Browse = () => {
               interests={interests}
               nativeLanguage={nativeLanguage}
               onWatchYoutube={importYoutubeId}
+              isPro={isPro}
+              onLocked={() => setProLockOpen(true)}
             />
           ) : null}
           {false && (
@@ -713,6 +729,7 @@ const CatalogStrip = ({ title, films, navigate }: { title: string; films: any[];
 /* ── HOME TAB ── */
 const HomeTab = ({
   lessons, loading, pasteUrl, setPasteUrl, creating, createLesson, deleteLesson, navigate, discoverFilms, catalogRows, interests, nativeLanguage, onWatchYoutube,
+  isPro, onLocked,
 }: {
   lessons: UserLesson[];
   loading: boolean;
@@ -727,20 +744,36 @@ const HomeTab = ({
   interests: string[];
   nativeLanguage: string;
   onWatchYoutube: (ytId: string, titleHint?: string, thumbHint?: string) => Promise<void>;
+  isPro: boolean;
+  onLocked: () => void;
 }) => {
-  const { learningLanguage } = useLanguage();
   return (
     <div className="space-y-8">
-
-      {/* Primary action — pick up the quest. */}
+      <div className="relative">
+      <div className="space-y-8">
       <ContinueWatchingRail />
 
       {/* Live YouTube recommendations by onboarding hobby + learning language.
           Existed as a component but was never mounted anywhere in the app. */}
-      <PersonalizedRails interests={interests} nativeLanguage={nativeLanguage} onWatch={onWatchYoutube} importing={creating} />
+      {/* YouTube picks are new videos, a Pro feature — free learners get the library. */}
+      {isPro && (
+        <PersonalizedRails interests={interests} nativeLanguage={nativeLanguage} onWatch={onWatchYoutube} importing={creating} />
+      )}
 
-      {/* Paste YouTube Link */}
-      <div className="glass-panel-strong p-6 rounded-2xl">
+      {/* Paste YouTube Link — shown locked to free learners; a tap opens the Pro lock. */}
+      <div className="glass-panel-strong p-6 rounded-2xl relative">
+        {!isPro && (
+          <button
+            type="button"
+            onClick={onLocked}
+            aria-label="Pro feature"
+            className="absolute inset-0 z-10 flex items-start justify-end rounded-2xl p-4"
+          >
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-400 text-black shadow">
+              <Lock className="h-4 w-4" />
+            </span>
+          </button>
+        )}
         <h2 className="text-lg font-bold text-foreground mb-1">Paste a YouTube Link</h2>
         <p className="text-sm text-muted-foreground mb-4">
           We'll fetch the subtitle tracks, save them, and turn the video into an interactive lesson.
@@ -770,6 +803,8 @@ const HomeTab = ({
 
       {/* Admin-curated rails — the new browsing surface. */}
       <HomeCatalogRows />
+      </div>
+      </div>
 
       {/* Subtle entry to the full analytics page. */}
       <div className="pt-4">

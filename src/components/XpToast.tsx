@@ -3,10 +3,9 @@
 // keep the lightweight chip. Falls back to the chip when no pet is equipped
 // or the user prefers reduced motion.
 import { lazy, Suspense, useEffect, useState } from "react";
-import { Gem, Sparkles, Trophy } from "lucide-react";
+import { Sparkles, Trophy } from "lucide-react";
 import { useXp } from "@/contexts/XpContext";
 import { XpAction } from "@/lib/xp";
-import { nextGemUnlock } from "@/lib/levelRewards";
 import { cn } from "@/lib/utils";
 import { usePet } from "@/contexts/PetContext";
 import {
@@ -72,14 +71,11 @@ export const XpToast = () => {
   const {
     recentGain,
     leveledUpTo,
-    levelUpReward,
     spikeIntensity,
-    gems,
     consumeLevelUp,
     award,
   } = useXp();
-  const { activePet, triggerReaction, petCollection } = usePet();
-  const nextUnlock = nextGemUnlock(gems, petCollection);
+  const { activePet, triggerReaction } = usePet();
   const [visible, setVisible] = useState<{
     amount: number;
     action: XpAction;
@@ -183,44 +179,10 @@ export const XpToast = () => {
                   )}
                 />
               </div>
-              <div className="text-sm uppercase tracking-widest text-muted-foreground">
-                {spikeIntensity === "massive"
-                  ? "Massive daily win"
-                  : spikeIntensity === "big"
-                    ? "Big daily win"
-                    : levelUpReward?.tier === "grand"
-                      ? "Grand milestone"
-                      : levelUpReward?.tier === "major"
-                        ? "Milestone"
-                        : "Level up"}
-              </div>
               <div className="text-4xl font-black gradient-text mt-1">
                 Level {leveledUpTo}
               </div>
 
-              {levelUpReward && levelUpReward.gems > 0 && (
-                <>
-                  <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-accent/40 bg-accent/10 px-4 py-2">
-                    <Gem className="w-4 h-4 text-accent" />
-                    <span className="font-bold tabular-nums text-foreground">
-                      +{levelUpReward.gems.toLocaleString()} Gems
-                    </span>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    {levelUpReward.blurb}
-                  </p>
-                </>
-              )}
-
-              <p className="text-xs text-primary mt-3">🎁 Your level gift is waiting in Profile → Rewards</p>
-              {nextUnlock && (
-                <p className="text-xs text-muted-foreground mt-3">
-                  {nextUnlock.remaining.toLocaleString()} more gems unlocks{" "}
-                  <span className="text-foreground font-medium">
-                    {nextUnlock.pet.emoji} {nextUnlock.pet.name}
-                  </span>
-                </p>
-              )}
             </div>
           </div>
         ))}

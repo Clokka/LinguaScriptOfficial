@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { aiChat, hasAIKey } from "../_shared/aiChat.ts";
 
 interface GenerateRequest {
   word: string;
@@ -41,9 +42,8 @@ serve(async (req: Request) => {
       );
     }
 
-    const apiKey = Deno.env.get("LOVABLE_API_KEY");
-    if (!apiKey) {
-      throw new Error("LOVABLE_API_KEY not configured");
+    if (!hasAIKey()) {
+      throw new Error("No AI key configured");
     }
 
     const NAMES: Record<string, string> = { en: "English", hi: "Hindi", fr: "French", es: "Spanish", de: "German", it: "Italian", pt: "Portuguese", ja: "Japanese", ko: "Korean", zh: "Chinese", ar: "Arabic", ru: "Russian", th: "Thai" };
@@ -76,22 +76,15 @@ Return ONLY valid JSON:
   "nativeTranslation": "natural ${nativeName} translation of the sentence"
 }`;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          {
-            role: "user",
-            content: userPrompt,
-          },
-        ],
-        temperature: 0.7,
-      }),
+    const response = await aiChat({
+      model: "google/gemini-2.5-flash",
+      messages: [
+        {
+          role: "user",
+          content: userPrompt,
+        },
+      ],
+      temperature: 0.7,
     });
 
     if (!response.ok) {

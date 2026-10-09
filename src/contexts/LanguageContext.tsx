@@ -30,6 +30,29 @@ const TTS_VOICE_MAP: Record<string, string> = {
   sv: "sv-SE",
   en: "en-US",
 };
+const cloudAudioCache = new Map<string, string>();
+async function speakViaCloud(text: string) {
+  try {
+    let url = cloudAudioCache.get(text);
+    if (!url) {
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/speak-word`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({ text }),
+      });
+      if (!res.ok) { console.warn("[speak] cloud voice failed", res.status); return; }
+      url = URL.createObjectURL(await res.blob());
+      cloudAudioCache.set(text, url);
+    }
+    await new Audio(url).play();
+  } catch (e) {
+    console.warn("[speak] cloud voice error", e);
+  }
+}
 
 
 /**
@@ -239,9 +262,9 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
         voices.find((v) => v.lang?.toLowerCase().startsWith(baseLang));
 
       if (!match) {
-        console.warn(
-          `[speak] No ${targetLang} voice installed on this device; refusing to speak "${text}" (no English fallback).`
-        );
+        // No voice for this language on the device (common for Thai, Hindi,
+        // Arabic…). Fall back to a cloud voice instead of staying silent.
+        await speakViaCloud(text);
         return;
       }
 

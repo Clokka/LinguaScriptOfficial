@@ -16,9 +16,12 @@ import {
 
 interface Props {
   language: string;
+  /** Where "Study these words" goes. The deck page itself passes the review
+   *  route, since linking to its own URL would do nothing. */
+  studyTo?: string;
 }
 
-export function FrequencyCoverageCard({ language }: Props) {
+export function FrequencyCoverageCard({ language, studyTo = "/flashcards/common" }: Props) {
   const [bands, setBands] = useState<CoverageBand[]>([]);
 
   useEffect(() => {
@@ -73,7 +76,7 @@ export function FrequencyCoverageCard({ language }: Props) {
       )}
       {!complete && (
         <Link
-          to="/flashcards/common"
+          to={studyTo}
           className="mt-4 inline-flex items-center rounded-full bg-[#34C759] px-5 py-2.5 text-sm font-semibold text-background"
         >
           Study these words →

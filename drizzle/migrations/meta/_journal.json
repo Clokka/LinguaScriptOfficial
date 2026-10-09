@@ -1,0 +1,34 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1790958810910,
+      "tag": "0000_reset_to_absolute_beginner",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791005794230,
+      "tag": "0001_fast_frequency_coverage",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791007118052,
+      "tag": "0002_frequency_reviewing",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1791043119936,
+      "tag": "0003_downgrade_seeded_vocabulary",
+      "breakpoints": true
+    }
+  ]
+}

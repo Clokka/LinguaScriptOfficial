@@ -104,13 +104,25 @@ const Flashcards = () => {
       // Always fetch fresh from Supabase — the Chrome extension can write to
       // saved_words too, so cached state would go stale. Large accounts exceed
       // the Data API's default 1,000-row window, so page through everything.
+      // Today's 10 new words from the focus (Top N) deck join the pile first.
+      if (learningLanguage) {
+        const key = `ls.focusTopUp.${learningLanguage}`;
+        const today = new Date().toDateString();
+        if (localStorage.getItem(key) !== today) {
+          try {
+            const { topUpDailyNew } = await import("@/lib/focusDeck");
+            const r = await topUpDailyNew(user.id, learningLanguage);
+            if (r) localStorage.setItem(key, today);
+          } catch (e) { console.warn("[focusDeck]", e); }
+        }
+      }
       const pageSize = 1000;
       let from = 0;
       const rows: SavedWord[] = [];
       while (true) {
         let q = supabase
           .from("saved_words")
-          .select("id, word, translation, pronunciation, ipa, context, language, next_review, review_count, state, times_correct, is_phrase, ease_factor, interval_days, image_url, lemma, lemma_translation, is_inflected, grammar_note")
+          .select("id, word, translation, pronunciation, ipa, context, language, next_review, review_count, state, times_correct, is_phrase, ease_factor, interval_days, image_url, lemma, lemma_translation, is_inflected, grammar_note, created_at")
           .eq("user_id", user.id)
           .order("next_review", { ascending: true, nullsFirst: true })
           .range(from, from + pageSize - 1);
@@ -126,6 +138,13 @@ const Flashcards = () => {
         rows.push(...batch);
         if (batch.length < pageSize) break;
         from += pageSize;
+      }
+      // Coming from the video word counter: today's new words go first.
+      if (new URLSearchParams(window.location.search).get("focus") === "today") {
+        const start = new Date();
+        start.setHours(0, 0, 0, 0);
+        const isToday = (r: any) => r.created_at && new Date(r.created_at) >= start;
+        rows.sort((a, b) => Number(isToday(b)) - Number(isToday(a)));
       }
       setAllCards(rows);
     }
