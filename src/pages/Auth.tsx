@@ -26,6 +26,7 @@ function GoogleIcon() {
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
+  const [forgotMode, setForgotMode] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -136,6 +137,21 @@ const Auth = () => {
     setLoading(false);
   };
 
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin + "/reset-password",
+    });
+    setLoading(false);
+    if (error) {
+      toast({ title: "Couldn't send reset email", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: t("resetLinkSent"), description: t("resetLinkSentDesc", { email }) });
+      setForgotMode(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-4">
       <div className="absolute inset-0 bg-gradient-hero pointer-events-none" />
@@ -144,86 +160,129 @@ const Auth = () => {
           <div className="flex justify-end mb-2"><UiLanguageSwitcher /></div>
           <BrandMark variant="lockup" size={44} className="mx-auto mb-5" />
           <h1 className="text-3xl font-bold text-foreground">
-            {isLogin ? t("welcomeBack") : t("joinLs")}
+            {forgotMode ? t("resetPasswordTitle") : isLogin ? t("welcomeBack") : t("joinLs")}
           </h1>
           <p className="text-muted-foreground mt-2">
-            {isLogin ? t("signInSub") : t("signUpSub")}
+            {forgotMode ? t("resetPasswordSub") : isLogin ? t("signInSub") : t("signUpSub")}
           </p>
         </div>
 
-        <div className="glass-panel-strong p-8 space-y-4">
-
-          {/* Google Sign-In */}
-          <div className="relative w-full min-h-[44px]">
-            <Button
-              type="button"
-              variant="outline"
-              size="lg"
-              className="w-full bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
-              onClick={handleGoogleFallback}
-              disabled={googleLoading}
-            >
-              <GoogleIcon />
-              {googleLoading ? t("signingIn") : t("google")}
-            </Button>
-          </div>
-
-
-          <div className="flex items-center gap-3">
-            <div className="flex-1 h-px bg-border" />
-            <span className="text-xs text-muted-foreground">{t("or")}</span>
-            <div className="flex-1 h-px bg-border" />
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {!isLogin && (
+        {forgotMode ? (
+          <div className="glass-panel-strong p-8 space-y-4">
+            <form onSubmit={handleForgotPassword} className="space-y-4">
               <div className="relative">
-                <User className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+                <Mail className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
                 <Input
-                  placeholder={t("displayName")}
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
+                  type="email"
+                  placeholder={t("email")}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
                   className="pl-10 bg-secondary/50 border-border"
                 />
               </div>
-            )}
-            <div className="relative">
-              <Mail className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
-              <Input
-                type="email"
-                placeholder={t("email")}
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="pl-10 bg-secondary/50 border-border"
-              />
+              <Button type="submit" variant="hero" size="lg" className="w-full" disabled={loading}>
+                {loading ? t("loading") : t("sendResetLink")}
+              </Button>
+            </form>
+          </div>
+        ) : (
+          <div className="glass-panel-strong p-8 space-y-4">
+
+            {/* Google Sign-In */}
+            <div className="relative w-full min-h-[44px]">
+              <Button
+                type="button"
+                variant="outline"
+                size="lg"
+                className="w-full bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                onClick={handleGoogleFallback}
+                disabled={googleLoading}
+              >
+                <GoogleIcon />
+                {googleLoading ? t("signingIn") : t("google")}
+              </Button>
             </div>
-            <div className="relative">
-              <Lock className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
-              <Input
-                type="password"
-                placeholder={t("password")}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={6}
-                className="pl-10 bg-secondary/50 border-border"
-              />
+
+
+            <div className="flex items-center gap-3">
+              <div className="flex-1 h-px bg-border" />
+              <span className="text-xs text-muted-foreground">{t("or")}</span>
+              <div className="flex-1 h-px bg-border" />
             </div>
-            <Button type="submit" variant="hero" size="lg" className="w-full" disabled={loading}>
-              {loading ? t("loading") : isLogin ? t("signIn") : t("createAccount")}
-            </Button>
-          </form>
-        </div>
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {!isLogin && (
+                <div className="relative">
+                  <User className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    placeholder={t("displayName")}
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    className="pl-10 bg-secondary/50 border-border"
+                  />
+                </div>
+              )}
+              <div className="relative">
+                <Mail className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+                <Input
+                  type="email"
+                  placeholder={t("email")}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  className="pl-10 bg-secondary/50 border-border"
+                />
+              </div>
+              <div>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    type="password"
+                    placeholder={t("password")}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    minLength={6}
+                    className="pl-10 bg-secondary/50 border-border"
+                  />
+                </div>
+                {isLogin && (
+                  <button
+                    type="button"
+                    onClick={() => setForgotMode(true)}
+                    className="mt-2 text-xs text-muted-foreground hover:text-foreground hover:underline"
+                  >
+                    {t("forgotPassword")}
+                  </button>
+                )}
+              </div>
+              <Button type="submit" variant="hero" size="lg" className="w-full" disabled={loading}>
+                {loading ? t("loading") : isLogin ? t("signIn") : t("createAccount")}
+              </Button>
+            </form>
+          </div>
+        )}
 
         <p className="text-center text-muted-foreground mt-6 text-sm">
-          {isLogin ? t("noAccount") : t("haveAccount")}{" "}
-          <button
-            onClick={() => setIsLogin(!isLogin)}
-            className="text-primary hover:underline font-medium"
-          >
-            {isLogin ? t("signUp") : t("signInLink")}
-          </button>
+          {forgotMode ? (
+            <button
+              onClick={() => setForgotMode(false)}
+              className="text-primary hover:underline font-medium"
+            >
+              {t("backToSignIn")}
+            </button>
+          ) : (
+            <>
+              {isLogin ? t("noAccount") : t("haveAccount")}{" "}
+              <button
+                onClick={() => setIsLogin(!isLogin)}
+                className="text-primary hover:underline font-medium"
+              >
+                {isLogin ? t("signUp") : t("signInLink")}
+              </button>
+            </>
+          )}
         </p>
       </div>
     </div>

@@ -33,6 +33,20 @@ const en = {
   signUp: "Sign up",
   signInLink: "Sign in",
   appLanguage: "App language",
+  forgotPassword: "Forgot password?",
+  resetPasswordTitle: "Reset your password",
+  resetPasswordSub: "Enter your email and we'll send you a reset link.",
+  sendResetLink: "Send reset link",
+  resetLinkSent: "Check your email",
+  resetLinkSentDesc: "We sent a password reset link to {email}.",
+  backToSignIn: "Back to sign in",
+  newPasswordTitle: "Choose a new password",
+  newPasswordSub: "Enter a new password for your account.",
+  newPassword: "New password",
+  updatePassword: "Update password",
+  passwordUpdated: "Password updated",
+  passwordUpdatedDesc: "You can now sign in with your new password.",
+  invalidResetLink: "This reset link is invalid or has expired.",
 };
 export type StringKey = keyof typeof en;
 type Dict = Partial<Record<StringKey, string>>;

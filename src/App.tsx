@@ -50,6 +50,7 @@ const GapDemo = lazy(() => import("./pages/GapDemo"));
 const Demo = lazy(() => import("./pages/Demo"));
 const Browse = lazy(() => import("./pages/Browse"));
 const Auth = lazy(() => import("./pages/Auth"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const Profile = lazy(() => import("./pages/Profile"));
 const Watch = lazy(() => import("./pages/Watch"));
 const Flashcards = lazy(() => import("./pages/Flashcards"));
@@ -117,6 +118,7 @@ const App = () => (
                 <Route path="/browse2" element={<Navigate to="/discover" replace />} />
                 <Route path="/discover" element={<Browse />} />
                 <Route path="/auth" element={<Auth />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/profile" element={<Profile />} />
                 <Route path="/watch/:id" element={<Watch />} />
                 <Route path="/flashcards" element={<Flashcards />} />
