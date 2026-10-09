@@ -54,7 +54,8 @@ export function GiftBoxReveal({
       await Promise.all([onOpen(), new Promise((r) => setTimeout(r, 2400))]);
       setStage("open");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn't open the gift");
+      console.error("[gift] open failed", e);
+      setError("Tap to try again");
       setStage("closed");
     }
   };
@@ -157,7 +158,7 @@ export function GiftBoxReveal({
         {fallback && !ready && stage === "closed" && (
           <Button onClick={handleOpen} size="lg" className="rounded-full px-10">Open</Button>
         )}
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && <p className="text-sm text-slate-600">{error}</p>}
       </div>
     </motion.div>,
     document.body,

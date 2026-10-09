@@ -21,7 +21,7 @@ const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
  */
 export function LevelUpGift() {
   const { user } = useAuth();
-  const { leveledUpTo } = useXp();
+  const { leveledUpTo, level: currentLevel } = useXp();
   const pendingRef = useRef<number | null>(null);
   const [level, setLevel] = useState<number | null>(null);
   const [gift, setGift] = useState<GiftContents | null>(null);
@@ -74,8 +74,14 @@ export function LevelUpGift() {
           ]);
           alreadyOwned = (pets ?? 0) + (items ?? 0) > 0;
         }
-        // The new level reaches the profile a moment after the animation
-        // starts; give the save a second chance before giving up.
+        // open_level_box checks profiles.xp_level, which the XP save updates
+        // a moment later (or not at all if that save failed or the server's
+        // total lagged behind), so the box refused with "Level not reached".
+        // The learner has reached this level here, so record it first.
+        if (currentLevel >= level) {
+          await supabase.from("profiles").update({ xp_level: level })
+            .eq("user_id", user.id).lt("xp_level", level);
+        }
         let r;
         try {
           r = await openLevelBox(level);
