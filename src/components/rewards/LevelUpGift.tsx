@@ -59,7 +59,21 @@ export function LevelUpGift() {
       }}
       contents={gift}
       onOpen={async () => {
-        if (level == null) return;
+        if (level == null || !user) return;
+        // Only name the item if this box is really giving it: a pet or
+        // accessory the learner already owns (e.g. bought with gems) isn't new,
+        // so the reveal shows just the gems.
+        const boxItem = LEVEL_ITEMS[level] ?? null;
+        let alreadyOwned = false;
+        if (boxItem) {
+          const [{ count: pets }, { count: items }] = await Promise.all([
+            supabase.from("pet_collection").select("id", { count: "exact", head: true })
+              .eq("user_id", user.id).eq("pet_id", boxItem.id),
+            supabase.from("user_items").select("id", { count: "exact", head: true })
+              .eq("user_id", user.id).eq("item_id", boxItem.id),
+          ]);
+          alreadyOwned = (pets ?? 0) + (items ?? 0) > 0;
+        }
         // The new level reaches the profile a moment after the animation
         // starts; give the save a second chance before giving up.
         let r;
@@ -69,7 +83,7 @@ export function LevelUpGift() {
           await wait(1500);
           r = await openLevelBox(level);
         }
-        const item = r.item_id ? LEVEL_ITEMS[level] ?? null : null;
+        const item = r.item_id && !r.already && !alreadyOwned ? boxItem : null;
         setGift({ title: `Level ${level}`, gems: r.gems, item: item && { name: item.name, emoji: item.emoji } });
         emitRewardsChanged();
       }}
