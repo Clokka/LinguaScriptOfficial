@@ -1,14 +1,17 @@
-import { useEffect, useRef, useState } from 'react';
-import { View, ActivityIndicator, StyleSheet, Platform } from 'react-native';
-import { WebView } from 'react-native-webview';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { View, ActivityIndicator, StyleSheet, BackHandler, Platform } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { WebView, type WebViewNavigation } from 'react-native-webview';
 import * as Notifications from 'expo-notifications';
+import * as WebBrowser from 'expo-web-browser';
+import * as Linking from 'expo-linking';
 import { createClient } from '@supabase/supabase-js';
 import { registerForPushAsync } from '@/native/notifications';
-import { supabase } from '@/lib/supabase';
 
 const APP_URL = 'https://linguascript.co.uk';
-const ONBOARDING_URL = 'https://linguascript.co.uk/onboarding';
+const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL!;
+const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!;
+const AUTH_CALLBACK = 'linguascript://auth-callback';
 
 // The website keeps its Supabase session in localStorage. Send its access token
 // to native so the push token is saved as that user — device_tokens RLS only
@@ -42,72 +45,88 @@ const INJECT_SESSION_JS = `
 })();
 `;
 
+// https://linguascript.co.uk/gift/X style links open that page in the app.
+function siteUrlFromLink(url: string | null): string | null {
+  if (!url) return null;
+  return url.startsWith(APP_URL) ? url : null;
+}
+
 export default function AppScreen() {
   const webRef = useRef<WebView>(null);
-  const [registered, setRegistered] = useState(false);
-  const [userId, setUserId] = useState<string | null>(null);
+  const canGoBack = useRef(false);
   const [startUrl, setStartUrl] = useState<string | null>(null);
 
-  // Determine start URL — onboarding for first-time users, home for returning
-  useEffect(() => {
-    async function resolveStartUrl() {
-      const { data } = await supabase.auth.getSession();
-      const uid = data.session?.user?.id;
-      if (!uid) { setStartUrl(APP_URL); return; }
-
-      const key = `onboarded:${uid}`;
-      const seen = await AsyncStorage.getItem(key);
-      if (!seen) {
-        await AsyncStorage.setItem(key, '1');
-        setStartUrl(ONBOARDING_URL);
-      } else {
-        setStartUrl(APP_URL);
-      }
-    }
-    resolveStartUrl();
+  const goTo = useCallback((url: string) => {
+    webRef.current?.injectJavaScript(`window.location.href = ${JSON.stringify(url)}; true;`);
   }, []);
 
-  // Register push token once we have a userId
   useEffect(() => {
-    if (!userId || registered) return;
-    setRegistered(true);
-    registerForPushAsync(userId);
-  }, [userId, registered]);
+    Linking.getInitialURL().then((url) => setStartUrl(siteUrlFromLink(url) ?? APP_URL));
+    const sub = Linking.addEventListener('url', ({ url }) => {
+      const site = siteUrlFromLink(url);
+      if (site) goTo(site);
+    });
+    return () => sub.remove();
+  }, [goTo]);
 
-  // Handle push notification taps → navigate inside the WebView
+  // Android back button goes back a page in the site instead of closing the app.
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (!canGoBack.current) return false;
+      webRef.current?.goBack();
+      return true;
+    });
+    return () => sub.remove();
+  }, []);
+
+  // Push notification taps → open the matching page.
   useEffect(() => {
     const sub = Notifications.addNotificationResponseReceivedListener((response) => {
       const data = response.notification.request.content.data as Record<string, unknown>;
       let path = '/';
       if (data?.kind === 'flashcards-due') path = '/flashcards';
-      else if (data?.kind === 'streak-nudge') path = '/';
       else if (data?.kind === 'friend-activity') path = '/friends';
-      webRef.current?.injectJavaScript(`window.location.href = '${APP_URL}${path}'; true;`);
+      goTo(`${APP_URL}${path}`);
     });
     return () => sub.remove();
-  }, []);
+  }, [goTo]);
 
-  // Also try to get session from Supabase directly (for cases where user logged in via the app)
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session?.user?.id) setUserId(data.session.user.id);
-    });
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
-      if (session?.user?.id) setUserId(session.user.id);
-    });
-    return () => sub.subscription.unsubscribe();
-  }, []);
+  // Google refuses to show its sign-in page inside an embedded WebView
+  // (403 disallowed_useragent). When the site starts Google OAuth, run it in
+  // a Chrome Custom Tab that returns to the app, then hand the result back to
+  // the site as if Google had redirected there — the site's Supabase client
+  // reads the session from the URL (#access_token=… or ?code=…).
+  const signInWithGoogle = useCallback(async (authorizeUrl: string) => {
+    const url = new URL(authorizeUrl);
+    const original = url.searchParams.get('redirect_to') ?? '';
+    const back = original.startsWith(APP_URL) ? original : `${APP_URL}/`;
+    url.searchParams.set('redirect_to', AUTH_CALLBACK);
+    const result = await WebBrowser.openAuthSessionAsync(url.toString(), AUTH_CALLBACK);
+    if (result.type !== 'success') return;
+    // Whatever Supabase appended (?code=… and/or #access_token=…).
+    const rest = result.url.slice(AUTH_CALLBACK.length).replace(/^\//, '');
+    if (rest.startsWith('?')) {
+      goTo(back + (back.includes('?') ? '&' : '?') + rest.slice(1));
+    } else {
+      goTo(back.split('#')[0] + rest);
+    }
+  }, [goTo]);
+
+  const onShouldStartLoadWithRequest = useCallback((req: WebViewNavigation) => {
+    if (req.url.startsWith(`${SUPABASE_URL}/auth/v1/authorize`) && req.url.includes('provider=google')) {
+      signInWithGoogle(req.url);
+      return false;
+    }
+    return true;
+  }, [signInWithGoogle]);
 
   if (!startUrl) {
-    return (
-      <View style={styles.loading}>
-        <ActivityIndicator color="#22c55e" size="large" />
-      </View>
-    );
+    return <View style={styles.loading}><ActivityIndicator color="#22c55e" size="large" /></View>;
   }
 
   return (
-    <View style={styles.root}>
+    <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
       <WebView
         ref={webRef}
         source={{ uri: startUrl }}
@@ -117,50 +136,36 @@ export default function AppScreen() {
         thirdPartyCookiesEnabled
         sharedCookiesEnabled
         allowsInlineMediaPlayback
+        allowsBackForwardNavigationGestures
         mediaPlaybackRequiresUserAction={false}
-        // Inject JS after each page load to extract the logged-in user
-        injectedJavaScriptForMainFrameOnly
-        injectedJavaScriptBeforeContentLoadedForMainFrameOnly={false}
-        onLoadEnd={() => {
-          webRef.current?.injectJavaScript(INJECT_SESSION_JS);
-        }}
+        onLoadEnd={() => webRef.current?.injectJavaScript(INJECT_SESSION_JS)}
+        onNavigationStateChange={(nav) => { canGoBack.current = nav.canGoBack; }}
+        onShouldStartLoadWithRequest={onShouldStartLoadWithRequest}
         onMessage={(e) => {
           try {
             const msg = JSON.parse(e.nativeEvent.data);
             if (msg.type === 'session' && msg.userId && msg.accessToken) {
-              const webClient = createClient(
-                process.env.EXPO_PUBLIC_SUPABASE_URL!,
-                process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!,
-                {
-                  auth: { persistSession: false, autoRefreshToken: false },
-                  global: { headers: { Authorization: `Bearer ${msg.accessToken}` } },
-                },
-              );
+              const webClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+                auth: { persistSession: false, autoRefreshToken: false },
+                global: { headers: { Authorization: `Bearer ${msg.accessToken}` } },
+              });
               registerForPushAsync(msg.userId, webClient);
             }
           } catch (_) {}
         }}
         renderLoading={() => (
-          <View style={styles.loading}>
-            <ActivityIndicator color="#22c55e" size="large" />
-          </View>
+          <View style={styles.loading}><ActivityIndicator color="#22c55e" size="large" /></View>
         )}
         startInLoadingState
-        // Allow all navigation within linguascript.co.uk
-        onShouldStartLoadWithRequest={(req) => {
-          if (req.url.startsWith('https://linguascript.co.uk')) return true;
-          if (req.url.startsWith('http://localhost')) return true;
-          return true;
-        }}
         // User agent hint so the site knows it's inside the app
         applicationNameForUserAgent="LinguaScriptApp/1.0"
       />
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   root:    { flex: 1, backgroundColor: '#0b1215' },
-  webview: { flex: 1 },
+  webview: { flex: 1, backgroundColor: '#0b1215' },
   loading: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', backgroundColor: '#0b1215' },
 });
