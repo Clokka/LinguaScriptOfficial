@@ -48,12 +48,9 @@ import { HomeCatalogRows } from "@/components/HomeCatalogRows";
 import { ContinueWatchingRail } from "@/components/ContinueWatchingRail";
 import { DiscoverCatalog } from "@/components/DiscoverCatalog";
 import { useLinguaScriptStatus } from "@/hooks/useLinguaScriptStatus";
-import { LinguaScriptsPendingAlert } from "@/components/LinguaScriptsPendingAlert";
-import { LinguaScriptsCompleteCard } from "@/components/LinguaScriptsCompleteCard";
 import { FlashcardsDueAlert } from "@/components/FlashcardsDueAlert";
 import { LinguaScriptSessionFlow } from "@/components/LinguaScriptSessionFlow";
 import { LevelBadge } from "@/components/LevelBadge";
-import { passesContentLengthPolicy } from "@/lib/contentLengthPolicy";
 import { BrandMark } from "@/components/BrandMark";
 import { DailyGoalTally } from "@/components/DailyGoalTally";
 import { ProLockDialog } from "@/components/ProLockDialog";
@@ -119,9 +116,6 @@ const Browse = () => {
   const initialTab: TabKey = "home";
   const [activeTab, setActiveTab] = useState<TabKey>(initialTab);
   const dailyGoal = useDailyWordGoal();
-  const lsRemaining = linguaScriptStatus
-    ? Math.min(linguaScriptStatus.linguascriptsPending, Math.max(0, (dailyGoal.goal || 0) - (linguaScriptStatus.reviewedToday ?? 0)))
-    : 0;
   const [showLinguaScriptSession, setShowLinguaScriptSession] = useState(false);
   useEffect(() => {
     setActiveTab((t) => (t === "discover" ? "home" : t));
@@ -145,9 +139,6 @@ const Browse = () => {
   const [activityData, setActivityData] = useState<ActivityDay[]>([]);
   const [currentStreak, setCurrentStreak] = useState(0);
 
-  // Discover - public films + curated rows
-  const [discoverFilms, setDiscoverFilms] = useState<any[]>([]);
-  const [catalogRows, setCatalogRows] = useState<{ id: string; title: string; films: any[] }[]>([]);
 
   const fetchLessons = useCallback(async () => {
     if (!user) { setLoadingLessons(false); return; }
@@ -203,34 +194,7 @@ const Browse = () => {
     fetchLessons();
     fetchActivity();
     fetchProfile();
-    // Public films only (RLS now also enforces this)
-    supabase.from("films").select("*").eq("is_public", true).order("created_at", { ascending: false }).then(({ data }) => {
-      setDiscoverFilms((data || []).filter(passesContentLengthPolicy).filter((f: any) => (f.language || "").toLowerCase() === (learningLanguage || "").toLowerCase()));
-    });
-    // Curated catalog rows with their pinned films — filter to user's learning language (or global rows where language IS NULL)
-    (async () => {
-      const { data: rows } = await supabase
-        .from("catalog_rows")
-        .select("*")
-        .or(`language.is.null,language.eq.${learningLanguage}`)
-        .order("sort_order");
-      if (!rows) return;
-      const withFilms = await Promise.all(
-        rows.map(async (row: any) => {
-          const { data: pins } = await supabase
-            .from("catalog_row_films")
-            .select("sort_order, films(*)")
-            .eq("row_id", row.id)
-            .order("sort_order");
-          const films = (pins || [])
-            .map((p: any) => p.films)
-            .filter((f: any) => f && f.is_public && passesContentLengthPolicy(f));
-          return { id: row.id, title: row.title, films };
-        })
-      );
-      setCatalogRows(withFilms.filter((r) => r.films.length > 0));
-    })();
-  }, [fetchLessons, fetchActivity, fetchProfile, learningLanguage]);
+  }, [fetchLessons, fetchActivity, fetchProfile]);
 
   const createLesson = async () => {
     if (!user) {
@@ -547,43 +511,30 @@ const Browse = () => {
                 refetchStatus();
               }}
             />
-          ) : activeTab === "home" && !statusLoading && linguaScriptStatus ? (
+          ) : activeTab === "home" ? (
+            // One HomeTab in one tree position: when the status finishes
+            // loading only the cards above it appear. Rendering HomeTab in two
+            // different branches remounted it, so the catalog rows restarted
+            // their fetch from scratch every time the status loaded.
             <div>
-              <DailyGoalTally
-                savedToday={dailyGoal.savedToday}
-                goal={dailyGoal.goal}
-                variant="card"
-                className="mb-6"
-              />
+              {!statusLoading && linguaScriptStatus && (
+                <>
+                  <DailyGoalTally
+                    savedToday={dailyGoal.savedToday}
+                    goal={dailyGoal.goal}
+                    variant="card"
+                    className="mb-6"
+                  />
 
-              {/* LinguaScripts Alerts - Top Priority */}
-              {false && lsRemaining > 0 && (
-                <LinguaScriptsPendingAlert
-                  count={lsRemaining}
-                  estimatedTime={Math.ceil(linguaScriptStatus.linguascriptsPending * 1)}
-                  onStart={() => navigate("/flashcards")}
-                />
+                  {linguaScriptStatus.state === "flashcards-due" && (
+                    <FlashcardsDueAlert
+                      count={linguaScriptStatus.flashcardsDue}
+                      nextReviewTime={linguaScriptStatus.nextFlashcardReviewTime}
+                    />
+                  )}
+                </>
               )}
 
-              {false && lsRemaining === 0 && (linguaScriptStatus.reviewedToday ?? 0) > 0 && (
-                <LinguaScriptsCompleteCard
-                  wordsReviewedToday={linguaScriptStatus.reviewedToday ?? 0}
-                  newWordsCaptured={0}
-                  onContinueWatching={() => {
-                    setActiveTab("home");
-                  }}
-                  onDiscover={() => setActiveTab("home")}
-                />
-              )}
-
-              {linguaScriptStatus.state === "flashcards-due" && (
-                <FlashcardsDueAlert
-                  count={linguaScriptStatus.flashcardsDue}
-                  nextReviewTime={linguaScriptStatus.nextFlashcardReviewTime}
-                />
-              )}
-
-              {/* Regular home content */}
               <HomeTab
                 lessons={lessons}
                 loading={loadingLessons}
@@ -593,8 +544,6 @@ const Browse = () => {
                 createLesson={createLesson}
                 deleteLesson={deleteLesson}
                 navigate={navigate}
-                discoverFilms={discoverFilms}
-                catalogRows={catalogRows}
                 interests={interests}
                 nativeLanguage={nativeLanguage}
                 onWatchYoutube={importYoutubeId}
@@ -602,24 +551,6 @@ const Browse = () => {
                 onLocked={() => setProLockOpen(true)}
               />
             </div>
-          ) : activeTab === "home" ? (
-            <HomeTab
-              lessons={lessons}
-              loading={loadingLessons}
-              pasteUrl={pasteUrl}
-              setPasteUrl={setPasteUrl}
-              creating={creating}
-              createLesson={createLesson}
-              deleteLesson={deleteLesson}
-              navigate={navigate}
-              discoverFilms={discoverFilms}
-              catalogRows={catalogRows}
-              interests={interests}
-              nativeLanguage={nativeLanguage}
-              onWatchYoutube={importYoutubeId}
-              isPro={isPro}
-              onLocked={() => setProLockOpen(true)}
-            />
           ) : null}
           {false && (
             <DiscoverCatalog defaultLanguage={learningLanguage} />
@@ -728,7 +659,7 @@ const CatalogStrip = ({ title, films, navigate }: { title: string; films: any[];
 
 /* ── HOME TAB ── */
 const HomeTab = ({
-  lessons, loading, pasteUrl, setPasteUrl, creating, createLesson, deleteLesson, navigate, discoverFilms, catalogRows, interests, nativeLanguage, onWatchYoutube,
+  lessons, loading, pasteUrl, setPasteUrl, creating, createLesson, deleteLesson, navigate, interests, nativeLanguage, onWatchYoutube,
   isPro, onLocked,
 }: {
   lessons: UserLesson[];
@@ -739,8 +670,6 @@ const HomeTab = ({
   createLesson: () => void;
   deleteLesson: (id: string) => void;
   navigate: (path: string) => void;
-  discoverFilms: any[];
-  catalogRows: { id: string; title: string; films: any[] }[];
   interests: string[];
   nativeLanguage: string;
   onWatchYoutube: (ytId: string, titleHint?: string, thumbHint?: string) => Promise<void>;
@@ -759,6 +688,9 @@ const HomeTab = ({
       {isPro && (
         <PersonalizedRails interests={interests} nativeLanguage={nativeLanguage} onWatch={onWatchYoutube} importing={creating} />
       )}
+
+      {/* Free learners: their library comes first, above the locked paste box. */}
+      {!isPro && <HomeCatalogRows />}
 
       {/* Paste YouTube Link — shown locked to free learners; a tap opens the Pro lock. */}
       <div className="glass-panel-strong p-6 rounded-2xl relative">
@@ -802,7 +734,7 @@ const HomeTab = ({
       </div>
 
       {/* Admin-curated rails — the new browsing surface. */}
-      <HomeCatalogRows />
+      {isPro && <HomeCatalogRows />}
       </div>
       </div>
 
