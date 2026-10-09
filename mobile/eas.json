@@ -30,6 +30,9 @@
         "serviceAccountKeyPath": "./play-service-account.json",
         "track": "internal"
       }
+    },
+    "preview": {
+      "extends": "production"
     }
   }
 }
