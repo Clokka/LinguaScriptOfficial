@@ -9,8 +9,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { getLanguageLabel } from "@/lib/languages";
 import { supabase } from "@/integrations/supabase/client";
-import { claimDailyChest, emitRewardsChanged } from "@/lib/rewards";
-import { GiftBoxReveal, type GiftContents } from "@/components/rewards/GiftBoxReveal";
+import { CELEBRATION_ATTR } from "@/components/rewards/LevelUpGift";
 import { checkPetMilestones } from "@/lib/pets";
 
 export interface StreakIgnitionDetail {
@@ -55,19 +54,11 @@ export const StreakCelebrationModal = () => {
   const { triggerReaction } = usePet();
   const { user } = useAuth();
   const { learningLanguage } = useLanguage();
-  // The daily chest follows the streak screen: earned, not browsed for.
-  const [chest, setChest] = useState<GiftContents | null>(null);
-
-  const finish = async () => {
+  // The streak screen just closes; a present comes from levelling up
+  // (LevelUpGift waits for this screen to close), then any new pet.
+  const finish = () => {
     setOpen(false);
-    if (!user) return;
-    const today = new Date().toISOString().slice(0, 10);
-    const { data } = await supabase
-      .from("reward_claims").select("id")
-      .eq("user_id", user.id).eq("kind", "daily").eq("key", today)
-      .maybeSingle();
-    if (!data) setChest({ title: "Daily chest", gems: 0 });
-    else checkPetMilestones();
+    checkPetMilestones();
   };
 
   useEffect(() => {
@@ -87,11 +78,11 @@ export const StreakCelebrationModal = () => {
   const prev = Math.max(0, count - 1);
 
   return createPortal(
-    <>
     <AnimatePresence>
       {open && detail && (
         <motion.div
           key="celeb"
+          {...{ [CELEBRATION_ATTR]: "" }}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -223,22 +214,7 @@ export const StreakCelebrationModal = () => {
           </motion.div>
         </motion.div>
       )}
-    </AnimatePresence>
-    <GiftBoxReveal
-      open={!!chest}
-      onClose={() => {
-        setChest(null);
-        // A streak milestone pet shows after the chest, never on top of it.
-        checkPetMilestones();
-      }}
-      contents={chest}
-      onOpen={async () => {
-        const r = await claimDailyChest();
-        setChest({ title: `Daily chest · ${r.run} day${r.run === 1 ? "" : "s"} in a row`, gems: r.gems });
-        emitRewardsChanged();
-      }}
-    />
-    </>,
+    </AnimatePresence>,
     document.body,
   );
 };

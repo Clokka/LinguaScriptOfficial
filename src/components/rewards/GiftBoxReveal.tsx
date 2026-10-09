@@ -72,15 +72,31 @@ export function GiftBoxReveal({
   return createPortal(
     // pointer-events: auto — an open Radix dialog (e.g. the rewards panel)
     // disables pointer events on everything outside it, including this portal.
-    <div
-      className="fixed inset-0 z-[220] flex flex-col items-center justify-center overflow-hidden bg-black/85 backdrop-blur-xl px-4"
-      style={{ pointerEvents: "auto" }}
+    // A calm, happy morning-sky backdrop: soft sky blue into mint into warm
+    // cream, with a sunny glow behind the gift — never a dark screen.
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.4 }}
+      className="fixed inset-0 z-[220] flex flex-col items-center justify-center overflow-hidden px-4"
+      style={{ pointerEvents: "auto", background: "linear-gradient(180deg, #DDF1FF 0%, #E6FAEE 52%, #FFF3D9 100%)" }}
     >
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0"
-        style={{ background: "radial-gradient(ellipse at center, rgba(52,199,89,0.22) 0%, rgba(249,115,22,0.12) 35%, transparent 65%)" }}
+        style={{ background: "radial-gradient(circle at 50% 45%, rgba(255,255,255,0.95) 0%, rgba(255,236,170,0.45) 22%, transparent 48%)" }}
       />
+
+      {contents?.title && (
+        <motion.p
+          initial={{ y: -12, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.15 }}
+          className="relative mb-1 text-3xl font-black tracking-tight text-slate-800"
+        >
+          {contents.title} 🎉
+        </motion.p>
+      )}
 
       <motion.button
         type="button"
@@ -95,7 +111,14 @@ export function GiftBoxReveal({
           ref={sceneRef}
           petGlb={CHAMELEON_GLB}
           size={size}
+          hideGround
           onReady={() => setReady(true)}
+        />
+        {/* Soft contact shadow instead of the 3D ground disc. */}
+        <span
+          aria-hidden
+          className="pointer-events-none absolute left-1/2 -translate-x-1/2 rounded-[50%] bg-slate-900/10 blur-md"
+          style={{ bottom: size * 0.2, width: size * 0.42, height: size * 0.07 }}
         />
       </motion.button>
 
@@ -109,14 +132,13 @@ export function GiftBoxReveal({
               transition={{ type: "spring", stiffness: 260, damping: 16 }}
               className="flex flex-col items-center gap-3"
             >
-              {contents?.item && <p className="text-lg font-bold text-white">{contents.item.emoji} {contents.item.name}</p>}
+              {contents?.item && <p className="text-lg font-bold text-slate-800">{contents.item.emoji} {contents.item.name}</p>}
               {!!contents?.gems && (
-                <div className="inline-flex items-center gap-2 rounded-full border border-amber-300/40 bg-amber-400/15 px-5 py-2.5 text-white">
-                  <Gem className="h-5 w-5 text-amber-300" />
+                <div className="inline-flex items-center gap-2 rounded-full border border-amber-300 bg-white/90 px-5 py-2.5 text-slate-800 shadow-sm">
+                  <Gem className="h-5 w-5 text-amber-500" />
                   <span className="text-xl font-black tabular-nums">+{contents.gems}</span>
                 </div>
               )}
-              {contents?.title && <p className="text-xs uppercase tracking-[0.2em] text-white/50">{contents.title}</p>}
               <Button onClick={close} size="lg" className="mt-1 rounded-full px-10">Nice!</Button>
             </motion.div>
           ) : stage === "closed" && ready ? (
@@ -135,9 +157,9 @@ export function GiftBoxReveal({
         {fallback && !ready && stage === "closed" && (
           <Button onClick={handleOpen} size="lg" className="rounded-full px-10">Open</Button>
         )}
-        {error && <p className="text-sm text-red-300">{error}</p>}
+        {error && <p className="text-sm text-red-600">{error}</p>}
       </div>
-    </div>,
+    </motion.div>,
     document.body,
   );
 }
