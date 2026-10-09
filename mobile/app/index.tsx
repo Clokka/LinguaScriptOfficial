@@ -9,20 +9,32 @@ import { supabase } from '@/lib/supabase';
 const APP_URL = 'https://linguascript.co.uk';
 const ONBOARDING_URL = 'https://linguascript.co.uk/onboarding';
 
-// After the website loads, pull the Supabase session from localStorage
-// so the app can register the push token against the real user account.
+// The website keeps its Supabase session in localStorage. Hand the tokens to
+// the native client so it is signed in as the same user — device_tokens RLS
+// only lets a signed-in user save their own push token. Polls because the site
+// is a SPA: logging in there doesn't trigger a new page load.
 const INJECT_SESSION_JS = `
 (function() {
-  try {
-    const raw = localStorage.getItem('sb-ffephracinqeylfhqkiz-auth-token');
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      const userId = parsed?.user?.id;
-      if (userId) {
-        window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'session', userId }));
-      }
-    }
-  } catch(e) {}
+  if (window.__lsSessionPoll) return true;
+  var lastSent = null;
+  function check() {
+    try {
+      var raw = localStorage.getItem('sb-ffephracinqeylfhqkiz-auth-token');
+      if (!raw) return;
+      var parsed = JSON.parse(raw);
+      var refresh = parsed && parsed.refresh_token;
+      if (!refresh || refresh === lastSent) return;
+      lastSent = refresh;
+      window.ReactNativeWebView.postMessage(JSON.stringify({
+        type: 'session',
+        userId: parsed.user && parsed.user.id,
+        accessToken: parsed.access_token,
+        refreshToken: refresh,
+      }));
+    } catch (e) {}
+  }
+  check();
+  window.__lsSessionPoll = setInterval(check, 5000);
   true;
 })();
 `;
@@ -112,8 +124,11 @@ export default function AppScreen() {
         onMessage={(e) => {
           try {
             const msg = JSON.parse(e.nativeEvent.data);
-            if (msg.type === 'session' && msg.userId) {
-              setUserId(msg.userId);
+            if (msg.type === 'session' && msg.accessToken && msg.refreshToken) {
+              // onAuthStateChange below picks up the user and registers push.
+              supabase.auth
+                .setSession({ access_token: msg.accessToken, refresh_token: msg.refreshToken })
+                .catch((err) => console.warn('setSession from WebView failed', err));
             }
           } catch (_) {}
         }}
