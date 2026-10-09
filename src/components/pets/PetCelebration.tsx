@@ -388,10 +388,6 @@ export function LevelUpCelebration({ petId, level, onDone }: LevelUpCelebrationP
       >
         Level {level}!
       </div>
-      {/* Named moment rather than the same line nine times on the way to 10. */}
-      <p className="mt-1.5 text-sm text-muted-foreground">
-        {celebrationForLevel(level).caption}
-      </p>
     </div>
   );
 }

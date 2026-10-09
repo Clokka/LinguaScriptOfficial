@@ -121,10 +121,6 @@ export const GreenMoment = () => {
               </span>
               <span className="text-sm text-white/50">of this scene understood</span>
             </div>
-            <p className="mt-3 text-sm text-white/40 max-w-md">
-              Red is a word you've never met. Orange you're learning. Green you know.
-              Same three colours in the app, the extension, and on Netflix.
-            </p>
           </div>
 
           <div className="mx-auto w-full max-w-sm">
