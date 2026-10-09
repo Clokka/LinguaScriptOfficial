@@ -6,7 +6,7 @@ import * as Notifications from 'expo-notifications';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 import { createClient } from '@supabase/supabase-js';
-import { registerForPushAsync } from '@/native/notifications';
+import { ensurePermissions, registerForPushAsync } from '@/native/notifications';
 
 const APP_URL = 'https://linguascript.co.uk';
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL!;
@@ -68,6 +68,13 @@ export default function AppScreen() {
     });
     return () => sub.remove();
   }, [goTo]);
+
+  // Ask for notification permission on first open, like most apps, rather
+  // than waiting until the site's session is detected. The push token itself
+  // is saved once we know who is signed in (onMessage below).
+  useEffect(() => {
+    ensurePermissions();
+  }, []);
 
   // Android back button goes back a page in the site instead of closing the app.
   useEffect(() => {
