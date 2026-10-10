@@ -22,7 +22,7 @@ To run on a physical device: install Expo Go and scan the QR code
 - Local daily reminders (works offline) — scheduled from Settings
 - Haptics on all key interactions
 - Native share sheet (words, friend invites)
-- Deep links: `linguascript://` scheme + `https://linguascript.xyz/*` universal links
+- Deep links: `linguascript://` scheme + `https://linguascript.co.uk/*` universal links
 - Android intent filter: share-to-LinguaScript (SEND text → saves to vocab)
 - Native Google Sign-In via `@react-native-google-signin/google-signin`
 

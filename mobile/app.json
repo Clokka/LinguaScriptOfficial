@@ -13,10 +13,12 @@
       "resizeMode": "contain",
       "backgroundColor": "#0b1215"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "xyz.linguascript.app",
+      "bundleIdentifier": "uk.co.linguascript.app",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSUserNotificationUsageDescription": "LinguaScript sends daily study reminders and flashcard due notifications.",
@@ -24,7 +26,7 @@
       }
     },
     "android": {
-      "package": "xyz.linguascript.app",
+      "package": "uk.co.linguascript.app",
       "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
@@ -32,7 +34,6 @@
       },
       "permissions": [
         "RECEIVE_BOOT_COMPLETED",
-        "SCHEDULE_EXACT_ALARM",
         "POST_NOTIFICATIONS",
         "VIBRATE",
         "INTERNET"
@@ -40,27 +41,43 @@
       "intentFilters": [
         {
           "action": "SEND",
-          "category": ["DEFAULT"],
-          "data": [{ "mimeType": "text/plain" }]
+          "category": [
+            "DEFAULT"
+          ],
+          "data": [
+            {
+              "mimeType": "text/plain"
+            }
+          ]
         },
         {
           "action": "VIEW",
-          "category": ["BROWSABLE", "DEFAULT"],
-          "data": [{ "scheme": "linguascript" }]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ],
+          "data": [
+            {
+              "scheme": "linguascript"
+            }
+          ]
         },
         {
           "autoVerify": true,
           "action": "VIEW",
-          "category": ["BROWSABLE", "DEFAULT"],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ],
           "data": [
             {
               "scheme": "https",
-              "host": "linguascript.xyz",
+              "host": "linguascript.co.uk",
               "pathPrefix": "/gift"
             },
             {
               "scheme": "https",
-              "host": "linguascript.xyz",
+              "host": "linguascript.co.uk",
               "pathPrefix": "/friends"
             }
           ]

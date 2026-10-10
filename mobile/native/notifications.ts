@@ -6,6 +6,7 @@ import {
   upsertDeviceToken,
   type NotificationPreferences,
 } from '@linguascript/core';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 
 Notifications.setNotificationHandler({
@@ -50,7 +51,10 @@ export async function ensureAndroidChannels(): Promise<void> {
   });
 }
 
-export async function registerForPushAsync(userId: string): Promise<string | null> {
+export async function registerForPushAsync(
+  userId: string,
+  client: SupabaseClient = supabase,
+): Promise<string | null> {
   const ok = await ensurePermissions();
   if (!ok) return null;
   await ensureAndroidChannels();
@@ -63,7 +67,7 @@ export async function registerForPushAsync(userId: string): Promise<string | nul
     ).data;
     if (token) {
       await upsertDeviceToken(
-        supabase,
+        client,
         userId,
         token,
         Platform.OS === 'ios' ? 'ios' : Platform.OS === 'android' ? 'android' : 'web',

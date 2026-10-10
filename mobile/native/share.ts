@@ -32,12 +32,12 @@ export function shareWord(word: string, translation?: string | null): Promise<vo
     : `"${word}" — saved with LinguaScript 🦎`;
   return shareText(line, {
     title: 'Word from LinguaScript',
-    url: 'https://linguascript.xyz',
+    url: 'https://linguascript.co.uk',
   });
 }
 
 export function shareFriendInvite(friendCode: string): Promise<void> {
-  const url = `https://linguascript.xyz/?addFriend=${friendCode}`;
+  const url = `https://linguascript.co.uk/?addFriend=${friendCode}`;
   return shareText(
     `Join me on LinguaScript — my friend code is ${friendCode}. Add me and let's compete on the leaderboard.`,
     { title: 'Add me on LinguaScript', url },

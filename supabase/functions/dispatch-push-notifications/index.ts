@@ -1,6 +1,12 @@
-// Dispatch push notifications for streak nudges, flashcard reminders, and friend events.
-// Runs on the same pg_cron cadence as dispatch-retention-emails (every 15 min).
-// Each category is independently throttled so retries are safe.
+// Dispatch push notifications: the daily word-goal reminder, its follow-up
+// "almost there" nudge, and friend activity. Runs every 15 min from pg_cron.
+//
+// Everything is timed in the learner's own time zone (profiles.timezone) and
+// never lands in quiet hours, and a learner gets at most two goal pushes a
+// day: the reminder at their chosen time, then — only if the goal still isn't
+// met a couple of hours later — one small nudge. Streak risk and due
+// flashcards ride along in the reminder text rather than being pushes of
+// their own, so the phone isn't buzzing all day.
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
@@ -11,8 +17,13 @@ const svc = createClient(SUPABASE_URL, SERVICE_KEY);
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-cron-secret',
 };
+
+const QUIET_START = 21 * 60 + 30; // 21:30
+const QUIET_END = 8 * 60; // 08:00
+const NUDGE_AFTER_MS = 2 * 60 * 60 * 1000;
+const FRIEND_EVENT_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 async function sendPush(
   userId: string,
@@ -41,166 +52,227 @@ async function sendPush(
   }
 }
 
-function prefEnabled(prefs: any, key: string): boolean {
-  if (!prefs || typeof prefs !== 'object') return true;
-  return prefs[key] !== false;
+interface LocalNow {
+  date: string; // YYYY-MM-DD in the learner's zone
+  minutes: number; // minutes since local midnight
+  midnightUtc: Date; // start of the learner's day, as a UTC instant
 }
 
-// Streak nudges: fire once per day for users whose streak will break today
-// (last_streak_date = yesterday, streak >= 1).
-async function processStreakNudges(): Promise<void> {
-  const yesterday = new Date();
-  yesterday.setUTCDate(yesterday.getUTCDate() - 1);
-  const yesterdayStr = yesterday.toISOString().slice(0, 10);
-  const throttleMs = 20 * 60 * 60 * 1000; // 20 h
+function zoneOrDefault(tz: string | null | undefined): string {
+  try {
+    if (tz) {
+      new Intl.DateTimeFormat('en-GB', { timeZone: tz });
+      return tz;
+    }
+  } catch { /* invalid zone name */ }
+  return 'Europe/London';
+}
 
-  const { data: rows, error } = await svc
-    .from('profiles')
-    .select('user_id, display_name, username, streak_count, last_streak_date, last_streak_push_at')
-    .gte('streak_count', 1)
-    .limit(1000);
+function localNow(tz: string, now = new Date()): LocalNow {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat('en-CA', {
+      timeZone: tz,
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit',
+      hourCycle: 'h23',
+    }).formatToParts(now).map((p) => [p.type, p.value]),
+  );
+  const y = Number(parts.year), m = Number(parts.month), d = Number(parts.day);
+  const h = Number(parts.hour), min = Number(parts.minute), s = Number(parts.second);
+  const offsetMs = Date.UTC(y, m - 1, d, h, min, s) - Math.floor(now.getTime() / 1000) * 1000;
+  return {
+    date: `${parts.year}-${parts.month}-${parts.day}`,
+    minutes: h * 60 + min,
+    midnightUtc: new Date(Date.UTC(y, m - 1, d) - offsetMs),
+  };
+}
 
-  if (error || !rows?.length) return;
+function localDateOf(iso: string | null | undefined, tz: string): string | null {
+  return iso ? localNow(tz, new Date(iso)).date : null;
+}
 
+function isQuiet(minutes: number): boolean {
+  return minutes >= QUIET_START || minutes < QUIET_END;
+}
+
+function parseHHMM(v: string | null | undefined, fallback = 19 * 60): number {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(v ?? '');
+  if (!m) return fallback;
+  return Math.min(23, Number(m[1])) * 60 + Math.min(59, Number(m[2]));
+}
+
+/** Mirrors src/lib/progressStats.ts wordGoalForVideos. */
+function wordGoalForVideos(videoGoal: number): number {
+  if (videoGoal <= 1) return 10;
+  if (videoGoal === 2) return 20;
+  return 40;
+}
+
+/** Words saved today, counted the way useDailyWordGoal counts them. */
+async function wordsSavedSince(userId: string, since: Date): Promise<number> {
+  const { count } = await svc
+    .from('saved_words')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .gte('created_at', since.toISOString())
+    .lt('next_review', '2999-01-01')
+    .not('film_id', 'is', null);
+  return count ?? 0;
+}
+
+async function flashcardsDue(userId: string, today: string): Promise<number> {
+  const { count } = await svc
+    .from('saved_words')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .lte('next_review', today);
+  return count ?? 0;
+}
+
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
+
+// Daily goal reminder + one follow-up nudge, for learners with a device.
+async function processDailyGoal(): Promise<void> {
+  const { data: tokens } = await svc.from('device_tokens').select('user_id').limit(5000);
+  const userIds = [...new Set((tokens ?? []).map((t: any) => t.user_id as string))];
+  if (!userIds.length) return;
+
+  const [{ data: profiles }, { data: prefsRows }] = await Promise.all([
+    svc
+      .from('profiles')
+      .select('user_id, display_name, username, timezone, daily_word_goal, daily_video_goal, streak_count, last_streak_date, last_goal_push_at, last_goal_nudge_at')
+      .in('user_id', userIds),
+    svc
+      .from('notification_preferences')
+      .select('user_id, daily_reminder_enabled, daily_reminder_time, streak_nudges, flashcards_due')
+      .in('user_id', userIds),
+  ]);
+  const prefsByUser = new Map((prefsRows ?? []).map((p: any) => [p.user_id, p]));
   const nowMs = Date.now();
 
-  for (const p of rows as any[]) {
-    if (String(p.last_streak_date) !== yesterdayStr) continue;
+  for (const p of (profiles ?? []) as any[]) {
+    const prefs: any = prefsByUser.get(p.user_id) ?? {};
+    if (prefs.daily_reminder_enabled === false) continue;
 
-    const lastPush = p.last_streak_push_at ? Date.parse(p.last_streak_push_at) : 0;
-    if (nowMs - lastPush < throttleMs) continue;
+    const tz = zoneOrDefault(p.timezone);
+    const local = localNow(tz);
+    if (isQuiet(local.minutes)) continue;
 
-    const { data: prefs } = await svc
-      .from('notification_preferences')
-      .select('streak_nudges')
-      .eq('user_id', p.user_id)
-      .maybeSingle();
-    if (!prefEnabled(prefs, 'streak_nudges')) continue;
+    const goal: number = p.daily_word_goal ?? wordGoalForVideos(p.daily_video_goal ?? 1);
+    const remindedToday = localDateOf(p.last_goal_push_at, tz) === local.date;
+    const nudgedToday = localDateOf(p.last_goal_nudge_at, tz) === local.date;
 
-    const streak = p.streak_count as number;
-    const name = p.display_name || p.username || 'there';
-    const ok = await sendPush(
-      p.user_id,
-      '🔥 Your streak is at risk!',
-      `${name}, your ${streak}-day streak breaks tonight. Jump in for just 5 minutes.`,
-      { kind: 'streak-nudge' },
-      'streak',
-    );
+    if (!remindedToday) {
+      if (local.minutes < parseHHMM(prefs.daily_reminder_time)) continue;
 
-    if (ok) {
-      await svc
-        .from('profiles')
-        .update({ last_streak_push_at: new Date().toISOString() })
-        .eq('user_id', p.user_id);
+      const saved = await wordsSavedSince(p.user_id, local.midnightUtc);
+      // Mark the day handled even when the goal is already met, so a learner
+      // who studied early is never reminded and never nudged.
+      await svc.from('profiles').update({ last_goal_push_at: new Date().toISOString() }).eq('user_id', p.user_id);
+      if (saved >= goal) continue;
+
+      const remaining = goal - saved;
+      const name = p.display_name || p.username;
+      const title = saved > 0
+        ? `🦎 ${plural(remaining, 'word')} to go today`
+        : `🦎 Your ${plural(goal, 'word')} for today`;
+      let body = saved > 0
+        ? `${name ? `${name}, you're` : "You're"} ${saved}/${goal} — one quick video finishes it.`
+        : `${name ? `${name}, learn` : 'Learn'} today's ${plural(goal, 'high-frequency word')} in a quick video.`;
+
+      const yesterday = localNow(tz, new Date(nowMs - 24 * 60 * 60 * 1000)).date;
+      if (prefs.streak_nudges !== false && p.streak_count >= 2 && String(p.last_streak_date) === yesterday) {
+        body += ` Keep your 🔥 ${p.streak_count}-day streak alive!`;
+      }
+      if (prefs.flashcards_due !== false) {
+        const due = await flashcardsDue(p.user_id, local.date);
+        if (due >= 5) body += ` Plus ${due} flashcards ready.`;
+      }
+
+      await sendPush(p.user_id, title, body, { kind: 'daily-goal' }, 'reminders');
+      continue;
     }
+
+    if (nudgedToday || !p.last_goal_push_at) continue;
+    if (nowMs - Date.parse(p.last_goal_push_at) < NUDGE_AFTER_MS) continue;
+
+    const saved = await wordsSavedSince(p.user_id, local.midnightUtc);
+    await svc.from('profiles').update({ last_goal_nudge_at: new Date().toISOString() }).eq('user_id', p.user_id);
+    const remaining = goal - saved;
+    if (remaining <= 0) continue;
+
+    const title = remaining === 1 ? '🎯 Just 1 more word!' : saved > 0 ? `🎯 Only ${remaining} more words` : '🎯 Just 1 word?';
+    const body = remaining === 1
+      ? "You're one word away from today's goal. Finish it in a minute!"
+      : saved > 0
+        ? `You're ${saved}/${goal}. A short clip gets you over the line.`
+        : 'Even one new word today keeps your progress moving.';
+    await sendPush(p.user_id, title, body, { kind: 'daily-goal' }, 'reminders');
   }
 }
 
-// Flashcard reminders: fire once per day for users with >= 5 due cards.
-async function processFlashcardsDue(): Promise<void> {
-  const today = new Date().toISOString().slice(0, 10);
-  const throttleMs = 23 * 60 * 60 * 1000; // 23 h
-
-  const { data: rows, error } = await svc
-    .from('profiles')
-    .select('user_id, display_name, username, last_flashcard_push_at')
-    .limit(1000);
-
-  if (error || !rows?.length) return;
-
-  const nowMs = Date.now();
-
-  for (const p of rows as any[]) {
-    const lastPush = p.last_flashcard_push_at ? Date.parse(p.last_flashcard_push_at) : 0;
-    if (nowMs - lastPush < throttleMs) continue;
-
-    const { data: prefs } = await svc
-      .from('notification_preferences')
-      .select('flashcards_due')
-      .eq('user_id', p.user_id)
-      .maybeSingle();
-    if (!prefEnabled(prefs, 'flashcards_due')) continue;
-
-    const { count: dueCount } = await svc
-      .from('saved_words')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', p.user_id)
-      .lte('next_review', today);
-
-    if (!dueCount || dueCount < 5) continue;
-
-    const ok = await sendPush(
-      p.user_id,
-      '🃏 Flashcards waiting',
-      `You have ${dueCount} card${dueCount === 1 ? '' : 's'} ready for review. Quick session?`,
-      { kind: 'flashcards-due' },
-      'flashcards',
-    );
-
-    if (ok) {
-      await svc
-        .from('profiles')
-        .update({ last_flashcard_push_at: new Date().toISOString() })
-        .eq('user_id', p.user_id);
-    }
-  }
-}
-
-// Friend activity: push for unacknowledged friendship_events.
+// Friend activity: push for unsent friendship_events, held back during the
+// recipient's quiet hours and dropped once they're a day old.
 async function processFriendPushes(): Promise<void> {
   const { data: events, error } = await svc
     .from('friendship_events')
-    .select('id, recipient_id, actor_id, kind')
+    .select('id, recipient_id, actor_id, kind, created_at')
     .is('push_sent_at', null)
     .order('created_at', { ascending: true })
-    .limit(50);
+    .limit(200);
 
   if (error || !events?.length) return;
 
+  const markSent = (id: string) =>
+    svc.from('friendship_events').update({ push_sent_at: new Date().toISOString() }).eq('id', id);
+
   for (const ev of events as any[]) {
-    const { data: prefs } = await svc
-      .from('notification_preferences')
-      .select('friend_activity')
-      .eq('user_id', ev.recipient_id)
-      .maybeSingle();
-    if (!prefEnabled(prefs, 'friend_activity')) {
-      // Mark as handled so we don't retry
-      await svc.from('friendship_events').update({ push_sent_at: new Date().toISOString() }).eq('id', ev.id);
+    if (Date.now() - Date.parse(ev.created_at) > FRIEND_EVENT_MAX_AGE_MS) {
+      await markSent(ev.id);
+      continue;
+    }
+    if (ev.kind !== 'request_received' && ev.kind !== 'request_accepted') {
+      await markSent(ev.id);
       continue;
     }
 
-    const { data: actor } = await svc
-      .from('profiles')
-      .select('display_name, username')
-      .eq('user_id', ev.actor_id)
-      .maybeSingle();
+    const [{ data: prefs }, { data: recipient }, { data: actor }] = await Promise.all([
+      svc.from('notification_preferences').select('friend_activity').eq('user_id', ev.recipient_id).maybeSingle(),
+      svc.from('profiles').select('timezone').eq('user_id', ev.recipient_id).maybeSingle(),
+      svc.from('profiles').select('display_name, username').eq('user_id', ev.actor_id).maybeSingle(),
+    ]);
+    if ((prefs as any)?.friend_activity === false) {
+      await markSent(ev.id);
+      continue;
+    }
+    if (isQuiet(localNow(zoneOrDefault((recipient as any)?.timezone)).minutes)) continue;
+
     const actorName = (actor as any)?.display_name || (actor as any)?.username || 'Someone';
-
-    let title = '';
-    let body = '';
-    if (ev.kind === 'request_received') {
-      title = '👋 New friend request';
-      body = `${actorName} wants to be your language buddy!`;
-    } else if (ev.kind === 'request_accepted') {
-      title = '🎉 Friend request accepted';
-      body = `${actorName} accepted your friend request. Study together!`;
-    } else {
-      await svc.from('friendship_events').update({ push_sent_at: new Date().toISOString() }).eq('id', ev.id);
-      continue;
-    }
+    const [title, body] = ev.kind === 'request_received'
+      ? ['👋 New friend request', `${actorName} wants to be your language buddy!`]
+      : ['🎉 Friend request accepted', `${actorName} accepted your friend request. Study together!`];
 
     await sendPush(ev.recipient_id, title, body, { kind: 'friend-activity' }, 'friends');
-    await svc.from('friendship_events').update({ push_sent_at: new Date().toISOString() }).eq('id', ev.id);
+    await markSent(ev.id);
   }
 }
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
+  // Same private cron header as dispatch-retention-emails: the function URL
+  // is public, so without it anyone could fire pushes at real users.
+  const cronSecret = Deno.env.get('RETENTION_DISPATCH_SECRET');
+  if (!cronSecret || req.headers.get('x-cron-secret') !== cronSecret) {
+    return new Response(JSON.stringify({ ok: false, error: 'Unauthorized' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
   try {
     await processFriendPushes();
-    await processStreakNudges();
-    await processFlashcardsDue();
+    await processDailyGoal();
     return new Response(JSON.stringify({ ok: true }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

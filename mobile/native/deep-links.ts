@@ -6,8 +6,8 @@ import { router } from 'expo-router';
  * Supported:
  *   linguascript://friends?addFriend=CODE
  *   linguascript://vocab/add?word=…&lang=…
- *   https://linguascript.xyz/gift/XYZ
- *   https://linguascript.xyz/friends?addFriend=CODE
+ *   https://linguascript.co.uk/gift/XYZ
+ *   https://linguascript.co.uk/friends?addFriend=CODE
  */
 export function handleDeepLink(url: string): void {
   const parsed = Linking.parse(url);
