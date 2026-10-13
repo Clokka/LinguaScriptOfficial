@@ -32,10 +32,11 @@ function tokenize(text: string, lang: string): string[] {
 }
 
 /**
- * Pre-teach grader (Vocab-Kitchen style): scans the transcript, grades every
- * word/phrase against the 20k frequency + CEFR list, and returns the N most
- * useful items at or just above the learner's level. Phrases/collocations
- * first, then high-frequency words that recur in this video.
+ * Pre-teach grader: scans the transcript, looks every word/phrase up in the
+ * 20k frequency + CEFR list, and returns the N most frequent ones the learner
+ * hasn't learned yet (anything not green — new white words and saved
+ * red/orange ones alike). Each rewatch skips what turned green last time, so
+ * the next most frequent words come up until the video is fully known.
  */
 export async function gradePreTeachVocab(opts: {
   lines: Line[];
@@ -101,7 +102,7 @@ export async function gradePreTeachVocab(opts: {
   }
 
   const seenLemma = new Set<string>();
-  const scored: (PreTeachItem & { score: number })[] = [];
+  const scored: PreTeachItem[] = [];
   for (const v of vocab) {
     const w = String(v.word).toLowerCase();
     const lemma = String(v.lemma || w).toLowerCase();
@@ -114,16 +115,16 @@ export async function gradePreTeachVocab(opts: {
     const c = counts.get(w);
     if (!c) continue;
     const isPhrase = w.includes(" ");
-    // Very short function words (le, de, 的) aren't worth pre-teaching alone.
-    if (!isPhrase && spaced && w.length < 3) continue;
-    if (!isPhrase && v.rank <= 40) continue;
-    const score = c.n * (1 / Math.log(v.rank + 10)) * (isPhrase ? 3 : 1) * (c.n >= 2 ? 1.5 : 1);
+    // Single letters are mostly tokenizer noise.
+    if (!isPhrase && spaced && w.length < 2) continue;
     scored.push({
       item: v.word, translation: v.translation, example: c.line.primary, exampleTranslation: c.line.secondary,
-      cefr, rank: v.rank, occurrences: c.n, isPhrase, score,
+      cefr, rank: v.rank, occurrences: c.n, isPhrase,
     });
   }
-  scored.sort((a, b) => b.score - a.score);
+  // Most frequent in the language first; among equals, the one this video
+  // repeats most.
+  scored.sort((a, b) => a.rank - b.rank || b.occurrences - a.occurrences);
   const out: PreTeachItem[] = [];
   for (const s of scored) {
     const key = s.item.toLowerCase();

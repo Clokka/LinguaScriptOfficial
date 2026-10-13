@@ -310,15 +310,19 @@
 }
 
 /* Pre-teach target word: gold ring nudging the learner to tap it. */
+/* Same soft orange ring as the onboarding tour spotlight (TourOverlay). */
 .ls-target-ring {
-  border-radius: 9999px;
+  border-radius: 10px;
   padding: 0 0.3em;
-  box-shadow: 0 0 0 2px #FBBF24, 0 0 14px rgba(251, 191, 36, 0.55);
-  animation: ls-target-pulse 1.6s ease-in-out infinite;
+  box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.95), 0 0 0 5px rgba(249, 115, 22, 0.3), 0 0 18px 2px rgba(249, 115, 22, 0.5);
+  animation: ls-target-pulse 2.2s ease-in-out infinite;
 }
 @keyframes ls-target-pulse {
-  0%, 100% { box-shadow: 0 0 0 2px #FBBF24, 0 0 8px rgba(251, 191, 36, 0.35); }
-  50% { box-shadow: 0 0 0 3px #FBBF24, 0 0 18px rgba(251, 191, 36, 0.7); }
+  0%, 100% { box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.95), 0 0 0 5px rgba(249, 115, 22, 0.3), 0 0 14px 1px rgba(249, 115, 22, 0.4); }
+  50% { box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.95), 0 0 0 6px rgba(249, 115, 22, 0.35), 0 0 24px 4px rgba(249, 115, 22, 0.55); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ls-target-ring { animation: none; }
 }
 
 /* Chameleon word map: a tile pops as it changes colour. */

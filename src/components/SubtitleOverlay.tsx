@@ -57,9 +57,14 @@ interface SubtitleOverlayProps {
   onMarkKnown?: (word: Word) => void;
   nativeLanguage?: string;
   contentLanguage?: string;
-  /** Pre-teach picks: unsaved occurrences get a gold "tap me" ring. */
+  /** Pre-teach picks: occurrences not yet learned (not green) get a "tap me" ring. */
   targetWords?: Set<string>;
+  /** Called once per line with the ringed words showing on it (for auto-pause). */
+  onRingWords?: (tokens: string[]) => void;
 }
+
+/** At most this many rings on one line, so a line never turns into a quiz. */
+const MAX_RINGS_PER_LINE = 3;
 
 // Canonical LinguaScript deck palette. These hexes MUST stay identical to
 // DECK_CONFIG in src/pages/Flashcards.tsx and to .ls-red/.ls-orange/.ls-green
@@ -84,6 +89,7 @@ export const SubtitleOverlay = ({
   nativeLanguage,
   contentLanguage,
   targetWords,
+  onRingWords,
 }: SubtitleOverlayProps) => {
   const [selectedWord, setSelectedWord] = useState<Word | null>(null);
   const [popupPosition, setPopupPosition] = useState({ x: 0, y: 0 });
@@ -145,6 +151,36 @@ export const SubtitleOverlay = ({
     }
     return out;
   }, [primaryText, deck, justClaimed]);
+
+  /** Ringed words saved during this visit — the ring has done its job. */
+  const [ringDone, setRingDone] = useState<Set<string>>(new Set());
+
+  /**
+   * Which tokens on this line get a ring: pre-teach picks the learner hasn't
+   * learned yet (white, or saved red/orange — anything but green), first
+   * occurrence only, capped at MAX_RINGS_PER_LINE.
+   */
+  const ringTokens = useMemo(() => {
+    const out = new Set<string>();
+    if (!targetWords?.size) return out;
+    for (const raw of primaryText.split(" ")) {
+      const token = normalizeToken(raw);
+      if (!token || out.has(token) || goldTokens.has(token) || ringDone.has(token)) continue;
+      if (!targetWords.has(token) || deck.get(token)?.state === "green") continue;
+      const clean = raw.toLowerCase().replace(/[.,!?]/g, "");
+      if (!words.some((w) => w.text.toLowerCase() === clean)) continue;
+      out.add(token);
+      if (out.size >= MAX_RINGS_PER_LINE) break;
+    }
+    return out;
+  }, [primaryText, words, targetWords, deck, goldTokens, ringDone]);
+
+  const ringKey = Array.from(ringTokens).join("|");
+  const onRingWordsRef = useRef(onRingWords);
+  onRingWordsRef.current = onRingWords;
+  useEffect(() => {
+    if (ringKey) onRingWordsRef.current?.(ringKey.split("|"));
+  }, [primaryText, ringKey]);
 
   /** Live view of the gold set for the deferred blast guard. */
   const goldTokensRef = useRef<Set<string>>(goldTokens);
@@ -367,7 +403,7 @@ export const SubtitleOverlay = ({
 
   const renderWords = () => {
     const textWords = primaryText.split(" ");
-    let rings = 0;
+    const ringed = new Set<string>();
     return textWords.map((text, index) => {
       const wordData = words.find(
         (w) => w.text.toLowerCase() === text.toLowerCase().replace(/[.,!?]/g, "")
@@ -377,9 +413,8 @@ export const SubtitleOverlay = ({
       // A green word the learner hasn't witnessed yet renders GOLD, not green
       // — the promotion is a reward to be claimed, not a status to be shown.
       const isGold = goldTokens.has(token);
-      const isTarget =
-        !isGold && !deckState && !!wordData && !!targetWords?.has(token) && rings < 3;
-      if (isTarget) rings++;
+      const isTarget = !isGold && ringTokens.has(token) && !ringed.has(token);
+      if (isTarget) ringed.add(token);
       // Saved words render in their exact deck colour (red/orange/green);
       // unknown words stay bright white to draw the eye.
       const deckColor = isGold
@@ -524,6 +559,10 @@ export const SubtitleOverlay = ({
             // Check BEFORE the optimistic update (while the word is still white).
             const sweep = selectedWord ? wouldCompleteLine(selectedWord.text) : false;
             if (onSaveWord && selectedWord) onSaveWord(selectedWord);
+            if (selectedWord) {
+              const done = normalizeToken(selectedWord.text);
+              setRingDone((prev) => new Set(prev).add(done));
+            }
             // Optimistic local update so the word turns red (UNKNOWN — newly
             // saved) immediately, mirroring the green update for "mark known".
             if (selectedWord) {
