@@ -52,10 +52,6 @@ const EARLY_RAMP = [0, 20, 50, 95, 160];
 // is the actual retention lever: dense reinforcement while the habit is
 // still forming, not a flat "everyone gets a level every N XP" grind.
 //
-// Also lines up level 25 (a milestoneTier "grand" — +250 bonus gems, see
-// levelRewards.ts) right near the end of this window, not buried decades
-// away like it would be under the endless curve alone.
-//
 // After level 30 the endless curve below takes over and progression
 // deliberately slows down — dense to build the habit, a real climb once
 // it's established. That's the "then slow down" half of the design, not
@@ -76,9 +72,7 @@ function buildFrontRamp(): number[] {
 
 // NOTE: changing this ramp means existing accounts jump (or, if ever made
 // stingier, don't retroactively drop) several levels the next time they
-// load. A jump is a pleasant surprise rather than a regression, and
-// sync_level_rewards is idempotent server-side so the gems for those levels
-// are granted once, not re-granted.
+// load. A jump is a pleasant surprise rather than a regression.
 export const LEVEL_THRESHOLDS = buildFrontRamp();
 
 // Endless progression past the ramp: each level costs a little more than the
@@ -183,21 +177,6 @@ export function clearGuestXP() {
   } catch {
     /* noop */
   }
-}
-
-/**
- * Grants every unclaimed level reward up to `level` and returns the new gem
- * balance. Idempotent server-side, so replaying it cannot double-pay.
- */
-export async function syncLevelRewards(level: number): Promise<number | null> {
-  const { data, error } = await (supabase as any).rpc("sync_level_rewards", {
-    p_level: level,
-  });
-  if (error) {
-    console.error("[xp] level reward sync failed", error);
-    return null;
-  }
-  return typeof data === "number" ? data : null;
 }
 
 /**

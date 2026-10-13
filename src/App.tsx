@@ -13,7 +13,6 @@ import { TourOverlay } from "@/components/TourOverlay";
 import { DailyBriefing } from "@/components/DailyBriefing";
 import { StreakCelebrationModal } from "@/components/StreakCelebrationModal";
 import { PetMilestoneUnlock } from "@/components/pets/PetMilestoneUnlock";
-import { LevelUpGift } from "@/components/rewards/LevelUpGift";
 import { XpToast } from "@/components/XpToast";
 import { InterestsPromptModal } from "@/components/InterestsPromptModal";
 import { PetProvider } from "@/contexts/PetContext";
@@ -172,7 +171,6 @@ const App = () => (
               <DailyBriefing />
               <StreakCelebrationModal />
               <PetMilestoneUnlock />
-              <LevelUpGift />
               <XpToast />
               <InterestsPromptModal />
               {/* PetCompanion removed per user request */}

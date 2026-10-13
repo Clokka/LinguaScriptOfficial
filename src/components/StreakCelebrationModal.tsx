@@ -9,7 +9,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { getLanguageLabel } from "@/lib/languages";
 import { supabase } from "@/integrations/supabase/client";
-import { CELEBRATION_ATTR } from "@/components/rewards/LevelUpGift";
 import { checkPetMilestones } from "@/lib/pets";
 
 export interface StreakIgnitionDetail {
@@ -54,8 +53,7 @@ export const StreakCelebrationModal = () => {
   const { triggerReaction } = usePet();
   const { user } = useAuth();
   const { learningLanguage } = useLanguage();
-  // The streak screen just closes; a present comes from levelling up
-  // (LevelUpGift waits for this screen to close), then any new pet.
+  // The streak screen just closes, then shows any new pet.
   const finish = () => {
     setOpen(false);
     checkPetMilestones();
@@ -82,7 +80,6 @@ export const StreakCelebrationModal = () => {
       {open && detail && (
         <motion.div
           key="celeb"
-          {...{ [CELEBRATION_ATTR]: "" }}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}

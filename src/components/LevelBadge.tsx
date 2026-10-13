@@ -2,10 +2,9 @@
 //
 // Lives in every main page header so the bar is never more than a glance away:
 // watching it inch forward after each saved word is the core feedback loop.
-import { Gem, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useXp } from "@/contexts/XpContext";
-import { gemsForLevel } from "@/lib/levelRewards";
 import { cn } from "@/lib/utils";
 import {
   Tooltip,
@@ -14,10 +13,9 @@ import {
 } from "@/components/ui/tooltip";
 
 export const LevelBadge = ({ className }: { className?: string }) => {
-  const { level, current, nextLevelXP, levelProgress, gems } = useXp();
+  const { level, current, nextLevelXP, levelProgress } = useXp();
   const navigate = useNavigate();
   const remaining = Math.max(0, nextLevelXP - current);
-  const nextReward = gemsForLevel(level + 1);
 
   return (
     <Tooltip>
@@ -25,7 +23,7 @@ export const LevelBadge = ({ className }: { className?: string }) => {
         <button
           type="button"
           onClick={() => navigate("/progress")}
-          aria-label={`Level ${level}, ${current} of ${nextLevelXP} XP. ${gems} gems.`}
+          aria-label={`Level ${level}, ${current} of ${nextLevelXP} XP.`}
           className={cn(
             "group flex items-center gap-2.5 rounded-full pl-1.5 pr-3 py-1.5",
             "border border-border/70 bg-secondary/40 hover:bg-secondary/70",
@@ -60,22 +58,12 @@ export const LevelBadge = ({ className }: { className?: string }) => {
               />
             </span>
           </span>
-
-          {/* Gems */}
-          <span className="flex items-center gap-1 text-xs font-semibold text-foreground">
-            <Gem className="h-3.5 w-3.5 text-accent" />
-            <span className="tabular-nums">{gems.toLocaleString()}</span>
-          </span>
         </button>
       </TooltipTrigger>
       <TooltipContent side="bottom" className="max-w-[220px]">
         <p className="flex items-center gap-1.5 font-semibold">
           <Sparkles className="h-3.5 w-3.5 text-primary" />
           {remaining.toLocaleString()} XP to level {level + 1}
-        </p>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Level {level + 1} pays {nextReward.toLocaleString()} gems. Gems unlock
-          pets and cosmetics — never learning content.
         </p>
       </TooltipContent>
     </Tooltip>

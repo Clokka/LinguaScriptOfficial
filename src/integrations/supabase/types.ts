@@ -560,30 +560,6 @@ export type Database = {
         }
         Relationships: []
       }
-      level_rewards: {
-        Row: {
-          gems: number
-          granted_at: string
-          id: string
-          level: number
-          user_id: string
-        }
-        Insert: {
-          gems?: number
-          granted_at?: string
-          id?: string
-          level: number
-          user_id: string
-        }
-        Update: {
-          gems?: number
-          granted_at?: string
-          id?: string
-          level?: number
-          user_id?: string
-        }
-        Relationships: []
-      }
       linguascript_reviews: {
         Row: {
           ai_feedback: string | null
@@ -1011,8 +987,6 @@ export type Database = {
           display_name: string | null
           email_prefs: Json
           friend_code: string | null
-          gems: number
-          gems_spent: number
           id: string
           interests: string[]
           is_pro: boolean
@@ -1039,7 +1013,6 @@ export type Database = {
           show_daily_briefing: boolean
           show_on_global_leaderboard: boolean
           streak_count: number
-          streak_freezes: number
           streak_rescue_for_streak: number | null
           timezone: string
           updated_at: string
@@ -1062,8 +1035,6 @@ export type Database = {
           display_name?: string | null
           email_prefs?: Json
           friend_code?: string | null
-          gems?: number
-          gems_spent?: number
           id?: string
           interests?: string[]
           is_pro?: boolean
@@ -1090,7 +1061,6 @@ export type Database = {
           show_daily_briefing?: boolean
           show_on_global_leaderboard?: boolean
           streak_count?: number
-          streak_freezes?: number
           streak_rescue_for_streak?: number | null
           timezone?: string
           updated_at?: string
@@ -1113,8 +1083,6 @@ export type Database = {
           display_name?: string | null
           email_prefs?: Json
           friend_code?: string | null
-          gems?: number
-          gems_spent?: number
           id?: string
           interests?: string[]
           is_pro?: boolean
@@ -1141,7 +1109,6 @@ export type Database = {
           show_daily_briefing?: boolean
           show_on_global_leaderboard?: boolean
           streak_count?: number
-          streak_freezes?: number
           streak_rescue_for_streak?: number | null
           timezone?: string
           updated_at?: string
@@ -1152,36 +1119,6 @@ export type Database = {
           watch_progress?: Json
           xp_level?: number
           xp_total?: number
-        }
-        Relationships: []
-      }
-      reward_claims: {
-        Row: {
-          claimed_at: string
-          gems: number
-          id: string
-          item_id: string | null
-          key: string
-          kind: string
-          user_id: string
-        }
-        Insert: {
-          claimed_at?: string
-          gems?: number
-          id?: string
-          item_id?: string | null
-          key: string
-          kind: string
-          user_id: string
-        }
-        Update: {
-          claimed_at?: string
-          gems?: number
-          id?: string
-          item_id?: string | null
-          key?: string
-          kind?: string
-          user_id?: string
         }
         Relationships: []
       }
@@ -1465,51 +1402,6 @@ export type Database = {
         }
         Relationships: []
       }
-      shop_items: {
-        Row: {
-          description: string | null
-          emoji: string
-          glb_path: string | null
-          id: string
-          kind: string
-          name: string
-          price: number
-          rarity: string
-          rule: Json | null
-          slot: string | null
-          sort_order: number
-          unlock: string
-        }
-        Insert: {
-          description?: string | null
-          emoji?: string
-          glb_path?: string | null
-          id: string
-          kind: string
-          name: string
-          price: number
-          rarity?: string
-          rule?: Json | null
-          slot?: string | null
-          sort_order?: number
-          unlock?: string
-        }
-        Update: {
-          description?: string | null
-          emoji?: string
-          glb_path?: string | null
-          id?: string
-          kind?: string
-          name?: string
-          price?: number
-          rarity?: string
-          rule?: Json | null
-          slot?: string | null
-          sort_order?: number
-          unlock?: string
-        }
-        Relationships: []
-      }
       starter_deck_cards: {
         Row: {
           created_at: string
@@ -1726,27 +1618,6 @@ export type Database = {
           last_picked_at?: string | null
           picks?: number
           updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      user_items: {
-        Row: {
-          acquired_at: string
-          id: string
-          item_id: string
-          user_id: string
-        }
-        Insert: {
-          acquired_at?: string
-          id?: string
-          item_id: string
-          user_id: string
-        }
-        Update: {
-          acquired_at?: string
-          id?: string
-          item_id?: string
           user_id?: string
         }
         Relationships: []
@@ -2230,7 +2101,6 @@ export type Database = {
         Args: { _emails: string[]; _school_id: string }
         Returns: number
       }
-      buy_shop_item: { Args: { p_item: string }; Returns: Json }
       cefr_cumulative_target: { Args: { _level: string }; Returns: number }
       cefr_level_progress: {
         Args: { _language: string }
@@ -2243,14 +2113,12 @@ export type Database = {
         }[]
       }
       check_achievements: { Args: { p_language?: string }; Returns: Json }
-      claim_daily_chest: { Args: never; Returns: Json }
       claim_free_pet: { Args: { p_pet_id: string }; Returns: Json }
       claim_gift_link: { Args: { p_token: string }; Returns: Json }
       claim_pro_chameleon_link: { Args: { _token: string }; Returns: Json }
       claim_pro_gift_link: { Args: { _token: string }; Returns: Json }
       claim_return_gift: { Args: never; Returns: Json }
       claim_pet_milestones: { Args: never; Returns: string[] }
-      claim_streak_reward: { Args: { p_days: number }; Returns: Json }
       create_daily_linguascript: {
         Args: {
           p_gap_options: Json
@@ -2392,7 +2260,6 @@ export type Database = {
         Args: { p_pet_id: string; p_recipient_username: string }
         Returns: Json
       }
-      grant_item: { Args: { _item: string; _uid: string }; Returns: undefined }
       grant_xp: {
         Args: {
           p_action: string
@@ -2414,8 +2281,6 @@ export type Database = {
         Returns: boolean
       }
       keep_streak: { Args: never; Returns: Json }
-      level_box_item: { Args: { p_level: number }; Returns: string }
-      level_reward_gems: { Args: { p_level: number }; Returns: number }
       list_school_students: {
         Args: { _school_id: string }
         Returns: {
@@ -2450,7 +2315,6 @@ export type Database = {
           slug: string
         }[]
       }
-      open_level_box: { Args: { p_level: number }; Returns: Json }
       preview_pro_chameleon_link: { Args: { _token: string }; Returns: Json }
       preview_pro_gift_link: { Args: { _token: string }; Returns: Json }
       read_email_batch: {
@@ -2461,7 +2325,6 @@ export type Database = {
           read_ct: number
         }[]
       }
-      recompute_gems: { Args: { _uid: string }; Returns: number }
       record_feed_event: {
         Args: { _interest_id: string; _kind: string; _language: string }
         Returns: undefined
@@ -2507,7 +2370,6 @@ export type Database = {
             Returns: number
           }
       set_username: { Args: { _username: string }; Returns: string }
-      sync_level_rewards: { Args: { p_level: number }; Returns: number }
       touch_gold_word: {
         Args: { p_decay_at?: number; p_word_id: string }
         Returns: Json
@@ -2525,7 +2387,6 @@ export type Database = {
         }
         Returns: undefined
       }
-      use_streak_freeze: { Args: never; Returns: boolean }
       user_learning_rate: { Args: { _language: string }; Returns: number }
       user_progress_stats:
         | {

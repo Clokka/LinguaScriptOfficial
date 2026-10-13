@@ -7,10 +7,10 @@ import { usePet } from "@/contexts/PetContext";
 import { getPetById, RARITY_COLORS, unlockLabel, PET_MILESTONES_EVENT } from "@/lib/pets";
 
 /**
- * Grants milestone pets (7-day streak, 10 / 25 videos watched) and shows a
- * "New pet!" moment for each one. The server decides what's earned
- * (claim_pet_milestones); this runs when the app opens and whenever
- * checkPetMilestones() fires — after the daily chest and after a video —
+ * Grants milestone pets (level 10 / 20, 7-day streak, 10 / 25 videos watched)
+ * and shows a "New pet!" moment for each one. The server decides what's
+ * earned (claim_pet_milestones); this runs when the app opens and whenever
+ * checkPetMilestones() fires — after a level-up, a streak and a video —
  * so it never stacks on top of another celebration. Mount once at the root.
  */
 export function PetMilestoneUnlock() {

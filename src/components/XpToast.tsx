@@ -8,6 +8,7 @@ import { useXp } from "@/contexts/XpContext";
 import { XpAction } from "@/lib/xp";
 import { cn } from "@/lib/utils";
 import { usePet } from "@/contexts/PetContext";
+import { checkPetMilestones } from "@/lib/pets";
 import {
   WORD_SAVED_DURATION_MS,
   levelUpDurationMs,
@@ -112,7 +113,12 @@ export const XpToast = () => {
     // Duration follows the level: the ramp's later celebrations hold longer.
     const ms = levelUpDurationMs(leveledUpTo);
     triggerReaction("excited", ms);
-    const t = setTimeout(consumeLevelUp, ms);
+    // Once the chameleon's celebration ends, grant any level pet (Colobus at
+    // 10, Inkfish at 20) — by then the new level has been saved.
+    const t = setTimeout(() => {
+      consumeLevelUp();
+      checkPetMilestones();
+    }, ms);
     return () => clearTimeout(t);
   }, [leveledUpTo, consumeLevelUp, triggerReaction]);
 
