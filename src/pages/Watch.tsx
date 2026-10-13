@@ -977,7 +977,7 @@ const Watch = () => {
     }
   };
 
-  const saveWordToFlashcards = async (word: { id: string; text: string; translation: string; pronunciation: string; ipa: string }) => {
+  const saveWordToFlashcards = async (word: { id: string; text: string; translation: string; pronunciation: string; ipa: string; pos?: string | null }) => {
     let { translation, pronunciation, ipa } = word;
     const context = currentSubtitle?.primary || "";
     const langCode = film?.language || learningLanguage || "fr";
@@ -989,7 +989,8 @@ const Watch = () => {
     // learner memorizes "manges = eat" instead of "manger = to eat".
     let lemma: string | null = null;
     let lemmaTranslation: string | null = null;
-    let pos: string | null = null;
+    // Part of speech from the popup's translation, if it had one.
+    let pos: string | null = word.pos ?? null;
     let isInflected = false;
     let grammarNote: string | null = null;
 
@@ -1141,9 +1142,10 @@ const Watch = () => {
       } as any).then(({ error }) => { if (error) console.error("Failed to create LinguaScript:", error); });
     }
 
-    // Fire-and-forget: cache an Openverse image for text-to-image flashcards.
-    // The translation is usually the more Openverse-searchable term.
-    void cacheWordImageByWord(user.id, word.text, langCode, translation || word.text);
+    // Fire-and-forget: cache an Openverse image for text-to-image flashcards,
+    // for nouns you can photograph only (wantsPicture). The translation is
+    // usually the more Openverse-searchable term.
+    void cacheWordImageByWord(user.id, word.text, langCode, translation || word.text, pos);
   };
 
   const savePhrase = async (phrase: string) => {
@@ -1230,8 +1232,6 @@ const Watch = () => {
         scheduled_for: new Date().toISOString(),
       } as any).then(({ error }) => { if (error) console.error("Failed to create LinguaScript for phrase:", error); });
     }
-
-    void cacheWordImageByWord(user.id, trimmed, langCode, translation || trimmed);
   };
 
   const markWordKnown = async (word: { text: string; translation?: string }) => {
@@ -1285,8 +1285,6 @@ const Watch = () => {
         scheduled_for: new Date().toISOString(),
       } as any).then(({ error }) => { if (error) console.error("Failed to create LinguaScript for known word:", error); });
     }
-
-    void cacheWordImageByWord(user.id, word.text, langCode, word.translation || word.text);
   };
 
   const downloadSrt = (type: "primary" | "secondary") => {

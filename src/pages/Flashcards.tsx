@@ -60,6 +60,7 @@ interface SavedWord {
   lemma_translation?: string | null;
   is_inflected?: boolean;
   grammar_note?: string | null;
+  pos?: string | null;
   /** When the card last changed colour (red → orange → green). */
   state_changed_at?: string | null;
 }
@@ -124,7 +125,7 @@ const Flashcards = () => {
       while (true) {
         let q = supabase
           .from("saved_words")
-          .select("id, word, translation, pronunciation, ipa, context, language, next_review, review_count, state, times_correct, is_phrase, ease_factor, interval_days, image_url, lemma, lemma_translation, is_inflected, grammar_note, created_at, state_changed_at")
+          .select("id, word, translation, pronunciation, ipa, context, language, next_review, review_count, state, times_correct, is_phrase, ease_factor, interval_days, image_url, lemma, lemma_translation, is_inflected, grammar_note, created_at, state_changed_at, pos")
           .eq("user_id", user.id)
           .order("next_review", { ascending: true, nullsFirst: true })
           .range(from, from + pageSize - 1);
@@ -256,6 +257,7 @@ const Flashcards = () => {
     lemma_translation: c.lemma_translation,
     is_inflected: c.is_inflected,
     grammar_note: c.grammar_note,
+    pos: c.pos,
   }));
 
   if (activeDeck && flashcardData.length > 0) {

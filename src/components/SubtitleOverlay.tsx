@@ -44,6 +44,8 @@ interface Word {
   translation: string;
   pronunciation: string;
   ipa: string;
+  /** Part of speech from translate-word, when known (pictures are nouns only). */
+  pos?: string | null;
 }
 
 interface SubtitleOverlayProps {
@@ -347,11 +349,12 @@ export const SubtitleOverlay = ({
         word.text, primaryText, effectiveLang, nativeLanguage || "en",
         { from: getLanguageLabel(effectiveLang), to: getLanguageLabel(nativeLanguage || "en") },
       );
-      const translated = { ...word, translation: t.translation, pronunciation: t.pronunciation, ipa: t.ipa };
+      const translated = { ...word, translation: t.translation, pronunciation: t.pronunciation, ipa: t.ipa, pos: t.pos };
       setSelectedWord(translated);
       word.translation = translated.translation;
       word.pronunciation = translated.pronunciation;
       word.ipa = translated.ipa;
+      word.pos = translated.pos;
     } catch (e) {
       // Both the server and the browser fallback failed (offline?). Never
       // leave the popup stuck; tapping again retries (translation still empty).

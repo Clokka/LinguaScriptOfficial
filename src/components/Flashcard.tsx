@@ -24,6 +24,8 @@ interface FlashcardProps {
   context?: string;
   contextTranslation?: string;
   imageUrl?: string;
+  /** Part of speech; only nouns show a picture. */
+  pos?: string | null;
   language?: string;
   /** Deck the card lives in — the word and its pinyin render in this colour. */
   state?: DeckState;
@@ -62,6 +64,7 @@ export const Flashcard = ({
   context,
   contextTranslation,
   imageUrl: savedImageUrl,
+  pos,
   language,
   state,
   direction = "learn-to-native",
@@ -92,9 +95,9 @@ export const Flashcard = ({
 
   // Image mode always leads with the learning-language word — the point is
   // recalling the picture from the word, not choosing a translation direction.
-  // A picture saved before the "nothing to photograph" rule (e.g. "who") is
-  // ignored rather than shown.
-  const imageUrl = savedImageUrl && wantsPicture(learningMeaning) ? savedImageUrl : undefined;
+  // Only nouns you can photograph keep their picture; one saved for any
+  // other word (e.g. "who") is ignored rather than shown.
+  const imageUrl = savedImageUrl && wantsPicture(learningMeaning, pos) ? savedImageUrl : undefined;
   const imageMode = cardType === "image";
   const showLearningFirst = imageMode ? true : direction === "learn-to-native";
   const frontLabel = showLearningFirst ? "Learning Language" : "Your Language";

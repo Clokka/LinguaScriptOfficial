@@ -9,9 +9,10 @@ export interface WordImageResult {
   creator?: string;
 }
 
-// Words with nothing to photograph. A picture search for "who" or "very"
-// returns something random (a creepy mask for "who"), which is worse than no
-// picture, so these cards just show the meaning.
+// Pictures are only for nouns you can photograph (apple, cat, plane). A
+// picture search for "who", "very" or "time" returns something random (a
+// creepy mask for "who"), which is worse than no picture. Nouns on this list
+// are too abstract to photograph.
 const NO_PICTURE = new Set([
   "i", "me", "you", "he", "him", "she", "her", "it", "we", "us", "they", "them",
   "this", "that", "these", "those", "my", "your", "his", "its", "our", "their",
@@ -23,13 +24,19 @@ const NO_PICTURE = new Set([
   "for", "from", "by", "here", "there", "now", "today", "tomorrow", "yesterday", "time",
   "moment", "hello", "goodbye", "thank you", "thanks", "sorry", "please", "you're welcome",
   "ok", "okay", "it's okay", "no problem",
+  "thing", "things", "name", "weather", "year", "month", "day", "week", "minute", "hour",
+  "o'clock", "morning", "afternoon", "noon", "evening", "night", "date", "number", "age",
+  "character", "letter", "word", "language", "mandarin", "chinese", "person", "people",
+  "way", "idea", "problem", "question", "reason", "life", "work", "job", "love",
 ]);
 
 /**
- * Whether a meaning names something you can picture (cat, apple, plane).
- * Pronouns, question words, particles and the like get no picture.
+ * Whether a word gets a picture: only a noun (`pos`, from translate-word)
+ * whose meaning is something you can photograph (cat, apple, plane). Unknown
+ * part of speech means no picture.
  */
-export function wantsPicture(meaning: string | null | undefined): boolean {
+export function wantsPicture(meaning: string | null | undefined, pos: string | null | undefined): boolean {
+  if ((pos || "").toLowerCase() !== "noun") return false;
   const m = (meaning || "")
     .toLowerCase()
     .split(/[,;/(]/)[0]
@@ -41,8 +48,8 @@ export function wantsPicture(meaning: string | null | undefined): boolean {
 }
 
 /** Calls the edge function only — does not touch the database. */
-export async function fetchWordImage(query: string): Promise<WordImageResult | null> {
-  if (!query.trim() || !wantsPicture(query)) return null;
+export async function fetchWordImage(query: string, pos: string | null | undefined): Promise<WordImageResult | null> {
+  if (!query.trim() || !wantsPicture(query, pos)) return null;
   try {
     const { data, error } = await supabase.functions.invoke("fetch-word-image", {
       body: { query },
@@ -65,8 +72,8 @@ export async function fetchWordImage(query: string): Promise<WordImageResult | n
  * and a miss (no Openverse match) is cheap to retry on a later review rather
  * than something worth caching as a permanent failure.
  */
-export async function cacheWordImage(savedWordId: string, query: string): Promise<string | null> {
-  const result = await fetchWordImage(query);
+export async function cacheWordImage(savedWordId: string, query: string, pos: string | null | undefined): Promise<string | null> {
+  const result = await fetchWordImage(query, pos);
   if (!result) return null;
 
   const attribution = result.creator ? `${result.creator} · ${result.license || "CC"}` : result.license || null;
@@ -91,8 +98,9 @@ export async function cacheWordImageByWord(
   word: string,
   language: string,
   query: string,
+  pos: string | null | undefined,
 ): Promise<void> {
-  const result = await fetchWordImage(query);
+  const result = await fetchWordImage(query, pos);
   if (!result) return;
 
   const attribution = result.creator ? `${result.creator} · ${result.license || "CC"}` : result.license || null;

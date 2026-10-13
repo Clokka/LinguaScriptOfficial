@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { DeckState, nextState, applySrsReview, syncLemmaState } from "@/lib/vocab";
-import { cacheWordImage } from "@/lib/wordImages";
+import { cacheWordImage, wantsPicture } from "@/lib/wordImages";
 import { useXp } from "@/contexts/XpContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { getLanguageLabel } from "@/lib/languages";
@@ -40,6 +40,7 @@ interface FlashcardData {
   lemma_translation?: string | null;
   is_inflected?: boolean;
   grammar_note?: string | null;
+  pos?: string | null;
 }
 
 interface FlashcardReviewProps {
@@ -114,9 +115,10 @@ export const FlashcardReview = ({ cards: initialCards, onClose, onCardReviewed, 
   useEffect(() => {
     const card = cards[currentIndex];
     if (!card || cardType !== "image" || card.image_url || card.id.startsWith("guest-")) return;
+    if (!wantsPicture(card.translation, card.pos)) return;
     if (imageFetchInFlight.current.has(card.id)) return;
     imageFetchInFlight.current.add(card.id);
-    cacheWordImage(card.id, card.translation || card.word).then((url) => {
+    cacheWordImage(card.id, card.translation || card.word, card.pos).then((url) => {
       if (!url) return;
       setCards((prev) => prev.map((c) => (c.id === card.id ? { ...c, image_url: url } : c)));
     });
@@ -419,6 +421,7 @@ export const FlashcardReview = ({ cards: initialCards, onClose, onCardReviewed, 
         context={currentCard.context}
         contextTranslation={currentCard.contextTranslation}
         imageUrl={currentCard.image_url ?? undefined}
+        pos={currentCard.pos}
         cardType={cardType}
         lemma={currentCard.lemma ?? undefined}
         lemmaTranslation={currentCard.lemma_translation ?? undefined}
