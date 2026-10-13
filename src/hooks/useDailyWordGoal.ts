@@ -27,18 +27,16 @@ export function useDailyWordGoal(language?: string) {
     // Everything the learner sees is scoped to the language they're studying:
     // today's tally counts only that language's words, and the goal comes from
     // that language's own profile before falling back to the account default.
+    // Words the learner saved from a video today (video_saved_at), including
+    // ones already in the deck — a daily frequency word met in a real video
+    // counts. Words the app adds on its own (daily top-up, deck starts, ones
+    // pre-marked known at setup) have no video_saved_at, so they never fill
+    // the goal by themselves.
     let savedQuery = supabase
       .from("saved_words")
       .select("id", { count: "exact", head: true })
       .eq("user_id", user.id)
-      .gte("created_at", startOfDay.toISOString())
-      // Words pre-marked as "known" when a language/level is set up are parked
-      // at 2999-01-01 — they were never saved by the learner, so don't count them.
-      .lt("next_review", "2999-01-01")
-      // Only words the learner added while watching. The daily 10 frequency-
-      // deck words (focusDeck.topUpDailyNew) and deck starts are added
-      // automatically with no film, and used to fill the goal to 8/8 on their own.
-      .not("film_id", "is", null);
+      .gte("video_saved_at", startOfDay.toISOString());
     if (language) savedQuery = savedQuery.eq("language", language.toLowerCase());
 
     const [{ data: profile }, { count }, { data: langProfile }] = await Promise.all([

@@ -1050,7 +1050,7 @@ const Watch = () => {
     let initialNextReview = new Date().toISOString().split("T")[0];
     const { data: existingSame } = await supabase
       .from("saved_words")
-      .select("state, review_count, times_correct, next_review, created_at, film_id")
+      .select("state, review_count, times_correct, next_review, video_saved_at")
       .eq("user_id", user.id)
       .eq("language", langCode)
       .eq("word", word.text)
@@ -1059,15 +1059,18 @@ const Watch = () => {
       initialState = coerceDeckState(existingSame.state);
       initialReviewCount = existingSame.review_count ?? 0;
       initialTimesCorrect = existingSame.times_correct ?? 0;
-      initialNextReview = existingSame.next_review ?? initialNextReview;
-      // Re-saving a word already in the deck isn't a new word for today's
-      // goal (the server counts words created today from a video), so take
-      // the early bump back — unless it was auto-added today without a video,
-      // which this save now makes count.
+      // A word pre-marked known at setup is parked at 2999-01-01 and never
+      // shows up for review; saving it from a video brings it into the deck.
+      const parked = (existingSame.next_review ?? "") >= "2999-01-01";
+      if (!parked) initialNextReview = existingSame.next_review ?? initialNextReview;
+      // Saving a word from a video counts toward today's goal even if it was
+      // already in the deck (e.g. a daily frequency word). Only a word already
+      // saved from a video today doesn't count twice.
       const startOfDay = new Date();
       startOfDay.setHours(0, 0, 0, 0);
-      const createdToday = !!existingSame.created_at && new Date(existingSame.created_at) >= startOfDay;
-      if (bumped && !(createdToday && !existingSame.film_id)) unregisterDailySave(word.text);
+      const savedFromVideoToday =
+        !!existingSame.video_saved_at && new Date(existingSame.video_saved_at) >= startOfDay;
+      if (bumped && savedFromVideoToday) unregisterDailySave(word.text);
     }
     if (lemma) {
       const lemmaBest = await bestStateForLemma(user.id, langCode, lemma);
@@ -1082,6 +1085,7 @@ const Watch = () => {
       ipa,
       context,
       film_id: film.id,
+      video_saved_at: new Date().toISOString(),
       language: langCode,
       next_review: initialNextReview,
       state: initialState,
@@ -1183,6 +1187,7 @@ const Watch = () => {
       ipa: "",
       context,
       film_id: film.id,
+      video_saved_at: new Date().toISOString(),
       language: langCode,
       is_phrase: true,
       next_review: today,
