@@ -4,6 +4,7 @@ import { Button } from "./ui/button";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/contexts/LanguageContext";
 import type { DeckState } from "@/lib/vocab";
+import { wantsPicture } from "@/lib/wordImages";
 
 /** Same hexes as the subtitle overlay — one word, one colour, everywhere. */
 const DECK_COLORS: Record<DeckState, string> = {
@@ -60,7 +61,7 @@ export const Flashcard = ({
   ipa,
   context,
   contextTranslation,
-  imageUrl,
+  imageUrl: savedImageUrl,
   language,
   state,
   direction = "learn-to-native",
@@ -91,6 +92,9 @@ export const Flashcard = ({
 
   // Image mode always leads with the learning-language word — the point is
   // recalling the picture from the word, not choosing a translation direction.
+  // A picture saved before the "nothing to photograph" rule (e.g. "who") is
+  // ignored rather than shown.
+  const imageUrl = savedImageUrl && wantsPicture(learningMeaning) ? savedImageUrl : undefined;
   const imageMode = cardType === "image";
   const showLearningFirst = imageMode ? true : direction === "learn-to-native";
   const frontLabel = showLearningFirst ? "Learning Language" : "Your Language";

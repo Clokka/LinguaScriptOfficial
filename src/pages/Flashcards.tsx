@@ -60,6 +60,8 @@ interface SavedWord {
   lemma_translation?: string | null;
   is_inflected?: boolean;
   grammar_note?: string | null;
+  /** When the card last changed colour (red → orange → green). */
+  state_changed_at?: string | null;
 }
 
 interface StarterDeck {
@@ -122,7 +124,7 @@ const Flashcards = () => {
       while (true) {
         let q = supabase
           .from("saved_words")
-          .select("id, word, translation, pronunciation, ipa, context, language, next_review, review_count, state, times_correct, is_phrase, ease_factor, interval_days, image_url, lemma, lemma_translation, is_inflected, grammar_note, created_at")
+          .select("id, word, translation, pronunciation, ipa, context, language, next_review, review_count, state, times_correct, is_phrase, ease_factor, interval_days, image_url, lemma, lemma_translation, is_inflected, grammar_note, created_at, state_changed_at")
           .eq("user_id", user.id)
           .order("next_review", { ascending: true, nullsFirst: true })
           .range(from, from + pageSize - 1);
@@ -221,6 +223,13 @@ const Flashcards = () => {
   // "review-close" step regardless of how big their real deck is.
   const openDeck = (deck: DeckKey) => {
     const cards = allCards.filter((c) => (c.state ?? "red") === deck);
+    // A word that just moved up (red → orange, orange → green) goes to the
+    // front of its new deck, so it's practised while it's fresh instead of
+    // waiting behind older cards. Red keeps its due-date order.
+    if (deck !== "red") {
+      const movedAt = (c: SavedWord) => (c.state_changed_at ? Date.parse(c.state_changed_at) : 0);
+      cards.sort((a, b) => movedAt(b) - movedAt(a));
+    }
     setReviewCards(tourActive ? cards.slice(0, 1) : cards);
     setActiveDeck(deck);
   };

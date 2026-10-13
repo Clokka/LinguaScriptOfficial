@@ -13,7 +13,7 @@ import { useSubscription } from "@/hooks/useSubscription";
 import { useUpgradeTrigger } from "@/hooks/useUpgradeTrigger";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTour } from "@/contexts/TourContext";
-import { getLanguageLabel, getLanguageFlag, subtitlesLookLikeWrongLanguage } from "@/lib/languages";
+import { getLanguageLabel, getLanguageFlag, subtitlesLookLikeWrongLanguage, textMatchesLanguageScript } from "@/lib/languages";
 import { spaceOutWords } from "@/lib/wordSegments";
 import { cn } from "@/lib/utils";
 import { fetchCaptionsFromBrowser } from "@/lib/browserCaptionFetcher";
@@ -996,6 +996,13 @@ const Watch = () => {
     // A popup placeholder is not a meaning — never save it onto a card.
     if (/^(Translating|Couldn't translate)/.test(translation || "")) translation = "";
 
+    // Never file an English word as "Chinese" (it happened with mislabelled
+    // subtitle tracks: "who" saved as a Chinese card).
+    if (!textMatchesLanguageScript(word.text, langCode)) {
+      toast.error(`"${word.text}" isn't ${fromLang}`, { description: `Only ${fromLang} words can be saved.` });
+      return;
+    }
+
     // Count it now so "x/8" moves on tap, not seconds later.
     const bumped = user && film ? registerDailySave(word.text) : false;
     // Saving the ringed word the video paused on carries on watching.
@@ -1145,6 +1152,10 @@ const Watch = () => {
     const context = currentSubtitle?.primary || trimmed;
     const langCode = film?.language || learningLanguage || "fr";
     const fromLang = getLanguageLabel(langCode);
+    if (!textMatchesLanguageScript(trimmed, langCode)) {
+      toast.error(`That phrase isn't ${fromLang}`, { description: `Only ${fromLang} phrases can be saved.` });
+      return;
+    }
     const toLang = getLanguageLabel(nativeLanguage);
 
     let translation = "";

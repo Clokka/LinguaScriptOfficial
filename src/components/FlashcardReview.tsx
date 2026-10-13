@@ -45,7 +45,10 @@ interface FlashcardData {
 interface FlashcardReviewProps {
   cards: FlashcardData[];
   onClose: () => void;
-  onCardReviewed?: (id: string, patch: Pick<FlashcardData, "state" | "times_correct">) => void;
+  onCardReviewed?: (
+    id: string,
+    patch: Pick<FlashcardData, "state" | "times_correct"> & { state_changed_at?: string },
+  ) => void;
   className?: string;
 }
 
@@ -165,7 +168,11 @@ export const FlashcardReview = ({ cards: initialCards, onClose, onCardReviewed, 
     setCards((prev) =>
       prev.map((c, i) => (i === currentIndex ? { ...c, state: newState, times_correct: newTimes, ...srs } : c)),
     );
-    onCardReviewed?.(card.id, { state: newState, times_correct: newTimes });
+    onCardReviewed?.(card.id, {
+      state: newState,
+      times_correct: newTimes,
+      ...(newState !== prevState ? { state_changed_at: new Date().toISOString() } : {}),
+    });
 
     // Persist the SRS transition immediately. Supabase saved_words.state is the source of truth.
     if (user && !card.id.startsWith("guest-")) {
@@ -278,7 +285,7 @@ export const FlashcardReview = ({ cards: initialCards, onClose, onCardReviewed, 
     const down: DeckState = prev === "green" ? "orange" : "red";
     const today = new Date().toISOString().slice(0, 10);
     setCards((cs) => cs.map((c, i) => (i === currentIndex ? { ...c, state: down } : c)));
-    onCardReviewed?.(card.id, { state: down, times_correct: card.times_correct ?? 0 });
+    onCardReviewed?.(card.id, { state: down, times_correct: card.times_correct ?? 0, state_changed_at: new Date().toISOString() });
     if (user && !card.id.startsWith("guest-")) {
       void supabase
         .from("saved_words")
