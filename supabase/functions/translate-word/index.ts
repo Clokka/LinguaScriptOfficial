@@ -72,7 +72,7 @@ Return ONLY valid JSON with these exact fields:
     let result: any = null;
     try {
       if (!hasAIKey()) throw new Error('No AI key configured');
-      let result = await callAI(system, userPrompt);
+      result = await callAI(system, userPrompt);
 
       // Retry once if the AI echoed the source word
       if (
@@ -109,6 +109,7 @@ Return ONLY valid JSON with these exact fields:
       };
     }
 
+    if (!result?.translation) throw new Error('No translation');
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
