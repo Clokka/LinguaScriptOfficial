@@ -1161,6 +1161,7 @@ export type Database = {
           times_correct: number
           translation: string
           user_id: string
+          video_saved_at: string | null
           word: string
           word_form_id: string | null
         }
@@ -1199,6 +1200,7 @@ export type Database = {
           times_correct?: number
           translation?: string
           user_id: string
+          video_saved_at?: string | null
           word: string
           word_form_id?: string | null
         }
@@ -1237,6 +1239,7 @@ export type Database = {
           times_correct?: number
           translation?: string
           user_id?: string
+          video_saved_at?: string | null
           word?: string
           word_form_id?: string | null
         }

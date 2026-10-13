@@ -114,9 +114,7 @@ async function wordsSavedSince(userId: string, since: Date): Promise<number> {
     .from('saved_words')
     .select('id', { count: 'exact', head: true })
     .eq('user_id', userId)
-    .gte('created_at', since.toISOString())
-    .lt('next_review', '2999-01-01')
-    .not('film_id', 'is', null);
+    .gte('video_saved_at', since.toISOString());
   return count ?? 0;
 }
 
