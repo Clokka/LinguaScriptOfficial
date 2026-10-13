@@ -62,7 +62,7 @@ export function WatchGoalGate({ goal, playerRef, savedToday = 0 }: Props) {
           </p>
           <h2 className="mt-1 text-2xl font-bold text-foreground">Save one word first</h2>
           <p className="mt-2 text-sm text-muted-foreground">
-            You've watched your {goal} {goal === 1 ? "minute" : "minutes"} but saved no words yet. Tap a word with a gold circle to save it.
+            You've watched your {goal} {goal === 1 ? "minute" : "minutes"} but saved no words yet. Tap a word with an orange ring to save it.
           </p>
           <button
             onClick={() => {

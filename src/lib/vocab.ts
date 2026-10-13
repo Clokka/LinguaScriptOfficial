@@ -77,7 +77,7 @@ export const coerceDeckState = (raw: string | null | undefined): DeckState =>
 export function normalizeToken(raw: string): string {
   return raw
     .toLowerCase()
-    .replace(/[.,!?;:"'`«»()\[\]…]/g, "")
+    .replace(/[.,!?;:"'`«»()\[\]…，。、！？；：「」『』（）《》〈〉“”‘’]/g, "")
     .trim();
 }
 

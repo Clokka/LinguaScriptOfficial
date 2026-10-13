@@ -15,6 +15,7 @@ import { useUpgradeTrigger } from "@/hooks/useUpgradeTrigger";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTour } from "@/contexts/TourContext";
 import { getLanguageLabel, getLanguageFlag, subtitlesLookLikeWrongLanguage } from "@/lib/languages";
+import { spaceOutWords } from "@/lib/wordSegments";
 import { cn } from "@/lib/utils";
 import { fetchCaptionsFromBrowser } from "@/lib/browserCaptionFetcher";
 import { ChameleonLoader } from "@/components/ChameleonLoader";
@@ -82,7 +83,8 @@ function getYouTubeId(url: string): string | null {
 }
 
 function textToWords(text: string, index: number) {
-  return text.split(/\s+/).filter(Boolean).map((w, wi) => ({
+  // Bare punctuation (e.g. "。" split off a Chinese line) isn't a word to tap.
+  return text.split(/\s+/).filter((w) => /[\p{L}\p{N}]/u.test(w)).map((w, wi) => ({
     id: `${index}-${wi}`,
     text: w.replace(/[.,!?;:]/g, ""),
     translation: "",
@@ -91,15 +93,22 @@ function textToWords(text: string, index: number) {
   }));
 }
 
-function buildDisplaySubtitles(primary: SubtitleSegment[], secondary: SubtitleSegment[]): DisplaySubtitle[] {
+function buildDisplaySubtitles(
+  primary: SubtitleSegment[],
+  secondary: SubtitleSegment[],
+  primaryLang: string,
+): DisplaySubtitle[] {
   return primary.map((sub, i) => {
     const match = secondary.find((s) => Math.abs(s.start - sub.start) < 1.5);
+    // Chinese/Japanese/Thai lines get spaces between words so each word can be
+    // tapped, coloured and ringed on its own.
+    const text = spaceOutWords(sub.text, primaryLang);
     return {
       start: sub.start,
       end: sub.end,
-      primary: sub.text,
+      primary: text,
       secondary: match?.text || "",
-      words: textToWords(sub.text, i),
+      words: textToWords(text, i),
     };
   });
 }
@@ -716,7 +725,7 @@ const Watch = () => {
             `The ${getLanguageLabel(primaryLang)} subtitles for this film are in another language — please re-upload them.`
           );
         } else if (primary.length > 0) {
-          setSubtitles(buildDisplaySubtitles(primary, secondary));
+          setSubtitles(buildDisplaySubtitles(primary, secondary, primaryLang));
           setCaptionsStatus(null);
         } else {
           setCaptionsError(
@@ -766,7 +775,7 @@ const Watch = () => {
       if (cancelled) return;
 
       if (primary.length > 0) {
-        setSubtitles(buildDisplaySubtitles(primary, secondary));
+        setSubtitles(buildDisplaySubtitles(primary, secondary, usedLang));
         setCaptionsStatus(null);
         if (usedLang !== primaryLang) {
           toast.message(`No ${getLanguageLabel(primaryLang)} captions on this video`, {
