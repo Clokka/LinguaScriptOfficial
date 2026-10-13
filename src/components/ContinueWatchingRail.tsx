@@ -1,12 +1,15 @@
-// Continue Watching rail — pulled from watch_history + video_comprehension.
-// Each card surfaces the user's most recent comprehension and improvement.
+// "Rewatch to 100% green" rail — pulled from watch_history + video_comprehension.
+// The LinguaScript method is rewatching a video until every word is green, so
+// every watched video that isn't fully green yet stays here (finished ones
+// too), most recent first. Each card shows how green it is and the gain since
+// the first watch. The last list is kept on the device so the rail shows
+// instantly, then refreshes quietly.
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Play, ChevronRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { coverageBadge } from "@/lib/coverage";
 import { cn } from "@/lib/utils";
 import { getLanguageLabel, getLanguageFlag } from "@/lib/languages";
 
@@ -21,6 +24,25 @@ interface Row {
   latest_score: number;
 }
 
+const MAX_ROWS = 12;
+const cacheKey = (userId: string, lang: string) => `ls.rewatch:${userId}:${lang}`;
+
+function readCache(key: string): Row[] | null {
+  try {
+    const raw = localStorage.getItem(key);
+    // JSON turns NaN into null; restore it so "not scored yet" stays NaN.
+    return raw
+      ? (JSON.parse(raw) as Row[]).map((r) => ({
+          ...r,
+          first_score: r.first_score ?? NaN,
+          latest_score: r.latest_score ?? NaN,
+        }))
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 export function ContinueWatchingRail() {
   const { user } = useAuth();
   const { learningLanguage } = useLanguage();
@@ -31,21 +53,26 @@ export function ContinueWatchingRail() {
     if (!user) { setRows([]); return; }
     let alive = true;
     const lang = (learningLanguage || "").toLowerCase();
+    const key = cacheKey(user.id, lang);
+    setRows(readCache(key));
     (async () => {
-      // Built from watch history (any started, unfinished video) in the
-      // active language only — not from scored results, which only exist
-      // after a fuller watch.
+      // Built from watch history in the active language — started or
+      // finished — not from scored results, which only exist after a fuller
+      // watch. Fetch extra so fully green videos can be dropped.
       const { data: wh } = await supabase
         .from("watch_history")
         .select("film_id, title, thumbnail_url, language, completion_pct, watched_at")
         .eq("user_id", user.id)
         .eq("language", lang)
         .not("film_id", "is", null)
-        .lt("completion_pct", 90)
         .order("watched_at", { ascending: false })
-        .limit(12);
+        .limit(60);
       const list = (wh as any[]) || [];
-      if (list.length === 0) { if (alive) setRows([]); return; }
+      if (list.length === 0) {
+        if (alive) setRows([]);
+        try { localStorage.removeItem(key); } catch { /* ignore */ }
+        return;
+      }
       const ids = list.map((r) => r.film_id);
       const { data: vc } = await supabase
         .from("video_comprehension" as any)
@@ -61,6 +88,8 @@ export function ContinueWatchingRail() {
         if (seen.has(r.film_id)) continue;
         seen.add(r.film_id);
         const v = vmap.get(r.film_id);
+        // Fully green: nothing left to learn from this one.
+        if (v && Number(v.latest_score) >= 100) continue;
         out.push({
           film_id: r.film_id,
           title: r.title || "Video",
@@ -72,7 +101,9 @@ export function ContinueWatchingRail() {
           latest_score: v ? Number(v.latest_score) : NaN,
         });
       }
-      if (alive) setRows(out);
+      const top = out.slice(0, MAX_ROWS);
+      if (alive) setRows(top);
+      try { localStorage.setItem(key, JSON.stringify(top)); } catch { /* ignore */ }
     })();
     return () => { alive = false; };
   }, [user, learningLanguage]);
@@ -83,8 +114,8 @@ export function ContinueWatchingRail() {
     <section>
       <div className="flex items-end justify-between mb-3">
         <div>
-          <h2 className="text-lg font-semibold text-foreground">Continue Watching</h2>
-          <p className="text-xs text-muted-foreground">Your last sessions — each rewatch grows comprehension.</p>
+          <h2 className="text-lg font-semibold text-foreground">Rewatch to 100% green</h2>
+          <p className="text-xs text-muted-foreground">Each rewatch turns more words green.</p>
         </div>
       </div>
       <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin">
@@ -109,7 +140,7 @@ export function ContinueWatchingRail() {
                 </div>
                 {scored && (
                   <div className="absolute bottom-2 left-2 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-black/70 text-white">
-                    {coverageBadge(r.latest_score)}
+                    {Math.round(r.latest_score)}% green
                   </div>
                 )}
                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">

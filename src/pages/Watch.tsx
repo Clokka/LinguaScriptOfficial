@@ -1,4 +1,3 @@
-import { coverageBadge } from "@/lib/coverage";
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, Loader2, Download, Maximize, Minimize, Play, X } from "lucide-react";
@@ -38,7 +37,6 @@ const feedSaveSent = new Set<string>();
 import {
   computeVideoComprehension,
   loadComprehensionRecord,
-  zoneMessage,
   type VideoComprehension,
 } from "@/lib/videoComprehension";
 import { recordWatchSession, type RecordResult } from "@/lib/watchSessions";
@@ -453,7 +451,6 @@ const Watch = () => {
   const [priorScore, setPriorScore] = useState<number | null>(null);
   const [sessionResult, setSessionResult] = useState<RecordResult | null>(null);
   const [sessionDurationMin, setSessionDurationMin] = useState(0);
-  const preWatchToastFiredRef = useRef(false);
   const [apiReady, setApiReady] = useState(!!window.YT?.Player);
   const [subtitles, setSubtitles] = useState<DisplaySubtitle[]>([]);
   const preTeachLines = useMemo(
@@ -811,15 +808,6 @@ const Watch = () => {
         const prior = await loadComprehensionRecord(user.id, film.id, "film");
         if (cancelled) return;
         setPriorScore(prior ? Number(prior.first_score) : null);
-      }
-      // One-shot pre-watch hint.
-      if (!preWatchToastFiredRef.current) {
-        preWatchToastFiredRef.current = true;
-        toast.message(coverageBadge(comp.pct), {
-          description: zoneMessage(comp.pct),
-          duration: 4000,
-          position: "top-center",
-        });
       }
     })();
     return () => { cancelled = true; };
