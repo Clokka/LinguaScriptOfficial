@@ -1,7 +1,7 @@
 import { coverageBadge } from "@/lib/coverage";
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Loader2, Download, Maximize, Minimize, X } from "lucide-react";
+import { ArrowLeft, Loader2, Download, Maximize, Minimize, Play, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SubtitleOverlay } from "@/components/SubtitleOverlay";
 import { GapFillChallenge } from "@/components/GapFillChallenge";
@@ -197,6 +197,14 @@ async function loadAllCaptions(
   // 1) Check DB
   onStatus("Checking saved captions…");
   let primary = await loadStoredTrack(filmId, primaryLang);
+  // The top line must really be in the learning language. A track labelled
+  // e.g. Chinese but written in English (a creator's English captions tagged
+  // with the video's language) would otherwise show English on both lines.
+  if (primary.length && subtitlesLookLikeWrongLanguage(primary, primaryLang)) {
+    console.warn(`Cached ${primaryLang} track is actually a different language — purging`);
+    await supabase.from("subtitles").delete().eq("film_id", filmId).eq("language", primaryLang);
+    primary = [];
+  }
   let secondary = primaryLang === secondaryLang ? primary : await loadStoredTrack(filmId, secondaryLang);
 
   // Detect cached duplicate (same text as primary) — purge so we can re-translate
@@ -257,7 +265,7 @@ async function loadAllCaptions(
         if (data.locked) blockReason = "locked";
         else if (data.limitReached) blockReason = "limit";
         if (data.noSubtitles) noSubtitles = true;
-        if (!primary.length && data.subtitles?.length) {
+        if (!primary.length && data.subtitles?.length && !subtitlesLookLikeWrongLanguage(data.subtitles, primaryLang)) {
           primary = data.subtitles;
           await persistTrack(filmId, primaryLang, primary);
         }
@@ -282,7 +290,11 @@ async function loadAllCaptions(
       onStatus("Provider unavailable — trying direct fetch…");
       try {
         const browserRes = await fetchCaptionsFromBrowser(videoId, primaryLang, secondaryLang);
-        if (!primary.length && browserRes.learning.length) {
+        if (
+          !primary.length &&
+          browserRes.learning.length &&
+          !subtitlesLookLikeWrongLanguage(browserRes.learning, primaryLang)
+        ) {
           primary = browserRes.learning;
           await persistTrack(filmId, primaryLang, primary);
         }
@@ -331,7 +343,7 @@ async function loadAllCaptions(
           }
         }
 
-        if (found.length) {
+        if (found.length && !subtitlesLookLikeWrongLanguage(found, code)) {
           primary = found;
           effectivePrimary = code;
           edgeFailure = null;
@@ -349,6 +361,9 @@ async function loadAllCaptions(
       if (secondary.length) await persistTrack(filmId, secondaryLang, secondary);
     }
 
+    // Nothing in the learning language (including a mislabelled track we
+    // rejected above): the video can't be a lesson.
+    if (!primary.length && !edgeFailure && !blockReason) noSubtitles = true;
     if (!primary.length && (edgeFailure || blockReason || noSubtitles)) {
       // Surface via thrown error so caller can show it.
       throw Object.assign(new Error(edgeFailure || blockReason || "No subtitles"), { blockReason, noSubtitles });
@@ -381,9 +396,24 @@ const Watch = () => {
   const dailyGoal = useDailyWordGoal();
 
   // Progress and the review button live in the word counter under the video.
-  const registerDailySave = useCallback(() => {
-    dailyGoal.bump();
-  }, [dailyGoal]);
+  // The counter moves the moment a word is tapped, not after the translation
+  // and save round-trips (which made several saves land at once). A word only
+  // counts once per visit; unregisterDailySave undoes a save that failed or
+  // turned out not to be a new word today.
+  const { bump: bumpDailyGoal, unbump: unbumpDailyGoal } = dailyGoal;
+  const countedTodayRef = useRef<Set<string>>(new Set());
+  const registerDailySave = useCallback((key: string) => {
+    const k = key.trim().toLowerCase();
+    if (countedTodayRef.current.has(k)) return false;
+    countedTodayRef.current.add(k);
+    bumpDailyGoal();
+    return true;
+  }, [bumpDailyGoal]);
+  const unregisterDailySave = useCallback((key: string) => {
+    const k = key.trim().toLowerCase();
+    if (!countedTodayRef.current.delete(k)) return;
+    unbumpDailyGoal();
+  }, [unbumpDailyGoal]);
   const { learningLanguage, languageContext, isContentLocked } = useLanguage();
   const { award } = useXp();
   const { triggerReaction } = usePet();
@@ -471,14 +501,60 @@ const Watch = () => {
   // be the video + the teaching cursor, never an ad.
   const [adDone, setAdDone] = useState(tourActive);
   const finishPreTeach = useCallback(() => setAdDone(true), []);
-  // Gold rings: pre-teach picks first, then unlearned words from the learner's
-  // current Top-N frequency deck. The overlay caps rings per line.
+  // Rings: the pre-teach picks — the most frequent words in this video the
+  // learner hasn't learned yet, as many as their daily goal. Without a
+  // pre-teach (it found nothing, or was skipped) fall back to that many
+  // unlearned words from their frequency deck. The overlay caps rings per line.
   const [preTeachWords, setPreTeachWords] = useState<string[]>([]);
   const [focusWords, setFocusWords] = useState<string[]>([]);
   const handlePreTeachWords = useCallback((ws: string[]) => {
     setPreTeachWords(ws.map((w) => normalizeToken(w)));
   }, []);
-  const targetWords = useMemo(() => new Set([...preTeachWords, ...focusWords]), [preTeachWords, focusWords]);
+  const targetWords = useMemo(
+    () => new Set(preTeachWords.length ? preTeachWords : focusWords.slice(0, dailyGoal.goal)),
+    [preTeachWords, focusWords, dailyGoal.goal],
+  );
+
+  // Auto-pause: when a ringed word comes up, pause so the learner can tap it.
+  // On by default; each word pauses once per visit. "Continue" (or saving the
+  // word, or pressing play) carries on.
+  const [autoPause, setAutoPause] = useState(() => {
+    try { return localStorage.getItem("ls.autoPause") !== "off"; } catch { return true; }
+  });
+  const toggleAutoPause = useCallback(() => {
+    setAutoPause((on) => {
+      try { localStorage.setItem("ls.autoPause", on ? "off" : "on"); } catch { /* ignore */ }
+      return !on;
+    });
+  }, []);
+  const [ringPaused, setRingPaused] = useState(false);
+  const pausedForRef = useRef<Set<string>>(new Set());
+  const ringPauseAllowedRef = useRef(false);
+  const handleRingWords = useCallback((tokens: string[]) => {
+    if (!ringPauseAllowedRef.current) return;
+    const fresh = tokens.filter((t) => !pausedForRef.current.has(t));
+    if (!fresh.length) return;
+    try {
+      if (playerRef.current?.getPlayerState?.() !== 1) return; // only while playing
+      fresh.forEach((t) => pausedForRef.current.add(t));
+      playerRef.current.pauseVideo();
+      setRingPaused(true);
+    } catch { /* noop */ }
+  }, []);
+  const resumeFromRing = useCallback(() => {
+    setRingPaused(false);
+    try { playerRef.current?.playVideo?.(); } catch { /* noop */ }
+  }, []);
+  const ringPausedRef = useRef(false);
+  ringPausedRef.current = ringPaused;
+  ringPauseAllowedRef.current = autoPause && adDone && !tourActive && !challenge && !showLearningBreak;
+  const ringContinue = ringPaused && (
+    <div className="flex justify-center pb-1">
+      <Button size="sm" onClick={resumeFromRing} className="h-7 rounded-full gap-1 px-3 text-xs">
+        <Play className="w-3 h-3" /> Continue
+      </Button>
+    </div>
+  );
   const focusLang = film?.language || learningLanguage;
   useEffect(() => {
     if (!user?.id || !focusLang) return;
@@ -635,7 +711,11 @@ const Watch = () => {
 
         if (cancelled) return;
 
-        if (primary.length > 0) {
+        if (primary.length > 0 && subtitlesLookLikeWrongLanguage(primary, primaryLang)) {
+          setCaptionsError(
+            `The ${getLanguageLabel(primaryLang)} subtitles for this film are in another language — please re-upload them.`
+          );
+        } else if (primary.length > 0) {
           setSubtitles(buildDisplaySubtitles(primary, secondary));
           setCaptionsStatus(null);
         } else {
@@ -765,6 +845,7 @@ const Watch = () => {
         },
         onStateChange: (event: any) => {
           if (event.data === window.YT.PlayerState.PLAYING) {
+            setRingPaused(false);
             watchStartRef.current = Date.now();
             intervalRef.current = setInterval(() => {
               if (playerRef.current?.getCurrentTime) {
@@ -918,6 +999,11 @@ const Watch = () => {
     // A popup placeholder is not a meaning — never save it onto a card.
     if (/^(Translating|Couldn't translate)/.test(translation || "")) translation = "";
 
+    // Count it now so "x/8" moves on tap, not seconds later.
+    const bumped = user && film ? registerDailySave(word.text) : false;
+    // Saving the ringed word the video paused on carries on watching.
+    if (ringPausedRef.current) resumeFromRing();
+
     // If translation is empty, fetch it (server first, browser fallback)
     if (!translation) {
       try {
@@ -953,7 +1039,7 @@ const Watch = () => {
       triggerReaction("happy", 2000);
       savedTodayRef.current += 1;
       onWordSaved(savedTodayRef.current);
-      registerDailySave();
+      registerDailySave(word.text);
       playDing("success");
       maybeTriggerLearningBreak({ word: word.text, translation });
       return;
@@ -972,7 +1058,7 @@ const Watch = () => {
     let initialNextReview = new Date().toISOString().split("T")[0];
     const { data: existingSame } = await supabase
       .from("saved_words")
-      .select("state, review_count, times_correct, next_review")
+      .select("state, review_count, times_correct, next_review, created_at, film_id")
       .eq("user_id", user.id)
       .eq("language", langCode)
       .eq("word", word.text)
@@ -982,6 +1068,14 @@ const Watch = () => {
       initialReviewCount = existingSame.review_count ?? 0;
       initialTimesCorrect = existingSame.times_correct ?? 0;
       initialNextReview = existingSame.next_review ?? initialNextReview;
+      // Re-saving a word already in the deck isn't a new word for today's
+      // goal (the server counts words created today from a video), so take
+      // the early bump back — unless it was auto-added today without a video,
+      // which this save now makes count.
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
+      const createdToday = !!existingSame.created_at && new Date(existingSame.created_at) >= startOfDay;
+      if (bumped && !(createdToday && !existingSame.film_id)) unregisterDailySave(word.text);
     }
     if (lemma) {
       const lemmaBest = await bestStateForLemma(user.id, langCode, lemma);
@@ -1010,13 +1104,13 @@ const Watch = () => {
     if (saveError) {
       console.error("Save word failed", saveError);
       toast.error("Couldn't save this flashcard", { description: saveError.message });
+      if (bumped) unregisterDailySave(word.text);
       return;
     }
     award("add_word");
     triggerReaction("happy", 2000);
     savedTodayRef.current += 1;
     onWordSaved(savedTodayRef.current);
-    registerDailySave();
     playDing("success");
     maybeTriggerLearningBreak({ word: word.text, translation });
 
@@ -1105,7 +1199,7 @@ const Watch = () => {
       return;
     }
     toast.success("Phrase saved to flashcards");
-    registerDailySave();
+    registerDailySave(trimmed);
     playDing("success");
 
     // Create LinguaScript record for phrase (scheduled for now, not tomorrow)
@@ -1338,6 +1432,15 @@ const Watch = () => {
         >
           {subtitleMode === "dual" ? "Dual: ON" : "Dual: OFF"}
         </Button>
+        <Button
+          variant={autoPause ? "default" : "ghost"}
+          size="sm"
+          onClick={toggleAutoPause}
+          title="Pause when a ringed word comes up"
+          className={cn("h-8 px-2 text-[11px] shrink-0", !autoPause && "text-white hover:bg-white/10")}
+        >
+          {autoPause ? "Pause: ON" : "Pause: OFF"}
+        </Button>
         <Button data-tour="fullscreen-btn" variant="ghost" size="icon" onClick={toggleFullscreen} className="text-white hover:bg-white/10 shrink-0 h-9 w-9">
           {cssFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
         </Button>
@@ -1401,11 +1504,13 @@ const Watch = () => {
           fontSize: isLandscape ? "clamp(12px, 2vw, 16px)" : undefined,
         }}
       >
+        {ringContinue}
         <SubtitleOverlay
           primaryText={currentSubtitle.primary}
           secondaryText={currentSubtitle.secondary}
           words={currentSubtitle.words}
           targetWords={targetWords}
+          onRingWords={handleRingWords}
           mode={subtitleMode}
           onSaveWord={saveWordToFlashcards}
           onSavePhrase={savePhrase}
@@ -1456,6 +1561,15 @@ const Watch = () => {
                   className={cn("h-7 px-2 text-[11px] ml-auto", subtitleMode !== "dual" && "text-white hover:bg-white/10")}
                 >
                   {subtitleMode === "dual" ? "Dual: ON" : "Dual: OFF"}
+                </Button>
+                <Button
+                  variant={autoPause ? "default" : "ghost"}
+                  size="sm"
+                  onClick={toggleAutoPause}
+                  title="Pause when a ringed word comes up"
+                  className={cn("h-7 px-2 text-[11px]", !autoPause && "text-white hover:bg-white/10")}
+                >
+                  {autoPause ? "Pause: ON" : "Pause: OFF"}
                 </Button>
                 <Button variant="ghost" size="icon" onClick={toggleFullscreen} className="text-white hover:bg-white/10 h-8 w-8" aria-label="Fullscreen">
                   {cssFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
@@ -1509,6 +1623,15 @@ const Watch = () => {
             className={subtitleMode !== "dual" ? "text-white hover:bg-white/10" : ""}
           >
             {subtitleMode === "dual" ? "Dual subtitles: ON" : "Dual subtitles: OFF"}
+          </Button>
+          <Button
+            variant={autoPause ? "default" : "ghost"}
+            size="sm"
+            onClick={toggleAutoPause}
+            title="Pause when a ringed word comes up"
+            className={!autoPause ? "text-white hover:bg-white/10" : ""}
+          >
+            {autoPause ? "Auto-pause: ON" : "Auto-pause: OFF"}
           </Button>
           {subtitles.length > 0 && (
             <div className="flex gap-1">
@@ -1569,11 +1692,13 @@ const Watch = () => {
           {/* Subtitle overlay — rendered OUTSIDE the iframe but INSIDE the fullscreen container */}
           {currentSubtitle && (
             <div className="absolute bottom-[12%] sm:bottom-[8%] left-0 right-0 px-4 z-[9999] pointer-events-auto">
+              {ringContinue}
               <SubtitleOverlay
                 primaryText={currentSubtitle.primary}
                 secondaryText={currentSubtitle.secondary}
                 words={currentSubtitle.words}
                 targetWords={targetWords}
+                onRingWords={handleRingWords}
                 mode={subtitleMode}
                 onSaveWord={saveWordToFlashcards}
                 onSavePhrase={savePhrase}

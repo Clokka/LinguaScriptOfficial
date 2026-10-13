@@ -1,10 +1,7 @@
 // MOTIVATION LAYER — how big today's daily-goal celebration should feel.
 //
-// This never touches the reward itself: gems stay exactly what
-// levelRewards.ts's deterministic gemsForLevel() says they are, on every
-// level, always (see that file's own comment on why random rewards are a
-// mistake). Intensity here is purely cosmetic — confetti, copy, duration —
-// layered on top of a payout the learner can always predict.
+// Intensity is purely cosmetic — confetti, copy, duration — on top of the
+// same level-up every time.
 //
 // Combines two signals on purpose: a streak milestone is a real, legible
 // reason today is a bigger deal (day 5, day 25, ...), and a small random

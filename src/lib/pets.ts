@@ -1,6 +1,6 @@
 export type UnlockMethod =
   | { type: "free" }
-  | { type: "gems"; amount: number }
+  | { type: "level"; level: number }
   | { type: "streak"; days: number }
   | { type: "videos"; count: number }
   | { type: "achievement"; name: string }
@@ -41,7 +41,7 @@ export const PETS: PetMeta[] = [
     emoji: "🐒",
     description: "A wise monkey who swings through your progress.",
     glbFile: "/pets/Colobus_Animations.glb",
-    unlock: { type: "gems", amount: 200 },
+    unlock: { type: "level", level: 10 },
     rarity: "uncommon",
   },
   {
@@ -77,7 +77,7 @@ export const PETS: PetMeta[] = [
     emoji: "🦑",
     description: "A mysterious inkfish who leaves trails of XP.",
     glbFile: "/pets/Inkfish_Animations.glb",
-    unlock: { type: "gems", amount: 1000 },
+    unlock: { type: "level", level: 20 },
     rarity: "legendary",
   },
   {
@@ -108,8 +108,8 @@ export function unlockLabel(unlock: UnlockMethod): string {
   switch (unlock.type) {
     case "free":
       return "Free";
-    case "gems":
-      return `${unlock.amount} Gems`;
+    case "level":
+      return `Reach level ${unlock.level}`;
     case "streak":
       return `${unlock.days}-day streak`;
     case "videos":
@@ -135,10 +135,10 @@ export const RARITY_GLOW: Record<PetMeta["rarity"], string> = {
   legendary: "shadow-[0_0_24px_rgba(251,191,36,0.3)]",
 };
 
-/** Fired after moments that can earn a milestone pet (daily chest, a finished video). */
+/** Fired after moments that can earn a milestone pet (a level-up, a streak, a finished video). */
 export const PET_MILESTONES_EVENT = "linguascript:check-pet-milestones";
 
-/** Asks PetMilestoneUnlock to grant any streak/video pets the learner has earned. */
+/** Asks PetMilestoneUnlock to grant any level/streak/video pets the learner has earned. */
 export function checkPetMilestones() {
   if (typeof window !== "undefined") window.dispatchEvent(new Event(PET_MILESTONES_EVENT));
 }

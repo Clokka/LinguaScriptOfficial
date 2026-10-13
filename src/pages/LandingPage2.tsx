@@ -342,7 +342,7 @@ const LandingPage2 = () => {
               Learn with a friend on your shoulder
             </motion.h2>
             <motion.p variants={fadeUp} custom={2} className="text-muted-foreground max-w-2xl mx-auto">
-              Earn 3D companions by keeping streaks, watching videos, and collecting gems.
+              Earn 3D companions by levelling up, keeping streaks and watching videos.
               They celebrate every word you save. Go on — give one a tap.
             </motion.p>
           </motion.div>

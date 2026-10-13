@@ -85,6 +85,8 @@ export function useDailyWordGoal(language?: string) {
 
   /** Optimistic bump for the moment a word is saved, before the refetch lands. */
   const bump = useCallback(() => setSavedToday((n) => n + 1), []);
+  /** Undo a bump whose save failed or didn't count as a new word today. */
+  const unbump = useCallback(() => setSavedToday((n) => Math.max(0, n - 1)), []);
 
   return {
     goal,
@@ -93,5 +95,6 @@ export function useDailyWordGoal(language?: string) {
     loading,
     refresh,
     bump,
+    unbump,
   };
 }

@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { YouTubeTranscriptApi } from "npm:@hallelx/youtube-transcript@0.2.0";
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
+import { subtitlesLookLikeWrongLanguage } from "../_shared/scriptCheck.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -29,11 +30,19 @@ async function readCache(db: SupabaseClient | null, videoId: string, lang: strin
   if (!db) return [];
   const { data } = await db.from('caption_cache').select('subtitles')
     .eq('video_id', videoId).eq('language', lang).maybeSingle();
-  return Array.isArray(data?.subtitles) ? data.subtitles as Sub[] : [];
+  const subs = Array.isArray(data?.subtitles) ? data.subtitles as Sub[] : [];
+  // A track cached before the language check existed may be in the wrong
+  // language; drop it so it never reaches another learner.
+  if (subtitlesLookLikeWrongLanguage(subs, lang)) {
+    console.log(`Cached ${lang} track for ${videoId} is in another language — removing`);
+    await db.from('caption_cache').delete().eq('video_id', videoId).eq('language', lang);
+    return [];
+  }
+  return subs;
 }
 
 async function writeCache(db: SupabaseClient | null, videoId: string, lang: string, subs: Sub[], source: string) {
-  if (!db || !subs.length) return;
+  if (!db || !subs.length || subtitlesLookLikeWrongLanguage(subs, lang)) return;
   const { error } = await db.from('caption_cache')
     .upsert({ video_id: videoId, language: lang, subtitles: subs, source }, { onConflict: 'video_id,language' });
   if (error) console.log(`Cache write failed (${lang}): ${error.message}`);
@@ -332,6 +341,18 @@ serve(async (req) => {
         learningError = `Caption provider took too long (${e.message})`;
       }
     }
+
+    // A track labelled as the learning language but written in another (e.g.
+    // a creator's English captions tagged as Chinese, or a provider handing
+    // back the only track it has) would show the same English on both lines.
+    // Treat it as no learning-language captions.
+    if (learning.length && subtitlesLookLikeWrongLanguage(learning, lang)) {
+      console.log(`Learning track is not in ${lang} — discarding`);
+      learning = [];
+      nativeSubs = [];
+      learningError = `No ${lang} captions on YouTube for this video`;
+    }
+    if (nativeSubs.length && subtitlesLookLikeWrongLanguage(nativeSubs, native)) nativeSubs = [];
 
     // Detect duplicate: providers sometimes return the original-language track
     // when the requested native language isn't available. Compare first few segments.

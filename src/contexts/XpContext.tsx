@@ -18,11 +18,9 @@ import {
   clearGuestXP,
   levelFromXP,
   persistXP,
-  syncLevelRewards,
   xpForAction,
   xpForLevel,
 } from "@/lib/xp";
-import { rewardForLevel, type LevelReward } from "@/lib/levelRewards";
 import type { SpikeIntensity } from "@/lib/dailyGoalSpike";
 
 interface RecentGain {
@@ -37,11 +35,8 @@ interface XpContextValue {
   levelProgress: number; // 0..1
   current: number;
   nextLevelXP: number;
-  gems: number;
   recentGain: RecentGain | null;
   leveledUpTo: number | null;
-  /** Reward for the level just reached, for the celebration UI. */
-  levelUpReward: LevelReward | null;
   /** Set only when the level-up came from reaching today's word goal — how
    *  big the celebration should feel, never how much it pays (see
    *  dailyGoalSpike.ts). Null for an ordinary XP level-up. */
@@ -55,7 +50,6 @@ const XpContext = createContext<XpContextValue | undefined>(undefined);
 export function XpProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [xp, setXp] = useState<number>(0);
-  const [gems, setGems] = useState<number>(0);
   const [recentGain, setRecentGain] = useState<RecentGain | null>(null);
   const [leveledUpTo, setLeveledUpTo] = useState<number | null>(null);
   const [spikeIntensity, setSpikeIntensity] = useState<SpikeIntensity | null>(null);
@@ -106,28 +100,16 @@ export function XpProvider({ children }: { children: ReactNode }) {
         const guest = getGuestXP();
         if (alive) {
           applyXp(guest);
-          setGems(0);
           prevLevelRef.current = levelFromXP(guest).level;
         }
         return;
       }
-      // `gems` arrives with the level-rewards migration. Until that migration
-      // is applied the column select would error and read back as 0 XP, so
-      // fall back to the XP-only select rather than wiping a learner's total.
-      let row = await supabase
+      const { data } = await supabase
         .from("profiles")
-        .select("xp_total, gems")
+        .select("xp_total")
         .eq("user_id", user.id)
         .maybeSingle();
-      if (row.error) {
-        row = await supabase
-          .from("profiles")
-          .select("xp_total")
-          .eq("user_id", user.id)
-          .maybeSingle();
-      }
-      const dbXp = ((row.data as any)?.xp_total as number | undefined) ?? 0;
-      if (alive) setGems(((row.data as any)?.gems as number | undefined) ?? 0);
+      const dbXp = data?.xp_total ?? 0;
 
       // Merge any guest XP earned before sign-in.
       const guest = getGuestXP();
@@ -144,12 +126,6 @@ export function XpProvider({ children }: { children: ReactNode }) {
       if (guest > 0) {
         await persistXP(user.id, total, "add_word", guest, { cards: 0 });
       }
-
-      // Back-fill any level rewards never granted (including levels that were
-      // unreachable while the curve was capped). Silent: past levels are paid
-      // out but not celebrated — only new level-ups get a popup.
-      const balance = await syncLevelRewards(level);
-      if (alive && balance != null) setGems(balance);
     })();
     return () => {
       alive = false;
@@ -176,13 +152,6 @@ export function XpProvider({ children }: { children: ReactNode }) {
         setLeveledUpTo(level);
         try { localStorage.setItem("ls.lastLevelUpDay", new Date().toLocaleDateString("en-CA")); } catch { /* ignore */ }
         setSpikeIntensity(action === "daily_goal_reached" ? (meta?.intensity ?? "normal") : null);
-        if (user) {
-          // Server grants the reward idempotently and returns the balance,
-          // so a replayed level-up can never double-pay.
-          void syncLevelRewards(level).then((balance) => {
-            if (balance != null) setGems(balance);
-          });
-        }
       }
 
       if (user) {
@@ -212,10 +181,8 @@ export function XpProvider({ children }: { children: ReactNode }) {
         current,
         nextLevelXP,
         levelProgress,
-        gems,
         recentGain,
         leveledUpTo,
-        levelUpReward: leveledUpTo != null ? rewardForLevel(leveledUpTo) : null,
         spikeIntensity,
         award,
         consumeLevelUp: () => {
