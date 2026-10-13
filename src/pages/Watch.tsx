@@ -13,7 +13,7 @@ import { useSubscription } from "@/hooks/useSubscription";
 import { useUpgradeTrigger } from "@/hooks/useUpgradeTrigger";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTour } from "@/contexts/TourContext";
-import { getLanguageLabel, getLanguageFlag, subtitlesLookLikeWrongLanguage } from "@/lib/languages";
+import { getLanguageLabel, getLanguageFlag, subtitlesLookLikeWrongLanguage, textMatchesLanguageScript } from "@/lib/languages";
 import { spaceOutWords } from "@/lib/wordSegments";
 import { cn } from "@/lib/utils";
 import { fetchCaptionsFromBrowser } from "@/lib/browserCaptionFetcher";
@@ -977,7 +977,7 @@ const Watch = () => {
     }
   };
 
-  const saveWordToFlashcards = async (word: { id: string; text: string; translation: string; pronunciation: string; ipa: string }) => {
+  const saveWordToFlashcards = async (word: { id: string; text: string; translation: string; pronunciation: string; ipa: string; pos?: string | null }) => {
     let { translation, pronunciation, ipa } = word;
     const context = currentSubtitle?.primary || "";
     const langCode = film?.language || learningLanguage || "fr";
@@ -989,12 +989,20 @@ const Watch = () => {
     // learner memorizes "manges = eat" instead of "manger = to eat".
     let lemma: string | null = null;
     let lemmaTranslation: string | null = null;
-    let pos: string | null = null;
+    // Part of speech from the popup's translation, if it had one.
+    let pos: string | null = word.pos ?? null;
     let isInflected = false;
     let grammarNote: string | null = null;
 
     // A popup placeholder is not a meaning — never save it onto a card.
     if (/^(Translating|Couldn't translate)/.test(translation || "")) translation = "";
+
+    // Never file an English word as "Chinese" (it happened with mislabelled
+    // subtitle tracks: "who" saved as a Chinese card).
+    if (!textMatchesLanguageScript(word.text, langCode)) {
+      toast.error(`"${word.text}" isn't ${fromLang}`, { description: `Only ${fromLang} words can be saved.` });
+      return;
+    }
 
     // Count it now so "x/8" moves on tap, not seconds later.
     const bumped = user && film ? registerDailySave(word.text) : false;
@@ -1134,9 +1142,10 @@ const Watch = () => {
       } as any).then(({ error }) => { if (error) console.error("Failed to create LinguaScript:", error); });
     }
 
-    // Fire-and-forget: cache an Openverse image for text-to-image flashcards.
-    // The translation is usually the more Openverse-searchable term.
-    void cacheWordImageByWord(user.id, word.text, langCode, translation || word.text);
+    // Fire-and-forget: cache an Openverse image for text-to-image flashcards,
+    // for nouns you can photograph only (wantsPicture). The translation is
+    // usually the more Openverse-searchable term.
+    void cacheWordImageByWord(user.id, word.text, langCode, translation || word.text, pos);
   };
 
   const savePhrase = async (phrase: string) => {
@@ -1145,6 +1154,10 @@ const Watch = () => {
     const context = currentSubtitle?.primary || trimmed;
     const langCode = film?.language || learningLanguage || "fr";
     const fromLang = getLanguageLabel(langCode);
+    if (!textMatchesLanguageScript(trimmed, langCode)) {
+      toast.error(`That phrase isn't ${fromLang}`, { description: `Only ${fromLang} phrases can be saved.` });
+      return;
+    }
     const toLang = getLanguageLabel(nativeLanguage);
 
     let translation = "";
@@ -1219,8 +1232,6 @@ const Watch = () => {
         scheduled_for: new Date().toISOString(),
       } as any).then(({ error }) => { if (error) console.error("Failed to create LinguaScript for phrase:", error); });
     }
-
-    void cacheWordImageByWord(user.id, trimmed, langCode, translation || trimmed);
   };
 
   const markWordKnown = async (word: { text: string; translation?: string }) => {
@@ -1274,8 +1285,6 @@ const Watch = () => {
         scheduled_for: new Date().toISOString(),
       } as any).then(({ error }) => { if (error) console.error("Failed to create LinguaScript for known word:", error); });
     }
-
-    void cacheWordImageByWord(user.id, word.text, langCode, word.translation || word.text);
   };
 
   const downloadSrt = (type: "primary" | "secondary") => {

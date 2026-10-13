@@ -76,6 +76,18 @@ const SCRIPT_PATTERN: Record<ScriptFamily, RegExp> = {
 };
 
 /**
+ * Whether a single word or phrase could belong to `langCode`, by script: a
+ * Chinese word must contain Chinese characters, a Russian one Cyrillic, and so
+ * on. Latin-script languages can't be told apart this way (English vs French),
+ * so they always pass. Stops an English word from being saved as "Chinese".
+ */
+export function textMatchesLanguageScript(text: string, langCode: string): boolean {
+  const family = LANGUAGE_SCRIPT_FAMILY[(langCode || "").toLowerCase().split("-")[0]];
+  if (!family || family === "latin") return true;
+  return new RegExp(SCRIPT_PATTERN[family].source).test(text);
+}
+
+/**
  * Best-effort check that fetched captions are actually written in `langCode`
  * — a script sanity check, not a real language detector. YouTube's `tlang`
  * auto-translate (and some caption providers) sometimes silently hand back

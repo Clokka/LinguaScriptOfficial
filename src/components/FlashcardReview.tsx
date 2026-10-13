@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { DeckState, nextState, applySrsReview, syncLemmaState } from "@/lib/vocab";
-import { cacheWordImage } from "@/lib/wordImages";
+import { cacheWordImage, wantsPicture } from "@/lib/wordImages";
 import { useXp } from "@/contexts/XpContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { getLanguageLabel } from "@/lib/languages";
@@ -40,12 +40,16 @@ interface FlashcardData {
   lemma_translation?: string | null;
   is_inflected?: boolean;
   grammar_note?: string | null;
+  pos?: string | null;
 }
 
 interface FlashcardReviewProps {
   cards: FlashcardData[];
   onClose: () => void;
-  onCardReviewed?: (id: string, patch: Pick<FlashcardData, "state" | "times_correct">) => void;
+  onCardReviewed?: (
+    id: string,
+    patch: Pick<FlashcardData, "state" | "times_correct"> & { state_changed_at?: string },
+  ) => void;
   className?: string;
 }
 
@@ -111,9 +115,10 @@ export const FlashcardReview = ({ cards: initialCards, onClose, onCardReviewed, 
   useEffect(() => {
     const card = cards[currentIndex];
     if (!card || cardType !== "image" || card.image_url || card.id.startsWith("guest-")) return;
+    if (!wantsPicture(card.translation, card.pos)) return;
     if (imageFetchInFlight.current.has(card.id)) return;
     imageFetchInFlight.current.add(card.id);
-    cacheWordImage(card.id, card.translation || card.word).then((url) => {
+    cacheWordImage(card.id, card.translation || card.word, card.pos).then((url) => {
       if (!url) return;
       setCards((prev) => prev.map((c) => (c.id === card.id ? { ...c, image_url: url } : c)));
     });
@@ -165,7 +170,11 @@ export const FlashcardReview = ({ cards: initialCards, onClose, onCardReviewed, 
     setCards((prev) =>
       prev.map((c, i) => (i === currentIndex ? { ...c, state: newState, times_correct: newTimes, ...srs } : c)),
     );
-    onCardReviewed?.(card.id, { state: newState, times_correct: newTimes });
+    onCardReviewed?.(card.id, {
+      state: newState,
+      times_correct: newTimes,
+      ...(newState !== prevState ? { state_changed_at: new Date().toISOString() } : {}),
+    });
 
     // Persist the SRS transition immediately. Supabase saved_words.state is the source of truth.
     if (user && !card.id.startsWith("guest-")) {
@@ -278,7 +287,7 @@ export const FlashcardReview = ({ cards: initialCards, onClose, onCardReviewed, 
     const down: DeckState = prev === "green" ? "orange" : "red";
     const today = new Date().toISOString().slice(0, 10);
     setCards((cs) => cs.map((c, i) => (i === currentIndex ? { ...c, state: down } : c)));
-    onCardReviewed?.(card.id, { state: down, times_correct: card.times_correct ?? 0 });
+    onCardReviewed?.(card.id, { state: down, times_correct: card.times_correct ?? 0, state_changed_at: new Date().toISOString() });
     if (user && !card.id.startsWith("guest-")) {
       void supabase
         .from("saved_words")
@@ -412,6 +421,7 @@ export const FlashcardReview = ({ cards: initialCards, onClose, onCardReviewed, 
         context={currentCard.context}
         contextTranslation={currentCard.contextTranslation}
         imageUrl={currentCard.image_url ?? undefined}
+        pos={currentCard.pos}
         cardType={cardType}
         lemma={currentCard.lemma ?? undefined}
         lemmaTranslation={currentCard.lemma_translation ?? undefined}
