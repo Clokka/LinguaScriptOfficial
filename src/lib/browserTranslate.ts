@@ -19,6 +19,17 @@ export interface BrowserTranslation {
 }
 
 export async function browserTranslate(text: string, from: string, to: string): Promise<BrowserTranslation> {
+  try {
+    return await browserTranslateOnce(text, from, to);
+  } catch {
+    // Google's free endpoint sometimes turns a busy phone away (429) for a
+    // moment; one short retry usually gets through.
+    await new Promise((r) => setTimeout(r, 800));
+    return browserTranslateOnce(text, from, to);
+  }
+}
+
+async function browserTranslateOnce(text: string, from: string, to: string): Promise<BrowserTranslation> {
   const url =
     `https://translate.googleapis.com/translate_a/single?client=gtx&dt=t&dt=rm` +
     `&sl=${encodeURIComponent(googleCode(from))}&tl=${encodeURIComponent(googleCode(to))}`;
@@ -66,6 +77,8 @@ export async function browserTranslateLines(lines: string[], from: string, to: s
   return out;
 }
 
+const SERVER_TIMEOUT_MS = 8000;
+
 export interface WordTranslation {
   translation: string;
   pronunciation: string;
@@ -93,7 +106,14 @@ export async function translateWord(
   labels: { from: string; to: string },
 ): Promise<WordTranslation> {
   try {
-    const res = await invoke({ word, context, fromLanguage: labels.from, toLanguage: labels.to });
+    // A slow server shouldn't keep the learner on "Translating…": after
+    // SERVER_TIMEOUT_MS the browser translates instead.
+    const res = await Promise.race([
+      invoke({ word, context, fromLanguage: labels.from, toLanguage: labels.to }),
+      new Promise<{ data: null; error: Error }>((resolve) =>
+        setTimeout(() => resolve({ data: null, error: new Error("translate-word timed out") }), SERVER_TIMEOUT_MS),
+      ),
+    ]);
     const error = res.error;
     const data = res.data as Partial<Record<keyof WordTranslation, string | boolean>> | null;
     if (!error && typeof data?.translation === "string" && data.translation) {
