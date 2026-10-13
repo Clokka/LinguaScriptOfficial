@@ -5,6 +5,7 @@ import { ArrowRight, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useStreakStatus } from "@/hooks/useStreakStatus";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { StreakFlame } from "./StreakFlame";
 import { DailyGoalPicker } from "./DailyGoalPicker";
 import { ChameleonMascot } from "./ChameleonMascot";
@@ -40,6 +41,7 @@ export const DailyBriefing = () => {
   const [choosing, setChoosing] = useState(false);
   const [profileChecked, setProfileChecked] = useState(false);
   const streak = useStreakStatus();
+  const { learningLanguage } = useLanguage();
 
   useEffect(() => {
     if (authLoading || !user) return;
@@ -78,13 +80,24 @@ export const DailyBriefing = () => {
     setWordGoal(words);
     setChoosing(false);
     if (!user) return;
-    await supabase
-      .from("profiles")
-      .update({
-        daily_word_goal: words,
-        daily_video_goal: videoGoalForWords(words),
-      } as any)
-      .eq("user_id", user.id);
+    // The account default (for languages added later) and the goal for the
+    // language being learned now — daily goals are per language.
+    await Promise.all([
+      supabase
+        .from("profiles")
+        .update({
+          daily_word_goal: words,
+          daily_video_goal: videoGoalForWords(words),
+        } as any)
+        .eq("user_id", user.id),
+      learningLanguage
+        ? (supabase as any)
+            .from("language_profiles")
+            .update({ daily_word_goal: words, daily_video_goal: videoGoalForWords(words) })
+            .eq("user_id", user.id)
+            .eq("language", learningLanguage.toLowerCase())
+        : Promise.resolve(),
+    ]);
     void streak.refresh();
   };
 

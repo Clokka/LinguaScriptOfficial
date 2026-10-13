@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Flame, Clock, Play } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { mergeActivityByDate } from "@/lib/activityLog";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 
@@ -31,7 +32,8 @@ export const ActivityCalendarDark = () => {
         .eq("user_id", user.id)
         .gte("date", thirty.toISOString().split("T")[0])
         .order("date", { ascending: false });
-      const rows = (data as ActivityDay[]) || [];
+      // One entry per day across languages (rows are per language).
+      const rows = mergeActivityByDate((data as ActivityDay[]) || []);
       setActivity(rows);
 
       // streak calc (same as Browse.tsx)

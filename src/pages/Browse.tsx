@@ -58,6 +58,7 @@ import { BrandMark } from "@/components/BrandMark";
 import { DailyGoalTally } from "@/components/DailyGoalTally";
 import { ProLockDialog } from "@/components/ProLockDialog";
 import { useDailyWordGoal } from "@/hooks/useDailyWordGoal";
+import { bumpActivity, mergeActivityByDate } from "@/lib/activityLog";
 
 const INTERESTS_BY_ID: Record<string, Interest> = Object.fromEntries(
   INTERESTS.map((i) => [i.id, i]),
@@ -118,7 +119,7 @@ const Browse = () => {
 
   const initialTab: TabKey = "home";
   const [activeTab, setActiveTab] = useState<TabKey>(initialTab);
-  const dailyGoal = useDailyWordGoal();
+  const dailyGoal = useDailyWordGoal(learningLanguage || undefined);
   const lsRemaining = linguaScriptStatus
     ? Math.min(linguaScriptStatus.linguascriptsPending, Math.max(0, (dailyGoal.goal || 0) - (linguaScriptStatus.reviewedToday ?? 0)))
     : 0;
@@ -170,7 +171,8 @@ const Browse = () => {
       .eq("user_id", user.id)
       .gte("date", thirtyDaysAgo.toISOString().split("T")[0])
       .order("date", { ascending: false });
-    setActivityData((data as ActivityDay[]) || []);
+    // One entry per day across languages (rows are per language).
+    setActivityData(mergeActivityByDate((data as ActivityDay[]) || []));
 
     // Calculate streak
     let streak = 0;
@@ -320,27 +322,8 @@ const Browse = () => {
         }).catch((err) => console.warn("Background caption ingest failed:", err));
       }
 
-      // Log activity
-      const today = new Date().toISOString().split("T")[0];
-      const { data: existingActivity } = await supabase
-        .from("activity_log")
-        .select("id, videos_watched")
-        .eq("user_id", user.id)
-        .eq("date", today)
-        .maybeSingle();
-
-      if (existingActivity) {
-        await supabase.from("activity_log")
-          .update({ videos_watched: (existingActivity.videos_watched || 0) + 1 })
-          .eq("id", existingActivity.id);
-      } else {
-        await supabase.from("activity_log").insert({
-          user_id: user.id,
-          date: today,
-          videos_watched: 1,
-          minutes_watched: 0,
-        });
-      }
+      // Log activity for the language being learned.
+      await bumpActivity(user.id, learningLanguage || "", { videos_watched: 1 });
 
       toast({ title: "Lesson created! 🎬", description: `"${title}" — captions loading in the background.` });
       setPasteUrl("");

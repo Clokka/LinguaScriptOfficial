@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useXp } from "@/contexts/XpContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { DEFAULT_WORD_GOAL, wordGoalForVideos, minuteGoalForVideos } from "@/lib/progressStats";
 import { emitStreakIgnited } from "@/components/StreakCelebrationModal";
 import { dailyGoalSpikeIntensity } from "@/lib/dailyGoalSpike";
@@ -38,13 +39,16 @@ function yesterdayStr() {
 }
 
 /**
- * Reads today's activity + profile goal, and lazily ignites the streak
- * (writes goal_met=true + bumps profile.streak_count) when both daily
- * targets are met. Pure read-on-mount; call `refresh()` after activity.
+ * Reads today's activity + goal for the language being learned, and lazily
+ * ignites the streak (writes goal_met=true on that language's row + bumps
+ * profile.streak_count) when its word goal is met. Goals and counters are per
+ * language; the streak is account-wide, so meeting any language's goal keeps
+ * it alive. Pure read-on-mount; call `refresh()` after activity.
  */
 export function useStreakStatus(): StreakStatus {
   const { user } = useAuth();
   const { award } = useXp();
+  const { learningLanguage } = useLanguage();
   const [state, setState] = useState<StreakStatus>({
     loading: true,
     videoGoal: 1,
@@ -66,8 +70,9 @@ export function useStreakStatus(): StreakStatus {
       return;
     }
     const today = todayStr();
+    const lang = (learningLanguage || "").toLowerCase();
 
-    const [{ data: profile }, { data: activity }] = await Promise.all([
+    const [{ data: profile }, { data: activity }, { data: langProfile }] = await Promise.all([
       supabase
         .from("profiles")
         .select("daily_video_goal, daily_word_goal, streak_count, last_streak_date")
@@ -75,15 +80,26 @@ export function useStreakStatus(): StreakStatus {
         .single(),
       supabase
         .from("activity_log")
-        .select("minutes_watched, videos_watched, words_reviewed, goal_met")
+        .select("id, minutes_watched, videos_watched, words_reviewed, goal_met")
         .eq("user_id", user.id)
         .eq("date", today)
+        .eq("language", lang)
         .maybeSingle(),
+      lang
+        ? supabase
+            .from("language_profiles")
+            .select("daily_word_goal, daily_video_goal")
+            .eq("user_id", user.id)
+            .eq("language", lang)
+            .maybeSingle()
+        : Promise.resolve({ data: null }),
     ]);
 
-    const videoGoal = (profile as any)?.daily_video_goal ?? 1;
+    // This language's own goal first, then the account default.
+    const lp = langProfile;
+    const videoGoal = lp?.daily_video_goal ?? (profile as any)?.daily_video_goal ?? 1;
     const wordGoal =
-      (profile as any)?.daily_word_goal ?? wordGoalForVideos(videoGoal);
+      lp?.daily_word_goal ?? (profile as any)?.daily_word_goal ?? wordGoalForVideos(videoGoal);
     const minuteGoal = minuteGoalForVideos(videoGoal);
 
     const wordsReviewed = (activity as any)?.words_reviewed ?? 0;
@@ -106,20 +122,20 @@ export function useStreakStatus(): StreakStatus {
       const sameDay = lastStreakDate === today;
       const newCount = sameDay ? streakCount : continuing ? streakCount + 1 : 1;
 
-      // Upsert today's activity_log row with goal_met=true
-      await supabase
-        .from("activity_log")
-        .upsert(
-          {
-            user_id: user.id,
-            date: today,
-            minutes_watched: minutesWatched,
-            videos_watched: videosWatched,
-            words_reviewed: wordsReviewed,
-            goal_met: true,
-          },
-          { onConflict: "user_id,date" },
-        );
+      // Mark today's row for this language goal_met=true.
+      if (activity?.id) {
+        await supabase.from("activity_log").update({ goal_met: true }).eq("id", activity.id);
+      } else {
+        await supabase.from("activity_log").insert({
+          user_id: user.id,
+          date: today,
+          language: lang,
+          minutes_watched: minutesWatched,
+          videos_watched: videosWatched,
+          words_reviewed: wordsReviewed,
+          goal_met: true,
+        });
+      }
 
       await supabase
         .from("profiles")
@@ -127,8 +143,9 @@ export function useStreakStatus(): StreakStatus {
         .eq("user_id", user.id);
       streakCount = newCount;
 
-      // Fire celebration event (once per ignition, guarded by alreadyMarkedToday above)
-      emitStreakIgnited({
+      // Fire the streak celebration once a day — a second language meeting
+      // its goal the same day doesn't change the streak.
+      if (!sameDay) emitStreakIgnited({
         streakCount: newCount,
         wordsReviewed,
         minutesWatched,
@@ -155,7 +172,7 @@ export function useStreakStatus(): StreakStatus {
       streakCount,
       refresh: load,
     });
-  }, [user]);
+  }, [user, learningLanguage]);
 
   useEffect(() => {
     void load();
