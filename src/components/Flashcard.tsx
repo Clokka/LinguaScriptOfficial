@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Volume2, Check, X, RotateCcw, ArrowDown } from "lucide-react";
 import { Button } from "./ui/button";
 import { cn } from "@/lib/utils";
@@ -85,12 +85,26 @@ export const Flashcard = ({
   const deckColor = state ? DECK_COLORS[state] : undefined;
   // For Chinese the "phonetic" line is pinyin, and it must read as clearly as
   // the character it belongs to — it is the pronunciation, not a footnote.
-  const romanisation = isChinese(language) ? (ipa || pronunciation) : "";
-
   // Teach the dictionary form, not the inflected surface form the learner
   // happened to click — "manges" should teach "manger", not "manges = eat".
   const useLemma = !!isInflected && !!lemma && lemma.toLowerCase() !== word.toLowerCase();
   const learningWord = useLemma ? lemma! : word;
+
+  // Cards added without pinyin (e.g. the daily frequency-deck words) get it
+  // worked out here, so every Chinese card shows its pronunciation.
+  const chinese = isChinese(language);
+  const savedPinyin = ipa || pronunciation;
+  const [autoPinyin, setAutoPinyin] = useState("");
+  useEffect(() => {
+    setAutoPinyin("");
+    if (!chinese || savedPinyin || !learningWord) return;
+    let alive = true;
+    import("pinyin-pro")
+      .then(({ pinyin }) => { if (alive) setAutoPinyin(pinyin(learningWord, { toneType: "symbol" })); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [chinese, savedPinyin, learningWord]);
+  const romanisation = chinese ? (savedPinyin || autoPinyin) : "";
   const learningMeaning = useLemma && lemmaTranslation ? lemmaTranslation : translation;
 
   // Image mode always leads with the learning-language word — the point is
