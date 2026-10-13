@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Loader2, Play, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -62,6 +62,30 @@ async function cachedSearch(
   const items: YTItem[] = (data as any)?.items || [];
   try { sessionStorage.setItem(key, JSON.stringify(items)); } catch {}
   return { items, failed: false };
+}
+
+/**
+ * The last finished feed, kept on the device (like YouTube or Spotify's home):
+ * shown the instant the page opens, then quietly replaced once fresh results
+ * have been fetched and scored.
+ */
+interface FeedSnapshot {
+  interestRails: Record<string, YTItem[]>;
+  recommended: YTItem[];
+  trending: YTItem[];
+  beginner: YTItem[];
+}
+const feedCacheKey = (userId: string | undefined, lang: string) => `ls.feed:${userId || "guest"}:${lang}`;
+function readFeed(key: string): FeedSnapshot | null {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as FeedSnapshot) : null;
+  } catch {
+    return null;
+  }
+}
+function writeFeed(key: string, feed: FeedSnapshot) {
+  try { localStorage.setItem(key, JSON.stringify(feed)); } catch { /* storage full or blocked */ }
 }
 
 function dedupe(items: YTItem[]): YTItem[] {
@@ -152,6 +176,21 @@ export const PersonalizedRails = ({
 
   const [interestRails, setInterestRails] = useState<Record<string, YTItem[]>>({});
 
+  // Show the last feed straight away; the load below refreshes it quietly.
+  const feedKey = feedCacheKey(user?.id, learningLanguage);
+  const shownCachedRef = useRef<string | null>(null);
+  useEffect(() => {
+    const cached = readFeed(feedKey);
+    if (!cached) { shownCachedRef.current = null; return; }
+    shownCachedRef.current = feedKey;
+    setInterestRails(cached.interestRails || {});
+    setRecommended(cached.recommended || []);
+    setTrending(cached.trending || []);
+    setBeginner(cached.beginner || []);
+    setLoading(false);
+    setScoring(false);
+  }, [feedKey]);
+
   // CEFR level + interest pick history: the base-tier signal for search
   // candidate generation, loaded once per user/language rather than per rail.
   useEffect(() => {
@@ -185,8 +224,13 @@ export const PersonalizedRails = ({
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
-      setLoading(true);
-      setScoring(true);
+      // With a remembered feed on screen there's no spinner: it stays until
+      // the fresh, scored feed replaces it.
+      const showingCached = shownCachedRef.current === feedKey;
+      if (!showingCached) {
+        setLoading(true);
+        setScoring(true);
+      }
       const cefrMod = cefrSearchModifier(cefrLevel);
       const cefrKey = cefrLevel || "any";
       const lang = learningLanguage;
@@ -221,19 +265,28 @@ export const PersonalizedRails = ({
         ...interestSearches,
       ]);
       if (cancelled) return;
-      setSearchFailed(trR.failed && bgR.failed && perInterestR.every((r) => r.failed));
+      const allFailed = trR.failed && bgR.failed && perInterestR.every((r) => r.failed);
+      // YouTube unreachable: keep the remembered feed rather than blanking it.
+      if (allFailed && showingCached) return;
+      setSearchFailed(allFailed);
 
       // Show everything immediately (short clips first); scores fill in later.
       const perMap: Record<string, YTItem[]> = {};
       interestRailDefs.forEach((i, idx) => {
         perMap[i.id] = sortFeed(perInterestR[idx]?.items || []).slice(0, 12);
       });
-      setInterestRails(perMap);
-      setRecommended(roundRobin(interestRailDefs.map((i) => perMap[i.id] || [])).slice(0, 12));
-      setTrending(trR.items.slice(0, 12));
+      const trendingItems = trR.items.slice(0, 12);
       const bgEasy = bgR.items.filter((x) => x.difficulty === "beginner");
-      setBeginner((bgEasy.length ? bgEasy : bgR.items).slice(0, 12));
-      setLoading(false);
+      const beginnerItems = (bgEasy.length ? bgEasy : bgR.items).slice(0, 12);
+      // Unscored results only replace an empty page; a remembered feed waits
+      // for the scored one so badges don't vanish and reappear.
+      if (!showingCached) {
+        setInterestRails(perMap);
+        setRecommended(roundRobin(interestRailDefs.map((i) => perMap[i.id] || [])).slice(0, 12));
+        setTrending(trendingItems);
+        setBeginner(beginnerItems);
+        setLoading(false);
+      }
 
       // Background: score captions against the learner's words, then
       // re-sort (never filter) and attach the understanding badge.
@@ -256,13 +309,18 @@ export const PersonalizedRails = ({
           }).filter((it) => typeof it.comprehensionPct !== "number" || isShowable(it.comprehensionPct)),
         );
       });
+      const recommendedItems = roundRobin(interestRailDefs.map((i) => scored[i.id] || [])).slice(0, 12);
       setInterestRails(scored);
-      setRecommended(roundRobin(interestRailDefs.map((i) => scored[i.id] || [])).slice(0, 12));
+      setRecommended(recommendedItems);
+      setTrending(trendingItems);
+      setBeginner(beginnerItems);
+      setLoading(false);
       setScoring(false);
+      writeFeed(feedKey, { interestRails: scored, recommended: recommendedItems, trending: trendingItems, beginner: beginnerItems });
     };
     void load();
     return () => { cancelled = true; };
-  }, [user?.id, learningLanguage, nativeLanguage, langLabel, interestRailDefs, cefrLevel]);
+  }, [user?.id, learningLanguage, nativeLanguage, langLabel, interestRailDefs, cefrLevel, feedKey]);
 
   const pick = async (it: YTItem, sourceInterestId?: string) => {
     if (importing || pendingId) return;
