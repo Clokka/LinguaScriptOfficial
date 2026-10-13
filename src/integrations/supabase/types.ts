@@ -20,6 +20,7 @@ export type Database = {
           date: string
           goal_met: boolean
           id: string
+          language: string
           minutes_watched: number | null
           user_id: string
           videos_watched: number | null
@@ -31,6 +32,7 @@ export type Database = {
           date?: string
           goal_met?: boolean
           id?: string
+          language?: string
           minutes_watched?: number | null
           user_id: string
           videos_watched?: number | null
@@ -42,6 +44,7 @@ export type Database = {
           date?: string
           goal_met?: boolean
           id?: string
+          language?: string
           minutes_watched?: number | null
           user_id?: string
           videos_watched?: number | null

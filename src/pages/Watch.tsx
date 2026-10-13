@@ -7,6 +7,7 @@ import { GapFillChallenge } from "@/components/GapFillChallenge";
 import { loadDeckIndex, normalizeToken, SavedWordLite, DeckState, coerceDeckState, maxState, bestStateForLemma } from "@/lib/vocab";
 import { buildExerciseOptions } from "@/lib/linguascripts";
 import { cacheWordImageByWord } from "@/lib/wordImages";
+import { bumpActivity } from "@/lib/activityLog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
@@ -400,7 +401,10 @@ const Watch = () => {
   const { isPro } = useSubscription();
   const { onWordSaved, onVideoFinished } = useUpgradeTrigger(isPro);
   const savedTodayRef = useRef(0);
-  const dailyGoal = useDailyWordGoal();
+  const { learningLanguage, languageContext, isContentLocked } = useLanguage();
+  const [film, setFilm] = useState<FilmData | null>(null);
+  // Words saved today and the goal are this video's language only.
+  const dailyGoal = useDailyWordGoal(film?.language || learningLanguage || undefined);
 
   // Progress and the review button live in the word counter under the video.
   // The counter moves the moment a word is tapped, not after the translation
@@ -421,7 +425,6 @@ const Watch = () => {
     if (!countedTodayRef.current.delete(k)) return;
     unbumpDailyGoal();
   }, [unbumpDailyGoal]);
-  const { learningLanguage, languageContext, isContentLocked } = useLanguage();
   const { award } = useXp();
   const { triggerReaction } = usePet();
   const videoWatchAwardedRef = useRef(false);
@@ -430,7 +433,6 @@ const Watch = () => {
   const intervalRef = useRef<ReturnType<typeof setInterval>>();
   const historyIntervalRef = useRef<ReturnType<typeof setInterval>>();
 
-  const [film, setFilm] = useState<FilmData | null>(null);
   // Saving a word from a feed video is a strong "I like this" signal.
   const noteFeedSave = () => {
     if (!user || !film) return;
@@ -956,25 +958,10 @@ const Watch = () => {
     };
   }, [user, film, apiReady, adDone]);
 
+  // Minutes count toward the video's own language.
   const logWatchTime = async (minutes: number) => {
     if (!user) return;
-    const today = new Date().toISOString().split("T")[0];
-    const { data: existing } = await supabase
-      .from("activity_log")
-      .select("id, minutes_watched")
-      .eq("user_id", user.id)
-      .eq("date", today)
-      .maybeSingle();
-
-    if (existing) {
-      await supabase.from("activity_log")
-        .update({ minutes_watched: (existing.minutes_watched || 0) + minutes })
-        .eq("id", existing.id);
-    } else {
-      await supabase.from("activity_log").insert({
-        user_id: user.id, date: today, minutes_watched: minutes, videos_watched: 1,
-      });
-    }
+    await bumpActivity(user.id, film?.language || learningLanguage || "", { minutes_watched: minutes });
   };
 
   const saveWordToFlashcards = async (word: { id: string; text: string; translation: string; pronunciation: string; ipa: string; pos?: string | null }) => {
@@ -1418,7 +1405,7 @@ const Watch = () => {
   if ((isMobile || isPhoneLandscape) && !isFullscreen) {
     const header = (
       <div className="flex items-center gap-2 p-2 bg-black/80 backdrop-blur z-20">
-        {user && <WatchGoalGate goal={dailyGoal.goal} playerRef={playerRef} savedToday={dailyGoal.savedToday} />}
+        {user && <WatchGoalGate goal={dailyGoal.goal} playerRef={playerRef} savedToday={dailyGoal.savedToday} language={film.language || learningLanguage || ""} />}
         <Button data-tour="page-back" variant="ghost" size="icon" onClick={() => navigate("/discover")} className="text-white hover:bg-white/10 shrink-0 h-9 w-9">
           <ArrowLeft className="w-5 h-5" />
         </Button>
@@ -1602,7 +1589,7 @@ const Watch = () => {
 
   return (
     <div className="min-h-screen bg-black flex flex-col">
-      {user && <WatchGoalGate goal={dailyGoal.goal} playerRef={playerRef} savedToday={dailyGoal.savedToday} />}
+      {user && <WatchGoalGate goal={dailyGoal.goal} playerRef={playerRef} savedToday={dailyGoal.savedToday} language={film.language || learningLanguage || ""} />}
       <div className="flex items-center gap-3 p-4 bg-black/80 backdrop-blur z-20">
         <Button data-tour="page-back" variant="ghost" size="icon" onClick={() => navigate("/discover")} className="text-white hover:bg-white/10">
           <ArrowLeft className="w-5 h-5" />

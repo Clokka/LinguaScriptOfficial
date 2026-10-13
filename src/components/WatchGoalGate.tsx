@@ -7,19 +7,27 @@ import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Layers } from "lucide-react";
 import { BrandMark } from "@/components/BrandMark";
 
-const key = () => `ls-watch-seconds-${new Date().toISOString().slice(0, 10)}`;
+// One watch timer per language per day: Chinese minutes don't use up Japanese.
+const key = (language: string) =>
+  `ls-watch-seconds-${new Date().toISOString().slice(0, 10)}-${(language || "").toLowerCase()}`;
 
 interface Props {
   goal: number; // words per day == minutes per day
   playerRef: React.MutableRefObject<any>;
   /** Words saved today; 0 means the learner watched without saving anything. */
   savedToday?: number;
+  /** The video's language; each language gets its own daily minutes. */
+  language: string;
 }
 
-export function WatchGoalGate({ goal, playerRef, savedToday = 0 }: Props) {
+export function WatchGoalGate({ goal, playerRef, savedToday = 0, language }: Props) {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
-  const secondsRef = useRef<number>(Number(localStorage.getItem(key()) || 0));
+  const secondsRef = useRef<number>(0);
+  // Load this language's seconds so far today (and again if the language changes).
+  useEffect(() => {
+    try { secondsRef.current = Number(localStorage.getItem(key(language)) || 0); } catch { secondsRef.current = 0; }
+  }, [language]);
   const limit = Math.max(1, goal) * 60;
   // "Save one first" lets them keep watching until a word is saved.
   const [grace, setGrace] = useState(false);
@@ -32,14 +40,14 @@ export function WatchGoalGate({ goal, playerRef, savedToday = 0 }: Props) {
       try { playing = playerRef.current?.getPlayerState?.() === 1; } catch { /* noop */ }
       if (!playing) return;
       secondsRef.current += 1;
-      localStorage.setItem(key(), String(secondsRef.current));
+      try { localStorage.setItem(key(language), String(secondsRef.current)); } catch { /* storage blocked */ }
       if (secondsRef.current >= limit && !graceRef.current) {
         try { playerRef.current?.pauseVideo?.(); } catch { /* noop */ }
         setOpen(true);
       }
     }, 1000);
     return () => clearInterval(id);
-  }, [limit, playerRef]);
+  }, [limit, playerRef, language]);
 
   // Keep the video paused while the gate is up.
   useEffect(() => {

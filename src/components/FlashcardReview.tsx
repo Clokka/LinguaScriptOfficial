@@ -9,6 +9,7 @@ import { DeckState, nextState, applySrsReview, syncLemmaState } from "@/lib/voca
 import { cacheWordImage, wantsPicture } from "@/lib/wordImages";
 import { useXp } from "@/contexts/XpContext";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { bumpActivity } from "@/lib/activityLog";
 import { getLanguageLabel } from "@/lib/languages";
 import { toast } from "sonner";
 import { playDing } from "@/lib/sound";
@@ -124,29 +125,11 @@ export const FlashcardReview = ({ cards: initialCards, onClose, onCardReviewed, 
     });
   }, [cardType, currentIndex, cards]);
 
+  // Counts toward today's review total for the card's own language.
   const logReview = async () => {
     if (!user) return;
-    const today = new Date().toISOString().split("T")[0];
-    const { data: existing } = await supabase
-      .from("activity_log")
-      .select("id, words_reviewed")
-      .eq("user_id", user.id)
-      .eq("date", today)
-      .maybeSingle();
-    if (existing) {
-      await supabase
-        .from("activity_log")
-        .update({ words_reviewed: ((existing as any).words_reviewed || 0) + 1 } as any)
-        .eq("id", existing.id);
-    } else {
-      await supabase.from("activity_log").insert({
-        user_id: user.id,
-        date: today,
-        words_reviewed: 1,
-        minutes_watched: 0,
-        videos_watched: 0,
-      } as any);
-    }
+    const lang = cards[currentIndex]?.language || languageContext || "";
+    await bumpActivity(user.id, lang, { words_reviewed: 1 });
   };
 
   const promoteDeckState = (wasCorrect: boolean) => {

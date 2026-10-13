@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Flame, BookOpen, Brain, Sparkles, Clock, TrendingUp, Target } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { mergeActivityByDate } from "@/lib/activityLog";
 import { useAuth } from "@/hooks/useAuth";
 import { useStreakStatus } from "@/hooks/useStreakStatus";
 import { StreakFlame } from "./StreakFlame";
@@ -114,7 +115,8 @@ export const ProgressDashboard = ({ variant = "light" }: ProgressDashboardProps)
           .order("date", { ascending: false }),
       ]);
       setWords((w.data as SavedWordLite[]) || []);
-      setActivity((a.data as ActivityDayLite[]) || []);
+      // One entry per day across languages (rows are per language).
+      setActivity(mergeActivityByDate((a.data as ActivityDayLite[]) || []));
       setLoading(false);
     })();
   }, [user]);
