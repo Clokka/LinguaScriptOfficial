@@ -111,11 +111,20 @@ export async function addLanguageProfile(opts: {
   } else {
     const current = await listLanguageProfiles(opts.userId);
     if (current.length >= MAX_LANGUAGES) return { profile: null, error: "language_limit_reached" };
+    // A new language starts with the learner's own daily goal, not the
+    // table default of 5 — goals are per language now.
+    const { data: account } = await supabase
+      .from("profiles")
+      .select("daily_word_goal, daily_video_goal")
+      .eq("user_id", opts.userId)
+      .maybeSingle();
     const { error } = await table().insert({
       user_id: opts.userId,
       language,
       mode: opts.mode,
       cefr_level: opts.level.toLowerCase(),
+      ...(account?.daily_word_goal ? { daily_word_goal: account.daily_word_goal } : {}),
+      ...(account?.daily_video_goal ? { daily_video_goal: account.daily_video_goal } : {}),
     });
     if (error) return { profile: null, error: error.message };
   }
