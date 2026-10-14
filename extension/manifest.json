@@ -1,19 +1,15 @@
 {
   "manifest_version": 3,
-  "name": "LinguaScript",
-  "version": "1.0.0",
-  "description": "Sync Netflix subtitles to your LinguaScript vocabulary",
-  "permissions": [
-    "storage",
-    "activeTab",
-    "tabs",
-    "alarms"
-  ],
+  "name": "LinguaScript: Learn Languages with YouTube",
+  "short_name": "LinguaScript",
+  "version": "1.1.0",
+  "description": "Learn a language from YouTube. Dual subtitles, tap any word for its meaning, and save it to your LinguaScript flashcards.",
+  "homepage_url": "https://linguascript.co.uk",
+  "minimum_chrome_version": "102",
+  "permissions": ["storage"],
   "host_permissions": [
-    "https://www.netflix.com/*",
     "https://www.youtube.com/*",
     "https://ffephracinqeylfhqkiz.supabase.co/*",
-    "https://api.mymemory.translated.net/*",
     "https://translate.googleapis.com/*"
   ],
   "background": {
@@ -21,14 +17,15 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://www.netflix.com/watch/*"],
-      "js": ["ls-core.js", "adapters/netflix.js"],
-      "run_at": "document_idle"
-    },
-    {
-      "matches": ["https://www.youtube.com/watch*"],
+      "matches": ["https://www.youtube.com/*"],
       "js": ["ls-core.js", "adapters/youtube.js"],
       "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["fonts/*.woff2"],
+      "matches": ["https://www.youtube.com/*"]
     }
   ],
   "action": {
@@ -36,12 +33,14 @@
     "default_title": "LinguaScript",
     "default_icon": {
       "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
       "48": "icons/icon48.png",
       "128": "icons/icon128.png"
     }
   },
   "icons": {
     "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
   }

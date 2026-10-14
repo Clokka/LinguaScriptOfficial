@@ -34,8 +34,53 @@
   function normalizeToken(raw) {
     return (raw || '')
       .toLowerCase()
-      .replace(/[.,!?;:"'`«»()\[\]…]/g, '')
+      .replace(/[.,!?;:"'`«»()\[\]…，。、！？；：「」『』（）《》〈〉“”‘’]/g, '')
       .trim();
+  }
+
+  // Text from subtitles and the translation service goes into innerHTML in a
+  // few places; escape it so a subtitle can never inject markup.
+  function escapeHtml(s) {
+    return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+  const escapeRegExp = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+  // The little "ding" the app plays when a word is saved (two soft sine notes).
+  let audioCtx = null;
+  function playDing() {
+    try {
+      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      const t0 = audioCtx.currentTime;
+      [[880, 0], [1320, 0.09]].forEach(([freq, at]) => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine'; osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0.0001, t0 + at);
+        gain.gain.exponentialRampToValueAtTime(0.18, t0 + at + 0.015);
+        gain.gain.exponentialRampToValueAtTime(0.0001, t0 + at + 0.35);
+        osc.connect(gain).connect(audioCtx.destination);
+        osc.start(t0 + at); osc.stop(t0 + at + 0.4);
+      });
+    } catch {}
+  }
+
+  // Chinese, Japanese and Thai are written without spaces, so split those
+  // lines into words with Intl.Segmenter (like src/lib/wordSegments.ts);
+  // everything else splits on spaces.
+  const SEGMENTED_LANGS = new Set(['zh', 'ja', 'th']);
+  function splitWords(text, lang) {
+    const base = (lang || '').toLowerCase().split('-')[0];
+    if (SEGMENTED_LANGS.has(base) && typeof Intl !== 'undefined' && Intl.Segmenter) {
+      const out = [];
+      for (const seg of new Intl.Segmenter(base, { granularity: 'word' }).segment(text)) {
+        if (!seg.segment.trim()) continue;
+        if (seg.isWordLike) out.push({ text: seg.segment, word: true });
+        else if (out.length) out[out.length - 1].text += seg.segment; // keep punctuation on the word before it
+        else out.push({ text: seg.segment, word: false });
+      }
+      return { parts: out, joiner: '' };
+    }
+    return { parts: text.split(/\s+/).filter(Boolean).map((t) => ({ text: t, word: true })), joiner: ' ' };
   }
 
   // The red/orange/green colour feature lives entirely in the Deck module below
@@ -172,9 +217,9 @@
     const card = document.createElement('div'); card.id = 'ls-card'; activeCard = card;
     card.innerHTML = `
       <button id="ls-card-close">✕</button>
-      <div id="ls-card-word">${word}</div>
+      <div id="ls-card-word" translate="no">${escapeHtml(word.replace(/[.,!?;:"`«»()\[\]…，。、！？；：「」『』（）《》〈〉“”‘’]/g, '').trim() || word)}</div>
       <div id="ls-card-tier" style="color:${tierColor}">${tierLabel}</div>
-      <div id="ls-card-trans" style="color:#888;font-style:italic;font-size:14px;">looking up…</div>
+      <div id="ls-card-trans" style="color:#9A9AA6;font-style:italic;font-size:14px;">looking up…</div>
       <div id="ls-card-body"></div>
       <button id="ls-card-save"${alreadySaved ? ' disabled' : ''}>${alreadySaved ? '✓ In your flashcards' : '+ Save to flashcards'}</button>`;
     document.body.appendChild(card);
@@ -197,15 +242,24 @@
         if (transEl) { transEl.style.cssText = 'font-size:17px;font-weight:700;color:#fff;margin-bottom:10px;'; transEl.textContent = detail.translation; }
         let bodyHTML = '';
         if (detail.synonymGroups?.length) {
-          const chips = detail.synonymGroups.flatMap((g) => g.words).slice(0, 10).map((w) => `<span class="ls-card-syn-chip">${w}</span>`).join('');
+          const chips = detail.synonymGroups.flatMap((g) => g.words).slice(0, 10).map((w) => `<span class="ls-card-syn-chip">${escapeHtml(w)}</span>`).join('');
           bodyHTML += `<div class="ls-card-section-label">Synonyms</div><div class="ls-card-synonyms">${chips}</div>`;
         }
+        // Escape first, then highlight the word (it's escaped the same way, so it still matches).
+        const highlight = (line) => {
+          const safe = escapeHtml(line);
+          const target = escapeRegExp(escapeHtml(clean));
+          const re = SEGMENTED_LANGS.has(learningLang) ? new RegExp(target, 'gi') : new RegExp(`(^|[^\\p{L}])(${target})(?=$|[^\\p{L}])`, 'giu');
+          return SEGMENTED_LANGS.has(learningLang)
+            ? safe.replace(re, (m) => `<em>${m}</em>`)
+            : safe.replace(re, (_m, pre, w) => `${pre}<em>${w}</em>`);
+        };
         const examples = [];
         if (fullLine && fullLine !== clean) {
-          examples.push(`<div class="ls-card-example">${fullLine.replace(new RegExp(`\\b${clean}\\b`, 'gi'), (m) => `<em>${m}</em>`)}</div>`);
+          examples.push(`<div class="ls-card-example" translate="no">${highlight(fullLine)}</div>`);
         }
         if (detail.examples?.length) {
-          detail.examples.slice(0, 2).forEach((ex) => examples.push(`<div class="ls-card-example">${ex.replace(new RegExp(`\\b${clean}\\b`, 'gi'), (m) => `<em>${m}</em>`)}</div>`));
+          detail.examples.filter((ex) => ex.trim() !== (fullLine || '').trim()).slice(0, 2).forEach((ex) => examples.push(`<div class="ls-card-example" translate="no">${highlight(ex)}</div>`));
         }
         if (examples.length) bodyHTML += `<div class="ls-card-section-label">Examples</div><div class="ls-card-examples">${examples.join('')}</div>`;
         if (bodyEl) bodyEl.innerHTML = bodyHTML;
@@ -226,9 +280,13 @@
         saveBtn.addEventListener('click', () => {
           saveBtn.textContent = 'Saving…'; saveBtn.disabled = true;
           chrome.runtime.sendMessage({ type: 'SAVE_WORD', word: clean, context: fullLine, language: learningLang, translation: resolvedTranslation }, (res) => {
-            if (chrome.runtime.lastError || !res?.ok) { saveBtn.textContent = '+ Save to flashcards'; saveBtn.disabled = false; return; }
+            if (chrome.runtime.lastError || !res?.ok) {
+              saveBtn.textContent = res?.message || 'Couldn’t save — tap to try again'; saveBtn.disabled = !!res?.message;
+              return;
+            }
             Deck.markSaved(clean);
-            saveBtn.textContent = res.already ? '✓ Already saved' : '✓ Saved!'; saveBtn.disabled = true;
+            playDing();
+            saveBtn.textContent = res.already ? '✓ Already in your flashcards' : '✓ Saved!'; saveBtn.disabled = true;
             setTimeout(closeCard, 900);
           });
         });
@@ -239,7 +297,7 @@
   function buildMiniLogin(word, context, getTranslation) {
     const wrap = document.createElement('div');
     wrap.innerHTML = `
-      <p class="ls-card-login-note">Log in to save words to your flashcards.</p>
+      <p class="ls-card-login-note">Log in to save words to your flashcards. New here? <a href="https://linguascript.co.uk/auth?mode=signup" target="_blank" rel="noopener noreferrer">Create a free account</a></p>
       <input class="ls-card-login-input" id="ls-mini-email" type="email" placeholder="Email" autocomplete="email" />
       <input class="ls-card-login-input" id="ls-mini-pw" type="password" placeholder="Password" autocomplete="current-password" />
       <button class="ls-card-login-btn" id="ls-mini-submit">Log in &amp; Save</button>
@@ -256,8 +314,10 @@
         if (!res?.ok) { errEl.textContent = res?.error || 'Login failed — check credentials.'; btn.textContent = 'Log in & Save'; btn.disabled = false; return; }
         btn.textContent = 'Saving…';
         chrome.runtime.sendMessage({ type: 'SAVE_WORD', word, context, language: learningLang, translation: getTranslation() }, (saveRes) => {
-          if (!saveRes?.ok) { btn.textContent = 'Saved (refresh to colour words)'; btn.disabled = true; return; }
+          if (!saveRes?.ok) { btn.textContent = saveRes?.message || 'Couldn’t save — try again'; btn.disabled = false; return; }
           Deck.markSaved(word);
+          playDing();
+          Deck.refresh(true);
           btn.textContent = '✓ Saved!'; btn.disabled = true;
           setTimeout(closeCard, 900);
         });
@@ -269,18 +329,20 @@
   }
 
   // ── Word spans ───────────────────────────────────────────────────────────────
-  function makeWordSpan(word, fullLine) {
+  function makeWordSpan(word, fullLine, joiner = ' ') {
     const clean = normalizeToken(word);
-    if (!clean) return document.createTextNode(word + ' ');
+    if (!clean) return document.createTextNode(word + joiner);
     const span = document.createElement('span');
-    span.className = 'ls-word'; span.dataset.word = clean; span.textContent = word + ' ';
+    span.className = 'ls-word'; span.dataset.word = clean; span.textContent = word + joiner;
+    span.setAttribute('translate', 'no');
     Deck.paint(span, clean);
     span.addEventListener('click', (e) => { e.stopPropagation(); openCard({ word, clean, fullLine, anchorEl: span }); });
     return span;
   }
   function makeWordSpansFor(text) {
     const frag = document.createDocumentFragment();
-    text.split(/\s+/).filter(Boolean).forEach((w) => frag.appendChild(makeWordSpan(w, text)));
+    const { parts, joiner } = splitWords(text, learningLang);
+    parts.forEach((p) => frag.appendChild(p.word ? makeWordSpan(p.text, text, joiner) : document.createTextNode(p.text + joiner)));
     return frag;
   }
 
@@ -402,8 +464,14 @@
   }
 
   // ── Styles ───────────────────────────────────────────────────────────────────
+  // Brand tokens match the website (src/index.css) and brand.css: near-black
+  // surfaces, green primary, orange accent. Inter is bundled with the
+  // extension (no Google Fonts request); if a page blocks it we fall back to
+  // the system font.
+  const FONT_URL = (f) => { try { return chrome.runtime.getURL(`fonts/${f}`); } catch { return ''; } };
   const SHARED_CSS = `
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+    @font-face { font-family:'LS Inter'; font-style:normal; font-weight:100 900; font-display:swap; src:url('${FONT_URL('inter-latin-wght-normal.woff2')}') format('woff2'); unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2212, U+FEFF, U+FFFD; }
+    @font-face { font-family:'LS Inter'; font-style:normal; font-weight:100 900; font-display:swap; src:url('${FONT_URL('inter-latin-ext-wght-normal.woff2')}') format('woff2'); unicode-range:U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+1E00-1E9F, U+1EF2-1EFF, U+20A0-20AB, U+20AD-20C0, U+2C60-2C7F, U+A720-A7FF; }
     .ls-word { cursor:pointer; border-radius:4px; padding:0 3px; transition:color .35s ease, background .12s; display:inline; }
     .ls-word:hover { background:rgba(255,255,255,0.16); }
     /* The ONE deck palette — three distinct hexes, one per deck. */
@@ -413,59 +481,61 @@
 
     #ls-controls { position:fixed; z-index:2147483641; display:flex; align-items:center; justify-content:center; gap:6px; pointer-events:none; transition:right .3s ease; left:0; right:360px; }
     #ls-controls.ls-panel-hidden { right:0; }
-    #ls-controls-inner { display:flex; align-items:center; gap:6px; background:rgba(10,8,20,0.92); border:1px solid rgba(124,58,237,0.28); border-radius:12px; padding:7px 12px; backdrop-filter:blur(16px); pointer-events:auto; box-shadow:0 4px 24px rgba(0,0,0,0.7); font-family:'Inter',-apple-system,sans-serif; }
-    .ls-btn { background:rgba(255,255,255,0.08); color:#fff; border:none; border-radius:6px; padding:5px 11px; font-size:12px; font-weight:600; cursor:pointer; transition:background .12s, transform .1s; white-space:nowrap; font-family:inherit; text-decoration:none; display:inline-flex; align-items:center; }
-    .ls-btn:hover { background:rgba(255,255,255,0.2); transform:scale(1.04); }
+    #ls-controls-inner { display:flex; align-items:center; gap:6px; background:rgba(8,8,11,0.94); border:1px solid #24242D; border-radius:999px; padding:7px 12px; backdrop-filter:blur(16px); pointer-events:auto; box-shadow:0 4px 24px rgba(0,0,0,0.7); font-family:'LS Inter','Inter',system-ui,-apple-system,sans-serif; }
+    .ls-btn { background:rgba(255,255,255,0.08); color:#F5F5F7; border:none; border-radius:999px; padding:5px 11px; font-size:12px; font-weight:600; cursor:pointer; transition:background .12s, transform .1s; white-space:nowrap; font-family:inherit; text-decoration:none; display:inline-flex; align-items:center; }
+    .ls-btn:hover { background:rgba(255,255,255,0.18); transform:scale(1.04); }
     .ls-btn:active { transform:scale(0.96); }
-    .ls-btn.ls-on { background:#7c3aed; }
-    .ls-btn.ls-link { background:rgba(52,199,89,0.14); color:#34C759; }
-    .ls-btn.ls-link:hover { background:rgba(52,199,89,0.24); }
+    .ls-btn.ls-on { background:#34C759; color:#08080B; }
+    .ls-btn.ls-on .ls-kbd { color:rgba(8,8,11,0.55); }
+    .ls-btn.ls-link { background:rgba(255,138,0,0.14); color:#FF8A00; }
+    .ls-btn.ls-link:hover { background:rgba(255,138,0,0.26); }
     .ls-sep { width:1px; height:18px; background:rgba(255,255,255,0.13); margin:0 2px; }
     .ls-kbd { font-size:10px; color:rgba(255,255,255,0.4); margin-left:3px; }
 
-    #ls-card { position:fixed; z-index:2147483647; width:300px; background:rgba(10,10,18,0.97); border:1px solid rgba(124,58,237,0.4); border-radius:14px; padding:16px 18px 14px; font-family:'Inter',-apple-system,sans-serif; box-shadow:0 16px 48px rgba(0,0,0,0.9); backdrop-filter:blur(20px); pointer-events:auto; color:#fff; animation:ls-card-in .22s cubic-bezier(0.34,1.56,0.64,1); }
+    #ls-card { position:fixed; z-index:2147483647; width:300px; background:rgba(17,17,22,0.98); border:1px solid #24242D; border-radius:16px; padding:16px 18px 14px; font-family:'LS Inter','Inter',system-ui,-apple-system,sans-serif; box-shadow:0 16px 48px rgba(0,0,0,0.9); backdrop-filter:blur(20px); pointer-events:auto; color:#F5F5F7; animation:ls-card-in .22s cubic-bezier(0.34,1.56,0.64,1); }
     @keyframes ls-card-in { from{opacity:0;transform:scale(.88) translateY(6px);} to{opacity:1;transform:scale(1) translateY(0);} }
     #ls-card-word { font-size:22px; font-weight:800; margin-bottom:3px; letter-spacing:-0.3px; }
     #ls-card-tier { font-size:11px; font-weight:600; letter-spacing:.04em; margin-bottom:8px; opacity:.9; }
     #ls-card-trans { min-height:20px; line-height:1.3; }
-    .ls-card-section-label { font-size:10px; font-weight:600; letter-spacing:.08em; color:#666; text-transform:uppercase; margin-bottom:5px; }
+    .ls-card-section-label { font-size:10px; font-weight:600; letter-spacing:.08em; color:#9A9AA6; text-transform:uppercase; margin-bottom:5px; }
     .ls-card-synonyms { display:flex; flex-wrap:wrap; gap:5px; margin-bottom:10px; }
-    .ls-card-syn-chip { font-size:12px; color:#b8a0ff; background:rgba(124,58,237,0.15); border:1px solid rgba(124,58,237,0.25); border-radius:20px; padding:2px 9px; cursor:pointer; }
-    .ls-card-syn-chip:hover { background:rgba(124,58,237,0.3); }
+    .ls-card-syn-chip { font-size:12px; color:#F5F5F7; background:#17171E; border:1px solid #24242D; border-radius:20px; padding:2px 9px; }
     .ls-card-examples { margin-bottom:12px; }
-    .ls-card-example { font-size:12px; color:#999; line-height:1.5; padding:4px 0; border-left:2px solid rgba(124,58,237,0.25); padding-left:8px; margin-bottom:4px; }
-    .ls-card-example em { color:#b8a0ff; font-style:normal; font-weight:600; }
-    #ls-card-save { width:100%; padding:9px; border:none; border-radius:8px; background:#7c3aed; color:#fff; font-size:13px; font-weight:700; cursor:pointer; transition:background .15s, transform .1s; font-family:inherit; }
-    #ls-card-save:hover { background:#6d28d9; }
-    #ls-card-save:disabled { background:#1e1e2e; color:#555; cursor:default; }
-    #ls-card-close { position:absolute; top:12px; right:14px; background:none; border:none; color:#555; font-size:16px; cursor:pointer; line-height:1; }
+    .ls-card-example { font-size:12px; color:#B5B5C0; line-height:1.5; padding:4px 0 4px 8px; border-left:2px solid rgba(255,138,0,0.45); margin-bottom:4px; }
+    .ls-card-example em { color:#FF8A00; font-style:normal; font-weight:700; }
+    #ls-card-save { width:100%; padding:10px; border:none; border-radius:999px; background:#34C759; color:#08080B; font-size:13px; font-weight:700; cursor:pointer; transition:filter .15s, transform .1s; font-family:inherit; }
+    #ls-card-save:hover { filter:brightness(1.08); }
+    #ls-card-save:active { transform:scale(0.98); }
+    #ls-card-save:disabled { background:#17171E; color:#9A9AA6; cursor:default; filter:none; }
+    #ls-card-close { position:absolute; top:12px; right:14px; background:none; border:none; color:#9A9AA6; font-size:16px; cursor:pointer; line-height:1; }
     #ls-card-close:hover { color:#fff; }
-    .ls-card-login-note { font-size:12px; color:#888; margin-bottom:10px; line-height:1.5; }
-    .ls-card-login-input { width:100%; padding:7px 10px; margin-bottom:7px; background:#0d0d18; border:1px solid #2a2a40; border-radius:7px; color:#e8e8f0; font-size:12px; outline:none; box-sizing:border-box; font-family:inherit; }
-    .ls-card-login-input:focus { border-color:#7c3aed; }
-    .ls-card-login-btn { width:100%; padding:8px; border:none; border-radius:7px; background:#7c3aed; color:#fff; font-size:12px; font-weight:700; cursor:pointer; font-family:inherit; }
-    .ls-card-login-btn:hover { background:#6d28d9; }
-    .ls-card-login-err { font-size:11px; color:#f87171; margin-top:5px; min-height:14px; }
+    .ls-card-login-note { font-size:12px; color:#9A9AA6; margin-bottom:10px; line-height:1.5; }
+    .ls-card-login-note a { color:#34C759; }
+    .ls-card-login-input { width:100%; padding:8px 12px; margin-bottom:7px; background:#08080B; border:1px solid #24242D; border-radius:10px; color:#F5F5F7; font-size:12px; outline:none; box-sizing:border-box; font-family:inherit; }
+    .ls-card-login-input:focus { border-color:#34C759; }
+    .ls-card-login-btn { width:100%; padding:9px; border:none; border-radius:999px; background:#34C759; color:#08080B; font-size:12px; font-weight:700; cursor:pointer; font-family:inherit; }
+    .ls-card-login-btn:hover { filter:brightness(1.08); }
+    .ls-card-login-err { font-size:11px; color:#FF3B30; margin-top:5px; min-height:14px; }
 
-    #ls-panel { position:fixed; top:0; right:0; bottom:0; width:360px; background:rgba(7,7,12,0.98); border-left:1px solid rgba(124,58,237,0.18); z-index:2147483639; display:flex; flex-direction:column; font-family:'Inter',-apple-system,sans-serif; backdrop-filter:blur(12px); transition:transform .3s cubic-bezier(0.4,0,0.2,1); }
+    #ls-panel { position:fixed; top:0; right:0; bottom:0; width:360px; background:rgba(8,8,11,0.98); border-left:1px solid #24242D; z-index:2147483639; display:flex; flex-direction:column; font-family:'LS Inter','Inter',system-ui,-apple-system,sans-serif; backdrop-filter:blur(12px); transition:transform .3s cubic-bezier(0.4,0,0.2,1); }
     #ls-panel.ls-hidden { transform:translateX(360px); }
-    #ls-panel-header { padding:14px 16px 12px; border-bottom:1px solid rgba(124,58,237,0.15); display:flex; justify-content:space-between; align-items:center; flex-shrink:0; }
-    #ls-panel-logo { font-size:15px; font-weight:800; letter-spacing:-0.3px; color:#fff; }
+    #ls-panel-header { padding:14px 16px 12px; border-bottom:1px solid #24242D; display:flex; justify-content:space-between; align-items:center; flex-shrink:0; }
+    #ls-panel-logo { font-size:15px; font-weight:800; letter-spacing:-0.3px; color:#F5F5F7; }
     #ls-panel-logo span { color:#34C759; }
-    #ls-panel-meta { font-size:10px; color:#555; margin-top:1px; }
-    #ls-panel-toggle { background:rgba(124,58,237,0.15); border:1px solid rgba(124,58,237,0.25); color:#9d7bea; border-radius:6px; cursor:pointer; font-size:11px; font-weight:600; padding:4px 10px; font-family:inherit; }
-    #ls-panel-toggle:hover { background:rgba(124,58,237,0.28); }
+    #ls-panel-meta { font-size:10px; color:#9A9AA6; margin-top:1px; }
+    #ls-panel-toggle { background:#17171E; border:1px solid #24242D; color:#F5F5F7; border-radius:999px; cursor:pointer; font-size:11px; font-weight:600; padding:4px 12px; font-family:inherit; }
+    #ls-panel-toggle:hover { background:#24242D; }
     #ls-panel-list { flex:1; overflow-y:auto; padding:6px 0 80px; }
     #ls-panel-list::-webkit-scrollbar { width:3px; }
-    #ls-panel-list::-webkit-scrollbar-thumb { background:rgba(124,58,237,0.3); border-radius:2px; }
+    #ls-panel-list::-webkit-scrollbar-thumb { background:#24242D; border-radius:2px; }
     .ls-panel-line { padding:10px 16px 8px; cursor:pointer; border-left:3px solid transparent; transition:background .12s, border-color .12s; }
     .ls-panel-line:hover { background:rgba(255,255,255,0.04); }
-    .ls-panel-line.ls-current { border-left-color:#7c3aed; background:rgba(124,58,237,0.1); }
+    .ls-panel-line.ls-current { border-left-color:#34C759; background:rgba(52,199,89,0.08); }
     .ls-panel-line-text { font-size:14px; color:#ccc; line-height:1.55; margin-bottom:3px; }
     .ls-panel-line.ls-current .ls-panel-line-text { color:#fff; }
-    .ls-panel-line-tr { font-size:11px; color:#666; line-height:1.4; }
+    .ls-panel-line-tr { font-size:11px; color:#9A9AA6; line-height:1.4; }
 
-    #ls-toast { position:fixed; bottom:80px; left:50%; transform:translateX(-50%); background:#7c3aed; color:#fff; padding:7px 20px; border-radius:20px; font-size:13px; font-weight:700; pointer-events:none; opacity:0; transition:opacity .2s; z-index:2147483647; font-family:-apple-system,sans-serif; }
+    #ls-toast { position:fixed; bottom:80px; left:50%; transform:translateX(-50%); background:#34C759; color:#08080B; padding:8px 20px; border-radius:999px; font-size:13px; font-weight:700; pointer-events:none; opacity:0; transition:opacity .2s; z-index:2147483647; font-family:'LS Inter','Inter',system-ui,-apple-system,sans-serif; }
     #ls-toast.ls-show { opacity:1; }
   `;
 
@@ -488,7 +558,7 @@
     loadSavedWords: (force) => Deck.refresh(force),
     startWordsRefresh: () => Deck.startAutoRefresh(),
     stopWordsRefresh: () => Deck.stopAutoRefresh(),
-    showToast, openCard, closeCard, makeWordSpan, makeWordSpansFor,
+    showToast, openCard, closeCard, makeWordSpan, makeWordSpansFor, splitWords, playDing, escapeHtml,
     SubtitleShield, buildPanelShell, togglePanel, buildControls, attachKeyboardShortcuts,
     injectStyles,
   };

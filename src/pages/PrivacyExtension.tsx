@@ -17,46 +17,52 @@ const PrivacyExtension = () => (
     </header>
     <main className="max-w-3xl mx-auto px-6 py-10">
       <h1 className="text-3xl font-bold mb-2">Chrome Extension Privacy Policy</h1>
-      <p className="text-sm text-muted-foreground mb-8">Last updated: 21 June 2026</p>
+      <p className="text-sm text-muted-foreground mb-8">Last updated: 14 October 2026</p>
 
       <Section title="What the extension does">
-        The LinguaScript Chrome extension overlays dual-language subtitles on Netflix and
-        YouTube, lets you click words for translations, and saves vocabulary to your
-        LinguaScript account.
+        The LinguaScript Chrome extension shows dual-language subtitles on YouTube videos, lets
+        you tap a word to see its translation, colours words by your LinguaScript flashcard
+        decks, and saves words you choose to your LinguaScript account.
       </Section>
 
       <Section title="Permissions we request">
         <ul className="list-disc pl-5 space-y-1">
-          <li><b>Host permissions on netflix.com and youtube.com</b> — to run the content
-            script that renders the subtitle overlay and reads subtitle text from the video
-            you are watching. Declared statically in the extension manifest, not injected
-            dynamically.</li>
-          <li><b>activeTab / tabs</b> — to detect whether your current tab is a supported
-            Netflix or YouTube watch page, so the extension's popup shows the right screen.</li>
-          <li><b>Storage</b> — to keep your sign-in token, language preference, and a small
-            on-device cache of captured subtitle lines awaiting sync.</li>
+          <li><b>youtube.com</b> — to show the subtitle overlay on YouTube and read the
+            subtitles of the video you are watching. The extension does nothing on other
+            websites.</li>
+          <li><b>translate.googleapis.com</b> — to translate a word or subtitle line into your
+            language.</li>
+          <li><b>Our backend (supabase.co)</b> — to sign you in, read your learning language,
+            daily goal, streak and flashcard decks, and save the words you choose.</li>
+          <li><b>Storage</b> — to keep you signed in and remember your languages on this
+            device.</li>
         </ul>
       </Section>
 
-      <Section title="Subtitle processing">
-        Subtitles are read from the page you are watching. When you click a word, its text is
-        sent to a translation service (Google Translate or MyMemory) to fetch a translation —
-        no other page content is sent anywhere. Saved words and your account data are stored
-        with our backend (Supabase). We do not record the videos you watch, your camera, your
-        microphone, or your general browsing history.
+      <Section title="What data is used">
+        <ul className="list-disc pl-5 space-y-1">
+          <li><b>Account details</b> — your email address and password are sent to our
+            backend only to sign you in. The password is never stored by the extension.</li>
+          <li><b>Words you save</b> — the word, its translation and the subtitle line it came
+            from are stored in your LinguaScript account so you can review them as
+            flashcards.</li>
+          <li><b>Text you translate</b> — the word or subtitle line is sent to Google
+            Translate to get a translation. No other page content is sent.</li>
+        </ul>
+        <p>We do not record which videos you watch, your browsing history, your camera or your
+          microphone.</p>
       </Section>
 
       <Section title="Local storage">
-        The extension uses your browser's local storage for: your authentication token, your
-        active learning and native languages, and a short-lived on-device cache of subtitle
-        lines captured from the page, cleared once they're synced to your account. You can
-        clear this at any time from the extension's settings.
+        The extension uses your browser's local storage for your sign-in session (an access
+        token and refresh token) and your learning and native languages. Logging out from the
+        extension's pop-up removes the session; uninstalling the extension removes everything.
       </Section>
 
       <Section title="Backend authentication">
         Sign-in is handled by the same secure backend as the LinguaScript website. Your
-        credentials are never stored by the extension itself — only a refresh token is held in
-        local storage so you stay signed in.
+        password is never stored by the extension — only the session tokens, so you stay
+        signed in.
       </Section>
 
       <Section title="Data retention">
@@ -68,7 +74,8 @@ const PrivacyExtension = () => (
       <Section title="What we do NOT do">
         <ul className="list-disc pl-5 space-y-1">
           <li>We do not sell or share your data with advertisers.</li>
-          <li>We do not track browsing activity outside of the video subtitles you interact with.</li>
+          <li>We do not track your browsing activity.</li>
+          <li>We do not use or transfer your data for purposes unrelated to language learning, or to decide creditworthiness or lending.</li>
           <li>We do not collect personally identifiable information beyond your account email.</li>
         </ul>
       </Section>

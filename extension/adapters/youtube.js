@@ -8,7 +8,7 @@
   C.keepAlive();
 
   const OVERLAY_CSS = `
-    #ls-overlay { position:fixed; bottom:92px; left:0; right:360px; z-index:2147483640; text-align:center; pointer-events:none; font-family:'Inter',-apple-system,sans-serif; transition:right .3s ease, opacity .15s ease; }
+    #ls-overlay { position:fixed; bottom:92px; left:0; right:360px; z-index:2147483640; text-align:center; pointer-events:none; font-family:'LS Inter','Inter',system-ui,-apple-system,sans-serif; transition:right .3s ease, opacity .15s ease; }
     #ls-overlay.ls-panel-hidden { right:0; }
     #ls-primary { display:inline-block; background:rgba(0,0,0,0.82); border-radius:6px; padding:10px 28px 14px; margin-bottom:6px; font-size:34px; font-weight:800; color:#fff; line-height:1.45; pointer-events:auto; cursor:pointer; text-shadow:0 2px 8px rgba(0,0,0,0.95); max-width:100%; }
     #ls-secondary { display:block; font-size:20px; font-weight:500; color:rgba(255,255,255,0.82); background:rgba(0,0,0,0.68); border-radius:4px; padding:4px 18px 6px; pointer-events:none; text-shadow:0 1px 4px rgba(0,0,0,0.9); }
@@ -84,7 +84,8 @@
     const el = document.getElementById('ls-primary'); if (!el) return;
     el.innerHTML = '';
     el.onclick = () => { const sub = primarySubs[currentSubIdx]; if (sub && videoEl) videoEl.currentTime = sub.start; };
-    text.split(/\s+/).filter(Boolean).forEach((w) => el.appendChild(C.makeWordSpan(w, text)));
+    const { parts, joiner } = C.splitWords(text, C.learningLang);
+    parts.forEach((p) => el.appendChild(p.word ? C.makeWordSpan(p.text, text, joiner) : document.createTextNode(p.text + joiner)));
   }
   function renderSecondary(text) {
     const el = document.getElementById('ls-secondary'); if (!el) return;
@@ -157,7 +158,7 @@
 
     C.injectStyles(OVERLAY_CSS);
     const overlay = document.createElement('div'); overlay.id = 'ls-overlay';
-    overlay.innerHTML = `<div id="ls-primary"></div><div id="ls-secondary" style="display:none"></div>`;
+    overlay.innerHTML = `<div id="ls-primary" translate="no"></div><div id="ls-secondary" style="display:none"></div>`;
     document.body.appendChild(overlay);
 
     const listEl = C.buildPanelShell('Transcript');
@@ -179,9 +180,14 @@
       getAutoPause: () => autoPause,
     });
 
-    const { ls_language: lang = 'fr', ls_native_language: nativeLang = 'en', ls_debug: dbg = false } =
-      await C.getStorage({ ls_language: 'fr', ls_native_language: 'en', ls_debug: false });
-    C.setLangs(lang, nativeLang); C.setDebug(dbg);
+    // Use the languages from the learner's LinguaScript profile (same as the
+    // website); fall back to the last ones we knew when logged out.
+    const stored = await C.getStorage({ ls_language: 'fr', ls_native_language: 'en', ls_debug: false });
+    const profile = await new Promise((r) => chrome.runtime.sendMessage({ type: 'GET_PROFILE' }, (res) => r(chrome.runtime.lastError ? null : res)));
+    const lang = profile?.ok && profile.learningLanguage ? profile.learningLanguage : stored.ls_language;
+    const nativeLang = profile?.ok && profile.nativeLanguage ? profile.nativeLanguage : stored.ls_native_language;
+    if (profile?.ok) chrome.storage.local.set({ ls_language: lang, ls_native_language: nativeLang });
+    C.setLangs(lang, nativeLang); C.setDebug(stored.ls_debug);
 
     chrome.runtime.sendMessage({ type: 'GET_AUTH' }, async (res) => {
       if (res?.session) { await C.loadSavedWords(); C.startWordsRefresh(); }
@@ -202,14 +208,25 @@
   }
 
   let activeVideoId = null;
+  // The script runs on every YouTube page (it's a single-page app, so a
+  // watch page is often reached without a reload); only show the player
+  // overlay while a video is open, and take it down when the learner leaves.
+  function unmount() {
+    ['ls-overlay', 'ls-controls', 'ls-panel', 'ls-toast'].forEach((id) => document.getElementById(id)?.remove());
+    C.closeCard(); C.stopWordsRefresh();
+    if (syncInterval) { clearInterval(syncInterval); syncInterval = null; }
+    primarySubs = []; secondarySubs = []; videoEl = null;
+  }
   async function checkAndMount() {
-    const id = getVideoId(); if (!id || id === activeVideoId) return;
+    const id = location.pathname === '/watch' ? getVideoId() : null;
+    if (!id) { if (activeVideoId) { activeVideoId = null; unmount(); } return; }
+    if (id === activeVideoId) return;
     activeVideoId = id; await mount(id);
   }
   checkAndMount();
 
   let lastHref = location.href;
   new MutationObserver(async () => {
-    if (location.href !== lastHref) { lastHref = location.href; activeVideoId = null; C.closeCard(); await checkAndMount(); }
+    if (location.href !== lastHref) { lastHref = location.href; C.closeCard(); await checkAndMount(); }
   }).observe(document.body, { childList: true, subtree: true });
 })();
