@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { aiChat, hasAIKey } from "../_shared/aiChat.ts";
 import { freeTranslate } from "../_shared/freeTranslate.ts";
+import { particleNote } from '../_shared/particles.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -44,6 +45,9 @@ serve(async (req) => {
     // Chinese learners need Hanyu Pinyin, not IPA — it is the pronunciation
     // system the whole language is taught with.
     const isChinese = /chinese|mandarin|中文/i.test(String(from));
+    // Known grammar/politeness particle? Teach what it does, not its "alone"
+    // meaning (Thai ครับ is a male polite ending, not "yes").
+    const particle = particleNote(String(word), String(from));
 
     const system = `You are a strict bilingual dictionary API for language learners. You ALWAYS return the ${to} meaning of a ${from} word. Never echo the source word back as the translation unless it is a proper noun (person, place, brand). Crucially: a learner who clicks a conjugated verb, a plural noun, or a declined/agreed adjective must be taught the DICTIONARY (citation/lemma) form, not the inflected surface form — that is the entire point of the "lemma" field below. Return only valid JSON — no markdown, no commentary.`;
 
@@ -54,6 +58,8 @@ First, identify its part of speech and its dictionary (citation/lemma) form:
 - Noun -> singular (and, if the source language marks it, the citation gender/case form).
 - Adjective -> the base/uninflected form (not agreed for gender/number, not comparative/superlative).
 - Anything already in its dictionary form (most nouns clicked in singular, adverbs, etc.) -> lemma equals the word itself, isInflected is false.
+- Grammar or politeness particle with no direct ${to} equivalent (e.g. Thai ครับ/ค่ะ/นะ, Chinese 吗/了, Japanese ね/よ) -> "translation" is a SHORT ${to} description of what it does in brackets, then the closest equivalent if there is one, e.g. "(polite ending, male speaker) yes" — never just the meaning it has when used alone.${particle ? `
+  Note: "${word}" is a known particle: ${particle}. Explain THAT in ${to}.` : ''}
 
 Return ONLY valid JSON with these exact fields:
 {
@@ -91,17 +97,19 @@ Return ONLY valid JSON with these exact fields:
       // AI gateway out of credits (402), rate-limited (429) or down — fall
       // back to the free translator so the learner still gets a meaning.
       console.warn('AI translation unavailable, using free fallback:', (aiError as Error).message);
-      const [wordRes, contextRes] = await Promise.all([
+      const [wordRes, contextRes, particleRes] = await Promise.all([
         freeTranslate(String(word), from, to),
         context ? freeTranslate(String(context), from, to).catch(() => null) : Promise.resolve(null),
+        particle ? freeTranslate(particle, 'English', to).catch(() => null) : Promise.resolve(null),
       ]);
+      const particleGloss = particle ? `(${particleRes?.text || particle})` : '';
       result = {
-        translation: wordRes.text,
+        translation: particleGloss || wordRes.text,
         pronunciation: wordRes.romanization,
         ipa: isChinese ? wordRes.romanization : '',
         contextTranslation: contextRes?.text || '',
         lemma: String(word),
-        lemmaTranslation: wordRes.text,
+        lemmaTranslation: particleGloss || wordRes.text,
         pos: 'other',
         isInflected: false,
         grammarNote: '',

@@ -35,12 +35,12 @@ import {
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 
-// Absolute beginner = A1 with nothing pre-marked as known (seeded_level NULL),
-// the same signal onboarding's "Total beginner" uses.
+// Absolute beginner = the total_beginner flag onboarding's "Total beginner"
+// sets (older rows: A1 with nothing pre-marked as known).
 const BEGINNER = "beginner";
 const BEGINNER_LABEL = "Absolute beginner (below A1)";
 const levelValue = (p: LanguageProfile) =>
-  p.cefr_level === "a1" && !p.seeded_level ? BEGINNER : p.cefr_level;
+  p.total_beginner || (p.cefr_level === "a1" && !p.seeded_level) ? BEGINNER : p.cefr_level;
 
 /**
  * "My languages" — up to 5 independent learning profiles. Each language keeps
@@ -136,7 +136,8 @@ export const MyLanguagesPanel = ({ nativeLanguage }: { nativeLanguage?: string }
       return;
     }
     setProfiles((prev) => prev.map((p) => (p.language === language ? { ...p, cefr_level } : p)));
-    await updateLanguageProfile(user.id, language, { cefr_level });
+    // Choosing a real level ends "total beginner" for this language.
+    await updateLanguageProfile(user.id, language, { cefr_level, total_beginner: false });
     toast({ title: `Level updated to ${cefr_level.toUpperCase()}`, description: "Your recommended videos will adjust to match." });
   };
 
@@ -144,7 +145,10 @@ export const MyLanguagesPanel = ({ nativeLanguage }: { nativeLanguage?: string }
     if (!user || !resetLang) return;
     setResetting(true);
     const { error } = await (supabase as any).rpc("reset_to_absolute_beginner", { _language: resetLang });
-    if (!error) await topUpPriorityWords(resetLang);
+    if (!error) {
+      await updateLanguageProfile(user.id, resetLang, { total_beginner: true });
+      await topUpPriorityWords(resetLang);
+    }
     setResetting(false);
     setResetLang(null);
     if (error) {

@@ -3,6 +3,7 @@ import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { migrateGuestWords } from "@/lib/guestWords";
 import { syncTimezone } from "@/lib/syncTimezone";
+import { clearLearnerDeviceState, noteSignedInUser } from "@/lib/deviceLearnerState";
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
@@ -19,7 +20,13 @@ export function useAuth() {
         if (event === "SIGNED_IN" && session?.user) {
           void migrateGuestWords(session.user.id);
         }
-        if (session?.user) void syncTimezone(session.user.id);
+        if (session?.user) {
+          void syncTimezone(session.user.id);
+          noteSignedInUser(session.user.id);
+        }
+        // The next person on this browser must not inherit this learner's
+        // language or onboarding answers.
+        if (event === "SIGNED_OUT") clearLearnerDeviceState();
       }
     );
 

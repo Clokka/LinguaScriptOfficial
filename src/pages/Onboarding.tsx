@@ -22,6 +22,7 @@ import { DEFAULT_WORD_GOAL, videoGoalForWords, wordGoalForVideos } from "@/lib/p
 import { INTERESTS } from "@/lib/interests";
 import { MODE_META, addLanguageProfile, type LearningMode } from "@/lib/languageProfiles";
 import { rememberGuestOnboarding, applyGuestOnboarding } from "@/lib/guestOnboarding";
+import { isFreshSnapshot } from "@/lib/deviceLearnerState";
 
 // "beginner" is a true zero-knowledge start — not a CEFR level, a signal
 // that nothing should be pre-marked as already known. See addLanguageProfile's
@@ -56,7 +57,9 @@ const Onboarding = () => {
   const initialPersisted = (() => {
     try {
       const raw = typeof window !== "undefined" ? localStorage.getItem(ONBOARDING_KEY) : null;
-      return raw ? JSON.parse(raw) : null;
+      const saved = raw ? JSON.parse(raw) : null;
+      // Old or unstamped answers may be another person's (shared browser).
+      return isFreshSnapshot(saved) ? saved : null;
     } catch { return null; }
   })();
 
@@ -78,6 +81,7 @@ const Onboarding = () => {
     try {
       localStorage.setItem(ONBOARDING_KEY, JSON.stringify({
         step, native, target, level, mode, school, wordGoal, goal, goalSaved, showOnLeaderboard, dualClicked, interests,
+        savedAt: Date.now(),
       }));
     } catch { /* ignore */ }
   }, [step, native, target, level, mode, school, wordGoal, goal, goalSaved, showOnLeaderboard, dualClicked, interests]);
@@ -165,7 +169,9 @@ const Onboarding = () => {
     if (step === 0 && user) {
       const isTotalBeginner = level === "beginner";
       const storedLevel = isTotalBeginner ? "a1" : (level as string);
-      setLearningLanguage(target);
+      // Onboarding creates the language profile itself (below, with the
+      // beginner flag), so don't let the context seed A1 vocabulary first.
+      setLearningLanguage(target, { ensureProfile: false });
       const snapshot = { native, target, school, wordGoal, mode, level };
       setStep((s) => s + 1);
       void (async () => {
