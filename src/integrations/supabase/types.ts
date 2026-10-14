@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "14.4"
   }
   public: {
     Tables: {
@@ -272,6 +272,33 @@ export type Database = {
         }
         Relationships: []
       }
+      device_tokens: {
+        Row: {
+          created_at: string
+          expo_push_token: string
+          id: string
+          last_seen_at: string
+          platform: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expo_push_token: string
+          id?: string
+          last_seen_at?: string
+          platform: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expo_push_token?: string
+          id?: string
+          last_seen_at?: string
+          platform?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       email_send_log: {
         Row: {
           created_at: string
@@ -462,6 +489,7 @@ export type Database = {
           email_sent_at: string | null
           id: string
           kind: string
+          push_sent_at: string | null
           recipient_id: string
         }
         Insert: {
@@ -470,6 +498,7 @@ export type Database = {
           email_sent_at?: string | null
           id?: string
           kind: string
+          push_sent_at?: string | null
           recipient_id: string
         }
         Update: {
@@ -478,6 +507,7 @@ export type Database = {
           email_sent_at?: string | null
           id?: string
           kind?: string
+          push_sent_at?: string | null
           recipient_id?: string
         }
         Relationships: []
@@ -726,6 +756,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      notification_preferences: {
+        Row: {
+          daily_reminder_enabled: boolean
+          daily_reminder_time: string
+          flashcards_due: boolean
+          friend_activity: boolean
+          streak_nudges: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          daily_reminder_enabled?: boolean
+          daily_reminder_time?: string
+          flashcards_due?: boolean
+          friend_activity?: boolean
+          streak_nudges?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          daily_reminder_enabled?: boolean
+          daily_reminder_time?: string
+          flashcards_due?: boolean
+          friend_activity?: boolean
+          streak_nudges?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       payment_plans: {
         Row: {
@@ -995,10 +1055,14 @@ export type Database = {
           is_pro: boolean
           is_public: boolean
           language_switches_used: number
+          last_flashcard_push_at: string | null
           last_friend_email_at: string | null
+          last_goal_nudge_at: string | null
+          last_goal_push_at: string | null
           last_monthly_email_at: string | null
           last_review_email_at: string | null
           last_streak_date: string | null
+          last_streak_push_at: string | null
           last_streak_rescue_email_at: string | null
           last_video_id: string | null
           last_weekly_email_at: string | null
@@ -1043,10 +1107,14 @@ export type Database = {
           is_pro?: boolean
           is_public?: boolean
           language_switches_used?: number
+          last_flashcard_push_at?: string | null
           last_friend_email_at?: string | null
+          last_goal_nudge_at?: string | null
+          last_goal_push_at?: string | null
           last_monthly_email_at?: string | null
           last_review_email_at?: string | null
           last_streak_date?: string | null
+          last_streak_push_at?: string | null
           last_streak_rescue_email_at?: string | null
           last_video_id?: string | null
           last_weekly_email_at?: string | null
@@ -1091,10 +1159,14 @@ export type Database = {
           is_pro?: boolean
           is_public?: boolean
           language_switches_used?: number
+          last_flashcard_push_at?: string | null
           last_friend_email_at?: string | null
+          last_goal_nudge_at?: string | null
+          last_goal_push_at?: string | null
           last_monthly_email_at?: string | null
           last_review_email_at?: string | null
           last_streak_date?: string | null
+          last_streak_push_at?: string | null
           last_streak_rescue_email_at?: string | null
           last_video_id?: string | null
           last_weekly_email_at?: string | null
@@ -2121,10 +2193,10 @@ export type Database = {
       check_achievements: { Args: { p_language?: string }; Returns: Json }
       claim_free_pet: { Args: { p_pet_id: string }; Returns: Json }
       claim_gift_link: { Args: { p_token: string }; Returns: Json }
+      claim_pet_milestones: { Args: never; Returns: string[] }
       claim_pro_chameleon_link: { Args: { _token: string }; Returns: Json }
       claim_pro_gift_link: { Args: { _token: string }; Returns: Json }
       claim_return_gift: { Args: never; Returns: Json }
-      claim_pet_milestones: { Args: never; Returns: string[] }
       create_daily_linguascript: {
         Args: {
           p_gap_options: Json
