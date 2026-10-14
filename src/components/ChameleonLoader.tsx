@@ -1,16 +1,17 @@
 import { useEffect, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import red from "@/assets/brand/chameleon-red.png.asset.json";
-import orange from "@/assets/brand/chameleon-orange.png.asset.json";
-import green from "@/assets/brand/chameleon-green.png.asset.json";
+import { ChameleonMascot, type ChameleonTier } from "@/components/ChameleonMascot";
 
-const STAGES = [
-  { src: red.url, label: "Red", text: "New words you don't know yet", cls: "text-destructive" },
-  { src: orange.url, label: "Orange", text: "Words you're learning", cls: "text-accent" },
-  { src: green.url, label: "Green", text: "Words you understand", cls: "text-emerald-500" },
+const STAGES: { tier: ChameleonTier; label: string; text: string; cls: string }[] = [
+  { tier: "red", label: "Red", text: "New words you don't know yet", cls: "text-destructive" },
+  { tier: "orange", label: "Orange", text: "Words you're learning", cls: "text-accent" },
+  { tier: "green", label: "Green", text: "Words you understand", cls: "text-emerald-500" },
 ];
 
-/** Branded "The Chameleon Method" screen: the 2D chameleon turns red → orange → green. */
+/**
+ * Branded "The Chameleon Method" screen: the chameleon turns red → orange →
+ * green. Uses the SVG mascot (the skin colour fades between tiers), so it's
+ * sharp at any size and there's no image to download.
+ */
 export function ChameleonMark({ size = 112 }: { size?: number }) {
   const [i, setI] = useState(0);
   useEffect(() => {
@@ -18,19 +19,8 @@ export function ChameleonMark({ size = 112 }: { size?: number }) {
     return () => clearInterval(t);
   }, []);
   return (
-    <div className="relative" style={{ width: size, height: size }}>
-      <AnimatePresence mode="popLayout">
-        <motion.img
-          key={i}
-          src={STAGES[i].src}
-          alt="LinguaScript chameleon"
-          className="absolute inset-0 h-full w-full object-contain"
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.45 }}
-        />
-      </AnimatePresence>
+    <div className="flex items-center justify-center" style={{ width: size, height: size }}>
+      <ChameleonMascot tier={STAGES[i].tier} style={{ width: size }} />
     </div>
   );
 }

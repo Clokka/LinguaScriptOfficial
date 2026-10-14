@@ -10,6 +10,7 @@ import { cacheWordImage, wantsPicture } from "@/lib/wordImages";
 import { useXp } from "@/contexts/XpContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { bumpActivity } from "@/lib/activityLog";
+import { isPlaceholderMeaning, translateWord } from "@/lib/browserTranslate";
 import { getLanguageLabel } from "@/lib/languages";
 import { toast } from "sonner";
 import { playDing } from "@/lib/sound";
@@ -124,6 +125,36 @@ export const FlashcardReview = ({ cards: initialCards, onClose, onCardReviewed, 
       setCards((prev) => prev.map((c) => (c.id === card.id ? { ...c, image_url: url } : c)));
     });
   }, [cardType, currentIndex, cards]);
+
+  // A card saved without a real meaning (blank, or the popup's "Translating…" /
+  // "Couldn't translate" text) gets translated the first time it's shown, and
+  // the meaning is saved so it stays fixed.
+  const meaningFetchTried = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const card = cards[currentIndex];
+    if (!card || !isPlaceholderMeaning(card.translation)) return;
+    if (meaningFetchTried.current.has(card.id)) return;
+    meaningFetchTried.current.add(card.id);
+    const from = card.language || languageContext || "";
+    translateWord(
+      (body) => supabase.functions.invoke("translate-word", { body }),
+      card.word, card.context || "", from, nativeLang,
+      { from: getLanguageLabel(from), to: getLanguageLabel(nativeLang) },
+    )
+      .then((t) => {
+        if (!t.translation) return;
+        setCards((prev) => prev.map((c) => (c.id === card.id
+          ? { ...c, translation: t.translation, pronunciation: c.pronunciation || t.pronunciation }
+          : c)));
+        if (user && !card.id.startsWith("guest-")) {
+          void supabase.from("saved_words")
+            .update({ translation: t.translation })
+            .eq("id", card.id)
+            .eq("user_id", user.id);
+        }
+      })
+      .catch(() => { /* stays as is; tried again next session */ });
+  }, [cards, currentIndex, languageContext, nativeLang, user]);
 
   // Counts toward today's review total for the card's own language.
   const logReview = async () => {

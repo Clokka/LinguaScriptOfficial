@@ -126,7 +126,7 @@ export default function LandingPage3() {
       {/* nav */}
       <header className="relative z-20 mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
         <div className="flex items-center gap-2 text-lg font-extrabold tracking-tight">
-          <img src="/mascot/chameleon.png" alt="" className="h-8 w-8 object-contain" />
+          <img src="/mascot/chameleon.svg" alt="" className="h-8 w-8 object-contain" />
           Lingua<span style={{ color: BRAND }}>Script</span>
         </div>
         <nav className="hidden items-center gap-8 text-sm text-white/60 md:flex">
@@ -276,7 +276,7 @@ export default function LandingPage3() {
       </section>
 
       <footer className="relative z-10 border-t border-white/[0.06] py-10 text-center text-sm text-white/30">
-        <img src="/mascot/chameleon.png" alt="" className="mx-auto mb-3 h-8 w-8 object-contain opacity-70" />
+        <img src="/mascot/chameleon.svg" alt="" className="mx-auto mb-3 h-8 w-8 object-contain opacity-70" />
         © {new Date().getFullYear()} LinguaScript — turn the language green.
       </footer>
     </div>

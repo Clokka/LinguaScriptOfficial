@@ -19,15 +19,15 @@ export function BrandMark({ variant = "lockup", size = 40, className }: BrandMar
   return (
     <span className={cn("inline-flex items-center gap-2 select-none", className)}>
       <span
-        className="inline-flex shrink-0 items-center justify-center overflow-hidden"
+        className="inline-flex shrink-0 items-center justify-center"
         style={{ height: size, width: size }}
       >
         <img
-          src="/favicon-512x512.png"
+          src="/logo.svg"
           alt="LinguaScript"
           width={size}
           height={size}
-          className="h-full w-full scale-[1.7] object-contain drop-shadow-[0_2px_10px_rgba(52,199,89,0.35)]"
+          className="h-full w-full object-contain drop-shadow-[0_2px_10px_rgba(52,199,89,0.35)]"
         />
       </span>
       {variant === "lockup" && (

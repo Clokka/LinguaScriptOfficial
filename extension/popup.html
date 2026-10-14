@@ -2,378 +2,83 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LinguaScript</title>
+  <link rel="stylesheet" href="brand.css" />
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: #0f0f13;
-      color: #e8e8f0;
-      width: 320px;
-      min-height: 200px;
-    }
-
-    .header {
-      background: linear-gradient(135deg, #6c3ff5 0%, #4f1fe0 100%);
-      padding: 16px 20px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .logo {
-      font-size: 20px;
-      font-weight: 700;
-      letter-spacing: -0.5px;
-      color: #fff;
-    }
-
-    .logo span { color: #b8a0ff; }
-
-    .content { padding: 20px; }
-
-    /* ── Auth panel ── */
-    #auth-panel {}
-
-    .field {
-      margin-bottom: 12px;
-    }
-
-    label {
-      display: block;
-      font-size: 11px;
-      font-weight: 600;
-      color: #8888aa;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-bottom: 5px;
-    }
-
-    input[type="email"],
-    input[type="password"] {
-      width: 100%;
-      padding: 9px 12px;
-      background: #1c1c28;
-      border: 1px solid #2e2e44;
-      border-radius: 8px;
-      color: #e8e8f0;
-      font-size: 13px;
-      outline: none;
-      transition: border-color 0.15s;
-    }
-
-    input:focus { border-color: #6c3ff5; }
-
-    .btn {
-      width: 100%;
-      padding: 10px;
-      border: none;
-      border-radius: 8px;
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: opacity 0.15s, transform 0.1s;
-    }
-
-    .btn:active { transform: scale(0.98); }
-    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-    .btn-primary {
-      background: linear-gradient(135deg, #6c3ff5, #4f1fe0);
-      color: #fff;
-    }
-
-    .btn-secondary {
-      background: #1c1c28;
-      color: #8888aa;
-      border: 1px solid #2e2e44;
-      margin-top: 8px;
-    }
-
-    .btn-danger {
-      background: #2a1520;
-      color: #e05050;
-      border: 1px solid #3d1c2a;
-      margin-top: 8px;
-    }
-
-    /* ── Main panel ── */
-    #main-panel { display: none; }
-
-    .user-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 16px;
-    }
-
-    .user-email {
-      font-size: 12px;
-      color: #8888aa;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      max-width: 180px;
-    }
-
-    .logout-btn {
-      font-size: 11px;
-      color: #5a5a7a;
-      background: none;
-      border: none;
-      cursor: pointer;
-      padding: 2px 6px;
-    }
-
-    .logout-btn:hover { color: #e05050; }
-
-    /* ── Stats card ── */
-    .stats-card {
-      background: #1c1c28;
-      border: 1px solid #2e2e44;
-      border-radius: 10px;
-      padding: 14px 16px;
-      margin-bottom: 16px;
-    }
-
-    .stats-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .stat {
-      text-align: center;
-      flex: 1;
-    }
-
-    .stat-value {
-      font-size: 22px;
-      font-weight: 700;
-      color: #b8a0ff;
-      line-height: 1;
-    }
-
-    .stat-label {
-      font-size: 10px;
-      color: #5a5a7a;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-top: 3px;
-    }
-
-    .divider {
-      width: 1px;
-      height: 30px;
-      background: #2e2e44;
-    }
-
-    /* ── Language selector ── */
-    .lang-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 12px;
-    }
-
-    .lang-row label {
-      font-size: 11px;
-      margin: 0;
-      white-space: nowrap;
-    }
-
-    select {
-      flex: 1;
-      padding: 7px 10px;
-      background: #1c1c28;
-      border: 1px solid #2e2e44;
-      border-radius: 8px;
-      color: #e8e8f0;
-      font-size: 12px;
-      outline: none;
-    }
-
-    select:focus { border-color: #6c3ff5; }
-
-    /* ── Status message ── */
-    #status {
-      font-size: 12px;
-      text-align: center;
-      min-height: 18px;
-      margin-top: 10px;
-      transition: color 0.2s;
-    }
-
-    .status-success { color: #60d394; }
-    .status-error { color: #e05050; }
-    .status-info { color: #8888aa; }
-
-    /* ── Not-on-Netflix notice ── */
-    #not-netflix {
-      display: none;
-      text-align: center;
-      padding: 20px 0;
-    }
-
-    #not-netflix p {
-      font-size: 13px;
-      color: #5a5a7a;
-      line-height: 1.5;
-    }
-
-    #not-netflix a {
-      color: #6c3ff5;
-      text-decoration: none;
-    }
-
-    .review-link {
-      display: block;
-      text-align: center;
-      background: rgba(124,58,237,0.12);
-      border: 1px solid rgba(124,58,237,0.3);
-      border-radius: 8px;
-      padding: 9px 12px;
-      font-size: 12px;
-      font-weight: 600;
-      color: #b8a0ff;
-      text-decoration: none;
-      margin-bottom: 14px;
-      transition: background 0.15s;
-    }
-    .review-link:hover { background: rgba(124,58,237,0.22); color: #fff; }
-
-    .error-box {
-      background: #2a1520;
-      border: 1px solid #3d1c2a;
-      border-radius: 8px;
-      padding: 10px 12px;
-      font-size: 12px;
-      color: #e05050;
-      margin-top: 10px;
-    }
+    body { width: 320px; }
+    header { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+    main { padding: 16px; display: grid; gap: 12px; }
+    .hidden { display: none !important; }
+    h1 { font-size: 17px; font-weight: 700; letter-spacing: -0.01em; }
+    p.lead { font-size: 13px; color: var(--muted); line-height: 1.5; }
+    label { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 5px; }
+    input { width: 100%; padding: 10px 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; color: var(--fg); font: 14px var(--font); }
+    input:focus { border-color: var(--green); outline: none; }
+    .error { font-size: 12px; color: var(--red); min-height: 16px; }
+    .row { display: flex; gap: 8px; }
+    .links { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); }
+    .links a { color: var(--muted); text-decoration: none; }
+    .links a:hover { color: var(--fg); }
+    .card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 14px; }
+    .goal-top { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 10px; }
+    .goal-label { font-size: 12px; color: var(--muted); font-weight: 600; }
+    .goal-count { font-size: 24px; font-weight: 800; }
+    .goal-count small { font-size: 14px; color: var(--muted); font-weight: 600; }
+    .bar { height: 8px; background: var(--surface-2); border-radius: 999px; overflow: hidden; }
+    .bar > div { height: 100%; width: 0; background: var(--green); border-radius: 999px; transition: width .4s ease; }
+    .streak { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; }
+    .streak b { color: var(--orange); }
+    .lang { font-size: 12px; color: var(--muted); }
+    .who { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 190px; }
+    .link-btn { background: none; border: 0; color: var(--muted); font: 12px var(--font); cursor: pointer; padding: 2px 4px; }
+    .link-btn:hover { color: var(--fg); }
   </style>
 </head>
 <body>
+  <header>
+    <div class="brand"><img src="icons/logo.svg" alt="" /><span>Lingua<span class="script">Script</span></span></div>
+    <button class="link-btn hidden" id="logout-btn">Log out</button>
+  </header>
 
-  <div class="header">
-    <div class="logo">Lingua<span>Script</span></div>
-    <button id="test-tr-btn" style="margin-left:auto;background:rgba(255,255,255,0.15);border:none;color:#fff;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;">Test TR</button>
-  </div>
-
-  <div class="content">
-
-    <!-- Login form -->
-    <div id="auth-panel">
-      <div class="field">
-        <label>Email</label>
-        <input type="email" id="email" placeholder="you@example.com" autocomplete="email" />
-      </div>
-      <div class="field">
-        <label>Password</label>
-        <input type="password" id="password" placeholder="••••••••" autocomplete="current-password" />
-      </div>
-      <button class="btn btn-primary" id="login-btn">Log in to LinguaScript</button>
-      <div id="auth-error" class="error-box" style="display:none;"></div>
+  <!-- Logged out -->
+  <main id="auth-panel" class="hidden">
+    <div>
+      <h1>Learn with YouTube</h1>
+      <p class="lead">Log in to colour words by your flashcard decks and save new words as you watch.</p>
     </div>
-
-    <!-- Main panel (shown when logged in) -->
-    <div id="main-panel">
-      <div class="user-row">
-        <span class="user-email" id="user-email"></span>
-        <button class="logout-btn" id="logout-btn">Log out</button>
-      </div>
-
-      <!-- Live DB word count — confirms extension is writing to the right account -->
-      <div class="stats-card" style="margin-bottom:12px;">
-        <div class="stats-row">
-          <div class="stat">
-            <div class="stat-value" id="db-word-count">—</div>
-            <div class="stat-label">Words in DB</div>
-          </div>
-          <div class="divider"></div>
-          <div class="stat" style="flex:2; text-align:left; padding-left:12px;">
-            <div style="font-size:10px;color:#5a5a7a;word-break:break-all;" id="db-user-id">loading…</div>
-            <div style="font-size:9px;color:#3a3a55;margin-top:2px;">Supabase user ID</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Review flashcards link — always visible when logged in -->
-      <a href="https://linguascript.co.uk/flashcards" target="_blank" class="review-link">
-        📚 Review flashcards on LinguaScript
-      </a>
-
-      <!-- Not on Netflix notice -->
-      <div id="not-netflix">
-        <p>Open a video on <a href="https://netflix.com" target="_blank">Netflix</a> or <a href="https://youtube.com" target="_blank">YouTube</a><br/>to start capturing subtitles.</p>
-      </div>
-
-      <!-- On Netflix: stats + sync -->
-      <div id="netflix-panel" style="display:none;">
-        <div class="stats-card">
-          <div class="stats-row">
-            <div class="stat">
-              <div class="stat-value" id="line-count">0</div>
-              <div class="stat-label">Lines</div>
-            </div>
-            <div class="divider"></div>
-            <div class="stat">
-              <div class="stat-value" id="word-count">0</div>
-              <div class="stat-label">New words</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="lang-row">
-          <label>Learning</label>
-          <select id="language">
-            <option value="es">Spanish</option>
-            <option value="fr">French</option>
-            <option value="de">German</option>
-            <option value="it">Italian</option>
-            <option value="pt">Portuguese</option>
-            <option value="ja">Japanese</option>
-            <option value="ko">Korean</option>
-            <option value="zh">Chinese</option>
-            <option value="ru">Russian</option>
-            <option value="ar">Arabic</option>
-            <option value="nl">Dutch</option>
-            <option value="pl">Polish</option>
-            <option value="sv">Swedish</option>
-            <option value="tr">Turkish</option>
-            <option value="en">English</option>
-          </select>
-        </div>
-        <div class="lang-row">
-          <label>Native</label>
-          <select id="native-language">
-            <option value="en">English</option>
-            <option value="es">Spanish</option>
-            <option value="fr">French</option>
-            <option value="de">German</option>
-            <option value="it">Italian</option>
-            <option value="pt">Portuguese</option>
-            <option value="ja">Japanese</option>
-            <option value="ko">Korean</option>
-            <option value="zh">Chinese</option>
-            <option value="ru">Russian</option>
-            <option value="ar">Arabic</option>
-            <option value="nl">Dutch</option>
-            <option value="pl">Polish</option>
-            <option value="sv">Swedish</option>
-            <option value="tr">Turkish</option>
-          </select>
-        </div>
-
-        <button class="btn btn-primary" id="sync-btn">Sync to LinguaScript</button>
-        <button class="btn btn-secondary" id="clear-btn">Clear captured subtitles</button>
-        <div id="status" class="status-info"></div>
-      </div>
+    <form id="login-form" style="display:grid; gap:10px;">
+      <div><label for="email">Email</label><input type="email" id="email" autocomplete="email" required /></div>
+      <div><label for="password">Password</label><input type="password" id="password" autocomplete="current-password" required /></div>
+      <button class="btn btn-primary" id="login-btn" type="submit">Log in</button>
+      <div class="error" id="auth-error" role="alert"></div>
+    </form>
+    <a class="btn btn-ghost" href="https://linguascript.co.uk/auth?mode=signup" target="_blank" rel="noopener noreferrer">Create a free account</a>
+    <div class="links">
+      <a href="https://linguascript.co.uk/auth?mode=forgot" target="_blank" rel="noopener noreferrer">Forgot password?</a>
+      <a href="https://linguascript.co.uk" target="_blank" rel="noopener noreferrer">linguascript.co.uk</a>
     </div>
+  </main>
 
-  </div>
+  <!-- Logged in -->
+  <main id="main-panel" class="hidden">
+    <div class="card">
+      <div class="goal-top">
+        <span class="goal-label">Today’s words</span>
+        <span class="goal-count"><span id="goal-saved">0</span><small> / <span id="goal-target">–</span></small></span>
+      </div>
+      <div class="bar"><div id="goal-bar"></div></div>
+    </div>
+    <div class="row" style="justify-content: space-between; align-items: center;">
+      <span class="streak">🔥 <b id="streak">0</b> day streak</span>
+      <span class="lang" id="lang-label"></span>
+    </div>
+    <a class="btn btn-primary" href="https://www.youtube.com" target="_blank" rel="noopener noreferrer">Watch on YouTube</a>
+    <a class="btn btn-ghost" href="https://linguascript.co.uk/flashcards" target="_blank" rel="noopener noreferrer">Review flashcards</a>
+    <div class="links">
+      <span class="who" id="user-email"></span>
+      <a href="https://linguascript.co.uk" target="_blank" rel="noopener noreferrer">Open LinguaScript</a>
+    </div>
+  </main>
 
   <script src="popup.js"></script>
 </body>

@@ -25,8 +25,11 @@ function GoogleIcon() {
 
 
 const Auth = () => {
-  const [isLogin, setIsLogin] = useState(true);
-  const [forgotMode, setForgotMode] = useState(false);
+  // ?mode=signup / ?mode=forgot open those forms directly (links from the
+  // Chrome extension and emails).
+  const initialMode = new URLSearchParams(window.location.search).get("mode");
+  const [isLogin, setIsLogin] = useState(initialMode !== "signup");
+  const [forgotMode, setForgotMode] = useState(initialMode === "forgot");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
