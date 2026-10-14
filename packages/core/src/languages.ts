@@ -10,6 +10,7 @@ export const LANGUAGES = [
   { code: "ko", label: "Korean", flag: "🇰🇷" },
   { code: "ar", label: "Arabic", flag: "🇸🇦" },
   { code: "hi", label: "Hindi", flag: "🇮🇳" },
+  { code: "th", label: "Thai", flag: "🇹🇭" },
   { code: "ru", label: "Russian", flag: "🇷🇺" },
   { code: "tr", label: "Turkish", flag: "🇹🇷" },
   { code: "nl", label: "Dutch", flag: "🇳🇱" },

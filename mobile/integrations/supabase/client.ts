@@ -2,13 +2,46 @@
 import 'react-native-url-polyfill/auto';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
-import { AppState } from 'react-native';
+import Constants from 'expo-constants';
+import { AppState, Platform } from 'react-native';
+import { API_VERSION } from '../../lib/lovable-api-version';
 
 function isNewSupabaseApiKey(value: string): boolean {
   return value.startsWith('sb_publishable_') || value.startsWith('sb_secret_');
 }
 
+// Mirrors appVersion in lib/lovable-api.ts (the expo-backend-api skill client),
+// so a data call and a backend call from one build report the same App-Version.
+function appVersion(): string {
+  const version = Constants.expoConfig?.version ?? '0.0.0';
+  let build: string | number | null | undefined;
+  if (Platform.OS === 'ios') {
+    build = Constants.platform?.ios?.buildNumber ?? Constants.expoConfig?.ios?.buildNumber;
+  } else if (Platform.OS === 'android') {
+    build = Constants.platform?.android?.versionCode ?? Constants.expoConfig?.android?.versionCode;
+  }
+  return build == null ? version : `${version}+${build}`;
+}
+
+// Cloud Proxy and the Supabase gateway echo any preflighted header; an Edge Function
+// answers its browser preflight itself with a fixed list, so on web it gets none.
+function acceptsVersionHeaders(input: RequestInfo | URL): boolean {
+  if (Platform.OS !== 'web') return true;
+  const url = typeof input === 'string' ? input : 'url' in input ? input.url : input.href;
+  return !url.includes('/functions/v1/');
+}
+
+// Headers.set throws on a value outside Latin-1; app.json's version is free text and
+// the agent edits API_VERSION, and one bad value would fail every data call on web.
+function headerSafe(value: string): string {
+  return /^[\x20-\x7e]+$/.test(value) ? value : '';
+}
+
 function createSupabaseFetch(supabaseKey: string): typeof fetch {
+  const version = headerSafe(appVersion());
+  const apiVersion = headerSafe(API_VERSION);
+  // Static dot access, the one form Metro inlines at build time.
+  const buildKind = process.env.EXPO_PUBLIC_LOVABLE_BUILD_KIND;
   return (input, init) => {
     const headers = new Headers(
       typeof Request !== 'undefined' && input instanceof Request ? input.headers : undefined,
@@ -24,6 +57,13 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
     }
 
     headers.set('apikey', supabaseKey);
+    if (acceptsVersionHeaders(input)) {
+      // Cloud Proxy records these per data call.
+      if (version && !headers.has('App-Version')) headers.set('App-Version', version);
+      if (!headers.has('App-Platform')) headers.set('App-Platform', Platform.OS);
+      if (buildKind && !headers.has('App-Env')) headers.set('App-Env', buildKind);
+      if (apiVersion && !headers.has('API-Version')) headers.set('API-Version', apiVersion);
+    }
     return fetch(input, { ...init, headers });
   };
 }
