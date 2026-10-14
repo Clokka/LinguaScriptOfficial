@@ -13,7 +13,7 @@ import { LineBlastDemo } from "@/components/LineBlastDemo";
 import { PlatformLogos } from "@/components/landing/PlatformLogos";
 import { DeckCards } from "@/components/landing/DeckCards";
 import { DECK } from "@/lib/deck-colors";
-import brandLockup from "@/assets/brand/linguascript-wordmark.png.asset.json";
+import { BrandMark } from "@/components/BrandMark";
 import quizletLogo from "@/assets/brand/quizlet.png.asset.json";
 import ankiLogo from "@/assets/brand/anki.png.asset.json";
 
@@ -250,12 +250,7 @@ const Landing5 = () => {
             <span className="text-white/40">Anki</span>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-4">
-            <img
-              src={brandLockup.url}
-              alt="LinguaScript"
-              className="h-6 w-auto opacity-80"
-              loading="lazy"
-            />
+            <BrandMark size={28} className="opacity-80" />
             <div className="flex flex-wrap items-center gap-4 text-xs text-white/40">
               <a href="/privacy" className="hover:text-white/80 transition-colors">Privacy Policy</a>
               <a href="/terms" className="hover:text-white/80 transition-colors">Terms of Service</a>

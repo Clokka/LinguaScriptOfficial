@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="14 76 372 184" role="img" aria-label="LinguaScript">
+<title>LinguaScript</title>
+  <path d="M20 236 Q200 222 380 240 L380 254 Q200 236 20 250 Z" fill="#5b4332"/>
+  <path d="M272 176 C322 168 348 190 344 214 C340 236 316 242 304 230 C295 220 302 206 314 207" fill="none" stroke="#26A047" stroke-width="15" stroke-linecap="round"/>
+  <rect x="233" y="196" width="15" height="38" rx="7.5" fill="#26A047"/>
+  <path d="M136 196 Q128 118 205 106 Q276 96 285 160 Q290 202 244 208 L164 210 Q140 208 136 196 Z" fill="#34C759"/>
+  <path d="M158 130 q7 -14 14 0 q7 -14 14 0 q7 -14 14 0 q7 -14 14 0 q7 -14 14 0 q7 -14 14 0 q7 -14 14 0 l-2 10 q-49 -10 -94 2 Z" fill="#1B7A35"/>
+  <path d="M150 196 Q152 168 178 166 Q166 190 190 206 L164 208 Q152 206 150 196 Z" fill="#B8EFC8"/>
+  <rect x="182" y="198" width="15" height="40" rx="7.5" fill="#26A047"/>
+  <circle cx="189.5" cy="238" r="9" fill="#26A047"/>
+  <path d="M162 118 Q160 92 134 88 Q104 84 88 112 Q74 138 84 162 Q94 186 126 188 Q152 189 160 168 Q166 148 162 118 Z" fill="#34C759"/>
+  <path d="M82 148 Q104 162 128 154" fill="none" stroke="#3d2b1f" stroke-width="4.5" stroke-linecap="round"/>
+  <circle cx="118" cy="126" r="21" fill="#B8EFC8"/>
+  <circle cx="118" cy="126" r="11.5" fill="#fffef9"/>
+  <circle cx="122.27" cy="124.58" r="5.5" fill="#241a12"/>
+  <circle cx="124.77" cy="122.08" r="2" fill="#ffffff" opacity="0.9"/>
+</svg>

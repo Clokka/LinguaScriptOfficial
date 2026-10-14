@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectSeparator } from "@/components/ui/select";
 import { LANGUAGES, getLanguageLabel } from "@/lib/languages";
 import { useAuth } from "@/hooks/useAuth";
-import brandLockup from "@/assets/brand/linguascript-wordmark.png.asset.json";
+import { BrandMark } from "@/components/BrandMark";
 import { supabase } from "@/integrations/supabase/client";
 import { useLanguage, PENDING_LANGUAGE_KEY } from "@/contexts/LanguageContext";
 import { useTour } from "@/contexts/TourContext";
@@ -240,7 +240,7 @@ const Onboarding = () => {
     <div className="min-h-screen bg-[#0b1215] text-white antialiased">
       <header className="sticky top-0 z-50 bg-[#0b1215]/90 backdrop-blur-xl border-b border-white/5">
         <div className="max-w-2xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3"><img src={brandLockup.url} alt="LinguaScript" className="h-6 w-auto" /><UiLanguageSwitcher /></div>
+          <div className="flex items-center gap-3"><BrandMark size={28} /><UiLanguageSwitcher /></div>
           {/* Dot pager, not a segmented bar — same idiom as the app's own
               mobile intro tour (mobile/app/tour.tsx). */}
           <div className="flex items-center gap-2">

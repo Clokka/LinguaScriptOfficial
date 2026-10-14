@@ -41,7 +41,7 @@ body { background: var(--bg); color: var(--fg); font-family: var(--font); -webki
 a { color: inherit; }
 
 .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; letter-spacing: -0.01em; }
-.brand img { width: 28px; height: 28px; border-radius: 8px; }
+.brand img { height: 24px; width: auto; }
 .brand .script { color: var(--green); }
 
 .btn {
