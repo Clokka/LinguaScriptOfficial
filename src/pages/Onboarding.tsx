@@ -665,6 +665,7 @@ const AVAILABLE_LEARNING_LANGS = [
   { code: "pt", label: "Portuguese", flag: "🇵🇹" },
   { code: "zh", label: "Chinese", flag: "🇨🇳" },
   { code: "ja", label: "Japanese", flag: "🇯🇵" },
+  { code: "th", label: "Thai", flag: "🇹🇭" },
   { code: "en", label: "English", flag: "🇬🇧" },
 ];
 
