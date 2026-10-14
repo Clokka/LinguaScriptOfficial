@@ -16,7 +16,7 @@ const LANG_MAP: Record<string, string> = {
   fr: "fr-FR", es: "es-ES", de: "de-DE", it: "it-IT", pt: "pt-PT",
   zh: "zh-CN", ja: "ja-JP", ko: "ko-KR", ar: "ar-SA", hi: "hi-IN",
   ru: "ru-RU", tr: "tr-TR", nl: "nl-NL", pl: "pl-PL", sv: "sv-SE",
-  en: "en-US",
+  th: "th-TH", en: "en-US",
 };
 
 type SR = typeof window extends { SpeechRecognition: infer T } ? T : any;
@@ -26,22 +26,38 @@ function getSpeechRecognition(): any {
   return (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition || null;
 }
 
-function normalize(s: string) {
+// Letters only (keep combining marks so Hindi/Thai survive), no spaces, so
+// Chinese/Japanese/Thai — written without spaces — are compared fairly too.
+function letters(s: string) {
   return s
     .toLowerCase()
+    .replace(/\[[^\]]*\]|\([^)]*\)/g, " ") // [music], (laughs)
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^\p{L}\s]/gu, "")
-    .split(/\s+/)
-    .filter(Boolean);
+    .replace(/[^\p{L}\p{M}\p{N}]/gu, "");
 }
 
+function levenshtein(a: string[], b: string[]): number {
+  const prev = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    let diag = prev[0];
+    prev[0] = i;
+    for (let j = 1; j <= b.length; j++) {
+      const tmp = prev[j];
+      prev[j] = Math.min(prev[j] + 1, prev[j - 1] + 1, diag + (a[i - 1] === b[j - 1] ? 0 : 1));
+      diag = tmp;
+    }
+  }
+  return prev[b.length];
+}
+
+/** Character similarity 0–100 between the line and what was heard. */
 function scoreMatch(target: string, spoken: string): number {
-  const t = normalize(target);
-  const s = new Set(normalize(spoken));
-  if (t.length === 0) return 0;
-  const hits = t.filter((w) => s.has(w)).length;
-  return Math.round((hits / t.length) * 100);
+  const t = Array.from(letters(target));
+  const s = Array.from(letters(spoken));
+  if (!t.length || !s.length) return 0;
+  const dist = levenshtein(t, s);
+  return Math.max(0, Math.round((1 - dist / Math.max(t.length, s.length)) * 100));
 }
 
 export const PronunciationJudge = ({ text, language, className }: Props) => {
@@ -74,12 +90,14 @@ export const PronunciationJudge = ({ text, language, className }: Props) => {
     const rec = new SR();
     rec.lang = bcp47;
     rec.interimResults = false;
-    rec.maxAlternatives = 1;
+    rec.maxAlternatives = 5;
     rec.continuous = false;
     recRef.current = rec;
     rec.onresult = (e: any) => {
-      const spoken = e.results?.[0]?.[0]?.transcript || "";
-      const pct = scoreMatch(text, spoken);
+      const alts: string[] = Array.from(e.results?.[0] || []).map((a: any) => a?.transcript || "");
+      let spoken = alts[0] || "";
+      let pct = 0;
+      for (const a of alts) { const p = scoreMatch(text, a); if (p > pct) { pct = p; spoken = a; } }
       const band: "excellent" | "good" | "keep" = pct >= 90 ? "excellent" : pct >= 60 ? "good" : "keep";
       setResult({ pct, band, spoken });
       try { award("review_card" as any, { correct: band !== "keep" }); } catch {}
@@ -96,7 +114,7 @@ export const PronunciationJudge = ({ text, language, className }: Props) => {
     try {
       rec.start();
       setRecording(true);
-      timeoutRef.current = window.setTimeout(() => stop(), 5000);
+      timeoutRef.current = window.setTimeout(() => stop(), Math.min(15000, 4000 + text.length * 120));
     } catch {
       setRecording(false);
     }
