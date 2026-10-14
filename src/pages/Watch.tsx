@@ -50,7 +50,7 @@ import { WatchGoalGate } from "@/components/WatchGoalGate";
 import { WatchWordCounter } from "@/components/WatchWordCounter";
 import { VideoBlockedScreen, type VideoBlockKind } from "@/components/VideoBlockedScreen";
 import { checkPetMilestones } from "@/lib/pets";
-import { browserTranslateLines, translateWord } from "@/lib/browserTranslate";
+import { browserTranslateLines, isPlaceholderMeaning, translateWord } from "@/lib/browserTranslate";
 
 interface FilmData {
   id: string;
@@ -982,7 +982,7 @@ const Watch = () => {
     let grammarNote: string | null = null;
 
     // A popup placeholder is not a meaning — never save it onto a card.
-    if (/^(Translating|Couldn't translate)/.test(translation || "")) translation = "";
+    if (isPlaceholderMeaning(translation)) translation = "";
 
     // Never file an English word as "Chinese" (it happened with mislabelled
     // subtitle tracks: "who" saved as a Chinese card).
@@ -1228,10 +1228,23 @@ const Watch = () => {
 
   const markWordKnown = async (word: { text: string; translation?: string }) => {
     const langCode = film?.language || learningLanguage || "fr";
+    // Tapped while the popup still said "Translating…" or "Couldn't
+    // translate": fetch the meaning now rather than saving that text.
+    let meaning = isPlaceholderMeaning(word.translation) ? "" : (word.translation || "").trim();
+    if (!meaning) {
+      try {
+        const t = await translateWord(
+          (body) => supabase.functions.invoke("translate-word", { body }),
+          word.text, currentSubtitle?.primary || "", langCode, nativeLanguage || "en",
+          { from: getLanguageLabel(langCode), to: getLanguageLabel(nativeLanguage) },
+        );
+        meaning = t.translation;
+      } catch { /* saved without a meaning; flashcards fill it in later */ }
+    }
     if (!user) {
       saveGuestWord({
         word: word.text,
-        translation: word.translation || "",
+        translation: meaning,
         pronunciation: "",
         ipa: "",
         context: currentSubtitle?.primary || "",
@@ -1243,7 +1256,8 @@ const Watch = () => {
     const { error: knownError } = await supabase.from("saved_words").upsert({
       user_id: user.id,
       word: word.text,
-      translation: word.translation || "",
+      // No meaning: leave any existing one alone instead of blanking it.
+      ...(meaning ? { translation: meaning } : {}),
       context: currentSubtitle?.primary || "",
       film_id: film?.id,
       language: langCode,
@@ -1266,7 +1280,7 @@ const Watch = () => {
         language: langCode,
         target_word: word.text,
         sentence: knownSentence,
-        translation: word.translation || "",
+        translation: meaning,
         word_state: "green",
         gap_position: gapPosition,
         gap_options: gapOptions,

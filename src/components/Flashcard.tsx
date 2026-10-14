@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { useLanguage } from "@/contexts/LanguageContext";
 import type { DeckState } from "@/lib/vocab";
 import { wantsPicture } from "@/lib/wordImages";
+import { isPlaceholderMeaning } from "@/lib/browserTranslate";
 
 /** Same hexes as the subtitle overlay — one word, one colour, everywhere. */
 const DECK_COLORS: Record<DeckState, string> = {
@@ -105,7 +106,11 @@ export const Flashcard = ({
     return () => { alive = false; };
   }, [chinese, savedPinyin, learningWord]);
   const romanisation = chinese ? (savedPinyin || autoPinyin) : "";
-  const learningMeaning = useLemma && lemmaTranslation ? lemmaTranslation : translation;
+  // While a missing meaning is being fetched, show "…" instead of the
+  // popup's "Couldn't translate" text.
+  const learningMeaning = useLemma && lemmaTranslation
+    ? lemmaTranslation
+    : isPlaceholderMeaning(translation) ? "…" : translation;
 
   // Image mode always leads with the learning-language word — the point is
   // recalling the picture from the word, not choosing a translation direction.

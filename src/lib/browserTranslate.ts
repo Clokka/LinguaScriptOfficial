@@ -79,6 +79,12 @@ export async function browserTranslateLines(lines: string[], from: string, to: s
 
 const SERVER_TIMEOUT_MS = 8000;
 
+/** The popup's loading/error text — never a real meaning to save on a card. */
+export function isPlaceholderMeaning(text: string | null | undefined): boolean {
+  const t = (text || "").trim();
+  return !t || /^(Translating|Couldn't translate)/i.test(t);
+}
+
 export interface WordTranslation {
   translation: string;
   pronunciation: string;

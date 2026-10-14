@@ -23,7 +23,7 @@ import {
   GOLD,
   type GoldCandidate,
 } from "@/lib/goldenReveal";
-import { playClaimChime } from "@/lib/chime";
+import { playDing } from "@/lib/sound";
 import { LineBlastOverlay } from "@/components/LineBlastOverlay";
 import { GoldenDust, type DustAnchor } from "./GoldenDust";
 import {
@@ -310,15 +310,16 @@ export const SubtitleOverlay = ({
     const word = deck.get(token);
     if (!word?.id) return;
 
-    // Optimistic — the gold should die under the finger, not after a round trip.
+    // Optimistic — the gold should die under the finger, not after a round trip,
+    // with the same ding as saving a flashcard.
     setJustClaimed((prev) => new Set(prev).add(token));
+    playDing("success");
 
     const { revealed, awardedXp } = await revealGreenWord(word.id);
     // `revealed: false` means it was already claimed elsewhere; staying silent
     // is what stops a double-tap paying twice.
     if (!revealed) return;
 
-    playClaimChime();
     if (awardedXp > 0) award("reinforcement");
 
     // A claim can be the thing that completes the line — the last gold word
