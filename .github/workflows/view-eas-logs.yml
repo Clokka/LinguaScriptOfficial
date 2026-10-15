@@ -79,10 +79,14 @@ jobs:
           : > /tmp/logs.txt
           for u in $URLS; do
             echo "=========== $u ===========" >> /tmp/logs.txt
-            curl -sSL "$u" >> /tmp/logs.txt || echo "(curl failed for $u)" >> /tmp/logs.txt
+            # EAS serves log files gzipped; unzip when needed.
+            curl -sSL "$u" -o /tmp/log.part || echo "(curl failed for $u)" >> /tmp/logs.txt
+            if gzip -t /tmp/log.part 2>/dev/null; then zcat /tmp/log.part >> /tmp/logs.txt; else cat /tmp/log.part >> /tmp/logs.txt; fi
             echo "" >> /tmp/logs.txt
           done
           echo ""
+          echo "-- error lines --"
+          grep -n -i -E "error|what went wrong|failed|exception" /tmp/logs.txt | grep -v -i "warning" | head -n 150
           echo "-- captured logs (last 400 lines) --"
           tail -n 400 /tmp/logs.txt
 
