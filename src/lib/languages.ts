@@ -88,6 +88,25 @@ export function textMatchesLanguageScript(text: string, langCode: string): boole
 }
 
 /**
+ * Removes text written in the learning language's script from a translation
+ * line, e.g. "これは何ですか？ What is this?" → "What is this?". Some creators
+ * write their English captions in both languages; the translation line should
+ * only ever show the learner's own language. Only strips a non-Latin script
+ * that differs from the native one (Chinese/Japanese share kanji, so skipped).
+ */
+export function stripLearningScript(text: string, learningLang: string, nativeLang: string): string {
+  const learning = LANGUAGE_SCRIPT_FAMILY[(learningLang || "").toLowerCase().split("-")[0]];
+  const native = LANGUAGE_SCRIPT_FAMILY[(nativeLang || "").toLowerCase().split("-")[0]];
+  if (!text || !learning || !native || learning === "latin" || learning === native) return text;
+  if ((learning === "han" && native === "kana") || (learning === "kana" && native === "han")) return text;
+  const pattern = new RegExp(SCRIPT_PATTERN[learning].source, "g");
+  if (!pattern.test(text)) return text;
+  // The script's characters plus CJK/full-width punctuation that sits with them.
+  const run = new RegExp(`(?:${SCRIPT_PATTERN[learning].source}|[\u3000-\u303F\uFF00-\uFFEF])+`, "g");
+  return text.replace(run, " ").replace(/\s+/g, " ").trim();
+}
+
+/**
  * Best-effort check that fetched captions are actually written in `langCode`
  * — a script sanity check, not a real language detector. YouTube's `tlang`
  * auto-translate (and some caption providers) sometimes silently hand back

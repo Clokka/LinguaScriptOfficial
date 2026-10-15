@@ -14,7 +14,7 @@ import { useSubscription } from "@/hooks/useSubscription";
 import { useUpgradeTrigger } from "@/hooks/useUpgradeTrigger";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTour } from "@/contexts/TourContext";
-import { getLanguageLabel, getLanguageFlag, subtitlesLookLikeWrongLanguage, textMatchesLanguageScript } from "@/lib/languages";
+import { getLanguageLabel, getLanguageFlag, stripLearningScript, subtitlesLookLikeWrongLanguage, textMatchesLanguageScript } from "@/lib/languages";
 import { spaceOutWords } from "@/lib/wordSegments";
 import { cn } from "@/lib/utils";
 import { fetchCaptionsFromBrowser } from "@/lib/browserCaptionFetcher";
@@ -96,6 +96,7 @@ function buildDisplaySubtitles(
   primary: SubtitleSegment[],
   secondary: SubtitleSegment[],
   primaryLang: string,
+  secondaryLang: string,
 ): DisplaySubtitle[] {
   return primary.map((sub, i) => {
     const match = secondary.find((s) => Math.abs(s.start - sub.start) < 1.5);
@@ -106,7 +107,9 @@ function buildDisplaySubtitles(
       start: sub.start,
       end: sub.end,
       primary: text,
-      secondary: match?.text || "",
+      // Translation line shows only the learner's language, never a copy of the
+      // learning language mixed in.
+      secondary: stripLearningScript(match?.text || "", primaryLang, secondaryLang),
       words: textToWords(text, i),
     };
   });
@@ -724,7 +727,7 @@ const Watch = () => {
             `The ${getLanguageLabel(primaryLang)} subtitles for this film are in another language — please re-upload them.`
           );
         } else if (primary.length > 0) {
-          setSubtitles(buildDisplaySubtitles(primary, secondary, primaryLang));
+          setSubtitles(buildDisplaySubtitles(primary, secondary, primaryLang, secondaryLang));
           setCaptionsStatus(null);
         } else {
           setCaptionsError(
@@ -774,7 +777,7 @@ const Watch = () => {
       if (cancelled) return;
 
       if (primary.length > 0) {
-        setSubtitles(buildDisplaySubtitles(primary, secondary, usedLang));
+        setSubtitles(buildDisplaySubtitles(primary, secondary, usedLang, secondaryLang));
         setCaptionsStatus(null);
         if (usedLang !== primaryLang) {
           toast.message(`No ${getLanguageLabel(primaryLang)} captions on this video`, {
