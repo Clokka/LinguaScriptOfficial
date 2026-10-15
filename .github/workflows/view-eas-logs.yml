@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       build_id:
-        description: "EAS build ID (from the build URL, e.g. e7b80d70-27b9-457f-a2a7-4a3ef372be38)"
+        description: "EAS build ID (from the build URL, e.g. e7b80d70-27b9-457f-a2a7-4a3ef372be38), or 'latest' for the newest Android build"
         required: true
         type: string
 
@@ -18,8 +18,6 @@ jobs:
     steps:
       - name: Check out repo
         uses: actions/checkout@v4
-        with:
-          ref: claude/app-language-play-store-kcowrg
 
       - name: Set up Node.js 20
         uses: actions/setup-node@v4
@@ -42,7 +40,12 @@ jobs:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
           set +e
-          eas build:view "${{ github.event.inputs.build_id }}" --json > /tmp/build.json 2>/tmp/view.err
+          BUILD_ID="${{ github.event.inputs.build_id }}"
+          if [ "$BUILD_ID" = "latest" ]; then
+            BUILD_ID=$(eas build:list --platform android --limit 1 --json --non-interactive | jq -r '.[0].id')
+            echo "Latest Android build: $BUILD_ID"
+          fi
+          eas build:view "$BUILD_ID" --json > /tmp/build.json 2>/tmp/view.err
           VIEW_EXIT=$?
           cat /tmp/build.json
           echo ""
