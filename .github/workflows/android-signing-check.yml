@@ -7,9 +7,6 @@ name: Android signing check
 
 on:
   workflow_dispatch:
-  push:
-    branches: [claude/linguascript-changes-audit-jyes6e]
-    paths: [.github/workflows/android-signing-check.yml, scripts/eas-reuse-keystore.mjs]
 
 jobs:
   check:
@@ -85,14 +82,13 @@ jobs:
             fi
           } >> "$GITHUB_STEP_SUMMARY"
           cat "$GITHUB_STEP_SUMMARY"
-      - name: Point uk.co.LinguaScript.app at the Play upload key
+      - name: Check uk.co.LinguaScript.app uses the Play upload key (dry run)
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           PROJECT: rowanawesome1s-team/linguascript-chameleon
           FROM_ID: uk.co.linguascript.app
           TO_ID: uk.co.LinguaScript.app
           WANT_SHA1: "44:81:FD:8E:63:14:6D:80:E9:57:AD:D2:C4:30:78:1B:CB:40:2C:80"
-          APPLY: "1"
         run: node scripts/eas-reuse-keystore.mjs
       - uses: actions/upload-artifact@v4
         with:
