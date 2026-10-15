@@ -18,17 +18,24 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
       - name: Install EAS CLI + jq
         run: |
           npm install -g eas-cli@latest
           sudo apt-get -qq install -y jq unzip
+      - name: Install mobile deps (EAS reads the app config)
+        working-directory: mobile
+        run: npm ci --no-audit --no-fund
       - name: List recent Android builds
         working-directory: mobile
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
-          eas build:list --platform android --limit 20 --json --non-interactive > /tmp/builds.json
+          set -o pipefail
+          # The build that Play rejected first, then the recent history.
+          eas build:view fcc077f9-317e-4ad5-8d6b-ed17f7a198c0 --json > /tmp/one.json 2>/tmp/view.err || cat /tmp/view.err
+          eas build:list --platform android --limit 20 --json --non-interactive > /tmp/list.json 2>/tmp/list.err || { cat /tmp/list.err; echo '[]' > /tmp/list.json; }
+          jq -s '([.[0]] + .[1]) | map(select(type == "object")) | unique_by(.id)' /tmp/one.json /tmp/list.json > /tmp/builds.json 2>/dev/null || cp /tmp/list.json /tmp/builds.json
           jq -r '.[] | [.id, .status, (.buildProfile // ""), (.appIdentifier // ""), (.createdAt // ""), (.artifacts.buildUrl // .artifacts.applicationArchiveUrl // "")] | @tsv' /tmp/builds.json | tee /tmp/builds.tsv
       - name: Read each build's signing certificate
         run: |
