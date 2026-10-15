@@ -4,6 +4,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { videoGoalForWords } from "@/lib/progressStats";
 import { addLanguageProfile, type LearningMode } from "@/lib/languageProfiles";
+import { isFreshSnapshot } from "@/lib/deviceLearnerState";
 
 const KEY = "ls.guestOnboarded.v1";
 
@@ -20,14 +21,20 @@ export interface GuestOnboarding {
 }
 
 export function rememberGuestOnboarding(answers: GuestOnboarding) {
-  try { localStorage.setItem(KEY, JSON.stringify(answers)); } catch { /* ignore */ }
+  try { localStorage.setItem(KEY, JSON.stringify({ ...answers, savedAt: Date.now() })); } catch { /* ignore */ }
 }
 
 function readGuestOnboarding(): GuestOnboarding | null {
   try {
     const raw = localStorage.getItem(KEY);
     const parsed = raw ? JSON.parse(raw) : null;
-    return parsed?.target ? parsed : null;
+    // Only answers given recently on this device: an old guest run (someone
+    // else's, or a demo) must never be copied onto a new account.
+    if (!parsed?.target || !isFreshSnapshot(parsed)) {
+      if (raw) localStorage.removeItem(KEY);
+      return null;
+    }
+    return parsed;
   } catch { return null; }
 }
 

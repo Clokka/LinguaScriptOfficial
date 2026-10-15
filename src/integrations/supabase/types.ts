@@ -552,6 +552,7 @@ export type Database = {
           mode: string
           seeded_level: string | null
           seeded_mode: string | null
+          total_beginner: boolean
           understanding_score: number
           updated_at: string
           user_id: string
@@ -569,6 +570,7 @@ export type Database = {
           mode?: string
           seeded_level?: string | null
           seeded_mode?: string | null
+          total_beginner?: boolean
           understanding_score?: number
           updated_at?: string
           user_id: string
@@ -586,6 +588,7 @@ export type Database = {
           mode?: string
           seeded_level?: string | null
           seeded_mode?: string | null
+          total_beginner?: boolean
           understanding_score?: number
           updated_at?: string
           user_id?: string

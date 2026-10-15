@@ -64,7 +64,10 @@ async function ensureLanguageProfile(userId: string, language: string, level: st
     const existing = await getLanguageProfile(userId, language);
     if (existing) {
       await touchLanguageProfile(userId, language);
-      await seedForProfile(language, existing.cefr_level, existing.mode);
+      // A total beginner has nothing pre-marked as known — never seed them
+      // (this re-seed on every load used to turn them into A1 with 600 green
+      // words). The database refuses too; this just skips the call.
+      if (!existing.total_beginner) await seedForProfile(language, existing.cefr_level, existing.mode);
       return;
     }
     await addLanguageProfile({ userId, language, mode: "fluency", level });
@@ -85,7 +88,7 @@ interface LanguageContextType {
   languageContext: string;
   /** @deprecated alias for `languageContext`. Prefer `languageContext`. */
   learningLanguage: string;
-  setLearningLanguage: (lang: string) => void;
+  setLearningLanguage: (lang: string, opts?: { ensureProfile?: boolean }) => void;
   /** BCP-47 voice tag derived from `languageContext`. */
   ttsLang: string;
   /** Pro subscription flag (read from profiles.is_pro). */
@@ -191,7 +194,7 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
     return false;
   };
 
-  const setLearningLanguage = (lang: string) => {
+  const setLearningLanguage = (lang: string, opts?: { ensureProfile?: boolean }) => {
     const norm = (lang || "").toLowerCase();
     if (!norm) return; // never persist "unknown"
     setActiveLanguage(norm);
@@ -208,6 +211,9 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
       .update({ learning_language: norm })
       .eq("user_id", user.id)
       .then(() => {});
+    // Onboarding creates the profile itself (with the total-beginner flag);
+    // seeding here first is what turned "Total beginner" into A1.
+    if (opts?.ensureProfile === false) return;
     // Seed known vocabulary for the newly-selected language based on the
     // user's CEFR level. Idempotent server-side (ON CONFLICT DO NOTHING).
     supabase

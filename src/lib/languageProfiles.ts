@@ -51,6 +51,8 @@ export interface LanguageProfile {
   cefr_level: string;
   seeded_level: string | null;
   seeded_mode: string | null;
+  /** Started from zero ("Total beginner"): never seed known vocabulary. */
+  total_beginner?: boolean;
   understanding_score: number;
   words_known: number;
   daily_word_goal: number;
@@ -106,7 +108,7 @@ export async function addLanguageProfile(opts: {
   const existing = await getLanguageProfile(opts.userId, language);
   if (existing) {
     await table()
-      .update({ mode: opts.mode, cefr_level: opts.level.toLowerCase() })
+      .update({ mode: opts.mode, cefr_level: opts.level.toLowerCase(), total_beginner: !!opts.totalBeginner })
       .eq("id", existing.id);
   } else {
     const current = await listLanguageProfiles(opts.userId);
@@ -123,6 +125,7 @@ export async function addLanguageProfile(opts: {
       language,
       mode: opts.mode,
       cefr_level: opts.level.toLowerCase(),
+      total_beginner: !!opts.totalBeginner,
       ...(account?.daily_word_goal ? { daily_word_goal: account.daily_word_goal } : {}),
       ...(account?.daily_video_goal ? { daily_video_goal: account.daily_video_goal } : {}),
     });
@@ -180,7 +183,7 @@ export async function touchLanguageProfile(userId: string, language: string) {
 export async function updateLanguageProfile(
   userId: string,
   language: string,
-  patch: Partial<Pick<LanguageProfile, "mode" | "cefr_level" | "daily_word_goal" | "daily_video_goal">>,
+  patch: Partial<Pick<LanguageProfile, "mode" | "cefr_level" | "daily_word_goal" | "daily_video_goal" | "total_beginner">>,
 ) {
   await table().update(patch).eq("user_id", userId).eq("language", language.toLowerCase());
 }

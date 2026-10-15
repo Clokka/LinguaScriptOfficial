@@ -1,0 +1,97 @@
+name: Android signing check
+
+# Finds which key each recent EAS Android build was signed with, and exports
+# the upload certificate (.pem) of the newest app bundle for Google Play's
+# "Request upload key reset". Read-only: it only lists and downloads builds.
+# A certificate is public information (no private key), so it's safe to show.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install EAS CLI + jq
+        run: |
+          npm install -g eas-cli@latest
+          sudo apt-get -qq install -y jq unzip
+      - name: Install mobile deps (EAS reads the app config)
+        working-directory: mobile
+        run: npm ci --no-audit --no-fund
+      - name: List recent Android builds
+        working-directory: mobile
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          set -o pipefail
+          # The build that Play rejected first, then the recent history.
+          eas build:view fcc077f9-317e-4ad5-8d6b-ed17f7a198c0 --json > /tmp/one.json 2>/tmp/view.err || cat /tmp/view.err
+          eas build:list --platform android --limit 20 --json --non-interactive > /tmp/list.json 2>/tmp/list.err || { cat /tmp/list.err; echo '[]' > /tmp/list.json; }
+          jq -s '([.[0]] + .[1]) | map(select(type == "object")) | unique_by(.id)' /tmp/one.json /tmp/list.json > /tmp/builds.json 2>/dev/null || cp /tmp/list.json /tmp/builds.json
+          jq -r '.[] | [.id, .status, (.buildProfile // ""), (.appIdentifier // ""), (.createdAt // ""), (.artifacts.buildUrl // .artifacts.applicationArchiveUrl // "")] | @tsv' /tmp/builds.json | tee /tmp/builds.tsv
+      - name: Read each build's signing certificate
+        run: |
+          APKSIGNER=$(ls -d "$ANDROID_HOME"/build-tools/*/apksigner 2>/dev/null | sort -V | tail -1)
+          mkdir -p out
+          {
+            echo "## Android signing check"
+            echo ""
+            echo "Google Play expects SHA1 **44:81:FD:8E:63:14:6D:80:E9:57:AD:D2:C4:30:78:1B:CB:40:2C:80**"
+            echo ""
+            echo "| Created | Profile | App ID | File | SHA1 | Build id |"
+            echo "|---|---|---|---|---|---|"
+          } >> "$GITHUB_STEP_SUMMARY"
+          FIRST_AAB=""
+          while IFS=$'\t' read -r id status profile appid created url; do
+            [ "$status" = "FINISHED" ] && [ -n "$url" ] || continue
+            f="out/$id.${url##*.}"
+            curl -sSL "$url" -o "$f" || continue
+            sha=""
+            case "$f" in
+              *.aab)
+                rm -rf meta && mkdir meta && unzip -q -o "$f" 'META-INF/*' -d meta || true
+                cert=$(ls meta/META-INF/*.RSA meta/META-INF/*.EC meta/META-INF/*.DSA 2>/dev/null | head -1)
+                if [ -n "$cert" ]; then
+                  sha=$(keytool -printcert -file "$cert" | grep -m1 'SHA1:' | awk '{print $2}')
+                  if [ -z "$FIRST_AAB" ]; then
+                    keytool -printcert -rfc -file "$cert" > out/upload_certificate.pem
+                    FIRST_AAB="$id ($sha)"
+                  fi
+                fi ;;
+              *.apk)
+                [ -n "$APKSIGNER" ] && sha=$("$APKSIGNER" verify --print-certs "$f" 2>/dev/null | grep -m1 'SHA-1 digest' | awk '{print $NF}' | sed 's/../&:/g;s/:$//' | tr a-z A-Z) ;;
+            esac
+            echo "| $created | $profile | $appid | ${f##*.} | ${sha:-?} | $id |" >> "$GITHUB_STEP_SUMMARY"
+            rm -f "$f"
+          done < /tmp/builds.tsv
+          {
+            echo ""
+            if [ -s out/upload_certificate.pem ]; then
+              echo "### upload_certificate.pem (newest app bundle: $FIRST_AAB)"
+              echo "Download it from this run's **Artifacts**, or copy the text below into a file named upload_certificate.pem."
+              echo '```'
+              cat out/upload_certificate.pem
+              echo '```'
+            else
+              echo "No finished app bundle (.aab) found."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          cat "$GITHUB_STEP_SUMMARY"
+      - name: Check uk.co.LinguaScript.app uses the Play upload key (dry run)
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          PROJECT: rowanawesome1s-team/linguascript-chameleon
+          FROM_ID: uk.co.linguascript.app
+          TO_ID: uk.co.LinguaScript.app
+          WANT_SHA1: "44:81:FD:8E:63:14:6D:80:E9:57:AD:D2:C4:30:78:1B:CB:40:2C:80"
+        run: node scripts/eas-reuse-keystore.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: upload-certificate
+          path: out/upload_certificate.pem
+          if-no-files-found: ignore

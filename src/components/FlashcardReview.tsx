@@ -97,8 +97,12 @@ export const FlashcardReview = ({ cards: initialCards, onClose, onCardReviewed, 
   // learner — never a hardcoded "French". Falls back to the active learning
   // language when a card carries no language of its own.
   const [nativeLang, setNativeLang] = useState("en");
+  // Meanings are only fetched once the real native language is known —
+  // fetching during the "en" placeholder saved English meanings ("yes") onto
+  // a Spanish speaker's cards for good.
+  const [nativeReady, setNativeReady] = useState(false);
   useEffect(() => {
-    if (!user) return;
+    if (!user) { setNativeReady(true); return; }
     supabase
       .from("profiles")
       .select("native_language")
@@ -107,7 +111,8 @@ export const FlashcardReview = ({ cards: initialCards, onClose, onCardReviewed, 
       .then(({ data }) => {
         const n = (data as any)?.native_language?.toLowerCase();
         if (n) setNativeLang(n);
-      });
+        setNativeReady(true);
+      }, () => setNativeReady(true));
   }, [user]);
 
   // Text-to-image mode: backfill an image the first time a card without one
@@ -132,7 +137,7 @@ export const FlashcardReview = ({ cards: initialCards, onClose, onCardReviewed, 
   const meaningFetchTried = useRef<Set<string>>(new Set());
   useEffect(() => {
     const card = cards[currentIndex];
-    if (!card || !isPlaceholderMeaning(card.translation)) return;
+    if (!card || !nativeReady || !isPlaceholderMeaning(card.translation)) return;
     if (meaningFetchTried.current.has(card.id)) return;
     meaningFetchTried.current.add(card.id);
     const from = card.language || languageContext || "";
@@ -154,7 +159,7 @@ export const FlashcardReview = ({ cards: initialCards, onClose, onCardReviewed, 
         }
       })
       .catch(() => { /* stays as is; tried again next session */ });
-  }, [cards, currentIndex, languageContext, nativeLang, user]);
+  }, [cards, currentIndex, languageContext, nativeLang, nativeReady, user]);
 
   // Counts toward today's review total for the card's own language.
   const logReview = async () => {
