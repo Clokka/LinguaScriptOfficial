@@ -1073,7 +1073,13 @@ const Watch = () => {
       startOfDay.setHours(0, 0, 0, 0);
       const savedFromVideoToday =
         !!existingSame.video_saved_at && new Date(existingSame.video_saved_at) >= startOfDay;
-      if (bumped && savedFromVideoToday) unregisterDailySave(word.text);
+      if (bumped && savedFromVideoToday) {
+        unregisterDailySave(word.text);
+        // Otherwise the counter just doesn't move and it looks broken.
+        toast.info(`"${word.text}" is already saved today`, {
+          description: "Each word counts once a day toward your goal. Try a red word you haven't saved yet.",
+        });
+      }
     }
     if (lemma) {
       const lemmaBest = await bestStateForLemma(user.id, langCode, lemma);
@@ -1272,7 +1278,9 @@ const Watch = () => {
       toast.error("Couldn't update this flashcard", { description: knownError.message });
       return;
     }
-    toast.success("Marked as known: " + word.text);
+    toast.success("Marked as known: " + word.text, {
+      description: "Known words don't count toward today's goal. Save a new word to move the counter.",
+    });
 
     // Create LinguaScript record for known word (scheduled for now, not 7 days from now)
     {
