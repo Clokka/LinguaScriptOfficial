@@ -26,7 +26,7 @@
       }
     },
     "android": {
-      "package": "uk.co.linguascript.app",
+      "package": "uk.co.LinguaScript.app",
       "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
