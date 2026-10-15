@@ -14,7 +14,7 @@ import { useSubscription } from "@/hooks/useSubscription";
 import { useUpgradeTrigger } from "@/hooks/useUpgradeTrigger";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTour } from "@/contexts/TourContext";
-import { getLanguageLabel, getLanguageFlag, subtitlesLookLikeWrongLanguage, textMatchesLanguageScript } from "@/lib/languages";
+import { getLanguageLabel, getLanguageFlag, stripLearningScript, subtitlesLookLikeWrongLanguage, textMatchesLanguageScript } from "@/lib/languages";
 import { spaceOutWords } from "@/lib/wordSegments";
 import { cn } from "@/lib/utils";
 import { fetchCaptionsFromBrowser } from "@/lib/browserCaptionFetcher";
@@ -96,6 +96,7 @@ function buildDisplaySubtitles(
   primary: SubtitleSegment[],
   secondary: SubtitleSegment[],
   primaryLang: string,
+  secondaryLang: string,
 ): DisplaySubtitle[] {
   return primary.map((sub, i) => {
     const match = secondary.find((s) => Math.abs(s.start - sub.start) < 1.5);
@@ -106,7 +107,9 @@ function buildDisplaySubtitles(
       start: sub.start,
       end: sub.end,
       primary: text,
-      secondary: match?.text || "",
+      // Translation line shows only the learner's language, never a copy of the
+      // learning language mixed in.
+      secondary: stripLearningScript(match?.text || "", primaryLang, secondaryLang),
       words: textToWords(text, i),
     };
   });
@@ -233,7 +236,7 @@ async function loadAllCaptions(
   // code but is actually written in a totally different one — a leftover
   // from providers that silently hand back the original track instead of
   // erroring when they can't translate. Purge so it gets re-fetched/re-translated.
-  if (primaryLang !== secondaryLang && secondary.length && subtitlesLookLikeWrongLanguage(secondary, secondaryLang)) {
+  if (primaryLang !== secondaryLang && secondary.length && subtitlesLookLikeWrongLanguage(secondary, secondaryLang, primaryLang)) {
     console.warn(`Cached ${secondaryLang} track is actually a different language — purging`);
     await supabase.from("subtitles").delete().eq("film_id", filmId).eq("language", secondaryLang);
     secondary = [];
@@ -281,7 +284,7 @@ async function loadAllCaptions(
           primaryLang !== secondaryLang &&
           !secondary.length &&
           data.nativeSubtitles?.length &&
-          !subtitlesLookLikeWrongLanguage(data.nativeSubtitles, secondaryLang)
+          !subtitlesLookLikeWrongLanguage(data.nativeSubtitles, secondaryLang, primaryLang)
         ) {
           secondary = data.nativeSubtitles;
           await persistTrack(filmId, secondaryLang, secondary);
@@ -310,7 +313,7 @@ async function loadAllCaptions(
           primaryLang !== secondaryLang &&
           !secondary.length &&
           browserRes.native.length &&
-          !subtitlesLookLikeWrongLanguage(browserRes.native, secondaryLang)
+          !subtitlesLookLikeWrongLanguage(browserRes.native, secondaryLang, primaryLang)
         ) {
           secondary = browserRes.native;
           await persistTrack(filmId, secondaryLang, secondary);
@@ -724,7 +727,7 @@ const Watch = () => {
             `The ${getLanguageLabel(primaryLang)} subtitles for this film are in another language — please re-upload them.`
           );
         } else if (primary.length > 0) {
-          setSubtitles(buildDisplaySubtitles(primary, secondary, primaryLang));
+          setSubtitles(buildDisplaySubtitles(primary, secondary, primaryLang, secondaryLang));
           setCaptionsStatus(null);
         } else {
           setCaptionsError(
@@ -774,7 +777,7 @@ const Watch = () => {
       if (cancelled) return;
 
       if (primary.length > 0) {
-        setSubtitles(buildDisplaySubtitles(primary, secondary, usedLang));
+        setSubtitles(buildDisplaySubtitles(primary, secondary, usedLang, secondaryLang));
         setCaptionsStatus(null);
         if (usedLang !== primaryLang) {
           toast.message(`No ${getLanguageLabel(primaryLang)} captions on this video`, {
@@ -1070,7 +1073,13 @@ const Watch = () => {
       startOfDay.setHours(0, 0, 0, 0);
       const savedFromVideoToday =
         !!existingSame.video_saved_at && new Date(existingSame.video_saved_at) >= startOfDay;
-      if (bumped && savedFromVideoToday) unregisterDailySave(word.text);
+      if (bumped && savedFromVideoToday) {
+        unregisterDailySave(word.text);
+        // Otherwise the counter just doesn't move and it looks broken.
+        toast.info(`"${word.text}" is already saved today`, {
+          description: "Each word counts once a day toward your goal. Try a red word you haven't saved yet.",
+        });
+      }
     }
     if (lemma) {
       const lemmaBest = await bestStateForLemma(user.id, langCode, lemma);
@@ -1269,7 +1278,9 @@ const Watch = () => {
       toast.error("Couldn't update this flashcard", { description: knownError.message });
       return;
     }
-    toast.success("Marked as known: " + word.text);
+    toast.success("Marked as known: " + word.text, {
+      description: "Known words don't count toward today's goal. Save a new word to move the counter.",
+    });
 
     // Create LinguaScript record for known word (scheduled for now, not 7 days from now)
     {

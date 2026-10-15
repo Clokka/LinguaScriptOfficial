@@ -7,7 +7,6 @@
     "icon": "./assets/images/icon.png",
     "scheme": "linguascript",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": false,
     "splash": {
       "image": "./assets/images/splash.png",
       "resizeMode": "contain",
@@ -37,6 +36,9 @@
         "POST_NOTIFICATIONS",
         "VIBRATE",
         "INTERNET"
+      ],
+      "blockedPermissions": [
+        "com.google.android.gms.permission.AD_ID"
       ],
       "intentFilters": [
         {
@@ -117,7 +119,9 @@
         "expo-build-properties",
         {
           "android": {
-            "minSdkVersion": 24
+            "minSdkVersion": 24,
+            "compileSdkVersion": 34,
+            "targetSdkVersion": 36
           }
         }
       ]
