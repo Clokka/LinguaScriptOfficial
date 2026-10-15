@@ -101,8 +101,12 @@ export function textMatchesLanguageScript(text: string, langCode: string): boole
 export function subtitlesLookLikeWrongLanguage(
   subs: { text: string }[],
   langCode: string,
+  /** The video's other language. Pass it when checking the translation
+   * track: some creators write that track in both languages ("これは何ですか？
+   * What is this?"), which would show the learning language twice. */
+  otherLangCode?: string,
 ): boolean {
-  const family = LANGUAGE_SCRIPT_FAMILY[(langCode || "").toLowerCase()];
+  const family = LANGUAGE_SCRIPT_FAMILY[(langCode || "").toLowerCase().split("-")[0]];
   if (!family || !subs.length) return false;
   const sample = subs.slice(0, 10).map((s) => s.text).join(" ");
   const letters = sample.match(/\p{L}/gu) || [];
@@ -110,5 +114,13 @@ export function subtitlesLookLikeWrongLanguage(
   const matches = sample.match(SCRIPT_PATTERN[family]) || [];
   // A few stray foreign names/loanwords shouldn't trip this — only a
   // wholesale wrong script should.
-  return matches.length / letters.length < 0.2;
+  if (matches.length / letters.length < 0.2) return true;
+  const other = LANGUAGE_SCRIPT_FAMILY[(otherLangCode || "").toLowerCase().split("-")[0]];
+  // Chinese and Japanese share kanji, so their scripts can't be told apart.
+  // Latin is skipped: names like "YouTube" are letter-heavy and would trip it.
+  if (!other || other === "latin" || other === family || (family === "han" && other === "kana") || (family === "kana" && other === "han")) {
+    return false;
+  }
+  const otherMatches = sample.match(SCRIPT_PATTERN[other]) || [];
+  return otherMatches.length / letters.length >= 0.2;
 }

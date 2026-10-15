@@ -182,7 +182,7 @@ export async function ensureSubtitleTracks({
         needSecondary &&
         browser.native.length &&
         !tracksAreDuplicate(primary, browser.native) &&
-        !subtitlesLookLikeWrongLanguage(browser.native, secondaryLanguage)
+        !subtitlesLookLikeWrongLanguage(browser.native, secondaryLanguage, primaryLanguage)
       ) {
         secondary = browser.native;
         await persistSubtitleTrack(filmId, secondaryLanguage, secondary);
@@ -213,7 +213,7 @@ export async function ensureSubtitleTracks({
     // Self-heal: a stored secondary row can also be a totally different
     // language than its own row label claims — a leftover from a provider
     // that silently returned the original track instead of translating.
-    if (secondary.length && subtitlesLookLikeWrongLanguage(secondary, secondaryLanguage)) {
+    if (secondary.length && subtitlesLookLikeWrongLanguage(secondary, secondaryLanguage, primaryLanguage)) {
       console.warn(
         `[subtitleSync] Stored ${secondaryLanguage} track is actually a different language — regenerating via AI translation`,
       );
@@ -228,7 +228,7 @@ export async function ensureSubtitleTracks({
       if (
         fetched.length &&
         !tracksAreDuplicate(primary, fetched) &&
-        !subtitlesLookLikeWrongLanguage(fetched, secondaryLanguage)
+        !subtitlesLookLikeWrongLanguage(fetched, secondaryLanguage, primaryLanguage)
       ) {
         secondary = fetched;
       }

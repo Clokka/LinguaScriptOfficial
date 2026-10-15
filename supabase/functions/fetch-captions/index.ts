@@ -352,7 +352,7 @@ serve(async (req) => {
       nativeSubs = [];
       learningError = `No ${lang} captions on YouTube for this video`;
     }
-    if (nativeSubs.length && subtitlesLookLikeWrongLanguage(nativeSubs, native)) nativeSubs = [];
+    if (nativeSubs.length && subtitlesLookLikeWrongLanguage(nativeSubs, native, lang)) nativeSubs = [];
 
     // Detect duplicate: providers sometimes return the original-language track
     // when the requested native language isn't available. Compare first few segments.

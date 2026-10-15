@@ -29,12 +29,23 @@ const SCRIPT_PATTERN: Record<ScriptFamily, RegExp> = {
   thai: /[฀-๿]/g,
 };
 
-export function subtitlesLookLikeWrongLanguage(subs: { text: string }[], lang: string): boolean {
+// Pass `otherLang` (the video's learning language) when checking a native
+// track: creators sometimes write it in both languages, which would show the
+// learning language on both subtitle lines.
+export function subtitlesLookLikeWrongLanguage(subs: { text: string }[], lang: string, otherLang?: string): boolean {
   const family = LANGUAGE_SCRIPT_FAMILY[(lang || "").toLowerCase().split("-")[0]];
   if (!family || !subs.length) return false;
   const sample = subs.slice(0, 10).map((s) => s.text).join(" ");
   const letters = sample.match(/\p{L}/gu) || [];
   if (letters.length < 15) return false;
   const matches = sample.match(SCRIPT_PATTERN[family]) || [];
-  return matches.length / letters.length < 0.2;
+  if (matches.length / letters.length < 0.2) return true;
+  const other = LANGUAGE_SCRIPT_FAMILY[(otherLang || "").toLowerCase().split("-")[0]];
+  // Chinese and Japanese share kanji, so their scripts can't be told apart.
+  // Latin is skipped: names like "YouTube" are letter-heavy and would trip it.
+  if (!other || other === "latin" || other === family || (family === "han" && other === "kana") || (family === "kana" && other === "han")) {
+    return false;
+  }
+  const otherMatches = sample.match(SCRIPT_PATTERN[other]) || [];
+  return otherMatches.length / letters.length >= 0.2;
 }

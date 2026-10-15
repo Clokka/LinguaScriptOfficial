@@ -233,7 +233,7 @@ async function loadAllCaptions(
   // code but is actually written in a totally different one — a leftover
   // from providers that silently hand back the original track instead of
   // erroring when they can't translate. Purge so it gets re-fetched/re-translated.
-  if (primaryLang !== secondaryLang && secondary.length && subtitlesLookLikeWrongLanguage(secondary, secondaryLang)) {
+  if (primaryLang !== secondaryLang && secondary.length && subtitlesLookLikeWrongLanguage(secondary, secondaryLang, primaryLang)) {
     console.warn(`Cached ${secondaryLang} track is actually a different language — purging`);
     await supabase.from("subtitles").delete().eq("film_id", filmId).eq("language", secondaryLang);
     secondary = [];
@@ -281,7 +281,7 @@ async function loadAllCaptions(
           primaryLang !== secondaryLang &&
           !secondary.length &&
           data.nativeSubtitles?.length &&
-          !subtitlesLookLikeWrongLanguage(data.nativeSubtitles, secondaryLang)
+          !subtitlesLookLikeWrongLanguage(data.nativeSubtitles, secondaryLang, primaryLang)
         ) {
           secondary = data.nativeSubtitles;
           await persistTrack(filmId, secondaryLang, secondary);
@@ -310,7 +310,7 @@ async function loadAllCaptions(
           primaryLang !== secondaryLang &&
           !secondary.length &&
           browserRes.native.length &&
-          !subtitlesLookLikeWrongLanguage(browserRes.native, secondaryLang)
+          !subtitlesLookLikeWrongLanguage(browserRes.native, secondaryLang, primaryLang)
         ) {
           secondary = browserRes.native;
           await persistTrack(filmId, secondaryLang, secondary);
