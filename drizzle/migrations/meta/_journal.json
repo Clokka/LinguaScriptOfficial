@@ -43,6 +43,13 @@
       "when": 1792160235886,
       "tag": "0005_landing_page_test",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792161235886,
+      "tag": "0006_private_email_signups",
+      "breakpoints": true
     }
   ]
 }
