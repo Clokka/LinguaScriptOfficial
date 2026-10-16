@@ -1,3 +1,4 @@
+import { trackAll } from "@/lib/experiments";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useT } from "@/i18n";
 import { UiLanguageSwitcher } from "@/components/UiLanguageSwitcher";
@@ -205,6 +206,7 @@ const Onboarding = () => {
           learning_goal: goal || null,
           interests,
         } as any).eq("user_id", user.id);
+        trackAll("signup", { interest: String(interests?.[0] ?? "none"), goal: String(goal || "none") });
       } else {
         rememberGuest();
       }

@@ -404,6 +404,80 @@ export type Database = {
         }
         Relationships: []
       }
+      experiment_events: {
+        Row: {
+          created_at: string
+          event: string
+          experiment_key: string
+          id: string
+          segment: Json
+          user_id: string | null
+          variant: string
+          visitor_id: string
+        }
+        Insert: {
+          created_at?: string
+          event: string
+          experiment_key: string
+          id?: string
+          segment?: Json
+          user_id?: string | null
+          variant: string
+          visitor_id: string
+        }
+        Update: {
+          created_at?: string
+          event?: string
+          experiment_key?: string
+          id?: string
+          segment?: Json
+          user_id?: string | null
+          variant?: string
+          visitor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "experiment_events_experiment_key_fkey"
+            columns: ["experiment_key"]
+            isOneToOne: false
+            referencedRelation: "experiments"
+            referencedColumns: ["key"]
+          },
+        ]
+      }
+      experiments: {
+        Row: {
+          ai_summary: string | null
+          created_at: string
+          key: string
+          name: string
+          status: string
+          updated_at: string
+          variants: string[]
+          winner: string | null
+        }
+        Insert: {
+          ai_summary?: string | null
+          created_at?: string
+          key: string
+          name: string
+          status?: string
+          updated_at?: string
+          variants: string[]
+          winner?: string | null
+        }
+        Update: {
+          ai_summary?: string | null
+          created_at?: string
+          key?: string
+          name?: string
+          status?: string
+          updated_at?: string
+          variants?: string[]
+          winner?: string | null
+        }
+        Relationships: []
+      }
       films: {
         Row: {
           category: string | null
@@ -2247,6 +2321,16 @@ export type Database = {
         Args: { payload: Json; queue_name: string }
         Returns: number
       }
+      experiment_results: {
+        Args: { _dimension?: string; _key: string }
+        Returns: {
+          ctas: number
+          segment_value: string
+          signups: number
+          variant: string
+          views: number
+        }[]
+      }
       expire_lapsed_pro: { Args: never; Returns: number }
       frequency_coverage: {
         Args: { _language: string }
@@ -2402,6 +2486,16 @@ export type Database = {
           msg_id: number
           read_ct: number
         }[]
+      }
+      record_experiment_event: {
+        Args: {
+          _event: string
+          _key: string
+          _segment: Json
+          _variant: string
+          _visitor: string
+        }
+        Returns: undefined
       }
       record_feed_event: {
         Args: { _interest_id: string; _kind: string; _language: string }
