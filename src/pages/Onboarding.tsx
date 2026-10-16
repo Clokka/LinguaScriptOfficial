@@ -1,3 +1,4 @@
+import { trackAll } from "@/lib/experiments";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useT } from "@/i18n";
 import { UiLanguageSwitcher } from "@/components/UiLanguageSwitcher";
