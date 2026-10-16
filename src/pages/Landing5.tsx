@@ -14,7 +14,8 @@ import { PlatformLogos } from "@/components/landing/PlatformLogos";
 import { DeckCards } from "@/components/landing/DeckCards";
 import { DECK } from "@/lib/deck-colors";
 import { BrandMark } from "@/components/BrandMark";
-import { HeadlineTest, trackHeadlineCta } from "@/components/landing/HeadlineTest";
+import { HeadlineTest } from "@/components/landing/HeadlineTest";
+import { trackAll } from "@/lib/experiments";
 import quizletLogo from "@/assets/brand/quizlet.png.asset.json";
 import ankiLogo from "@/assets/brand/anki.png.asset.json";
 
@@ -89,7 +90,7 @@ const Landing5 = () => {
               Sign in
             </button>
             <button
-              onClick={() => { trackHeadlineCta(); navigate("/onboarding"); }}
+              onClick={() => { trackAll("cta"); navigate("/onboarding"); }}
               className="px-4 py-2 text-sm font-semibold rounded-lg bg-white text-[#08080B] hover:bg-white/90 transition-colors"
             >
               Sign up free
@@ -113,7 +114,15 @@ const Landing5 = () => {
         <HeadlineTest />
 
         <motion.div initial="hidden" animate="visible" custom={3} variants={reveal}>
-          <StoreBadges className="mt-9" />
+          {/* A working button above the fold: the store badges stay disabled until real links exist. */}
+          <button
+            onClick={() => { trackAll("cta"); navigate("/onboarding"); }}
+            className="mt-9 px-8 py-4 rounded-xl font-bold text-lg text-[#08080B] hover:brightness-110 transition"
+            style={{ backgroundColor: DECK.green }}
+          >
+            Start learning free
+          </button>
+          <StoreBadges className="mt-6" />
         </motion.div>
       </Section>
 
@@ -219,7 +228,7 @@ const Landing5 = () => {
         </h2>
 
         <MagneticButton
-          onClick={() => { trackHeadlineCta(); navigate("/onboarding"); }}
+          onClick={() => { trackAll("cta"); navigate("/onboarding"); }}
           className="px-8 py-4 rounded-xl font-bold text-[#08080B] text-lg"
           style={{ backgroundColor: DECK.green }}
         >

@@ -3,7 +3,9 @@ import { getVariant, track } from "@/lib/experiments";
 import { DECK } from "@/lib/deck-colors";
 
 const KEY = "landing_headline";
-const VARIANTS = ["control", "anime", "exam"];
+// Paused while the whole-page `landing_page` test runs: two tests on one
+// page would mix up the results. Everyone sees the control line for now.
+const VARIANTS = ["control"];
 
 const COPY: Record<string, { line: string; accent: string }> = {
   control: { line: "Learn a language by watching", accent: "what you already love." },

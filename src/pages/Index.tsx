@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import Landing5 from "./Landing5";
+import LandingPageTest from "@/components/landing/LandingPageTest";
 import { supabase } from "@/integrations/supabase/client";
 import { applyGuestOnboarding } from "@/lib/guestOnboarding";
 
-// Root route: unauthenticated visitors get the main landing page (Landing5).
+// Root route: unauthenticated visitors get the landing page A/B test
+// (Landing5 vs LandingClear, see LandingPageTest).
 // Authenticated users go to /discover — unless they've never completed
 // onboarding (e.g. brand-new Google sign-ups), in which case they are
 // sent through the onboarding flow first.
@@ -51,7 +52,7 @@ const Index = () => {
   }, [user]);
 
   if (loading) return null;
-  if (!user) return <Landing5 />;
+  if (!user) return <LandingPageTest />;
   if (onboarded === null) return null;
   return <Navigate to={onboarded ? next ?? "/discover" : "/onboarding"} replace />;
 };
