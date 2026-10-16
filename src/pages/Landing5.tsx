@@ -14,6 +14,7 @@ import { PlatformLogos } from "@/components/landing/PlatformLogos";
 import { DeckCards } from "@/components/landing/DeckCards";
 import { DECK } from "@/lib/deck-colors";
 import { BrandMark } from "@/components/BrandMark";
+import { HeadlineTest, trackHeadlineCta } from "@/components/landing/HeadlineTest";
 import quizletLogo from "@/assets/brand/quizlet.png.asset.json";
 import ankiLogo from "@/assets/brand/anki.png.asset.json";
 
@@ -88,7 +89,7 @@ const Landing5 = () => {
               Sign in
             </button>
             <button
-              onClick={() => navigate("/onboarding")}
+              onClick={() => { trackHeadlineCta(); navigate("/onboarding"); }}
               className="px-4 py-2 text-sm font-semibold rounded-lg bg-white text-[#08080B] hover:bg-white/90 transition-colors"
             >
               Sign up free
@@ -109,6 +110,7 @@ const Landing5 = () => {
         </motion.p>
 
         <HeroWordmarkBlast />
+        <HeadlineTest />
 
         <motion.div initial="hidden" animate="visible" custom={3} variants={reveal}>
           <StoreBadges className="mt-9" />
@@ -217,7 +219,7 @@ const Landing5 = () => {
         </h2>
 
         <MagneticButton
-          onClick={() => navigate("/onboarding")}
+          onClick={() => { trackHeadlineCta(); navigate("/onboarding"); }}
           className="px-8 py-4 rounded-xl font-bold text-[#08080B] text-lg"
           style={{ backgroundColor: DECK.green }}
         >
