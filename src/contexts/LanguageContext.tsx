@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { hasSpeechSynthesis, speakViaCloud } from "@/lib/cloudSpeech";
 import {
   addLanguageProfile,
   getLanguageProfile,
@@ -30,29 +31,6 @@ const TTS_VOICE_MAP: Record<string, string> = {
   sv: "sv-SE",
   en: "en-US",
 };
-const cloudAudioCache = new Map<string, string>();
-async function speakViaCloud(text: string) {
-  try {
-    let url = cloudAudioCache.get(text);
-    if (!url) {
-      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/speak-word`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-        },
-        body: JSON.stringify({ text }),
-      });
-      if (!res.ok) { console.warn("[speak] cloud voice failed", res.status); return; }
-      url = URL.createObjectURL(await res.blob());
-      cloudAudioCache.set(text, url);
-    }
-    await new Audio(url).play();
-  } catch (e) {
-    console.warn("[speak] cloud voice error", e);
-  }
-}
 
 
 /**
@@ -238,7 +216,13 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const speak = async (text: string, lang?: string) => {
-    if (!text || typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    if (!text || typeof window === "undefined") return;
+    // Android's WebView (the LinguaScript app) has no speechSynthesis at all,
+    // so the play button was silent there. Use the cloud voice instead.
+    if (!hasSpeechSynthesis()) {
+      await speakViaCloud(text);
+      return;
+    }
     try {
       window.speechSynthesis.cancel();
 
