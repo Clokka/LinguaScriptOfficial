@@ -205,6 +205,7 @@ const Onboarding = () => {
           learning_goal: goal || null,
           interests,
         } as any).eq("user_id", user.id);
+        trackAll("signup", { interest: String(interests?.[0] ?? "none"), goal: String(goal || "none") });
       } else {
         rememberGuest();
       }
