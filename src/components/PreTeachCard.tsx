@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { Volume2, Plus, Check, X } from "lucide-react";
 import { gradePreTeachVocab, type PreTeachItem } from "@/lib/preTeachVocab";
 import { ChameleonLoader, ChameleonMark } from "@/components/ChameleonLoader";
+import { hasSpeechSynthesis, speakViaCloud } from "@/lib/cloudSpeech";
 
 interface Props {
   lines: { primary: string; secondary: string }[];
@@ -16,6 +17,7 @@ interface Props {
 }
 
 const speak = (text: string, lang: string) => {
+  if (!hasSpeechSynthesis()) { void speakViaCloud(text); return; }
   try {
     const u = new SpeechSynthesisUtterance(text);
     u.lang = lang;

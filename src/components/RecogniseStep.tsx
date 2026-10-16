@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Volume2, Check, X, ArrowRight } from "lucide-react";
 import { DECK } from "@/lib/deck-colors";
 import { shuffle } from "@/lib/lsTeaching";
+import { hasSpeechSynthesis, speakViaCloud } from "@/lib/cloudSpeech";
 
 const GREEN = DECK.green;
 
@@ -27,7 +28,8 @@ function pickVoice(lang: string): SpeechSynthesisVoice | undefined {
  */
 export function speakWord(word: string, language: string) {
   try {
-    if (!("speechSynthesis" in window) || !word) return;
+    if (!word) return;
+    if (!hasSpeechSynthesis()) { void speakViaCloud(word); return; }
     const synth = window.speechSynthesis;
     const lang = TTS[language] || language;
     const go = () => {
