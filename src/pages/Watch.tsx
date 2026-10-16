@@ -14,7 +14,7 @@ import { useSubscription } from "@/hooks/useSubscription";
 import { useUpgradeTrigger } from "@/hooks/useUpgradeTrigger";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTour } from "@/contexts/TourContext";
-import { getLanguageLabel, getLanguageFlag, stripLearningScript, subtitlesLookLikeWrongLanguage, textMatchesLanguageScript } from "@/lib/languages";
+import { getLanguageLabel, getLanguageFlag, stripLearningScript, stripNonLearningText, subtitlesLookLikeWrongLanguage, textMatchesLanguageScript } from "@/lib/languages";
 import { spaceOutWords } from "@/lib/wordSegments";
 import { cn } from "@/lib/utils";
 import { fetchCaptionsFromBrowser } from "@/lib/browserCaptionFetcher";
@@ -101,8 +101,9 @@ function buildDisplaySubtitles(
   return primary.map((sub, i) => {
     const match = secondary.find((s) => Math.abs(s.start - sub.start) < 1.5);
     // Chinese/Japanese/Thai lines get spaces between words so each word can be
-    // tapped, coloured and ringed on its own.
-    const text = spaceOutWords(sub.text, primaryLang);
+    // tapped, coloured and ringed on its own. English a creator mixed into the
+    // learning-language captions is dropped first.
+    const text = spaceOutWords(stripNonLearningText(sub.text, primaryLang), primaryLang);
     return {
       start: sub.start,
       end: sub.end,

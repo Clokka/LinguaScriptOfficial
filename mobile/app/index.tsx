@@ -45,9 +45,22 @@ const INJECT_SESSION_JS = `
 })();
 `;
 
+// Supabase's ?code=… / #access_token=… from a Google sign-in redirect, or null
+// for any other link. Handles "linguascript://auth-callback" and the
+// "linguascript:///auth-callback" form.
+function authCallbackParams(url: string): string | null {
+  const m = url.match(/^linguascript:\/\/\/?auth-callback\/?(.*)$/);
+  return m ? m[1] : null;
+}
+
 // https://linguascript.co.uk/gift/X style links open that page in the app.
+// A Google sign-in redirect that arrives when the app was closed in the
+// meantime (Android can kill it behind the Chrome tab) is handed to the site,
+// whose Supabase client finishes the sign-in from the URL.
 function siteUrlFromLink(url: string | null): string | null {
   if (!url) return null;
+  const auth = authCallbackParams(url);
+  if (auth) return `${APP_URL}/${auth}`;
   return url.startsWith(APP_URL) ? url : null;
 }
 
@@ -63,6 +76,8 @@ export default function AppScreen() {
   useEffect(() => {
     Linking.getInitialURL().then((url) => setStartUrl(siteUrlFromLink(url) ?? APP_URL));
     const sub = Linking.addEventListener('url', ({ url }) => {
+      // While the app is open, signInWithGoogle handles the sign-in redirect.
+      if (authCallbackParams(url) !== null) return;
       const site = siteUrlFromLink(url);
       if (site) goTo(site);
     });
@@ -112,7 +127,7 @@ export default function AppScreen() {
     const result = await WebBrowser.openAuthSessionAsync(url.toString(), AUTH_CALLBACK);
     if (result.type !== 'success') return;
     // Whatever Supabase appended (?code=… and/or #access_token=…).
-    const rest = result.url.slice(AUTH_CALLBACK.length).replace(/^\//, '');
+    const rest = authCallbackParams(result.url) ?? '';
     if (rest.startsWith('?')) {
       goTo(back + (back.includes('?') ? '&' : '?') + rest.slice(1));
     } else {
