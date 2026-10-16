@@ -107,6 +107,28 @@ export function stripLearningScript(text: string, learningLang: string, nativeLa
 }
 
 /**
+ * Removes English (Latin-script) chunks from a learning-language line whose
+ * language uses another script, e.g. "Hello. 你好 你好 Hello guys." → "你好 你好".
+ * Some creators' Chinese/Japanese captions carry the English too, which then
+ * shows on the learning line. Drops sentences with no learning-script text and
+ * runs of 2+ Latin words; single Latin words (names like "Yuta") stay. Leaves
+ * the line alone if nothing in the learning script would remain.
+ */
+export function stripNonLearningText(text: string, learningLang: string): string {
+  const family = LANGUAGE_SCRIPT_FAMILY[(learningLang || "").toLowerCase().split("-")[0]];
+  if (!text || !family || family === "latin" || !/[A-Za-z]/.test(text)) return text;
+  const script = new RegExp(SCRIPT_PATTERN[family].source);
+  const sentences = text.match(/[^.!?。！？]+[.!?。！？]*|[.!?。！？]+/g) || [text];
+  const kept = sentences
+    .filter((s) => script.test(s) || !/\p{L}/u.test(s))
+    .map((s) => s.replace(/[A-Za-z][A-Za-z'’-]*(?:[\s,]+[A-Za-z][A-Za-z'’-]*)+[.!?,]*/g, " "))
+    .join("")
+    .replace(/\s+/g, " ")
+    .trim();
+  return script.test(kept) ? kept : text;
+}
+
+/**
  * Best-effort check that fetched captions are actually written in `langCode`
  * — a script sanity check, not a real language detector. YouTube's `tlang`
  * auto-translate (and some caption providers) sometimes silently hand back
