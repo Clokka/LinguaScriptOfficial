@@ -3,6 +3,8 @@ import { motion } from "framer-motion";
 import { Seo } from "@/components/Seo";
 import { ChameleonMascot } from "@/components/ChameleonMascot";
 import { LineBlastDemo } from "@/components/LineBlastDemo";
+import { ProductDemoPlayer } from "@/components/ProductDemoPlayer";
+import { Play, MousePointerClick, Layers, Sparkles, ArrowRight, ArrowDown, RotateCcw } from "lucide-react";
 import { PlatformLogos } from "@/components/landing/PlatformLogos";
 import { DECK } from "@/lib/deck-colors";
 import { BrandMark } from "@/components/BrandMark";
@@ -23,6 +25,14 @@ const STEPS = [
   { tier: "red" as const, title: "Pick a show", text: "Choose something you'd watch anyway, at your level." },
   { tier: "orange" as const, title: "Tap any word", text: "Two subtitle lines. Tap a word to translate and save it." },
   { tier: "green" as const, title: "Watch it go green", text: "Short reviews bring words back until they're yours." },
+];
+
+// The whole app in four steps, shown right under the demo in the first screen.
+const FLOW = [
+  { icon: Play, label: "Watch a video" },
+  { icon: MousePointerClick, label: "Tap a word to save it" },
+  { icon: Layers, label: "Review it as a flashcard" },
+  { icon: Sparkles, label: "Understand more next time" },
 ];
 
 const FAQ = [
@@ -56,8 +66,8 @@ const LandingClear = () => {
   return (
     <div className="min-h-screen bg-[#08080B] text-white antialiased overflow-x-hidden pb-20 sm:pb-0">
       <Seo
-        title="LinguaScript: learn a language by watching shows you love"
-        description="Two subtitle lines, tap-to-translate and short reviews that turn every word you know green. Start free."
+        title="LinguaScript: learn languages while watching your favourite shows"
+        description="See subtitles in two languages, tap any word you don't know, and LinguaScript turns it into flashcards. Start free."
         path="/"
         rawTitle
       />
@@ -77,47 +87,87 @@ const LandingClear = () => {
         </div>
       </nav>
 
-      {/* Hero: what, who, what to tap */}
-      <section className="max-w-3xl mx-auto px-4 sm:px-6 pt-12 sm:pt-20 pb-12 text-center">
-        <motion.div initial="hidden" animate="visible" variants={reveal} className="w-20 mx-auto mb-6">
-          <ChameleonMascot tier="green" />
-        </motion.div>
+      {/* Hero: understood in 3 seconds. Headline says what, demo shows how. */}
+      <section className="max-w-3xl mx-auto px-4 sm:px-6 pt-8 sm:pt-16 pb-12 text-center">
+        <motion.p
+          initial="hidden"
+          animate="visible"
+          variants={reveal}
+          className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-sm bg-white/[0.06] text-white/80"
+        >
+          <Sparkles className="w-4 h-4" style={{ color: DECK.green }} />
+          Turn any video into a language lesson
+        </motion.p>
         <motion.h1
           initial="hidden"
           animate="visible"
           custom={1}
           variants={reveal}
-          className="text-4xl sm:text-6xl font-extrabold tracking-tight leading-[1.05]"
+          className="mt-5 text-4xl sm:text-6xl font-extrabold tracking-tight leading-[1.05]"
         >
-          Learn a language by watching{" "}
-          <span style={{ color: DECK.green }}>shows you already love.</span>
+          Learn languages while{" "}
+          <span style={{ color: DECK.green }}>watching your favourite shows.</span>
         </motion.h1>
         <motion.p
           initial="hidden"
           animate="visible"
           custom={2}
           variants={reveal}
-          className="mt-5 text-lg sm:text-xl text-white/70"
+          className="mt-4 text-lg sm:text-xl text-white/70"
         >
-          Two subtitle lines, tap any word to translate it, and short reviews that turn the words you know green.
+          See subtitles in two languages. Tap any word you don't know. We turn it into flashcards for you.
         </motion.p>
-        <motion.div initial="hidden" animate="visible" custom={3} variants={reveal} className="mt-8">
-          <Cta />
-          <p className="mt-3 text-sm text-white/45">Free to start · No card needed · Takes 1 minute</p>
+
+        {/* The demo IS the explanation: a looping video of the app in use */}
+        <motion.div initial="hidden" animate="visible" custom={3} variants={reveal} className="mt-8 text-left">
+          <ProductDemoPlayer />
         </motion.div>
-        <motion.div
+
+        {/* How it works, as one simple loop */}
+        <motion.ol
           initial="hidden"
           animate="visible"
           custom={4}
           variants={reveal}
-          className="mt-8 flex flex-wrap justify-center gap-2"
+          className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-1"
         >
+          {FLOW.map((f, i) => (
+            <li key={f.label} className="flex flex-col sm:flex-row items-center gap-2 sm:gap-1">
+              <div className="flex items-center gap-3 sm:flex-col sm:gap-2 px-4 py-2 rounded-xl bg-white/[0.05] sm:bg-transparent w-64 sm:w-32">
+                <span
+                  className="flex items-center justify-center w-10 h-10 rounded-xl shrink-0"
+                  style={{ backgroundColor: `${DECK.green}22`, color: DECK.green }}
+                >
+                  <f.icon className="w-5 h-5" />
+                </span>
+                <span className="text-sm font-semibold text-white/85 text-left sm:text-center">
+                  <span className="text-white/40">{i + 1}. </span>{f.label}
+                </span>
+              </div>
+              {i < FLOW.length - 1 && (
+                <>
+                  <ArrowDown className="sm:hidden w-4 h-4 text-white/30" />
+                  <ArrowRight className="hidden sm:block w-4 h-4 text-white/30" />
+                </>
+              )}
+            </li>
+          ))}
+        </motion.ol>
+        <p className="mt-3 inline-flex items-center gap-1.5 text-sm text-white/45">
+          <RotateCcw className="w-3.5 h-3.5" /> Every episode, you understand a bit more.
+        </p>
+
+        <motion.div initial="hidden" animate="visible" custom={5} variants={reveal} className="mt-8">
+          <Cta />
+          <p className="mt-3 text-sm text-white/45">Free to start · No card needed · Takes 1 minute</p>
+        </motion.div>
+        <div className="mt-8 flex flex-wrap justify-center gap-2">
           {LANGS.map((l) => (
             <span key={l} className="px-3 py-1.5 rounded-full text-sm bg-white/[0.06] text-white/75" translate="no">
               {l}
             </span>
           ))}
-        </motion.div>
+        </div>
       </section>
 
       {/* Try it right here */}
@@ -129,7 +179,7 @@ const LandingClear = () => {
 
       {/* How it works */}
       <section className="max-w-5xl mx-auto px-4 sm:px-6 py-16 border-t border-white/[0.06]">
-        <h2 className="text-2xl sm:text-4xl font-extrabold tracking-tight mb-10">How it works</h2>
+        <h2 className="text-2xl sm:text-4xl font-extrabold tracking-tight mb-10">Watch your words go green</h2>
         <div className="grid gap-8 sm:grid-cols-3">
           {STEPS.map((s, i) => (
             <motion.div
