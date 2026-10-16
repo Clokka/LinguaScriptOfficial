@@ -1,29 +1,54 @@
-# Full "Start from zero" reset for a language
+# Connectors audit: data-driven segmentation and A/B testing
 
-## Audit
-- The existing "Absolute beginner" option only removes words the app *assumed* you knew from your starting level. Words you saved or reviewed yourself (your ~9,000 green words) stay, so the decks still show as mostly complete. That's why you can't really drop back to beginner.
-- Your screenshot is from the live site, which doesn't have the Absolute beginner option yet. It only appears once you publish.
+## What connectors can do for LinguaScript
 
-## What changes
-1. Under each language in Profile → My Languages, add a small red button: **"Start this language from zero"**.
-2. Tapping it opens step 1:
-   - Title: "Start [Chinese] from beginner level?"
-   - Text: "This permanently deletes every [Chinese] word in your flashcards (all decks: green, orange and red) and resets your level to Absolute beginner. This can't be undone."
-   - Buttons: Cancel / **Confirm**
-3. Confirm opens step 2 (the double confirm):
-   - Title: "Are you really sure?"
-   - Text: "You'll lose [9,012] [Chinese] words. Your other languages, XP, streak, gems and pets are not affected."
-   - The red **"Yes, delete and start from zero"** button stays greyed out for 3 seconds so it can't be tapped by accident.
-4. When it's done: the level shows Absolute beginner, Most common words opens at Top 50 with 0 known, and a message reads "[Chinese] reset. You're starting from the Top 50."
+| Area | Connector / tool | What it gives you |
+|---|---|---|
+| Site traffic | Built-in project analytics | Visitors, pages, referrers, countries, devices |
+| Behaviour | Microsoft Clarity (already on) | Heatmaps, session recordings, rage clicks |
+| Search | Google Search Console | Search terms, clicks and rankings per page |
+| SEO / competitors | Semrush | Keyword gaps vs Duolingo, Lingopie and others |
+| Paid ads | Meta Ads, Google Ads | Ad spend, audiences, cost per signup, lookalike audiences |
+| Payments | Stripe (test mode now) | Which plan or offer converts, churn, revenue per segment |
+| Email | Built-in email | Messages sent to each segment (retention emails already exist) |
+| AI | Lovable AI | Labels each segment, writes test versions, summarises results |
 
-## What's kept
-Other languages, XP, level, streak, gems, pets, rewards and watch history.
+What connectors can't do on their own: no connector runs A/B tests or segments people automatically. We build that inside the app, and the connectors supply the data and run the ads.
+
+## Segments (privacy-safe)
+
+- **Location:** country from the browser or ads. No precise location.
+- **Demographic:** native language, learning language, level, device. Age only from ad platforms, as groups, never per person.
+- **Psychographic (motivation, inferred from behaviour):** "anime fan", "exam student" (A-Level), "traveller", "career", "casual streaker". Taken from their onboarding interests and what they watch.
+- **Lifecycle:** visitor → signed up → first word saved → 7-day streak → Pro → at risk of leaving.
+
+## A/B testing plan
+
+1. **Test engine:** each visitor is assigned version A or B, and stays in it across visits. Every view, signup, first saved word and upgrade is recorded with that version.
+2. **What we test:**
+   - Landing headline and hero for each segment (anime vs exam vs travel)
+   - Offers: free chameleon gift vs 7-day Pro trial vs a discounted yearly plan
+   - Pricing page layout
+3. **AI's job:** writes the test versions for each segment, checks results each day, and declares a winner only once the result is statistically sound (at least 95% confidence and a minimum sample size). Then the winner rolls out.
+4. **Admin dashboard:** shows each running test, its conversion rate per segment, the winner and the AI's summary.
+5. **Ads loop (optional):** test winners become Meta and Google ad copy, and each ad audience gets the matching landing version.
+
+## Order to build
+
+1. Test engine and event tracking, plus the admin results view
+2. Segment labelling (rules first, AI summaries on top)
+3. First test: an anime vs exam headline on the landing page
+4. Offer tests (need live Stripe to measure real revenue)
+5. Connect Meta Ads and Google Ads, then Search Console and Semrush
+
+## Limits
+
+- Real results need traffic: about 1,000 visitors per version per test.
+- Live payments are still off, so offer tests can only measure signups or test checkouts until go-live.
+- No sensitive traits (health, religion and the like). We'd add a cookie notice for tracking visitors in the UK and EU.
 
 ## Technical details
-- New security-definer RPC `full_reset_language(_language text)` returning the removed count, granted to authenticated only. For `auth.uid()` and that language it:
-  - deletes linguascript_reviews / linguascripts tied to that language (they reference saved_words)
-  - deletes all saved_words for that language
-  - sets language_profiles cefr_level='a1' (beginner), seeded_level=NULL, seeded_mode=NULL, and profiles.cef_level when it's the active language
-- The client then calls `topUpPriorityWords`, clears the cached frequency coverage, focus-deck and due caches, and refreshes the panel.
-- Word count for the step 2 text comes from a count-only query on saved_words.
-- UI is in MyLanguagesPanel, using two AlertDialogs, the destructive button style and theme colours.
+
+- Tables for experiments, variants, assignments and events (with RLS, admin-read only), with assignment by a hashed visitor id.
+- A backend function scores each test (two-proportion z-test) and calls Lovable AI for summaries, run daily on a schedule.
+- Ads, Search Console and Semrush are added through the connect flow when you get to that step.
