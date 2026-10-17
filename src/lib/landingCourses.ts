@@ -1,7 +1,8 @@
 import type { LearnLang } from "@/lib/landingSegment";
 
 /**
- * Free starter courses we recommend to learners below A1, by language.
+ * Starter courses we recommend to absolute beginners, by language (shown in
+ * onboarding when someone picks "absolute beginner", not on the landing page).
  * Every link was checked (Oct 2026). We recommend them; we are not partners,
  * so copy must never say "in partnership with" until a partner agrees.
  */
@@ -34,7 +35,16 @@ export const COURSES: Partial<Record<LearnLang, Course[]>> = {
     { name: "Diploma in Spanish, A1 level", by: "Alison", url: "https://alison.com/course/diploma-in-spanish-a1-level", note: "Free A1 video course (certificate optional, paid)" },
     COFFEE_BREAK,
   ],
-  de: [COFFEE_BREAK],
-  it: [COFFEE_BREAK],
+  de: [
+    { name: "German A1 to C2", by: "StudyGerman.io", url: "https://studygerman.io/", note: "Free vocabulary, grammar and quizzes by level" },
+    COFFEE_BREAK,
+  ],
+  it: [
+    { name: "Online Italian Course, Beginner (A1)", by: "Online Italian Club", url: "https://onlineitalianclub.com/online-italian-courses-levels/online-italian-course-beginner-level-a1/", note: "Free A1 lessons and exercises" },
+    COFFEE_BREAK,
+  ],
+  th: [
+    { name: "Learn Thai for Beginners (105 lessons)", by: "Innovative Language on Udemy", url: "https://www.udemy.com/course/learn-thai-for-beginners/", note: "For absolute beginners, about 7 hours of video" },
+  ],
   en: [COFFEE_BREAK],
 };
