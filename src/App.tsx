@@ -47,6 +47,7 @@ const LandingPage4 = lazy(() => import("./pages/LandingPage4"));
 const Landing5 = lazy(() => import("./pages/Landing5"));
 const GapDemo = lazy(() => import("./pages/GapDemo"));
 const Demo = lazy(() => import("./pages/Demo"));
+const StremioAddonPage = lazy(() => import("./pages/marketing/StremioAddonPage"));
 const Browse = lazy(() => import("./pages/Browse"));
 const Auth = lazy(() => import("./pages/Auth"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
@@ -158,6 +159,7 @@ const App = () => (
                 <Route path="/spaced-repetition" element={<Navigate to="/anki-alternative" replace />} />
                 <Route path="/vs/language-reactor" element={<VsLanguageReactorPage />} />
                 <Route path="/chrome-extension" element={<ChromeExtensionPage />} />
+                <Route path="/stremio" element={<StremioAddonPage />} />
                 <Route path="/language-learning-psychology" element={<LearningSciencePage />} />
                 <Route path="/for-schools" element={<ForSchoolsPage />} />
                 <Route path="/polyglot" element={<PolyglotPage />} />
