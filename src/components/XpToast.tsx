@@ -3,7 +3,9 @@
 // keep the lightweight chip. Falls back to the chip when no pet is equipped
 // or the user prefers reduced motion.
 import { lazy, Suspense, useEffect, useState } from "react";
-import { Sparkles, Trophy } from "lucide-react";
+import { Sparkles, Trophy, X } from "lucide-react";
+import { ShareActions } from "@/components/ShareActions";
+import { ChameleonMascot } from "@/components/ChameleonMascot";
 import { useXp } from "@/contexts/XpContext";
 import { XpAction } from "@/lib/xp";
 import { cn } from "@/lib/utils";
@@ -77,6 +79,8 @@ export const XpToast = () => {
     award,
   } = useXp();
   const { activePet, triggerReaction } = usePet();
+  // Level 10 is a proud moment: offer a share card once the celebration ends.
+  const [shareLevel, setShareLevel] = useState<number | null>(null);
   const [visible, setVisible] = useState<{
     amount: number;
     action: XpAction;
@@ -115,9 +119,11 @@ export const XpToast = () => {
     triggerReaction("excited", ms);
     // Once the chameleon's celebration ends, grant any level pet (Colobus at
     // 10, Inkfish at 20) — by then the new level has been saved.
+    const reached = leveledUpTo;
     const t = setTimeout(() => {
       consumeLevelUp();
       checkPetMilestones();
+      if (reached === 10 && !window.location.pathname.startsWith("/onboarding")) setShareLevel(10);
     }, ms);
     return () => clearTimeout(t);
   }, [leveledUpTo, consumeLevelUp, triggerReaction]);
@@ -160,6 +166,31 @@ export const XpToast = () => {
           </div>
         )}
       </div>
+
+      {/* Level 10 share card */}
+      {shareLevel != null && (
+        <div
+          className="fixed inset-x-3 sm:inset-x-auto sm:right-4 sm:w-96 z-[105] glass-panel-strong rounded-2xl p-4 animate-bounce-in shadow-float"
+          style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 84px)" }}
+          role="dialog"
+          aria-label={`Level ${shareLevel} reached`}
+        >
+          <button onClick={() => setShareLevel(null)} className="absolute top-2 right-2 p-1.5 text-muted-foreground hover:text-foreground" aria-label="Close">
+            <X className="w-4 h-4" />
+          </button>
+          <div className="flex items-center gap-3">
+            <ChameleonMascot tier="green" party style={{ width: 56 }} className="shrink-0" />
+            <div>
+              <p className="text-lg font-bold">Level {shareLevel}! 🎉</p>
+              <p className="text-sm text-muted-foreground">Share your progress with a friend</p>
+            </div>
+          </div>
+          <ShareActions
+            className="mt-3"
+            text={`I just reached level ${shareLevel} learning a language with LinguaScript, by watching shows I love 🦎`}
+          />
+        </div>
+      )}
 
       {/* Level-up celebration */}
       {leveledUpTo != null &&

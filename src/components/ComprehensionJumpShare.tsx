@@ -1,6 +1,4 @@
-import { Share2 } from "lucide-react";
-import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
+import { ShareActions } from "@/components/ShareActions";
 import { ChameleonMascot } from "@/components/ChameleonMascot";
 import { getLanguageLabel } from "@/lib/languages";
 
@@ -22,36 +20,23 @@ export function ComprehensionJumpShare({
 }: { firstPct: number; newPct: number; language: string; filmTitle?: string }) {
   const jump = Math.round(newPct - firstPct);
   const langLabel = getLanguageLabel(language);
-
-  const share = async () => {
-    const text = `My ${langLabel} comprehension${filmTitle ? ` of "${filmTitle}"` : ""} jumped from ${Math.round(firstPct)}% to ${Math.round(newPct)}% on LinguaScript 🦎`;
-    const url = "https://linguascript.co.uk";
-    try {
-      if (navigator.share) {
-        await navigator.share({ title: "LinguaScript", text, url });
-      } else {
-        await navigator.clipboard.writeText(`${text} ${url}`);
-        toast.success("Copied. Paste it anywhere to share");
-      }
-    } catch {
-      /* the learner closed the share sheet */
-    }
-  };
+  const text = `My ${langLabel} comprehension${filmTitle ? ` of "${filmTitle}"` : ""} jumped from ${Math.round(firstPct)}% to ${Math.round(newPct)}% on LinguaScript 🦎`;
 
   return (
-    <div className="relative mb-5 flex items-center gap-4 rounded-2xl border border-emerald-400/30 bg-emerald-500/10 p-4">
-      <ChameleonMascot tier="green" party style={{ width: 84 }} className="shrink-0" />
-      <div className="min-w-0 flex-1">
-        <p className="text-4xl font-black tabular-nums text-emerald-300 drop-shadow-[0_0_18px_rgba(52,211,153,0.45)]">
-          +{jump}%
-        </p>
-        <p className="text-xs tabular-nums text-muted-foreground">
-          {Math.round(firstPct)}% → {Math.round(newPct)}%
-        </p>
+    <div className="relative mb-5 rounded-2xl border border-emerald-400/30 bg-emerald-500/10 p-4">
+      <div className="flex items-center gap-4">
+        <ChameleonMascot tier="green" party style={{ width: 84 }} className="shrink-0" />
+        <div className="min-w-0 flex-1">
+          <p className="text-4xl font-black tabular-nums text-emerald-300 drop-shadow-[0_0_18px_rgba(52,211,153,0.45)]">
+            +{jump}%
+          </p>
+          <p className="text-xs tabular-nums text-muted-foreground">
+            {Math.round(firstPct)}% → {Math.round(newPct)}%
+          </p>
+        </div>
       </div>
-      <Button size="sm" onClick={share} className="shrink-0 gap-1.5 rounded-full">
-        <Share2 className="h-4 w-4" /> Share
-      </Button>
+      <p className="mt-3 text-sm font-semibold text-foreground">Share it with a friend</p>
+      <ShareActions text={text} className="mt-2" />
     </div>
   );
 }

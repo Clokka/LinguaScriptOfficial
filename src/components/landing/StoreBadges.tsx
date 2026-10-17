@@ -43,10 +43,13 @@ interface BadgeProps {
   glyph: React.ReactNode;
   kicker: string;
   label: string;
+  /** When there's no link yet, tapping calls this instead of looking disabled. */
+  onSoon?: () => void;
 }
 
-const Badge = ({ href, glyph, kicker, label }: BadgeProps) => {
+const Badge = ({ href, glyph, kicker, label, onSoon }: BadgeProps) => {
   const live = href.length > 0;
+  if (!live && onSoon) kicker = "Coming soon to";
   const content = (
     <>
       <span className="shrink-0">{glyph}</span>
@@ -60,6 +63,14 @@ const Badge = ({ href, glyph, kicker, label }: BadgeProps) => {
   const base =
     "flex items-center gap-3 rounded-xl border border-white/15 bg-white/[0.04] px-4 py-2.5 " +
     "backdrop-blur-md transition-colors";
+
+  if (!live && onSoon) {
+    return (
+      <button type="button" onClick={onSoon} className={cn(base, "hover:border-white/35 hover:bg-white/[0.08]")}>
+        {content}
+      </button>
+    );
+  }
 
   if (!live) {
     return (
@@ -85,12 +96,24 @@ const Badge = ({ href, glyph, kicker, label }: BadgeProps) => {
   );
 };
 
-export const StoreBadges = ({ className }: { className?: string }) => (
-  <div className={cn("flex flex-wrap items-center justify-center gap-3", className)}>
-    <Badge href={STORE_LINKS.ios} glyph={<AppleGlyph />} kicker="Download on the" label="App Store" />
-    <Badge href={STORE_LINKS.android} glyph={<PlayGlyph />} kicker="Get it on" label="Google Play" />
-    <Badge href={STORE_LINKS.chrome} glyph={<ChromeGlyph />} kicker="Add to" label="Chrome" />
-  </div>
-);
+export type Store = "chrome" | "android" | "ios";
+
+/**
+ * `chromeFirst` puts the extension first (people arrive wanting subtitles on
+ * Netflix/YouTube). `onSoon` makes link-less badges tappable ("Coming soon").
+ */
+export const StoreBadges = ({
+  className, chromeFirst = false, onSoon,
+}: { className?: string; chromeFirst?: boolean; onSoon?: (store: Store) => void }) => {
+  const soon = (s: Store) => (onSoon ? () => onSoon(s) : undefined);
+  const chrome = <Badge key="chrome" href={STORE_LINKS.chrome} glyph={<ChromeGlyph />} kicker="Add to" label="Chrome" onSoon={soon("chrome")} />;
+  const play = <Badge key="android" href={STORE_LINKS.android} glyph={<PlayGlyph />} kicker="Get it on" label="Google Play" onSoon={soon("android")} />;
+  const ios = <Badge key="ios" href={STORE_LINKS.ios} glyph={<AppleGlyph />} kicker="Download on the" label="App Store" onSoon={soon("ios")} />;
+  return (
+    <div className={cn("flex flex-wrap items-center justify-center gap-3", className)}>
+      {chromeFirst ? [chrome, play, ios] : [ios, play, chrome]}
+    </div>
+  );
+};
 
 export default StoreBadges;
