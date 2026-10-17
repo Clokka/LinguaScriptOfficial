@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Play, MousePointerClick, Layers, Sparkles, ArrowRight, ArrowDown, Check, Lock, GraduationCap, BookOpenCheck, ShieldCheck, Building2, ExternalLink } from "lucide-react";
+import { Play, MousePointerClick, Layers, Sparkles, ArrowRight, ArrowDown, Check, Lock, GraduationCap, BookOpenCheck, ShieldCheck, Building2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Seo } from "@/components/Seo";
 import { BrandMark } from "@/components/BrandMark";
@@ -12,7 +12,6 @@ import { CoreLoopDemo } from "@/components/landing/CoreLoopDemo";
 import { captureAttribution } from "@/lib/experiments";
 import { guessLearnLang, saveLearnLang, nativeLang, LEARN_LANGS, type LearnLang } from "@/lib/landingSegment";
 import { demoLine } from "@/lib/landingDemoLines";
-import { COURSES } from "@/lib/landingCourses";
 import { DECK } from "@/lib/deck-colors";
 
 /**
@@ -23,8 +22,8 @@ import { DECK } from "@/lib/deck-colors";
  *  - One main action: "Try LinguaScript free" → onboarding.
  *  - Chrome extension, Google Play and App Store next to it. Store links that
  *    aren't live yet say "Coming soon" and offer an email heads-up instead.
- *  - Gentle, inbound: honest about who it's for (A1+), and points beginners to
- *    free courses for their language rather than selling to them.
+ *  - Gentle, inbound: no level talk here. Beginners get a course suggestion
+ *    in onboarding instead (see landingCourses).
  */
 
 const STORE_NAME: Record<Store, string> = { chrome: "Chrome", android: "Google Play", ios: "the App Store" };
@@ -93,7 +92,6 @@ const Landing = () => {
   const [notified, setNotified] = useState(false);
   const line = useMemo(() => demoLine(lang, nativeLang()), [lang]);
   const langLabel = LEARN_LANGS.find((l) => l.code === lang)?.label ?? "French";
-  const courses = COURSES[lang] ?? [];
 
   useEffect(() => { captureAttribution(); }, []);
 
@@ -102,32 +100,7 @@ const Landing = () => {
   const soon = (s: Store) => { setNotify(s); setNotified(false); };
 
   const FAQ: { q: string; a: React.ReactNode }[] = [
-    {
-      q: "What level do I need?",
-      a: "LinguaScript builds vocabulary. It works best once you know the alphabet and the basics (around A1 to A2), alongside a course or class for grammar.",
-    },
-    {
-      q: `Not at A1 in ${langLabel} yet?`,
-      a: courses.length ? (
-        <>
-          <span>Start with a free beginner course, then come back to grow your vocabulary with shows you love:</span>
-          <span className="mt-3 flex flex-col gap-2">
-            {courses.map((c) => (
-              <a key={c.url} href={c.url} target="_blank" rel="noopener noreferrer" className="flex items-start gap-3 rounded-xl bg-white/[0.05] p-3 hover:bg-white/[0.08]">
-                <ExternalLink className="w-4 h-4 mt-1 shrink-0" style={{ color: DECK.green }} />
-                <span>
-                  <span className="block font-semibold text-white">{c.name}</span>
-                  <span className="block text-sm text-white/55">{c.by} · {c.note}</span>
-                </span>
-              </a>
-            ))}
-          </span>
-        </>
-      ) : (
-        <span>We're choosing a free beginner course for {langLabel}. Email <a className="underline" href="mailto:rowan@linguascript.co.uk">rowan@linguascript.co.uk</a> and we'll send you our pick.</span>
-      ),
-    },
-    { q: "Is it free?", a: "Yes. You can learn a set number of new words every day for free. Pro removes the limit." },
+    { q: "Is it free?", a: "Yes. Save up to 8 new words a day for free. Pro removes the limit." },
     { q: "Where does it work?", a: "In your browser today. The Chrome extension adds it to YouTube and Netflix, and the phone apps are on the way." },
     { q: "Which languages?", a: "French, Spanish, Japanese, German, Italian, Chinese, Portuguese, Thai and English." },
   ];

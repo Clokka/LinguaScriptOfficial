@@ -4,7 +4,7 @@
  * variable reward research.
  *
  * Trigger moments (ordered by conversion likelihood):
- *  1. daily_limit   — free user hits 10-word daily save cap. Pain is most
+ *  1. daily_limit   — free user hits 8-word daily save cap. Pain is most
  *                     acute here; the wall appears at peak desire.
  *  2. third_word    — 3rd word saved in a session. Enough investment to feel
  *                     the product working; not so early it feels like a forced ad.
@@ -26,7 +26,7 @@ export type UpgradeTriggerReason =
   | 'first_video'
   | 'xp_milestone';
 
-const FREE_DAILY_SAVE_LIMIT = 10;
+const FREE_DAILY_SAVE_LIMIT = 8;
 const STORAGE_KEY = 'ls_upgrade_trigger';
 const DAY_MS = 86_400_000;
 
