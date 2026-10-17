@@ -24,6 +24,15 @@ function GoogleIcon() {
 }
 
 
+// "Failed to fetch" means the browser never reached the login server
+// (server paused/down, ad blocker, or network filter) — say that plainly.
+const authErrorMessage = (e: { message?: string } | null | undefined) => {
+  const msg = e?.message ?? "Please try again";
+  return /failed to fetch|networkerror|load failed|network request failed/i.test(msg)
+    ? "Couldn't reach the LinguaScript server. Check your internet, turn off ad blockers for this site, and try again in a minute."
+    : msg;
+};
+
 const Auth = () => {
   // ?mode=signup / ?mode=forgot open those forms directly (links from the
   // Chrome extension and emails).
@@ -82,7 +91,7 @@ const Auth = () => {
       clearTimeout(stuckTimer);
       toast({
         title: "Google sign-in failed",
-        description: e instanceof Error ? e.message : "Please try again",
+        description: authErrorMessage(e instanceof Error ? e : null),
         variant: "destructive",
       });
       setGoogleLoading(false);
@@ -104,7 +113,7 @@ const Auth = () => {
     if (isLogin) {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
-        toast({ title: "Login failed", description: error.message, variant: "destructive" });
+        toast({ title: "Login failed", description: authErrorMessage(error), variant: "destructive" });
       } else {
         await acceptInviteIfAny();
         // Returning learners go straight in — never back through onboarding.
@@ -128,7 +137,7 @@ const Auth = () => {
         },
       });
       if (error) {
-        toast({ title: "Signup failed", description: error.message, variant: "destructive" });
+        toast({ title: "Signup failed", description: authErrorMessage(error), variant: "destructive" });
       } else {
         toast({
           title: "Check your email ✉️",
@@ -148,7 +157,7 @@ const Auth = () => {
     });
     setLoading(false);
     if (error) {
-      toast({ title: "Couldn't send reset email", description: error.message, variant: "destructive" });
+      toast({ title: "Couldn't send reset email", description: authErrorMessage(error), variant: "destructive" });
     } else {
       toast({ title: t("resetLinkSent"), description: t("resetLinkSentDesc", { email }) });
       setForgotMode(false);
