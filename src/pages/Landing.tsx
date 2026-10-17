@@ -1,12 +1,15 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { Play, MousePointerClick, Layers, Sparkles, ArrowRight, ArrowDown, Check, Lock, Share2 } from "lucide-react";
+import { Play, MousePointerClick, Layers, Sparkles, ArrowRight, ArrowDown, Check, Lock, Share2, GraduationCap, BookOpenCheck, ShieldCheck, Building2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Seo } from "@/components/Seo";
 import { BrandMark } from "@/components/BrandMark";
 import { ChameleonMascot } from "@/components/ChameleonMascot";
 import { ProductDemoPlayer } from "@/components/ProductDemoPlayer";
 import { PlatformLogos } from "@/components/landing/PlatformLogos";
+import { CoreLoopDemo } from "@/components/landing/CoreLoopDemo";
+import { guessLearnLang, saveLearnLang, nativeLang, LEARN_LANGS, type LearnLang } from "@/lib/landingSegment";
+import { demoLine, LANDING_VIDEO_BY_LANG } from "@/lib/landingDemoLines";
 import { captureAttribution } from "@/lib/experiments";
 import { DECK } from "@/lib/deck-colors";
 
@@ -24,10 +27,10 @@ import { DECK } from "@/lib/deck-colors";
  */
 
 const FLOW = [
-  { icon: Play, label: "Watch a video" },
-  { icon: MousePointerClick, label: "Tap a word to save it" },
-  { icon: Layers, label: "Review it as a flashcard" },
-  { icon: Sparkles, label: "Understand more next time" },
+  { icon: Play, label: "Watch a show with two subtitle lines" },
+  { icon: MousePointerClick, label: "Tap a word. It turns red and goes in your flashcards" },
+  { icon: Layers, label: "Review it: red → orange → green" },
+  { icon: Sparkles, label: "Whole line green? Line Blast!" },
 ];
 
 const FAQ = [
@@ -46,7 +49,7 @@ const reveal = {
 };
 
 /** One-field email form, used at the top and bottom of the page. */
-const SignupForm = ({ id, onDone }: { id: string; onDone: () => void }) => {
+const SignupForm = ({ id, lang, onDone }: { id: string; lang: string; onDone: () => void }) => {
   const [email, setEmail] = useState("");
   const [state, setState] = useState<"idle" | "sending" | "error">("idle");
   const [error, setError] = useState("");
@@ -63,7 +66,7 @@ const SignupForm = ({ id, onDone }: { id: string; onDone: () => void }) => {
     const { source, campaign } = captureAttribution();
     const { error: err } = await (supabase as any)
       .from("email_signups")
-      .insert({ email: value, source: [source, campaign].filter(Boolean).join(" / ").slice(0, 120) || null });
+      .insert({ email: value, source: `${[source, campaign].filter(Boolean).join(" / ")} · learn:${lang}`.slice(0, 120) });
     if (err && err.code !== "23505") {
       // 23505 = already on the list, which counts as success
       setState("error");
@@ -140,6 +143,10 @@ const Landing = () => {
   const [joined, setJoined] = useState(false);
   const [count, setCount] = useState<number | null>(null);
   const topRef = useRef<HTMLDivElement>(null);
+  const [lang, setLang] = useState<LearnLang>(() => guessLearnLang().lang);
+  const line = useMemo(() => demoLine(lang, nativeLang()), [lang]);
+  const videoId = LANDING_VIDEO_BY_LANG[lang];
+  const pickLang = (l: LearnLang) => { setLang(l); saveLearnLang(l); };
 
   useEffect(() => {
     captureAttribution();
@@ -153,7 +160,7 @@ const Landing = () => {
     setTimeout(() => document.getElementById("email-top")?.focus(), 400);
   };
 
-  const form = (id: string) => (joined ? <Joined /> : <SignupForm id={id} onDone={() => setJoined(true)} />);
+  const form = (id: string) => (joined ? <Joined /> : <SignupForm id={id} lang={lang} onDone={() => setJoined(true)} />);
 
   return (
     <div className="min-h-screen bg-[#08080B] text-white antialiased overflow-x-hidden pb-20 sm:pb-0">
@@ -189,10 +196,26 @@ const Landing = () => {
           initial="hidden" animate="visible" custom={2} variants={reveal}
           className="mt-4 text-lg sm:text-xl text-white/70"
         >
-          See subtitles in two languages. Tap any word you don't know. We turn it into flashcards for you.
+          Tap a word you don't know. It goes into your flashcards. Learn it, and it turns green in every show.
         </motion.p>
 
-        <motion.div ref={topRef} initial="hidden" animate="visible" custom={3} variants={reveal} className="mt-8">
+        {/* The core loop, playable. Plays itself once if untouched. */}
+        <motion.div initial="hidden" animate="visible" custom={3} variants={reveal} className="mt-5 text-left">
+          <div className="mb-2 flex items-center justify-end gap-2 text-sm text-white/50">
+            <label htmlFor="learn-lang">Learning</label>
+            <select
+              id="learn-lang"
+              value={lang}
+              onChange={(e) => pickLang(e.target.value as LearnLang)}
+              className="rounded-lg bg-white/[0.07] border border-white/15 px-2 py-1 text-white outline-none"
+            >
+              {LEARN_LANGS.map((l) => <option key={l.code} value={l.code} className="bg-[#16161c]">{l.flag} {l.label}</option>)}
+            </select>
+          </div>
+          <CoreLoopDemo line={line} />
+        </motion.div>
+
+        <motion.div ref={topRef} initial="hidden" animate="visible" custom={4} variants={reveal} className="mt-8">
           {form("email-top")}
           {count !== null && count >= SHOW_COUNT_FROM && (
             <p className="mt-4 text-sm text-white/60">
@@ -201,10 +224,6 @@ const Landing = () => {
           )}
         </motion.div>
 
-        {/* The demo explains it better than words */}
-        <motion.div initial="hidden" animate="visible" custom={4} variants={reveal} className="mt-10 text-left">
-          <ProductDemoPlayer />
-        </motion.div>
       </section>
 
       {/* ── How it works ── */}
@@ -234,20 +253,27 @@ const Landing = () => {
           ))}
         </ol>
 
-        {/* Progress you can see: the chameleon colours */}
-        <div className="mt-14 grid grid-cols-3 gap-4 max-w-lg mx-auto">
-          {[
-            { tier: "red" as const, label: "New word", c: DECK.red },
-            { tier: "orange" as const, label: "Learning", c: DECK.orange },
-            { tier: "green" as const, label: "Known", c: DECK.green },
-          ].map((s) => (
-            <div key={s.label} className="flex flex-col items-center">
-              <div className="w-16 sm:w-20"><ChameleonMascot tier={s.tier} /></div>
-              <p className="mt-2 text-xs sm:text-sm font-bold uppercase tracking-wider" style={{ color: s.c }}>{s.label}</p>
+      </section>
+
+      {/* ── A real video in the language they're learning ── */}
+      <section className="max-w-3xl mx-auto px-4 sm:px-6 py-14 border-t border-white/[0.06] text-center">
+        <h2 className="text-2xl sm:text-4xl font-extrabold tracking-tight mb-8">See it in a real show</h2>
+        <div className="text-left">
+          {videoId ? (
+            <div className="relative aspect-video rounded-2xl overflow-hidden border border-white/10">
+              <iframe
+                className="absolute inset-0 h-full w-full"
+                src={`https://www.youtube-nocookie.com/embed/${videoId}?rel=0&modestbranding=1&playsinline=1`}
+                title="LinguaScript in action"
+                loading="lazy"
+                allow="accelerometer; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
             </div>
-          ))}
+          ) : (
+            <ProductDemoPlayer />
+          )}
         </div>
-        <p className="mt-4 text-white/60">Every word changes colour as you learn it. Watch your show turn green.</p>
       </section>
 
       {/* ── Where it works ── */}
@@ -255,18 +281,35 @@ const Landing = () => {
         <PlatformLogos />
       </section>
 
-      {/* ── Trust: a real person and a real company ── */}
+      {/* ── Trust: real credentials, a real person, a real company ── */}
       <section className="max-w-3xl mx-auto px-4 sm:px-6 py-14 border-t border-white/[0.06]">
-        <div className="rounded-2xl bg-white/[0.04] p-6 sm:p-8">
+        <h2 className="text-2xl sm:text-4xl font-extrabold tracking-tight mb-8 text-center">Built properly</h2>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {[
+            { icon: GraduationCap, title: "Made by a TEFL-certified teacher", text: "Designed by someone who teaches languages, not just codes." },
+            { icon: BookOpenCheck, title: "Based on how people really learn", text: "Lots of understandable input, most common words first." },
+            { icon: ShieldCheck, title: "Your data stays private", text: "UK GDPR. We never sell your data. Delete it any time." },
+            { icon: Building2, title: "A real UK company", text: "LinguaScript Ltd, registered in England & Wales." },
+          ].map((t) => (
+            <div key={t.title} className="flex gap-3 rounded-xl bg-white/[0.04] p-4">
+              <t.icon className="w-5 h-5 mt-0.5 shrink-0" style={{ color: DECK.green }} />
+              <div>
+                <p className="font-semibold">{t.title}</p>
+                <p className="text-sm text-white/55">{t.text}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="mt-4 rounded-2xl bg-white/[0.04] p-6 sm:p-8">
           {/* Rowan: swap in a short line in your own words about why you're building this. */}
           <p className="text-sm font-semibold uppercase tracking-widest text-white/40 mb-3">Who's behind it</p>
           <p className="text-lg text-white/80 leading-relaxed">
-            LinguaScript is built by a small team in Falmouth, Cornwall. Got a question? Email me directly at{" "}
+            LinguaScript is built in Falmouth, Cornwall. Got a question? Email me directly at{" "}
             <a href="mailto:rowan@linguascript.co.uk" className="underline" style={{ color: DECK.green }}>rowan@linguascript.co.uk</a>
             . I read every message.
           </p>
           <p className="mt-4 font-semibold">Rowan Francois</p>
-          <p className="text-sm text-white/50">Founder · LinguaScript Ltd, registered in England &amp; Wales</p>
+          <p className="text-sm text-white/50">Founder, LinguaScript</p>
         </div>
       </section>
 
