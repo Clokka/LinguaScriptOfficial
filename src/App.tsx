@@ -40,11 +40,27 @@ import {
 // to download and parse one ~2.8MB bundle containing Watch, Admin, Teacher,
 // the Remotion studio pages, etc. before it could render anything. Splitting
 // each route into its own lazy chunk means a page only pays for its own code.
+// Landing pages, oldest first: /landing-1 … /landing-7 (see LANDING_PAGES below).
 const Landing = lazy(() => import("./pages/Landing"));
 const LandingPage2 = lazy(() => import("./pages/LandingPage2"));
 const LandingPage3 = lazy(() => import("./pages/LandingPage3"));
 const LandingPage4 = lazy(() => import("./pages/LandingPage4"));
 const Landing5 = lazy(() => import("./pages/Landing5"));
+const LandingClear = lazy(() => import("./pages/LandingClear"));
+const LandingEarlyAccess = lazy(() => import("./pages/LandingEarlyAccess"));
+
+// Every landing page we've made, in the order they were built, so anyone can
+// open /landing-1 … /landing-7 and compare them. The homepage A/B test is in
+// components/landing/LandingPageTest.
+const LANDING_PAGES = [
+  LandingPage2,       // /landing-1  (was /landingpage2)
+  LandingPage3,       // /landing-2  (was /landingpage3)
+  LandingPage4,       // /landing-3  (was /landingpage4)
+  Landing5,           // /landing-4  (was /landing5)
+  LandingClear,       // /landing-5  ("clear" in the paused v1 test)
+  LandingEarlyAccess, // /landing-6  ("early" in landing_page_v2)
+  Landing,            // /landing-7  ("loop" in landing_page_v2, also /landing)
+];
 const GapDemo = lazy(() => import("./pages/GapDemo"));
 const Demo = lazy(() => import("./pages/Demo"));
 const StremioAddonPage = lazy(() => import("./pages/marketing/StremioAddonPage"));
@@ -107,10 +123,13 @@ const App = () => (
               <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/landing" element={<Landing />} />
-                <Route path="/landingpage2" element={<LandingPage2 />} />
-                <Route path="/landingpage3" element={<LandingPage3 />} />
-                <Route path="/landingpage4" element={<LandingPage4 />} />
-                <Route path="/landing5" element={<Landing5 />} />
+                {LANDING_PAGES.map((Page, i) => (
+                  <Route key={i} path={`/landing-${i + 1}`} element={<Page />} />
+                ))}
+                <Route path="/landingpage2" element={<Navigate to="/landing-1" replace />} />
+                <Route path="/landingpage3" element={<Navigate to="/landing-2" replace />} />
+                <Route path="/landingpage4" element={<Navigate to="/landing-3" replace />} />
+                <Route path="/landing5" element={<Navigate to="/landing-4" replace />} />
                 <Route path="/gap-demo" element={<GapDemo />} />
                 <Route path="/demo" element={<Demo />} />
                 <Route path="/browse" element={<Navigate to="/discover" replace />} />

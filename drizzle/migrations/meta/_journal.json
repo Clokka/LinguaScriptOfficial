@@ -50,6 +50,13 @@
       "when": 1792161235886,
       "tag": "0006_private_email_signups",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792162235886,
+      "tag": "0007_landing_page_v2_test",
+      "breakpoints": true
     }
   ]
 }

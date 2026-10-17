@@ -17,8 +17,9 @@ import type { DemoLine } from "@/lib/landingDemoLines";
  *
  *   orange ring (ls-target-ring) on a top-50 word → WordPopup "Save to
  *   Flashcards" → red deck → the real Flashcard (Got it! / Again / Too hard)
- *   → orange → green → GOLD the first time → tap the gold word → progress
- *   board (1st vs 2nd watch). Every word green → Line Blast.
+ *   → orange → green → GOLD the first time → tap the gold word → green.
+ *   Every word green → Line Blast. No comprehension board here: that score
+ *   only means something after a real rewatch, so it stays in the app.
  *
  * No account, nothing saved: all state lives here. The ring is the only
  * instruction — it moves to whatever the visitor should tap next.
@@ -49,7 +50,6 @@ export const CoreLoopDemo = ({ line, language, languageLabel, onTry }: Props) =>
   const [top50, setTop50] = useState<string[] | null>(null);
   const [popup, setPopup] = useState<{ i: number; x: number; y: number } | null>(null);
   const [reviewing, setReviewing] = useState<number | null>(null);
-  const [board, setBoard] = useState(false);
   const [blasted, setBlasted] = useState(false);
   const [praise, setPraise] = useState<{ big: string; sub: string; combo: number; key: number } | null>(null);
   const [floatXp, setFloatXp] = useState<{ text: string; key: number } | null>(null);
@@ -70,7 +70,7 @@ export const CoreLoopDemo = ({ line, language, languageLabel, onTry }: Props) =>
   // Fresh line for a new language, and the real top-50 list for that language.
   useEffect(() => {
     setTiers(line.words.map(() => -1 as Tier));
-    setPopup(null); setReviewing(null); setBoard(false); setBlasted(false);
+    setPopup(null); setReviewing(null); setBlasted(false);
     setTop50(null);
     let alive = true;
     (supabase as any)
@@ -144,12 +144,12 @@ export const CoreLoopDemo = ({ line, language, languageLabel, onTry }: Props) =>
 
   // Whole line green → Line Blast (once per line).
   useEffect(() => {
-    if (allGreen && !blasted && !board) blast();
+    if (allGreen && !blasted) blast();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allGreen, board]);
+  }, [allGreen]);
 
   const tapWord = (i: number) => {
-    if (tiers[i] === 3) { set(i, 2); setBoard(true); return; } // gold → progress board
+    if (tiers[i] === 3) { set(i, 2); return; } // gold → green
     const r = wordRefs.current[i]?.getBoundingClientRect();
     if (r) setPopup({ i, x: r.left + r.width / 2, y: r.bottom + 8 });
   };
@@ -229,6 +229,17 @@ export const CoreLoopDemo = ({ line, language, languageLabel, onTry }: Props) =>
         ))}
       </div>
 
+      {/* ── Whole line green: the next step is a real show ── */}
+      {blasted && (
+        <button
+          onClick={onTry}
+          className="mt-2 w-full h-11 rounded-xl font-bold text-[#08080B] animate-in fade-in duration-500"
+          style={{ backgroundColor: DECK.green }}
+        >
+          Try it with a real show
+        </button>
+      )}
+
       {/* ── Most-common-words progress, the same idea as the app's card ── */}
       <div
         className="overflow-hidden transition-all duration-500"
@@ -291,27 +302,6 @@ export const CoreLoopDemo = ({ line, language, languageLabel, onTry }: Props) =>
         </div>
       )}
 
-      {/* ── Progress board: what a second watch looks like ── */}
-      {board && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={() => setBoard(false)}>
-          <div className="w-full max-w-sm rounded-3xl bg-[#121218] border border-white/10 p-6 text-center" onClick={(e) => e.stopPropagation()}>
-            <div className="w-20 mx-auto"><ChameleonMascot tier="green" party /></div>
-            <p className="mt-2 text-xs uppercase tracking-widest text-white/40">Your comprehension</p>
-            {[{ label: "1st watch", v: 62, c: "rgba(255,255,255,.35)" }, { label: "2nd watch", v: 84, c: DECK.green }].map((r) => (
-              <div key={r.label} className="mt-3 text-left">
-                <div className="flex justify-between text-sm"><span className="text-white/70">{r.label}</span><span className="font-bold tabular-nums">{r.v}%</span></div>
-                <div className="mt-1 h-2 rounded-full bg-white/10 overflow-hidden"><div className="h-full rounded-full" style={{ width: `${r.v}%`, backgroundColor: r.c }} /></div>
-              </div>
-            ))}
-            <p className="mt-4 text-4xl font-black" style={{ color: DECK.green }}>+22%</p>
-            <p className="text-xs text-white/40">Example of a rewatch after reviewing your words</p>
-            <button onClick={() => { setBoard(false); onTry(); }} className="mt-5 w-full h-12 rounded-xl font-bold text-[#08080B]" style={{ backgroundColor: DECK.green }}>
-              Try it with a real show
-            </button>
-            <button onClick={() => setBoard(false)} className="mt-2 text-sm text-white/50">Keep playing</button>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

@@ -9,7 +9,7 @@ import { ChameleonMascot } from "@/components/ChameleonMascot";
 import { PlatformLogos } from "@/components/landing/PlatformLogos";
 import { StoreBadges, type Store } from "@/components/landing/StoreBadges";
 import { CoreLoopDemo } from "@/components/landing/CoreLoopDemo";
-import { captureAttribution } from "@/lib/experiments";
+import { captureAttribution, trackAll } from "@/lib/experiments";
 import { guessLearnLang, saveLearnLang, nativeLang, LEARN_LANGS, type LearnLang } from "@/lib/landingSegment";
 import { demoLine } from "@/lib/landingDemoLines";
 import { DECK } from "@/lib/deck-colors";
@@ -96,7 +96,7 @@ const Landing = () => {
   useEffect(() => { captureAttribution(); }, []);
 
   const pickLang = (l: LearnLang) => { setLang(l); saveLearnLang(l); };
-  const tryIt = () => navigate("/onboarding");
+  const tryIt = () => { trackAll("cta"); navigate("/onboarding"); };
   const soon = (s: Store) => { setNotify(s); setNotified(false); };
 
   const FAQ: { q: string; a: React.ReactNode }[] = [

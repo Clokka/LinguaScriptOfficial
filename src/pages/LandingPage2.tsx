@@ -49,7 +49,7 @@ const LandingPage2 = () => {
       {/* ─── Nav ─── */}
       <nav className="sticky top-0 z-50 border-b border-border/60 bg-background/80 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          <button onClick={() => navigate("/landingpage2")} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+          <button onClick={() => navigate("/landing-1")} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
             <div className="w-9 h-9 rounded-xl bg-gradient-primary flex items-center justify-center shadow-glow-primary">
               <Languages className="w-5 h-5 text-primary-foreground" />
             </div>
