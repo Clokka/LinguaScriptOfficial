@@ -18,6 +18,8 @@ export interface DemoLine {
   translation: string;
   /** Languages written without spaces between words. */
   noSpaces?: boolean;
+  /** Word to ring if the live top-50 list can't be loaded (a very common word). */
+  target?: number;
 }
 
 const COFFEE_EN: Record<string, string> = {
@@ -35,48 +37,48 @@ const COFFEE_EN: Record<string, string> = {
 export function demoLine(lang: LearnLang, native: string): DemoLine {
   switch (lang) {
     case "fr":
-      return { translation: "I would like a coffee, please.", words: [
+      return { target: 2, translation: "I would like a coffee, please.", words: [
         { w: "Je", m: "I" }, { w: "voudrais", m: "would like" }, { w: "un", m: "a" },
         { w: "café,", m: "coffee" }, { w: "s'il vous plaît.", m: "please" },
       ] };
     case "es":
-      return { translation: "I would like a coffee, please.", words: [
+      return { target: 1, translation: "I would like a coffee, please.", words: [
         { w: "Quisiera", m: "I would like" }, { w: "un", m: "a" },
         { w: "café,", m: "coffee" }, { w: "por favor.", m: "please" },
       ] };
     case "de":
-      return { translation: "I'd like a coffee, please.", words: [
+      return { target: 0, translation: "I'd like a coffee, please.", words: [
         { w: "Ich", m: "I" }, { w: "hätte gern", m: "would like" }, { w: "einen", m: "a" },
         { w: "Kaffee,", m: "coffee" }, { w: "bitte.", m: "please" },
       ] };
     case "it":
-      return { translation: "I would like a coffee, please.", words: [
+      return { target: 1, translation: "I would like a coffee, please.", words: [
         { w: "Vorrei", m: "I would like" }, { w: "un", m: "a" },
         { w: "caffè,", m: "coffee" }, { w: "per favore.", m: "please" },
       ] };
     case "pt":
-      return { translation: "I'd like a coffee, please.", words: [
+      return { target: 0, translation: "I'd like a coffee, please.", words: [
         { w: "Eu", m: "I" }, { w: "queria", m: "would like" }, { w: "um", m: "a" },
         { w: "café,", m: "coffee" }, { w: "por favor.", m: "please" },
       ] };
     case "ja":
-      return { noSpaces: true, translation: "One coffee, please.", words: [
+      return { target: 1, noSpaces: true, translation: "One coffee, please.", words: [
         { w: "コーヒー", m: "coffee" }, { w: "を", m: "(object marker)" },
         { w: "一杯", m: "one cup" }, { w: "ください。", m: "please give me" },
       ] };
     case "zh":
-      return { noSpaces: true, translation: "Please give me a cup of coffee.", words: [
+      return { target: 0, noSpaces: true, translation: "Please give me a cup of coffee.", words: [
         { w: "请", m: "please" }, { w: "给我", m: "give me" },
         { w: "一杯", m: "one cup" }, { w: "咖啡。", m: "coffee" },
       ] };
     case "th":
-      return { noSpaces: true, translation: "One cup of coffee, please.", words: [
+      return { target: 0, noSpaces: true, translation: "One cup of coffee, please.", words: [
         { w: "ขอ", m: "may I have" }, { w: "กาแฟ", m: "coffee" },
         { w: "หนึ่ง", m: "one" }, { w: "แก้ว", m: "cup / glass" }, { w: "ครับ", m: "(polite ending)" },
       ] };
     case "en":
     default:
-      return { translation: COFFEE_EN[native] ?? "", words: [
+      return { target: 2, translation: COFFEE_EN[native] ?? "", words: [
         { w: "I'd", m: "I would" }, { w: "like", m: "want (politely)" },
         { w: "a", m: "one" }, { w: "coffee,", m: "coffee" }, { w: "please.", m: "polite word" },
       ] };

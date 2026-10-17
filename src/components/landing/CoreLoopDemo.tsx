@@ -1,193 +1,177 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { MousePointer2, Check, RotateCcw } from "lucide-react";
-import {
-  PRAISE,
-  prefersReducedMotion,
-  floatXpText,
-  confettiCountForCombo,
-  scatterClones,
-  goldSweep,
-  makeConfettiBurst,
-  type ConfettiBurst,
-} from "@/lib/lineBlast";
-import { LineBlastOverlay } from "@/components/LineBlastOverlay";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { X } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { WordPopup } from "@/components/WordPopup";
+import { Flashcard } from "@/components/Flashcard";
 import { ChameleonMascot, type ChameleonTier } from "@/components/ChameleonMascot";
+import { LineBlastOverlay } from "@/components/LineBlastOverlay";
+import {
+  PRAISE, prefersReducedMotion, floatXpText, confettiCountForCombo,
+  scatterClones, goldSweep, makeConfettiBurst, type ConfettiBurst,
+} from "@/lib/lineBlast";
 import { DECK, CELEBRATION_GOLD } from "@/lib/deck-colors";
 import type { DemoLine } from "@/lib/landingDemoLines";
 
 /**
- * LinguaScript's core loop, playable in the landing page:
+ * The real LinguaScript loop, on the landing page, using the app's own parts:
  *
- *   white word in a subtitle → tap → RED deck → review → ORANGE → review →
- *   GREEN (flashes GOLD the first time) → every word green → Line Blast.
+ *   orange ring (ls-target-ring) on a top-50 word → WordPopup "Save to
+ *   Flashcards" → red deck → the real Flashcard (Got it! / Again / Too hard)
+ *   → orange → green → GOLD the first time → tap the gold word → progress
+ *   board (1st vs 2nd watch). Every word green → Line Blast.
  *
- * If nobody touches it, it plays itself once with a ghost cursor so a visitor
- * who only looks for five seconds still sees the whole idea.
+ * No account, nothing saved: all state lives here. The ring is the only
+ * instruction — it moves to whatever the visitor should tap next.
  */
 
-type Tier = -1 | 0 | 1 | 2; // white (unsaved), red, orange, green
-const TIER_COLOR: Record<Tier, string> = { [-1]: "#F4F7F5", 0: DECK.red, 1: DECK.orange, 2: DECK.green };
+type Tier = -1 | 0 | 1 | 2 | 3; // white, red, orange, green, gold (first time green, not yet tapped)
+type DeckState = "red" | "orange" | "green";
+const COLOR: Record<Tier, string> = { [-1]: "#F4F7F5", 0: DECK.red, 1: DECK.orange, 2: DECK.green, 3: CELEBRATION_GOLD };
+const STATE: Record<0 | 1 | 2, DeckState> = { 0: "red", 1: "orange", 2: "green" };
 const DECKS = [
-  { name: "New", c: DECK.red },
-  { name: "Learning", c: DECK.orange },
-  { name: "Known", c: DECK.green },
-] as const;
+  { t: 0 as const, name: "New", c: DECK.red },
+  { t: 1 as const, name: "Learning", c: DECK.orange },
+  { t: 2 as const, name: "Known", c: DECK.green },
+];
 
-export const CoreLoopDemo = ({ line }: { line: DemoLine }) => {
+const norm = (s: string) => s.toLowerCase().replace(/[.,!?;:¡¿。、！？]/g, "").trim();
+
+interface Props {
+  line: DemoLine;
+  language: string;
+  languageLabel: string;
+  onTry: () => void;
+}
+
+export const CoreLoopDemo = ({ line, language, languageLabel, onTry }: Props) => {
   const n = line.words.length;
   const [tiers, setTiers] = useState<Tier[]>(() => line.words.map(() => -1 as Tier));
-  const [flipped, setFlipped] = useState(false);
-  const [gold, setGold] = useState<number | null>(null);
+  const [top50, setTop50] = useState<string[] | null>(null);
+  const [popup, setPopup] = useState<{ i: number; x: number; y: number } | null>(null);
+  const [reviewing, setReviewing] = useState<number | null>(null);
+  const [board, setBoard] = useState(false);
   const [blasted, setBlasted] = useState(false);
-  const [cursor, setCursor] = useState<{ x: number; y: number; press: boolean } | null>(null);
-  const [userTouched, setUserTouched] = useState(false);
   const [praise, setPraise] = useState<{ big: string; sub: string; combo: number; key: number } | null>(null);
   const [floatXp, setFloatXp] = useState<{ text: string; key: number } | null>(null);
   const [glowKey, setGlowKey] = useState(0);
 
-  const rootRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const lineRef = useRef<HTMLParagraphElement>(null);
   const fxRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const cardRef = useRef<HTMLButtonElement>(null);
-  const btnRef = useRef<HTMLButtonElement>(null);
-  const wordRefs = useRef<(HTMLSpanElement | null)[]>([]);
   const burstRef = useRef<ConfettiBurst | null>(null);
-  const timers = useRef<number[]>([]);
-  const autoplayed = useRef(false);
-
-  const later = (fn: () => void, ms: number) => timers.current.push(window.setTimeout(fn, ms));
-  const clearTimers = () => { timers.current.forEach(clearTimeout); timers.current = []; };
-
-  // New language → fresh line.
-  useEffect(() => {
-    clearTimers();
-    setTiers(line.words.map(() => -1 as Tier));
-    setFlipped(false); setGold(null); setBlasted(false); setCursor(null);
-  }, [line]);
+  const wordRefs = useRef<(HTMLSpanElement | null)[]>([]);
 
   useEffect(() => {
     burstRef.current = makeConfettiBurst(canvasRef.current);
-    return () => { clearTimers(); burstRef.current?.reset(); };
+    return () => burstRef.current?.reset();
   }, []);
 
-  // The card being reviewed: newest-colour word first (red before orange).
-  const current = useMemo(() => {
-    for (const t of [0, 1] as Tier[]) {
+  // Fresh line for a new language, and the real top-50 list for that language.
+  useEffect(() => {
+    setTiers(line.words.map(() => -1 as Tier));
+    setPopup(null); setReviewing(null); setBoard(false); setBlasted(false);
+    setTop50(null);
+    let alive = true;
+    (supabase as any)
+      .from("core_vocabulary")
+      .select("word, lemma, rank")
+      .eq("language", language)
+      .order("rank", { ascending: true })
+      .limit(50)
+      .then(({ data }: any) => {
+        if (!alive || !Array.isArray(data) || data.length === 0) return;
+        setTop50(data.map((r: any) => norm(r.word || r.lemma)));
+      });
+    return () => { alive = false; };
+  }, [line, language]);
+
+  /** Position in the top 50 (1-based) for a line word, if it's there. */
+  const rankOf = (i: number): number | null => {
+    if (!top50) return null;
+    const p = top50.indexOf(norm(line.words[i].w));
+    return p >= 0 ? p + 1 : null;
+  };
+
+  // The ringed word: the most common word in the line by our real list,
+  // otherwise the line's own pick.
+  const target = useMemo(() => {
+    let best = -1, bestRank = Infinity;
+    line.words.forEach((_, i) => {
+      const r = rankOf(i);
+      if (r != null && r < bestRank) { best = i; bestRank = r; }
+    });
+    return best >= 0 ? best : Math.min(n - 1, line.target ?? 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [top50, line]);
+  const targetRank = rankOf(target);
+
+  // The card due for review: red before orange.
+  const due = useMemo(() => {
+    for (const t of [0, 1] as const) {
       const i = tiers.findIndex((x) => x === t);
       if (i >= 0) return i;
     }
     return -1;
   }, [tiers]);
 
-  const counts = [0, 1, 2].map((t) => tiers.filter((x) => x === t).length);
+  const counts = [0, 1, 2].map((t) => tiers.filter((x) => (t === 2 ? x === 2 || x === 3 : x === t)).length);
+  const goldIdx = tiers.findIndex((t) => t === 3);
+  const allGreen = tiers.every((t) => t === 2);
   const mascot: ChameleonTier = tiers.some((t) => t === 0) ? "red" : tiers.some((t) => t === 1) ? "orange" : "green";
 
-  const blast = useCallback(() => {
+  // Where the orange ring goes next: the gold word, then a due deck, then the target word.
+  const ringWord = goldIdx >= 0 ? goldIdx : tiers[target] === -1 ? target : -1;
+  const ringDeck = goldIdx < 0 && due >= 0 && !popup && reviewing == null ? tiers[due] : -1;
+
+  const set = (i: number, t: Tier) => setTiers((all) => all.map((x, j) => (j === i ? t : x)) as Tier[]);
+
+  const blast = () => {
     setBlasted(true);
     if (prefersReducedMotion()) {
       setPraise({ big: PRAISE[3][0], sub: PRAISE[3][1], combo: 3, key: Date.now() });
       return;
     }
     goldSweep(lineRef.current);
-    later(() => {
+    window.setTimeout(() => {
       scatterClones(stageRef.current, lineRef.current, fxRef.current);
       burstRef.current?.fire(confettiCountForCombo(4));
       setGlowKey((k) => k + 1);
       setPraise({ big: PRAISE[4][0], sub: PRAISE[4][1], combo: 4, key: Date.now() });
       setFloatXp({ text: floatXpText(4), key: Date.now() });
     }, 420);
-  }, []);
-
-  /** Tap a white word: it turns red and goes into the New deck. */
-  const save = (i: number) => {
-    setTiers((t) => (t[i] === -1 ? t.map((x, j) => (j === i ? 0 : x)) as Tier[] : t));
-    setFlipped(false);
   };
 
-  /** "I knew it" on the flashcard: the word moves up one deck. */
-  const knewIt = () => {
-    if (current < 0) return;
-    const i = current;
-    const next = tiers.map((x, j) => (j === i ? ((x + 1) as Tier) : x)) as Tier[];
-    setTiers(next);
-    setFlipped(false);
-    if (next[i] === 2) {
-      setGold(i); // first time green → gold
-      later(() => setGold((g) => (g === i ? null : g)), 950);
-      if (next.every((x) => x === 2)) later(blast, 900);
-    }
+  // Whole line green → Line Blast (once per line).
+  useEffect(() => {
+    if (allGreen && !blasted && !board) blast();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allGreen, board]);
+
+  const tapWord = (i: number) => {
+    if (tiers[i] === 3) { set(i, 2); setBoard(true); return; } // gold → progress board
+    const r = wordRefs.current[i]?.getBoundingClientRect();
+    if (r) setPopup({ i, x: r.left + r.width / 2, y: r.bottom + 8 });
   };
 
-  const reset = () => {
+  const openDeck = (t: 0 | 1 | 2) => {
+    const i = tiers.findIndex((x) => x === t);
+    if (i >= 0 && t !== 2) setReviewing(i);
+  };
+
+  const replay = () => {
     lineRef.current?.querySelectorAll("span").forEach((s) => s.getAnimations().forEach((a) => a.cancel()));
     setBlasted(false);
     setTiers(line.words.map(() => -1 as Tier));
-    setFlipped(false);
   };
 
-  const touch = () => {
-    if (!userTouched) {
-      setUserTouched(true);
-      clearTimers();
-      setCursor(null);
-    }
-  };
-
-  // ── Ghost demo: plays the loop once on one word if the visitor doesn't touch it ──
-  const pointAt = (el: Element | null, press = false) => {
-    const root = rootRef.current;
-    if (!el || !root) return;
-    const r = el.getBoundingClientRect();
-    const b = root.getBoundingClientRect();
-    setCursor({ x: r.left - b.left + r.width / 2, y: r.top - b.top + r.height / 2, press });
-  };
-
-  useEffect(() => {
-    const root = rootRef.current;
-    if (!root || prefersReducedMotion()) return;
-    const io = new IntersectionObserver(([e]) => {
-      if (!e.isIntersecting || autoplayed.current || userTouched) return;
-      autoplayed.current = true;
-      io.disconnect();
-      const i = Math.min(n - 1, Math.max(1, Math.floor(n / 2))); // a word in the middle
-      const step = (ms: number, fn: () => void) => later(fn, ms);
-      step(900, () => pointAt(wordRefs.current[i]));
-      step(1500, () => { pointAt(wordRefs.current[i], true); save(i); });
-      step(2200, () => pointAt(cardRef.current));
-      step(2700, () => { pointAt(cardRef.current, true); setFlipped(true); });
-      step(3300, () => pointAt(btnRef.current));
-      step(3800, () => { pointAt(btnRef.current, true); setTiers((t) => t.map((x, j) => (j === i ? 1 : x)) as Tier[]); setFlipped(false); });
-      step(4500, () => { pointAt(cardRef.current, true); setFlipped(true); });
-      step(5100, () => pointAt(btnRef.current));
-      step(5600, () => {
-        pointAt(btnRef.current, true);
-        setTiers((t) => t.map((x, j) => (j === i ? 2 : x)) as Tier[]);
-        setFlipped(false);
-        setGold(i);
-      });
-      step(6600, () => { setGold(null); setCursor(null); });
-    }, { threshold: 0.6 });
-    io.observe(root);
-    return () => io.disconnect();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [line, userTouched]);
-
-  const cw = current >= 0 ? line.words[current] : null;
-  const cardTier = current >= 0 ? tiers[current] : 2;
-  const cardColor = TIER_COLOR[cardTier as Tier];
+  const savedTop = tiers.filter((t, i) => t !== -1 && rankOf(i) != null).length;
+  const knownTop = tiers.filter((t, i) => (t === 2 || t === 3) && rankOf(i) != null).length;
+  const pw = popup ? line.words[popup.i] : null;
+  const rw = reviewing != null ? line.words[reviewing] : null;
 
   return (
-    <div ref={rootRef} className="relative select-none" onPointerDown={touch}>
-      <style>{`
-        @keyframes ls-shine { 0%{text-shadow:0 0 0 transparent} 40%{text-shadow:0 0 22px ${CELEBRATION_GOLD}} 100%{text-shadow:0 0 0 transparent} }
-        @keyframes ls-hint { 0%,100%{opacity:1} 50%{opacity:.55} }
-        .ls-w{cursor:pointer;-webkit-tap-highlight-color:transparent;transition:color .35s ease;border-radius:6px}
-        .ls-w:hover{background:rgba(255,255,255,.07)}
-        .ls-gold{color:${CELEBRATION_GOLD}!important;animation:ls-shine .9s ease-out}
-      `}</style>
-
+    <div className="relative select-none">
       {/* ── The "video": chameleon + subtitle line ── */}
       <div
         ref={stageRef}
@@ -197,19 +181,12 @@ export const CoreLoopDemo = ({ line }: { line: DemoLine }) => {
         <canvas ref={canvasRef} aria-hidden="true" className="pointer-events-none absolute inset-0 h-full w-full z-40" />
         <div ref={fxRef} aria-hidden="true" className="pointer-events-none absolute inset-0 z-40" />
 
-        <div className="flex items-center justify-between">
-          <div className="w-14 sm:w-16 transition-all"><ChameleonMascot tier={mascot} party={blasted} /></div>
-          <div className="flex gap-1.5" aria-hidden="true">
-            {tiers.map((t, i) => (
-              <span key={i} className="w-2 h-2 rounded-full transition-colors" style={{ backgroundColor: t === -1 ? "rgba(255,255,255,.18)" : TIER_COLOR[t] }} />
-            ))}
-          </div>
-        </div>
+        <div className="w-14 sm:w-16"><ChameleonMascot tier={mascot} party={blasted} /></div>
 
-        <div className="mt-2 sm:mt-8 mx-auto max-w-xl rounded-xl bg-black/45 px-3 py-3 text-center">
+        <div className="mt-2 sm:mt-6 mx-auto max-w-xl rounded-xl bg-black/45 px-3 py-3 text-center">
           <p
             ref={lineRef}
-            className={`text-2xl sm:text-3xl font-bold leading-snug ${line.noSpaces ? "" : "[word-spacing:0.15em]"}`}
+            className={`text-2xl sm:text-3xl font-bold leading-[1.6] ${line.noSpaces ? "" : "[word-spacing:0.15em]"}`}
             translate="no"
           >
             {line.words.map((wd, i) => (
@@ -218,83 +195,122 @@ export const CoreLoopDemo = ({ line }: { line: DemoLine }) => {
                 ref={(el) => (wordRefs.current[i] = el)}
                 role="button"
                 tabIndex={0}
-                aria-label={tiers[i] === -1 ? `Save "${wd.w}" to flashcards` : `${wd.w}: ${DECKS[tiers[i]].name}`}
-                onClick={() => save(i)}
-                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); save(i); } }}
-                className={`ls-w px-0.5 ${gold === i ? "ls-gold" : ""}`}
-                style={{ color: TIER_COLOR[tiers[i]], ...(userTouched || tiers[i] !== -1 ? {} : { animation: cursor ? "none" : "ls-hint 2.4s ease-in-out infinite" }) }}
+                onClick={() => tapWord(i)}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); tapWord(i); } }}
+                className={`cursor-pointer transition-colors duration-300 rounded-[10px] ${ringWord === i ? "ls-target-ring" : ""}`}
+                style={{
+                  color: COLOR[tiers[i]],
+                  textShadow: tiers[i] === 3 ? `0 0 18px ${CELEBRATION_GOLD}aa` : undefined,
+                  WebkitTapHighlightColor: "transparent",
+                }}
               >
                 {wd.w}{line.noSpaces ? "" : " "}
               </span>
             ))}
           </p>
-          {line.translation && <p className="mt-1.5 text-sm text-white/55">{line.translation}</p>}
-        </div>
-
-        <div className="mt-3 h-1 rounded-full bg-white/10 overflow-hidden" aria-hidden="true">
-          <div className="h-full w-[38%] rounded-full bg-white/50" />
+          {line.translation && <p className="mt-1 text-sm text-white/55">{line.translation}</p>}
         </div>
         <LineBlastOverlay praise={praise} floatXp={floatXp} glowKey={glowKey} placement="stage" />
       </div>
 
-      {/* ── Flashcards: three decks + the card you're reviewing ── */}
-      <div className="mt-3 grid grid-cols-[1fr_1.4fr] gap-3">
-        <div className="grid grid-rows-3 gap-2">
-          {DECKS.map((d, t) => (
-            <div key={d.name} className="flex items-center justify-between rounded-xl px-3 py-2 bg-white/[0.04]" style={{ border: `1px solid ${d.c}55` }}>
-              <span className="text-xs sm:text-sm font-bold" style={{ color: d.c }}>{d.name}</span>
-              <span key={counts[t]} className="text-sm font-bold tabular-nums text-white animate-in zoom-in-50 duration-300">{counts[t]}</span>
-            </div>
-          ))}
-        </div>
-
-        {blasted ? (
-          <button onClick={reset} className="rounded-xl bg-white/[0.05] border border-white/10 flex flex-col items-center justify-center gap-1 text-white/80">
-            <RotateCcw className="w-5 h-5" />
-            <span className="text-sm font-semibold">Play again</span>
+      {/* ── Decks, side by side so they fit on a phone ── */}
+      <div className="mt-2 grid grid-cols-3 gap-2">
+        {DECKS.map((d) => (
+          <button
+            key={d.name}
+            onClick={() => openDeck(d.t)}
+            className={`rounded-xl px-2 py-2 bg-white/[0.04] text-center ${ringDeck === d.t ? "ls-target-ring" : ""}`}
+            style={{ border: `1px solid ${d.c}55` }}
+            aria-label={`${d.name} deck, ${counts[d.t]} cards`}
+          >
+            <span className="block text-[11px] sm:text-xs font-bold uppercase tracking-wide" style={{ color: d.c }}>{d.name}</span>
+            <span key={counts[d.t]} className="block text-lg font-bold tabular-nums text-white animate-in zoom-in-50 duration-300">{counts[d.t]}</span>
           </button>
-        ) : cw ? (
-          <div className="flex flex-col gap-2">
-            <button
-              ref={cardRef}
-              onClick={() => setFlipped((f) => !f)}
-              className="flex-1 rounded-xl px-3 py-2 flex flex-col items-center justify-center text-center transition-colors"
-              style={{ backgroundColor: `${cardColor}1a`, border: `1.5px solid ${cardColor}` }}
-              aria-label={flipped ? `${cw.w} means ${cw.m}` : `Flashcard: ${cw.w}. Tap to flip.`}
-            >
-              {flipped ? (
-                <>
-                  <span className="text-xs text-white/50" translate="no">{cw.w}</span>
-                  <span className="text-lg font-bold text-white">{cw.m}</span>
-                </>
-              ) : (
-                <span className="text-xl font-bold" style={{ color: cardColor }} translate="no">{cw.w}</span>
-              )}
-            </button>
-            <button
-              ref={btnRef}
-              onClick={knewIt}
-              disabled={!flipped}
-              className="h-9 rounded-lg text-sm font-bold text-[#08080B] disabled:opacity-30 transition-opacity inline-flex items-center justify-center gap-1"
-              style={{ backgroundColor: DECK.green }}
-            >
-              <Check className="w-4 h-4" /> I knew it
-            </button>
-          </div>
-        ) : (
-          <div className="rounded-xl border border-dashed border-white/15 flex items-center justify-center px-3 text-center text-sm text-white/40">
-            {tiers.every((t) => t === 2) ? "All known!" : "Your flashcards"}
-          </div>
-        )}
+        ))}
       </div>
 
-      {/* Ghost cursor for the self-playing demo */}
-      {cursor && (
-        <MousePointer2
-          aria-hidden="true"
-          className="pointer-events-none absolute z-50 w-6 h-6 text-white drop-shadow-[0_2px_6px_rgba(0,0,0,.8)] transition-all duration-500 ease-out"
-          style={{ left: cursor.x, top: cursor.y, transform: `translate(-20%,-10%) scale(${cursor.press ? 0.8 : 1})`, fill: "white" }}
+      {/* ── Most-common-words progress, the same idea as the app's card ── */}
+      <div
+        className="overflow-hidden transition-all duration-500"
+        style={{ maxHeight: savedTop > 0 ? 90 : 0, opacity: savedTop > 0 ? 1 : 0 }}
+        aria-live="polite"
+      >
+        <div className="mt-2 rounded-xl bg-white/[0.04] px-3 py-2.5">
+          <p className="text-sm font-semibold text-white/85">
+            {knownTop > 0
+              ? <>You know <span style={{ color: DECK.green }}>{knownTop}</span> of the 50 most common {languageLabel} words</>
+              : <>{savedTop} of the 50 most common {languageLabel} words added</>}
+          </p>
+          <div className="mt-1.5 h-1.5 rounded-full bg-white/10 overflow-hidden">
+            <div className="h-full rounded-full transition-all duration-500" style={{ width: `${(Math.max(knownTop, savedTop) / 50) * 100}%`, backgroundColor: knownTop ? DECK.green : DECK.red }} />
+          </div>
+          {targetRank != null && (
+            <p className="mt-1 text-[11px] text-white/40" translate="no">
+              ({line.words[target].w.replace(/[.,]/g, "")} is #{targetRank} of the most common words in {languageLabel})
+            </p>
+          )}
+        </div>
+      </div>
+
+      {blasted && (
+        <button onClick={replay} className="mt-2 w-full text-sm text-white/50 hover:text-white/80">Play again</button>
+      )}
+
+      {/* ── Real word popup ── */}
+      {popup && pw && (
+        <WordPopup
+          word={{ id: `demo-${popup.i}`, text: pw.w.replace(/[.,]/g, ""), translation: pw.m, pronunciation: "", ipa: "" }}
+          position={{ x: popup.x, y: popup.y }}
+          language={language}
+          deckColor={COLOR[tiers[popup.i]]}
+          onClose={() => setPopup(null)}
+          onSave={() => { if (tiers[popup.i] === -1) set(popup.i, 0); setPopup(null); }}
         />
+      )}
+
+      {/* ── Real flashcard review ── */}
+      {rw && reviewing != null && (tiers[reviewing] === 0 || tiers[reviewing] === 1) && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={() => setReviewing(null)}>
+          <div className="w-full max-w-md relative" onClick={(e) => e.stopPropagation()}>
+            <button onClick={() => setReviewing(null)} className="absolute -top-10 right-0 p-2 text-white/60 hover:text-white" aria-label="Close">
+              <X className="w-5 h-5" />
+            </button>
+            <Flashcard
+              key={`${reviewing}-${tiers[reviewing]}`}
+              word={rw.w.replace(/[.,]/g, "")}
+              translation={rw.m}
+              pronunciation=""
+              ipa=""
+              language={language}
+              state={STATE[tiers[reviewing] as 0 | 1]}
+              onCorrect={() => { const t = tiers[reviewing]; set(reviewing, t === 1 ? 3 : 1); setReviewing(null); }}
+              onIncorrect={() => setReviewing(null)}
+              onDemote={() => { set(reviewing, 0); setReviewing(null); }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* ── Progress board: what a second watch looks like ── */}
+      {board && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={() => setBoard(false)}>
+          <div className="w-full max-w-sm rounded-3xl bg-[#121218] border border-white/10 p-6 text-center" onClick={(e) => e.stopPropagation()}>
+            <div className="w-20 mx-auto"><ChameleonMascot tier="green" party /></div>
+            <p className="mt-2 text-xs uppercase tracking-widest text-white/40">Your comprehension</p>
+            {[{ label: "1st watch", v: 62, c: "rgba(255,255,255,.35)" }, { label: "2nd watch", v: 84, c: DECK.green }].map((r) => (
+              <div key={r.label} className="mt-3 text-left">
+                <div className="flex justify-between text-sm"><span className="text-white/70">{r.label}</span><span className="font-bold tabular-nums">{r.v}%</span></div>
+                <div className="mt-1 h-2 rounded-full bg-white/10 overflow-hidden"><div className="h-full rounded-full" style={{ width: `${r.v}%`, backgroundColor: r.c }} /></div>
+              </div>
+            ))}
+            <p className="mt-4 text-4xl font-black" style={{ color: DECK.green }}>+22%</p>
+            <p className="text-xs text-white/40">Example of a rewatch after reviewing your words</p>
+            <button onClick={() => { setBoard(false); onTry(); }} className="mt-5 w-full h-12 rounded-xl font-bold text-[#08080B]" style={{ backgroundColor: DECK.green }}>
+              Try it with a real show
+            </button>
+            <button onClick={() => setBoard(false)} className="mt-2 text-sm text-white/50">Keep playing</button>
+          </div>
+        </div>
       )}
     </div>
   );
