@@ -3,7 +3,7 @@
   "name": "LinguaScript: Learn Languages with YouTube & Netflix",
   "short_name": "LinguaScript",
   "version": "1.2.0",
-  "description": "Learn a language from YouTube and Netflix. Dual subtitles, tap any word for its meaning, and save it to your LinguaScript flashcards.",
+  "description": "Learn languages on YouTube and Netflix. Dual subtitles, tap any word for its meaning, and save it to your LinguaScript flashcards.",
   "homepage_url": "https://linguascript.co.uk",
   "minimum_chrome_version": "102",
   "permissions": [

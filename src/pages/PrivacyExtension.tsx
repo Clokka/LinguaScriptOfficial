@@ -51,7 +51,7 @@ const PrivacyExtension = () => (
           <li><b>Text you translate</b> — the word or subtitle line is sent to Google
             Translate to get a translation. No other page content is sent.</li>
         </ul>
-        <p>We do not record which videos you watch, your browsing history, your camera or your
+        <p>We do not record which videos or shows you watch, your browsing history, your camera or your
           microphone.</p>
       </Section>
 
