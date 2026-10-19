@@ -8,9 +8,9 @@
   C.keepAlive();
 
   const OVERLAY_CSS = `
-    #ls-overlay { position:fixed; left:0; right:360px; bottom:0; z-index:2147483640; pointer-events:none; font-family:'Inter',-apple-system,sans-serif; background:rgba(5,4,12,0.96); border-top:1px solid rgba(124,58,237,0.2); padding:14px 0 50px; text-align:center; transition:right .3s ease, opacity .15s ease; min-height:100px; }
+    #ls-overlay { position:fixed; left:0; right:360px; bottom:0; z-index:2147483640; pointer-events:none; font-family:'LS Inter','Inter',system-ui,-apple-system,sans-serif; background:rgba(8,8,11,0.96); border-top:1px solid rgba(52,199,89,0.25); padding:14px 0 50px; text-align:center; transition:right .3s ease, opacity .15s ease; min-height:100px; }
     #ls-overlay.ls-panel-hidden { right:0; }
-    #ls-primary { display:inline-block; padding:0 32px; font-size:32px; font-weight:700; color:#fff; line-height:1.5; pointer-events:auto; cursor:pointer; letter-spacing:-0.2px; }
+    #ls-primary { display:inline-block; padding:0 32px; font-size:34px; font-weight:800; color:#fff; line-height:1.5; pointer-events:auto; cursor:pointer; letter-spacing:-0.2px; }
     #ls-secondary { display:block; font-size:18px; font-weight:400; color:rgba(255,255,255,0.6); padding:4px 32px 0; pointer-events:none; }
     #ls-controls { bottom:10px; }
   `;
@@ -77,7 +77,8 @@
     const el = document.getElementById('ls-primary'); if (!el) return;
     el.innerHTML = '';
     el.onclick = () => { const v = video(); if (v) v.currentTime = Math.max(0, v.currentTime - 4); };
-    text.split(/\s+/).filter(Boolean).forEach((w) => el.appendChild(C.makeWordSpan(w, text)));
+    const { parts, joiner } = C.splitWords(text, C.learningLang);
+    parts.forEach((p) => el.appendChild(p.word ? C.makeWordSpan(p.text, text, joiner) : document.createTextNode(p.text + joiner)));
   }
   function renderSecondary(text) {
     const el = document.getElementById('ls-secondary'); if (!el) return;
@@ -124,12 +125,12 @@
   }
 
   // ── Mount ─────────────────────────────────────────────────────────────────────
-  let mounted = false;
+  let mounted = false, subsObserver = null;
   async function mount() {
     if (mounted) return; mounted = true;
     C.injectStyles(OVERLAY_CSS);
     const overlay = document.createElement('div'); overlay.id = 'ls-overlay';
-    overlay.innerHTML = `<div id="ls-primary"></div><div id="ls-secondary" style="display:none"></div>`;
+    overlay.innerHTML = `<div id="ls-primary" translate="no"></div><div id="ls-secondary" style="display:none"></div>`;
     document.body.appendChild(overlay);
 
     panelListEl = C.buildPanelShell('Transcript');
@@ -151,9 +152,7 @@
       getAutoPause: () => autoPause,
     });
 
-    const { ls_language: lang = 'fr', ls_native_language: nativeLang = 'en', ls_debug: dbg = false } =
-      await C.getStorage({ ls_language: 'fr', ls_native_language: 'en', ls_debug: false });
-    C.setLangs(lang, nativeLang); C.setDebug(dbg);
+    await C.loadLangs();
 
     chrome.runtime.sendMessage({ type: 'GET_AUTH' }, async (res) => {
       if (res?.session) { await C.loadSavedWords(); C.startWordsRefresh(); }
@@ -161,12 +160,24 @@
 
     shield.start(); // watchdog + unload-restore
     const target = document.querySelector('.watch-video') || document.body;
-    new MutationObserver(onSubtitleChange).observe(target, { childList: true, subtree: true, characterData: true });
+    subsObserver = new MutationObserver(onSubtitleChange);
+    subsObserver.observe(target, { childList: true, subtree: true, characterData: true });
   }
 
-  function waitForPlayer() {
-    const found = ['.watch-video', '.NFPlayer', '[data-uia="video-canvas"]'].some((s) => document.querySelector(s));
-    if (found) mount(); else setTimeout(waitForPlayer, 1000);
+  function unmount() {
+    if (!mounted) return; mounted = false;
+    subsObserver?.disconnect(); subsObserver = null;
+    shield.stop(); shield.show();
+    ['ls-overlay', 'ls-controls', 'ls-panel', 'ls-toast'].forEach((id) => document.getElementById(id)?.remove());
+    C.closeCard(); C.stopWordsRefresh();
+    transcriptLines.length = 0; currentLineIdx = -1; panelListEl = null; lastPrimary = null; lastSecondarySource = null;
   }
-  waitForPlayer();
+
+  // The script runs on every Netflix page (browse → watch happens without a
+  // reload), so only show the overlay while a title is playing.
+  setInterval(() => {
+    const onWatch = location.pathname.startsWith('/watch');
+    const player = ['.watch-video', '.NFPlayer', '[data-uia="video-canvas"]'].some((s) => document.querySelector(s));
+    if (onWatch && player) mount(); else if (!onWatch) unmount();
+  }, 1000);
 })();

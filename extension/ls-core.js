@@ -93,6 +93,17 @@
   let DEBUG = false;
   function setLangs(l, n) { learningLang = l || 'fr'; nativeLang = n || 'en'; }
   function setDebug(v) { DEBUG = !!v; }
+  // Use the languages from the learner's LinguaScript profile (same as the
+  // website); fall back to the last ones we knew when logged out.
+  async function loadLangs() {
+    const stored = await getStorage({ ls_language: 'fr', ls_native_language: 'en', ls_debug: false });
+    const profile = await new Promise((r) => chrome.runtime.sendMessage({ type: 'GET_PROFILE' }, (res) => r(chrome.runtime.lastError ? null : res)));
+    const lang = profile?.ok && profile.learningLanguage ? profile.learningLanguage : stored.ls_language;
+    const native = profile?.ok && profile.nativeLanguage ? profile.nativeLanguage : stored.ls_native_language;
+    if (profile?.ok) chrome.storage.local.set({ ls_language: lang, ls_native_language: native });
+    setLangs(lang, native); setDebug(stored.ls_debug);
+    return { lang, nativeLang: native };
+  }
   const log = (...a) => { if (DEBUG) console.log('[LinguaScript]', ...a); };
 
   // ── Translation (GTX direct → background chain) ─────────────────────────────
@@ -550,7 +561,7 @@
 
   window.LSCore = {
     keepAlive, getStorage, normalizeToken,
-    setLangs, setDebug, get learningLang() { return learningLang; }, get nativeLang() { return nativeLang; },
+    setLangs, setDebug, loadLangs, get learningLang() { return learningLang; }, get nativeLang() { return nativeLang; },
     translate,
     // The colour feature — one module, one source of truth.
     Deck, get PALETTE() { return Deck.PALETTE; },
