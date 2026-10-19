@@ -4,6 +4,8 @@
 set -euo pipefail
 cd "$(dirname "$0")/../extension"
 VERSION=$(node -p "require('./manifest.json').version")
+# The Chrome Web Store rejects the upload if these are too long.
+node -e "const m=require('./manifest.json'); if (m.description.length > 132 || m.name.length > 75) { console.error('manifest description must be <= 132 chars (is ' + m.description.length + '), name <= 75 (is ' + m.name.length + ')'); process.exit(1); }"
 OUT="../extension-build/linguascript-extension-${VERSION}.zip"
 mkdir -p ../extension-build
 rm -f "$OUT"

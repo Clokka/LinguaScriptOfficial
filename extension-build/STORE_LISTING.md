@@ -8,8 +8,8 @@ Everything to paste into the Chrome Web Store Developer Dashboard
 
 **Name** (from the manifest): LinguaScript: Learn Languages with YouTube & Netflix
 
-**Summary** (from the manifest, max 132 characters):
-Learn a language from YouTube and Netflix. Dual subtitles, tap any word for its meaning, and save it to your LinguaScript flashcards.
+**Summary** (from the manifest, max 132 characters, the store rejects 133+):
+Learn languages on YouTube and Netflix. Dual subtitles, tap any word for its meaning, and save it to your LinguaScript flashcards.
 
 **Description:**
 
