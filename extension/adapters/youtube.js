@@ -180,14 +180,7 @@
       getAutoPause: () => autoPause,
     });
 
-    // Use the languages from the learner's LinguaScript profile (same as the
-    // website); fall back to the last ones we knew when logged out.
-    const stored = await C.getStorage({ ls_language: 'fr', ls_native_language: 'en', ls_debug: false });
-    const profile = await new Promise((r) => chrome.runtime.sendMessage({ type: 'GET_PROFILE' }, (res) => r(chrome.runtime.lastError ? null : res)));
-    const lang = profile?.ok && profile.learningLanguage ? profile.learningLanguage : stored.ls_language;
-    const nativeLang = profile?.ok && profile.nativeLanguage ? profile.nativeLanguage : stored.ls_native_language;
-    if (profile?.ok) chrome.storage.local.set({ ls_language: lang, ls_native_language: nativeLang });
-    C.setLangs(lang, nativeLang); C.setDebug(stored.ls_debug);
+    const { lang, nativeLang } = await C.loadLangs();
 
     chrome.runtime.sendMessage({ type: 'GET_AUTH' }, async (res) => {
       if (res?.session) { await C.loadSavedWords(); C.startWordsRefresh(); }

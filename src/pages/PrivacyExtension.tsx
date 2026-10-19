@@ -17,10 +17,10 @@ const PrivacyExtension = () => (
     </header>
     <main className="max-w-3xl mx-auto px-6 py-10">
       <h1 className="text-3xl font-bold mb-2">Chrome Extension Privacy Policy</h1>
-      <p className="text-sm text-muted-foreground mb-8">Last updated: 14 October 2026</p>
+      <p className="text-sm text-muted-foreground mb-8">Last updated: 19 October 2026</p>
 
       <Section title="What the extension does">
-        The LinguaScript Chrome extension shows dual-language subtitles on YouTube videos, lets
+        The LinguaScript Chrome extension shows dual-language subtitles on YouTube videos and Netflix shows, lets
         you tap a word to see its translation, colours words by your LinguaScript flashcard
         decks, and saves words you choose to your LinguaScript account.
       </Section>
@@ -28,7 +28,9 @@ const PrivacyExtension = () => (
       <Section title="Permissions we request">
         <ul className="list-disc pl-5 space-y-1">
           <li><b>youtube.com</b> — to show the subtitle overlay on YouTube and read the
-            subtitles of the video you are watching. The extension does nothing on other
+            subtitles of the video you are watching.</li>
+          <li><b>netflix.com</b> — to show the subtitle overlay on Netflix and read the
+            subtitle text on screen while you watch. The extension does nothing on other
             websites.</li>
           <li><b>translate.googleapis.com</b> — to translate a word or subtitle line into your
             language.</li>

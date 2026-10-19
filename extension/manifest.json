@@ -1,14 +1,17 @@
 {
   "manifest_version": 3,
-  "name": "LinguaScript: Learn Languages with YouTube",
+  "name": "LinguaScript: Learn Languages with YouTube & Netflix",
   "short_name": "LinguaScript",
-  "version": "1.1.0",
-  "description": "Learn a language from YouTube. Dual subtitles, tap any word for its meaning, and save it to your LinguaScript flashcards.",
+  "version": "1.2.0",
+  "description": "Learn a language from YouTube and Netflix. Dual subtitles, tap any word for its meaning, and save it to your LinguaScript flashcards.",
   "homepage_url": "https://linguascript.co.uk",
   "minimum_chrome_version": "102",
-  "permissions": ["storage"],
+  "permissions": [
+    "storage"
+  ],
   "host_permissions": [
     "https://www.youtube.com/*",
+    "https://www.netflix.com/*",
     "https://ffephracinqeylfhqkiz.supabase.co/*",
     "https://translate.googleapis.com/*"
   ],
@@ -17,15 +20,35 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://www.youtube.com/*"],
-      "js": ["ls-core.js", "adapters/youtube.js"],
+      "matches": [
+        "https://www.youtube.com/*"
+      ],
+      "js": [
+        "ls-core.js",
+        "adapters/youtube.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://www.netflix.com/*"
+      ],
+      "js": [
+        "ls-core.js",
+        "adapters/netflix.js"
+      ],
       "run_at": "document_idle"
     }
   ],
   "web_accessible_resources": [
     {
-      "resources": ["fonts/*.woff2"],
-      "matches": ["https://www.youtube.com/*"]
+      "resources": [
+        "fonts/*.woff2"
+      ],
+      "matches": [
+        "https://www.youtube.com/*",
+        "https://www.netflix.com/*"
+      ]
     }
   ],
   "action": {
