@@ -176,6 +176,7 @@
     PALETTE: { red: '#FF3B30', orange: '#FF8A00', green: '#34C759' },
     STATES: ['red', 'orange', 'green'],
     _map: new Map(),          // normalizedWord → 'red' | 'orange' | 'green'
+    _justSaved: new Map(),    // normalizedWord → time saved (stays red meanwhile)
     _timer: null,
 
     // The deck state for a word, or null if it isn't in any deck (unseen).
@@ -202,6 +203,11 @@
           for (const [word, state] of Object.entries(res.deck || {})) {
             if (this.STATES.includes(state)) this._map.set(normalizeToken(word), state);
           }
+          // A word saved seconds ago may not be in the server's list yet.
+          this._justSaved.forEach((ts, w) => {
+            if (Date.now() - ts > 120000) this._justSaved.delete(w);
+            else if (!this._map.has(w)) this._map.set(w, 'red');
+          });
           const dist = { red: 0, orange: 0, green: 0 };
           this._map.forEach((s) => dist[s]++);
           log('deck loaded:', this._map.size, 'words', dist, '| le/la/des =', this._map.get('le'), this._map.get('la'), this._map.get('des'));
@@ -217,6 +223,7 @@
       const key = normalizeToken(word);
       if (!key) return;
       this._map.set(key, 'red');
+      this._justSaved.set(key, Date.now());
       document.querySelectorAll(`.ls-word[data-word="${CSS.escape(key)}"]`).forEach((el) => this.paint(el, key));
     },
 
@@ -233,7 +240,7 @@
   let toastTimer;
   function showToast(msg) {
     let t = document.getElementById('ls-toast');
-    if (!t) { t = document.createElement('div'); t.id = 'ls-toast'; document.body.appendChild(t); }
+    if (!t) { t = document.createElement('div'); t.id = 'ls-toast'; layerHost().appendChild(t); }
     t.textContent = msg; t.classList.add('ls-show');
     clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('ls-show'), 2200);
   }
@@ -257,7 +264,7 @@
       <div id="ls-card-trans" style="color:#9A9AA6;font-style:italic;font-size:14px;">looking up…</div>
       <div id="ls-card-body"></div>
       <div id="ls-card-action"><button id="ls-card-save"${alreadySaved ? ' disabled' : ''}>${alreadySaved ? '✓ In your flashcards' : '+ Save to flashcards'}</button></div>`;
-    document.body.appendChild(card);
+    layerHost().appendChild(card);
     card.querySelector('#ls-card-close').addEventListener('click', closeCard);
 
     // Sit above the word when there's room, else below, and always stay on
@@ -479,9 +486,15 @@
       styleEl = null; hidden = false;
     }
     function noteContent() { lastContentTs = Date.now(); hide(); }
-    function start() {
+    // stillShowing(): our overlay is on screen with the current line, so a
+    // subtitle that simply stays up for a while doesn't bring the site's back.
+    function start(stillShowing = () => false) {
       stop();
-      watchdog = setInterval(() => { if (hidden && Date.now() - lastContentTs > 4000) show(); }, 2000);
+      watchdog = setInterval(() => {
+        if (!hidden) return;
+        if (stillShowing()) { lastContentTs = Date.now(); return; }
+        if (Date.now() - lastContentTs > 4000) show();
+      }, 2000);
       // Always restore native subs if the page/extension goes away.
       window.addEventListener('pagehide', show, { once: true });
       window.addEventListener('beforeunload', show, { once: true });
@@ -498,7 +511,9 @@
   //   getTarget() → the element to watch for subtitle changes
   //   shield      → SubtitleShield for the site's own subtitles
   //   getVideo()  → the <video>
-  function LiveCaptions({ getText, getTarget, shield, getVideo }) {
+  //   getLines()  → optional: the separate lines on screen, for the transcript
+  //                 (YouTube's rolling captions repeat the previous line)
+  function LiveCaptions({ getText, getLines, getTarget, shield, getVideo }) {
     const lines = [];
     let current = -1, listEl = null, observer = null;
     let lastPrimary = null, lastSecondarySource = null, autoPause = false, visible = true;
@@ -531,27 +546,33 @@
       document.querySelectorAll('.ls-panel-line').forEach((el) => el.classList.toggle('ls-current', parseInt(el.dataset.idx) === current));
       document.querySelector('.ls-panel-line.ls-current')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     }
-    function logLine(text) {
-      const last = lines[lines.length - 1];
-      if (last?.text === text) { current = lines.length - 1; updatePanelCurrent(); return; }
+    function logOne(text) {
+      // Already logged a moment ago (rolling captions show a line twice).
+      for (let i = lines.length - 1; i >= Math.max(0, lines.length - 6); i--) {
+        if (lines[i].text === text) { current = i; return; }
+      }
       // Auto-generated captions grow word by word: update that line in place
       // instead of logging every step.
+      const last = lines[lines.length - 1];
       if (last && text.startsWith(last.text)) {
         last.text = text; current = lines.length - 1;
         const div = listEl?.querySelector(`.ls-panel-line[data-idx="${current}"]`);
         if (div) fillPanelLine(div, current);
-        updatePanelCurrent();
         return;
       }
       lines.push({ text });
       current = lines.length - 1;
       addPanelLine(current);
+    }
+    function logLines(text) {
+      const parts = getLines ? getLines() : [text];
+      (parts.length ? parts : [text]).forEach(logOne);
       updatePanelCurrent();
     }
 
     function renderPrimary(text) {
       if (text === lastPrimary) return; lastPrimary = text;
-      logLine(text);
+      logLines(text);
       const el = document.getElementById('ls-primary'); if (!el) return;
       el.style.cssText = ''; el.innerHTML = '';
       el.onclick = () => { const v = getVideo(); if (v) v.currentTime = Math.max(0, v.currentTime - 4); };
@@ -560,7 +581,7 @@
     }
     function renderSecondary(text) {
       const el = document.getElementById('ls-secondary'); if (!el) return;
-      el.textContent = text || ''; el.style.display = text ? 'block' : 'none';
+      el.textContent = text || ''; el.style.display = text ? '' : 'none';
     }
     function clearOverlay() {
       if (!lastPrimary) return; lastPrimary = null; lastSecondarySource = null;
@@ -605,7 +626,7 @@
     return {
       start(panelList) {
         listEl = panelList;
-        shield.start();
+        shield.start(() => visible && !!lastPrimary && getText() === lastPrimary && !!document.getElementById('ls-primary')?.textContent);
         observer = new MutationObserver(onChange);
         observer.observe(getTarget() || document.body, { childList: true, subtree: true, characterData: true });
         onChange();
@@ -638,6 +659,77 @@
     return { set, get: () => rate };
   }
 
+  // ── Staying out of the site's way ──────────────────────────────────────────────
+  // In fullscreen only the fullscreen element is drawn, so our layers live inside
+  // it. When the video fills the window (Netflix, fullscreen) the site's own
+  // controls run along the bottom: html.ls-fills lifts our subtitles above them,
+  // moves our bar to the top and stops the transcript short of them. The bar
+  // fades while the mouse is still, like the players' own controls.
+  const LAYERS = ['ls-overlay', 'ls-controls', 'ls-panel', 'ls-card', 'ls-toast'];
+  function layerHost() {
+    const fs = document.fullscreenElement;
+    return fs && fs !== document.documentElement ? fs : document.body;
+  }
+  function watchLayout(getVideo) {
+    const root = document.documentElement;
+    const update = () => {
+      const r = getVideo()?.getBoundingClientRect();
+      root.classList.toggle('ls-fills', !!r && r.height >= innerHeight * 0.75 && r.bottom >= innerHeight - 8);
+      const host = layerHost();
+      LAYERS.forEach((id) => { const el = document.getElementById(id); if (el && el.parentElement !== host) host.appendChild(el); });
+    };
+    let idleTimer = null;
+    const wake = () => {
+      root.classList.remove('ls-idle');
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => root.classList.add('ls-idle'), 3000);
+    };
+    addEventListener('resize', update);
+    document.addEventListener('fullscreenchange', update);
+    addEventListener('mousemove', wake, { passive: true });
+    const timer = setInterval(update, 1000);
+    update(); wake();
+    return () => {
+      removeEventListener('resize', update);
+      document.removeEventListener('fullscreenchange', update);
+      removeEventListener('mousemove', wake);
+      clearInterval(timer); clearTimeout(idleTimer);
+      root.classList.remove('ls-fills', 'ls-idle');
+    };
+  }
+
+  // Ask page-bridge.js (in the page's own world) to switch the site's subtitles
+  // on, in the learning language when the video has it.
+  let bridgeSeq = 0;
+  function requestCaptions(lang) {
+    return new Promise((resolve) => {
+      const id = `ls-${++bridgeSeq}-${Date.now()}`;
+      const done = (res) => { removeEventListener('message', onMsg); clearTimeout(timer); resolve(res); };
+      const onMsg = (e) => { if (e.source === window && e.data?.source === 'ls-bridge' && e.data.id === id) done(e.data); };
+      const timer = setTimeout(() => done({ ok: false, reason: 'timeout' }), 1500);
+      addEventListener('message', onMsg);
+      window.postMessage({ source: 'ls-content', type: 'captions-on', id, lang }, '*');
+    });
+  }
+
+  // A small grey hint where the subtitles go, e.g. "Turning on subtitles…".
+  function setStatus(text) {
+    const el = document.getElementById('ls-primary');
+    if (!el) return;
+    el.style.cssText = 'opacity:0.6;font-size:13px;font-style:italic;';
+    el.textContent = text;
+    const overlay = document.getElementById('ls-overlay'); if (overlay) overlay.style.opacity = '1';
+  }
+
+  // The subtitle overlay, the same on every site.
+  function buildOverlay() {
+    document.getElementById('ls-overlay')?.remove();
+    const overlay = document.createElement('div'); overlay.id = 'ls-overlay';
+    overlay.innerHTML = `<div id="ls-primary" translate="no"></div><div id="ls-secondary" style="display:none"></div>`;
+    layerHost().appendChild(overlay);
+    return overlay;
+  }
+
   // ── Panel shell ────────────────────────────────────────────────────────────
   let panelVisible = true;
   function buildPanelShell(metaLabel = 'Transcript') {
@@ -649,7 +741,7 @@
         <button id="ls-panel-toggle">Hide</button>
       </div>
       <div id="ls-panel-list"></div>`;
-    document.body.appendChild(panel);
+    layerHost().appendChild(panel);
     panel.querySelector('#ls-panel-toggle').addEventListener('click', () => togglePanel(false));
     return panel.querySelector('#ls-panel-list');
   }
@@ -700,7 +792,7 @@
       nodes.push(a);
     });
     nodes.forEach((n) => inner.appendChild(n));
-    document.body.appendChild(bar);
+    layerHost().appendChild(bar);
 
     // Reflect keyboard toggles back onto the A|P button.
     window.__lsSetAutoPause = (v) => { autoPause = v; apBtn.innerHTML = `${v ? 'A|P On' : 'A|P Off'}<span class="ls-kbd">Q</span>`; apBtn.classList.toggle('ls-on', v); };
@@ -738,7 +830,22 @@
     .ls-orange { color:${Deck.PALETTE.orange}!important; }
     .ls-green  { color:${Deck.PALETTE.green} !important; }
 
-    #ls-controls { position:fixed; z-index:2147483641; display:flex; align-items:center; justify-content:center; gap:6px; pointer-events:none; transition:right .3s ease; left:0; right:360px; }
+    /* Subtitle overlay: the same on YouTube and Netflix. */
+    #ls-overlay { position:fixed; bottom:92px; left:0; right:360px; z-index:2147483640; text-align:center; pointer-events:none; font-family:'LS Inter','Inter',system-ui,-apple-system,sans-serif; transition:right .3s ease, opacity .15s ease, bottom .2s ease; }
+    #ls-overlay.ls-panel-hidden { right:0; }
+    #ls-primary { display:inline-block; background:rgba(0,0,0,0.82); border-radius:6px; padding:10px 28px 14px; margin-bottom:6px; font-size:34px; font-weight:800; color:#fff; line-height:1.45; pointer-events:auto; cursor:pointer; text-shadow:0 2px 8px rgba(0,0,0,0.95); max-width:100%; box-sizing:border-box; }
+    #ls-primary:empty { display:none; }
+    #ls-secondary { display:inline-block; font-size:20px; font-weight:500; color:rgba(255,255,255,0.82); background:rgba(0,0,0,0.68); border-radius:4px; padding:4px 18px 6px; pointer-events:none; text-shadow:0 1px 4px rgba(0,0,0,0.9); }
+    #ls-overlay #ls-secondary { display:table; margin:0 auto; }
+
+    /* Video fills the window (Netflix, fullscreen): keep clear of the site's own
+       controls along the bottom (subtitles, audio, settings, fullscreen). */
+    html.ls-fills #ls-overlay { bottom:130px; }
+    html.ls-fills #ls-controls { top:14px; bottom:auto; }
+    html.ls-fills #ls-panel { bottom:120px; border-bottom:1px solid #24242D; border-bottom-left-radius:16px; }
+    html.ls-fills.ls-idle #ls-controls { opacity:0.15; }
+
+    #ls-controls { position:fixed; z-index:2147483641; bottom:22px; transition:right .3s ease, opacity .4s ease; display:flex; align-items:center; justify-content:center; gap:6px; pointer-events:none; left:0; right:360px; }
     #ls-controls.ls-panel-hidden { right:0; }
     #ls-controls-inner { display:flex; align-items:center; gap:6px; background:rgba(8,8,11,0.94); border:1px solid #24242D; border-radius:999px; padding:7px 12px; backdrop-filter:blur(16px); pointer-events:auto; box-shadow:0 4px 24px rgba(0,0,0,0.7); font-family:'LS Inter','Inter',system-ui,-apple-system,sans-serif; }
     .ls-btn { background:rgba(255,255,255,0.08); color:#F5F5F7; border:none; border-radius:999px; padding:5px 11px; font-size:12px; font-weight:600; cursor:pointer; transition:background .12s, transform .1s; white-space:nowrap; font-family:inherit; text-decoration:none; display:inline-flex; align-items:center; }
@@ -830,7 +937,7 @@
     startWordsRefresh: () => Deck.startAutoRefresh(),
     stopWordsRefresh: () => Deck.stopAutoRefresh(),
     showToast, openCard, closeCard, makeWordSpan, makeWordSpansFor, splitWords, playDing, escapeHtml,
-    SubtitleShield, LiveCaptions, SpeedKeeper, buildPanelShell, togglePanel, buildControls, attachKeyboardShortcuts,
+    SubtitleShield, LiveCaptions, SpeedKeeper, watchLayout, requestCaptions, setStatus, buildOverlay, layerHost, buildPanelShell, togglePanel, buildControls, attachKeyboardShortcuts,
     injectStyles,
   };
 })();

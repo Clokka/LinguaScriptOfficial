@@ -8,14 +8,6 @@
   if (!C) { console.warn('[LinguaScript] core not loaded'); return; }
   C.keepAlive();
 
-  const OVERLAY_CSS = `
-    #ls-overlay { position:fixed; bottom:92px; left:0; right:360px; z-index:2147483640; text-align:center; pointer-events:none; font-family:'LS Inter','Inter',system-ui,-apple-system,sans-serif; transition:right .3s ease, opacity .15s ease; }
-    #ls-overlay.ls-panel-hidden { right:0; }
-    #ls-primary { display:inline-block; background:rgba(0,0,0,0.82); border-radius:6px; padding:10px 28px 14px; margin-bottom:6px; font-size:34px; font-weight:800; color:#fff; line-height:1.45; pointer-events:auto; cursor:pointer; text-shadow:0 2px 8px rgba(0,0,0,0.95); max-width:100%; }
-    #ls-secondary { display:block; font-size:20px; font-weight:500; color:rgba(255,255,255,0.82); background:rgba(0,0,0,0.68); border-radius:4px; padding:4px 18px 6px; pointer-events:none; text-shadow:0 1px 4px rgba(0,0,0,0.9); }
-    #ls-controls { bottom:22px; }
-  `;
-
   const getVideoId = () => new URLSearchParams(location.search).get('v');
   function decodeHtml(t) {
     return t.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
@@ -80,6 +72,7 @@
   let primarySubs = [], secondarySubs = [], currentSubIdx = 0, syncInterval = null, videoEl = null, live = null;
   const video = () => document.querySelector('video');
   const speed = C.SpeedKeeper(video);
+  let stopLayout = null;
   let lastText = null, lastSecondarySource = null, autoPause = false, autoPausedAt = -1, overlayVisible = true;
 
   function renderPrimary(text) {
@@ -92,7 +85,7 @@
   }
   function renderSecondary(text) {
     const el = document.getElementById('ls-secondary'); if (!el) return;
-    el.textContent = text || ''; el.style.display = text ? 'block' : 'none';
+    el.textContent = text || ''; el.style.display = text ? '' : 'none';
   }
   function seekToSub(idx) {
     if (!primarySubs[idx] || !videoEl) return;
@@ -150,48 +143,51 @@
   }
 
   // ── Screen-caption mode ─────────────────────────────────────────────────────
-  function getScreenText() {
+  // Each visual caption line on its own. Auto-generated captions roll: the
+  // bottom line moves up as a new one appears, so the transcript logs lines
+  // (de-duplicated by LiveCaptions), not whole screens.
+  function getScreenLines() {
     const lines = Array.from(document.querySelectorAll('.ytp-caption-window-container .caption-visual-line'))
-      .map((l) => Array.from(l.querySelectorAll('.ytp-caption-segment')).map((s) => s.textContent).join(' ').trim())
+      .map((l) => Array.from(l.querySelectorAll('.ytp-caption-segment')).map((s) => s.textContent).join(' ').replace(/\s+/g, ' ').trim())
       .filter(Boolean);
-    if (!lines.length) {
-      const segs = Array.from(document.querySelectorAll('.ytp-caption-segment')).map((s) => s.textContent.trim()).filter(Boolean);
-      return segs.length ? segs.join(' ').replace(/\s+/g, ' ') : null;
-    }
-    return lines.join(' ').replace(/\s+/g, ' ');
+    if (lines.length) return lines;
+    const segs = Array.from(document.querySelectorAll('.ytp-caption-segment')).map((s) => s.textContent.trim()).filter(Boolean);
+    return segs.length ? [segs.join(' ').replace(/\s+/g, ' ')] : [];
   }
-  function turnOnCaptions() {
+  function getScreenText() {
+    const lines = getScreenLines();
+    return lines.length ? lines.join(' ') : null;
+  }
+  // Ask the player for captions in the learning language (page-bridge.js);
+  // if it can't be reached, press the CC button instead.
+  async function turnOnCaptions() {
+    const res = await C.requestCaptions(C.learningLang);
+    if (res.ok) return true;
     const btn = document.querySelector('.ytp-subtitles-button');
     if (btn && btn.getAttribute('aria-pressed') === 'false') btn.click();
     return !!btn;
   }
-  function setStatus(text) {
-    const el = document.getElementById('ls-primary');
-    if (!el) return;
-    el.style.cssText = 'opacity:0.6;font-size:13px;font-style:italic;background:rgba(0,0,0,0.82);border-radius:6px;padding:8px 18px;';
-    el.textContent = text;
-  }
-  function startScreenCaptions(listEl, myVideoId) {
+  async function startScreenCaptions(listEl, myVideoId) {
     live = C.LiveCaptions({
       getText: getScreenText,
+      getLines: getScreenLines,
       getTarget: () => document.querySelector('#movie_player') || document.body,
       shield: C.SubtitleShield('.ytp-caption-window-container'),
       getVideo: video,
     });
     live.start(listEl);
     if (autoPause) live.setAutoPause(true);
-    setStatus('Turning on subtitles…');
-    // The CC button can appear a moment after the player; keep trying briefly.
-    let tries = 0;
-    const timer = setInterval(() => {
-      if (activeVideoId !== myVideoId || !live) { clearInterval(timer); return; }
-      const hasButton = turnOnCaptions();
-      if (live.hasText()) { clearInterval(timer); return; }
-      if (++tries >= 20) {
-        clearInterval(timer);
-        setStatus(hasButton ? 'Waiting for subtitles… (CC is on)' : 'No subtitles for this video');
-      }
-    }, 500);
+    C.setStatus('Turning on subtitles…');
+    // The player can take a moment to be ready; keep trying briefly.
+    let hasCaptions = false;
+    for (let i = 0; i < 20; i++) {
+      if (activeVideoId !== myVideoId || !live || live.hasText()) return;
+      hasCaptions = (await turnOnCaptions()) || hasCaptions;
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+    if (activeVideoId === myVideoId && live && !live.hasText()) {
+      C.setStatus(hasCaptions ? 'Waiting for subtitles… (CC is on)' : 'No subtitles for this video');
+    }
   }
 
   // ── Mount ─────────────────────────────────────────────────────────────────────
@@ -205,10 +201,9 @@
     live?.stop(); live = null;
     lastText = null; lastSecondarySource = null; currentSubIdx = 0;
 
-    C.injectStyles(OVERLAY_CSS);
-    const overlay = document.createElement('div'); overlay.id = 'ls-overlay';
-    overlay.innerHTML = `<div id="ls-primary" translate="no"></div><div id="ls-secondary" style="display:none"></div>`;
-    document.body.appendChild(overlay);
+    C.injectStyles();
+    C.buildOverlay();
+    stopLayout?.(); stopLayout = C.watchLayout(video);
 
     const listEl = C.buildPanelShell('Transcript');
     // Track mode seeks line by line; screen-caption mode has no timestamps, so
@@ -254,6 +249,7 @@
     C.closeCard(); C.stopWordsRefresh();
     if (syncInterval) { clearInterval(syncInterval); syncInterval = null; }
     live?.stop(); live = null;
+    stopLayout?.(); stopLayout = null;
     primarySubs = []; secondarySubs = []; videoEl = null;
   }
   async function checkAndMount() {

@@ -1,8 +1,8 @@
-# Chrome Web Store listing — LinguaScript 1.3.0
+# Chrome Web Store listing — LinguaScript 1.3.1
 
 Everything to paste into the Chrome Web Store Developer Dashboard
 (https://chrome.google.com/webstore/devconsole). Build the upload zip with
-`scripts/pack-extension.sh` → `extension-build/linguascript-extension-1.3.0.zip`.
+`scripts/pack-extension.sh` → `extension-build/linguascript-extension-1.3.1.zip`.
 
 ## Store listing tab
 
@@ -62,7 +62,7 @@ Helps people learn a language while watching YouTube and Netflix: it shows dual-
 | Host `https://translate.googleapis.com/*` | Translates a tapped word or a subtitle line into the user's language. |
 | Host `https://ffephracinqeylfhqkiz.supabase.co/*` | The LinguaScript backend: sign-in, reading the learner's language, goal, streak and flashcard decks, and saving words they choose. |
 
-**Remote code:** No, I am not using remote code. (All JavaScript is in the package.)
+**Remote code:** No, I am not using remote code. (All JavaScript is in the package. `page-bridge.js` runs in the page only to switch the site's own subtitles on.)
 
 **Data usage — tick these:**
 - Personally identifiable information (email address, for sign-in)
@@ -80,5 +80,5 @@ Leave everything else unticked (no health, financial, location, web history, use
 - Regions: All regions
 - Pricing: Free
 
-## What's not in 1.3.0 (coming in updates)
+## What's not in 1.3.1 (coming in updates)
 - Orange "learn next" rings and auto-pause on ring words, pre-teach warm-up, gold words, XP
