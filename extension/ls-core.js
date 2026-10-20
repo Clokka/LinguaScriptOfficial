@@ -93,17 +93,41 @@
   let DEBUG = false;
   function setLangs(l, n) { learningLang = l || 'fr'; nativeLang = n || 'en'; }
   function setDebug(v) { DEBUG = !!v; }
-  // Use the languages from the learner's LinguaScript profile (same as the
-  // website); fall back to the last ones we knew when logged out.
+  const send = (msg) => new Promise((r) => chrome.runtime.sendMessage(msg, (res) => r(chrome.runtime.lastError ? null : res)));
+
+  const SITE = 'https://linguascript.co.uk';
+  const LANGUAGES = {
+    en: ['English', '🇬🇧'], es: ['Spanish', '🇪🇸'], fr: ['French', '🇫🇷'], de: ['German', '🇩🇪'], it: ['Italian', '🇮🇹'],
+    pt: ['Portuguese', '🇵🇹'], ja: ['Japanese', '🇯🇵'], ko: ['Korean', '🇰🇷'], zh: ['Chinese', '🇨🇳'], ru: ['Russian', '🇷🇺'],
+    ar: ['Arabic', '🇸🇦'], nl: ['Dutch', '🇳🇱'], pl: ['Polish', '🇵🇱'], sv: ['Swedish', '🇸🇪'], tr: ['Turkish', '🇹🇷'],
+    hi: ['Hindi', '🇮🇳'], th: ['Thai', '🇹🇭'],
+  };
+  const langName = (c) => LANGUAGES[c]?.[0] || String(c || '').toUpperCase();
+  const langFlag = (c) => LANGUAGES[c]?.[1] || '🌐';
+  const flashcardsUrl = (c) => `${SITE}/flashcards?lang=${encodeURIComponent(c)}`;
+
+  // Logged in: the language this session uses, which is always one of the
+  // learner's own LinguaScript languages. Logged out: the last one we knew
+  // (French + English to start), so new users see the subtitles straight away.
   async function loadLangs() {
     const stored = await getStorage({ ls_language: 'fr', ls_native_language: 'en', ls_debug: false });
-    const profile = await new Promise((r) => chrome.runtime.sendMessage({ type: 'GET_PROFILE' }, (res) => r(chrome.runtime.lastError ? null : res)));
-    const lang = profile?.ok && profile.learningLanguage ? profile.learningLanguage : stored.ls_language;
-    const native = profile?.ok && profile.nativeLanguage ? profile.nativeLanguage : stored.ls_native_language;
-    if (profile?.ok) chrome.storage.local.set({ ls_language: lang, ls_native_language: native });
+    const info = await send({ type: 'GET_LANGUAGES' });
+    const lang = info?.ok && info.language ? info.language : stored.ls_language;
+    const native = info?.ok && info.nativeLanguage ? info.nativeLanguage : stored.ls_native_language;
+    if (info?.ok && info.language) chrome.storage.local.set({ ls_language: lang, ls_native_language: native });
     setLangs(lang, native); setDebug(stored.ls_debug);
     return { lang, nativeLang: native };
   }
+
+  // A language picked in the pop-up or the word card applies to every open tab.
+  function applyLanguage(lang) {
+    if (!lang || lang === learningLang) return;
+    setLangs(lang, nativeLang);
+    Deck.refresh(true);
+  }
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && changes.ls_language) applyLanguage(changes.ls_language.newValue);
+  });
   const log = (...a) => { if (DEBUG) console.log('[LinguaScript]', ...a); };
 
   // ── Translation (GTX direct → background chain) ─────────────────────────────
@@ -232,15 +256,23 @@
       <div id="ls-card-tier" style="color:${tierColor}">${tierLabel}</div>
       <div id="ls-card-trans" style="color:#9A9AA6;font-style:italic;font-size:14px;">looking up…</div>
       <div id="ls-card-body"></div>
-      <button id="ls-card-save"${alreadySaved ? ' disabled' : ''}>${alreadySaved ? '✓ In your flashcards' : '+ Save to flashcards'}</button>`;
+      <div id="ls-card-action"><button id="ls-card-save"${alreadySaved ? ' disabled' : ''}>${alreadySaved ? '✓ In your flashcards' : '+ Save to flashcards'}</button></div>`;
     document.body.appendChild(card);
     card.querySelector('#ls-card-close').addEventListener('click', closeCard);
 
+    // Sit above the word when there's room, else below, and always stay on
+    // screen: the card grows (translation, login form, language buttons), so
+    // re-place it whenever its size changes.
     const rect = anchorEl.getBoundingClientRect();
-    let left = rect.left + rect.width / 2 - 150;
-    left = Math.max(8, Math.min(left, window.innerWidth - 308));
-    const top = rect.top - 180 < 8 ? rect.bottom + 8 : rect.top - 180;
-    card.style.left = left + 'px'; card.style.top = top + 'px';
+    const place = () => {
+      const h = card.offsetHeight;
+      const left = Math.max(8, Math.min(rect.left + rect.width / 2 - 150, window.innerWidth - 308));
+      let top = rect.top - h - 8 >= 8 ? rect.top - h - 8 : rect.bottom + 8;
+      top = Math.max(8, Math.min(top, window.innerHeight - h - 8));
+      card.style.left = left + 'px'; card.style.top = top + 'px';
+    };
+    place();
+    new ResizeObserver(place).observe(card);
     setTimeout(() => document.addEventListener('click', (e) => { if (!card.contains(e.target)) closeCard(); }, { once: true }), 0);
 
     let resolvedTranslation = '';
@@ -286,56 +318,124 @@
       if (!activeCard) return;
       const saveBtn = card.querySelector('#ls-card-save');
       if (!authRes?.session) {
-        saveBtn.replaceWith(buildMiniLogin(clean, fullLine, () => resolvedTranslation));
-      } else {
-        saveBtn.addEventListener('click', () => {
-          saveBtn.textContent = 'Saving…'; saveBtn.disabled = true;
-          chrome.runtime.sendMessage({ type: 'SAVE_WORD', word: clean, context: fullLine, language: learningLang, translation: resolvedTranslation }, (res) => {
-            if (chrome.runtime.lastError || !res?.ok) {
-              saveBtn.textContent = res?.message || 'Couldn’t save — tap to try again'; saveBtn.disabled = !!res?.message;
-              return;
-            }
-            Deck.markSaved(clean);
-            playDing();
-            saveBtn.textContent = res.already ? '✓ Already in your flashcards' : '✓ Saved!'; saveBtn.disabled = true;
-            setTimeout(closeCard, 900);
-          });
-        });
+        setCardAction(card, buildMiniLogin(card, clean, fullLine, () => resolvedTranslation));
+      } else if (!alreadySaved) {
+        saveBtn.addEventListener('click', () => saveFromCard(card, clean, fullLine, resolvedTranslation));
       }
     });
   }
 
-  function buildMiniLogin(word, context, getTranslation) {
+  // ── Saving from the word card ─────────────────────────────────────────────────
+  // A word goes into the deck of the language being watched, which must be one
+  // of the learner's own LinguaScript languages; the card says which, with a link.
+  function setCardAction(card, node) {
+    const slot = card.querySelector('#ls-card-action');
+    if (slot) slot.replaceChildren(node);
+  }
+  function cardNote(html, cls = 'ls-card-status') {
+    const d = document.createElement('div'); d.className = cls; d.innerHTML = html; return d;
+  }
+
+  async function saveFromCard(card, word, context, translation) {
+    setCardAction(card, cardNote('Saving…'));
+    const res = await send({ type: 'SAVE_WORD', word, context, language: learningLang, translation });
+    if (activeCard !== card) return;
+    if (res?.error === 'not_your_language') {
+      showLanguagePicker(card, res.languages || [], () => saveFromCard(card, word, context, translation));
+      return;
+    }
+    if (!res?.ok) {
+      const retry = document.createElement('button'); retry.id = 'ls-card-save';
+      retry.textContent = res?.message || 'Couldn’t save. Tap to try again';
+      retry.disabled = !!res?.message;
+      retry.addEventListener('click', () => saveFromCard(card, word, context, translation));
+      setCardAction(card, retry);
+      return;
+    }
+    Deck.markSaved(word);
+    playDing();
+    Deck.refresh(true);
+    const tierEl = card.querySelector('#ls-card-tier');
+    if (tierEl && !res.already) { tierEl.textContent = '🔴 New word'; tierEl.style.color = Deck.PALETTE.red; }
+    const lang = res.language || learningLang;
+    setCardAction(card, cardNote(
+      `<b>✓ ${res.already ? 'Already in' : 'Saved to'} your ${langFlag(lang)} ${escapeHtml(langName(lang))} flashcards</b>` +
+      `<a href="${flashcardsUrl(lang)}" target="_blank" rel="noopener noreferrer">Open your ${escapeHtml(langName(lang))} flashcards →</a>`,
+      'ls-card-status ls-card-saved'));
+  }
+
+  // Ask which of the learner's languages they're watching in. Only their own
+  // LinguaScript languages are offered.
+  function showLanguagePicker(card, languages, then) {
+    if (!languages.length) {
+      setCardAction(card, cardNote(`Add the language you're learning on LinguaScript first. <a href="${SITE}/profile" target="_blank" rel="noopener noreferrer">Open LinguaScript →</a>`));
+      return;
+    }
+    const wrap = cardNote('<b>Which language are you watching in?</b>', 'ls-card-status');
+    const row = document.createElement('div'); row.className = 'ls-card-langs';
+    languages.forEach((code) => {
+      const b = document.createElement('button'); b.className = 'ls-card-lang-btn';
+      b.textContent = `${langFlag(code)} ${langName(code)}`;
+      b.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const res = await send({ type: 'SET_LANGUAGE', language: code });
+        if (!res?.ok) return;
+        applyLanguage(code);
+        then();
+      });
+      row.appendChild(b);
+    });
+    wrap.appendChild(row);
+    setCardAction(card, wrap);
+  }
+
+  // Straight after logging in from the card: watch in the language on screen if
+  // it's one of theirs, otherwise ask, then save the word.
+  async function afterLogin(card, word, context, getTranslation) {
+    const info = await send({ type: 'GET_LANGUAGES' });
+    if (activeCard !== card) return;
+    Deck.refresh(true); Deck.startAutoRefresh();
+    const languages = info?.languages || [];
+    const save = () => saveFromCard(card, word, context, getTranslation());
+    if (languages.includes(learningLang)) {
+      await send({ type: 'SET_LANGUAGE', language: learningLang });
+      save();
+    } else {
+      showLanguagePicker(card, languages, save);
+    }
+  }
+
+  function buildMiniLogin(card, word, context, getTranslation) {
     const wrap = document.createElement('div');
     wrap.innerHTML = `
-      <p class="ls-card-login-note">Log in to save words to your flashcards. New here? <a href="https://linguascript.co.uk/auth?mode=signup" target="_blank" rel="noopener noreferrer">Create a free account</a></p>
+      <p class="ls-card-login-note">Log in to save words to your flashcards. New here? <a href="${SITE}/auth?mode=signup" target="_blank" rel="noopener noreferrer">Create a free account</a></p>
+      <button class="ls-card-google" id="ls-mini-google"><span class="ls-g">G</span> Continue with Google</button>
+      <div class="ls-card-or">or</div>
       <input class="ls-card-login-input" id="ls-mini-email" type="email" placeholder="Email" autocomplete="email" />
       <input class="ls-card-login-input" id="ls-mini-pw" type="password" placeholder="Password" autocomplete="current-password" />
       <button class="ls-card-login-btn" id="ls-mini-submit">Log in &amp; Save</button>
+      <a class="ls-card-forgot" href="${SITE}/auth?mode=forgot" target="_blank" rel="noopener noreferrer">Forgot password?</a>
       <div class="ls-card-login-err" id="ls-mini-err"></div>`;
     wrap.addEventListener('click', (e) => e.stopPropagation());
-    const submit = () => {
+    const errEl = wrap.querySelector('#ls-mini-err');
+    const submit = async () => {
       const email = wrap.querySelector('#ls-mini-email').value.trim();
       const pw = wrap.querySelector('#ls-mini-pw').value;
-      const errEl = wrap.querySelector('#ls-mini-err');
       const btn = wrap.querySelector('#ls-mini-submit');
       if (!email || !pw) { errEl.textContent = 'Enter your email and password.'; return; }
       btn.textContent = 'Logging in…'; btn.disabled = true; errEl.textContent = '';
-      chrome.runtime.sendMessage({ type: 'SIGN_IN', email, password: pw }, (res) => {
-        if (!res?.ok) { errEl.textContent = res?.error || 'Login failed — check credentials.'; btn.textContent = 'Log in & Save'; btn.disabled = false; return; }
-        btn.textContent = 'Saving…';
-        chrome.runtime.sendMessage({ type: 'SAVE_WORD', word, context, language: learningLang, translation: getTranslation() }, (saveRes) => {
-          if (!saveRes?.ok) { btn.textContent = saveRes?.message || 'Couldn’t save — try again'; btn.disabled = false; return; }
-          Deck.markSaved(word);
-          playDing();
-          Deck.refresh(true);
-          btn.textContent = '✓ Saved!'; btn.disabled = true;
-          setTimeout(closeCard, 900);
-        });
-      });
+      const res = await send({ type: 'SIGN_IN', email, password: pw });
+      if (!res?.ok) { errEl.textContent = res?.error || 'Login failed. Check your email and password.'; btn.textContent = 'Log in & Save'; btn.disabled = false; return; }
+      afterLogin(card, word, context, getTranslation);
     };
     wrap.querySelector('#ls-mini-submit').addEventListener('click', submit);
     wrap.querySelector('#ls-mini-pw').addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); });
+    wrap.querySelector('#ls-mini-google').addEventListener('click', async () => {
+      errEl.textContent = '';
+      const res = await send({ type: 'GOOGLE_SIGN_IN' });
+      if (!res?.ok) { errEl.textContent = res?.error || 'Google sign-in didn’t finish. Try again or use email.'; return; }
+      afterLogin(card, word, context, getTranslation);
+    });
     return wrap;
   }
 
@@ -651,7 +751,7 @@
     .ls-sep { width:1px; height:18px; background:rgba(255,255,255,0.13); margin:0 2px; }
     .ls-kbd { font-size:10px; color:rgba(255,255,255,0.4); margin-left:3px; }
 
-    #ls-card { position:fixed; z-index:2147483647; width:300px; background:rgba(17,17,22,0.98); border:1px solid #24242D; border-radius:16px; padding:16px 18px 14px; font-family:'LS Inter','Inter',system-ui,-apple-system,sans-serif; box-shadow:0 16px 48px rgba(0,0,0,0.9); backdrop-filter:blur(20px); pointer-events:auto; color:#F5F5F7; animation:ls-card-in .22s cubic-bezier(0.34,1.56,0.64,1); }
+    #ls-card { position:fixed; z-index:2147483647; width:300px; max-height:calc(100vh - 16px); overflow-y:auto; box-sizing:border-box; background:rgba(17,17,22,0.98); border:1px solid #24242D; border-radius:16px; padding:16px 18px 14px; font-family:'LS Inter','Inter',system-ui,-apple-system,sans-serif; box-shadow:0 16px 48px rgba(0,0,0,0.9); backdrop-filter:blur(20px); pointer-events:auto; color:#F5F5F7; animation:ls-card-in .22s cubic-bezier(0.34,1.56,0.64,1); }
     @keyframes ls-card-in { from{opacity:0;transform:scale(.88) translateY(6px);} to{opacity:1;transform:scale(1) translateY(0);} }
     #ls-card-word { font-size:22px; font-weight:800; margin-bottom:3px; letter-spacing:-0.3px; }
     #ls-card-tier { font-size:11px; font-weight:600; letter-spacing:.04em; margin-bottom:8px; opacity:.9; }
@@ -675,6 +775,18 @@
     .ls-card-login-btn { width:100%; padding:9px; border:none; border-radius:999px; background:#34C759; color:#08080B; font-size:12px; font-weight:700; cursor:pointer; font-family:inherit; }
     .ls-card-login-btn:hover { filter:brightness(1.08); }
     .ls-card-login-err { font-size:11px; color:#FF3B30; margin-top:5px; min-height:14px; }
+    .ls-card-google { width:100%; padding:9px; border:1px solid #24242D; border-radius:999px; background:#F5F5F7; color:#08080B; font-size:12px; font-weight:700; cursor:pointer; font-family:inherit; display:flex; align-items:center; justify-content:center; gap:8px; }
+    .ls-card-google:hover { filter:brightness(0.95); }
+    .ls-g { font-weight:800; color:#4285F4; }
+    .ls-card-or { text-align:center; font-size:11px; color:#9A9AA6; margin:8px 0; }
+    .ls-card-forgot { display:block; text-align:center; font-size:11px; color:#9A9AA6; margin-top:7px; text-decoration:none; }
+    .ls-card-forgot:hover { color:#F5F5F7; }
+    .ls-card-status { font-size:13px; color:#F5F5F7; line-height:1.5; }
+    .ls-card-status a { display:block; margin-top:6px; color:#34C759; font-weight:600; text-decoration:none; }
+    .ls-card-saved b { color:#34C759; }
+    .ls-card-langs { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+    .ls-card-lang-btn { padding:7px 12px; border:1px solid #24242D; border-radius:999px; background:#17171E; color:#F5F5F7; font-size:12px; font-weight:600; cursor:pointer; font-family:inherit; }
+    .ls-card-lang-btn:hover { border-color:#34C759; }
 
     #ls-panel { position:fixed; top:0; right:0; bottom:0; width:360px; background:rgba(8,8,11,0.98); border-left:1px solid #24242D; z-index:2147483639; display:flex; flex-direction:column; font-family:'LS Inter','Inter',system-ui,-apple-system,sans-serif; backdrop-filter:blur(12px); transition:transform .3s cubic-bezier(0.4,0,0.2,1); }
     #ls-panel.ls-hidden { transform:translateX(360px); }

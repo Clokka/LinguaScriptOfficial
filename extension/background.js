@@ -34,6 +34,34 @@ async function signIn(email, password) {
   return data; // { access_token, refresh_token, user }
 }
 
+// Google sign-in: Supabase's own Google provider (the same one the website
+// uses) in a Chrome sign-in window. Supabase sends the tokens back to the
+// extension's redirect URL, which must be listed under Auth → URL Configuration
+// → Redirect URLs as https://<extension-id>.chromiumapp.org/**.
+async function signInWithGoogle() {
+  const redirectTo = chrome.identity.getRedirectURL();
+  const url = `${SUPABASE_URL}/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(redirectTo)}`;
+  let finalUrl;
+  try {
+    finalUrl = await chrome.identity.launchWebAuthFlow({ url, interactive: true });
+  } catch {
+    throw new Error('Google sign-in didn’t finish. Try again or use email.');
+  }
+  const params = new URLSearchParams(new URL(finalUrl).hash.slice(1));
+  const accessToken = params.get('access_token');
+  if (!accessToken) throw new Error(params.get('error_description') || 'Google sign-in failed');
+  const userRes = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+    headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${accessToken}` },
+  });
+  if (!userRes.ok) throw new Error('Google sign-in failed');
+  return {
+    access_token: accessToken,
+    refresh_token: params.get('refresh_token'),
+    expires_in: Number(params.get('expires_in')) || 3600,
+    user: await userRes.json(),
+  };
+}
+
 async function refreshSession(refreshToken) {
   const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
     method: 'POST',
@@ -185,6 +213,60 @@ async function getProfile(userId, accessToken, { force = false } = {}) {
   }
 }
 
+// ─── Which language is this session in? ─────────────────────────────────────
+// Words may only be saved to the account's own languages: the "My languages"
+// list on the site (language_profiles). profiles.learning_language alone is not
+// trusted, because new accounts get 'es' there by default; that is how a French
+// word once ended up in a hidden Spanish deck.
+const LANGS_CACHE_TTL_MS = 60 * 1000;
+let _langsCache = { userId: null, ts: 0, value: null };
+function invalidateLanguages() { _langsCache = { userId: null, ts: 0, value: null }; }
+
+async function getLanguages(session) {
+  const userId = session.user.id;
+  const token = session.access_token;
+  let base = _langsCache.userId === userId && Date.now() - _langsCache.ts < LANGS_CACHE_TTL_MS ? _langsCache.value : null;
+  if (!base) {
+    const [lpRes, profile] = await Promise.all([
+      rest(`language_profiles?user_id=eq.${userId}&select=language&order=created_at.asc`, token),
+      getProfile(userId, token),
+    ]);
+    const rows = lpRes.ok ? await lpRes.json() : [];
+    let languages = [...new Set(rows.map(r => String(r.language || '').toLowerCase()).filter(Boolean))];
+    // Older accounts made before the language list existed.
+    if (!languages.length && profile.learningLanguage) languages = [profile.learningLanguage];
+    base = { languages, profileLanguage: profile.learningLanguage, nativeLanguage: profile.nativeLanguage };
+    _langsCache = { userId, ts: Date.now(), value: base };
+  }
+  const { languages, profileLanguage, nativeLanguage } = base;
+  const { ls_chosen_language: chosen } = await chrome.storage.local.get('ls_chosen_language');
+  const picked = chosen && languages.includes(chosen);
+  const language = picked ? chosen
+    : languages.length === 1 ? languages[0]
+    : languages.includes(profileLanguage) ? profileLanguage
+    : languages[0] || null;
+  return { language, languages, needsChoice: languages.length > 1 && !picked, nativeLanguage };
+}
+
+async function setLanguage(session, language) {
+  const lang = String(language || '').toLowerCase();
+  const { languages } = await getLanguages(session);
+  if (!languages.includes(lang)) return { ok: false, error: 'not_your_language', languages };
+  await chrome.storage.local.set({ ls_chosen_language: lang, ls_language: lang });
+  invalidateDeckCache();
+  return { ok: true, language: lang };
+}
+
+async function storeSession(data) {
+  const session = { ...data, expires_at: Math.floor(Date.now() / 1000) + data.expires_in };
+  await chrome.storage.local.set({ ls_session: session });
+  await chrome.storage.local.remove('ls_chosen_language');
+  _profileCache = { userId: null, profile: null, ts: 0 };
+  invalidateLanguages();
+  invalidateDeckCache();
+  return { ok: true, email: data.user?.email };
+}
+
 // Mirrors wordGoalForVideos() in src/lib/progressStats.ts.
 function wordGoalForVideos(videoGoal) {
   if (videoGoal <= 1) return 10;
@@ -199,7 +281,7 @@ async function getToday(session) {
   const userId = session.user.id;
   const token = session.access_token;
   const profile = await getProfile(userId, token, { force: true });
-  const lang = profile.learningLanguage;
+  const { language: lang } = await getLanguages(session);
   const midnight = new Date();
   midnight.setHours(0, 0, 0, 0);
 
@@ -248,7 +330,13 @@ async function saveWord(msg) {
   if (!word) return { ok: false, error: 'Empty word' };
 
   const profile = await getProfile(userId, token);
-  const lang = profile.learningLanguage || msg.language || 'fr';
+  // Save into the language the learner is watching in, and only if it's one of
+  // their LinguaScript languages; never into a guessed deck.
+  const lang = String(msg.language || '').toLowerCase();
+  const { languages } = await getLanguages(session);
+  if (!languages.includes(lang)) {
+    return { ok: false, error: 'not_your_language', language: lang, languages };
+  }
   if (!textMatchesLanguageScript(word, lang)) {
     return { ok: false, error: 'wrong_language', message: 'That word isn’t in the language you’re learning.' };
   }
@@ -273,7 +361,7 @@ async function saveWord(msg) {
         body: JSON.stringify({ video_saved_at: now }),
       });
     }
-    return { ok: true, already: true, counted: !countedToday };
+    return { ok: true, already: true, counted: !countedToday, language: lang };
   }
 
   let translation = (msg.translation || '').trim();
@@ -307,7 +395,7 @@ async function saveWord(msg) {
     return { ok: false, error: `Couldn’t save (${insertRes.status})` };
   }
   invalidateDeckCache();
-  return { ok: true };
+  return { ok: true, language: lang };
 }
 
 // ─── Message router ───────────────────────────────────────────────────────────
@@ -321,18 +409,17 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   switch (msg.type) {
     case 'SIGN_IN':
       return reply((async () => {
-        const data = await signIn(msg.email, msg.password);
-        const session = { ...data, expires_at: Math.floor(Date.now() / 1000) + data.expires_in };
-        await chrome.storage.local.set({ ls_session: session });
-        _profileCache = { userId: null, profile: null, ts: 0 };
-        invalidateDeckCache();
-        return { ok: true, email: data.user?.email };
+        return storeSession(await signIn(msg.email, msg.password));
       })(), sendResponse);
+
+    case 'GOOGLE_SIGN_IN':
+      return reply((async () => storeSession(await signInWithGoogle()))(), sendResponse);
 
     case 'SIGN_OUT':
       return reply((async () => {
-        await chrome.storage.local.remove('ls_session');
+        await chrome.storage.local.remove(['ls_session', 'ls_chosen_language']);
         _profileCache = { userId: null, profile: null, ts: 0 };
+        invalidateLanguages();
         invalidateDeckCache();
         return { ok: true };
       })(), sendResponse);
@@ -348,6 +435,17 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         const session = await getValidSession();
         return { ok: true, ...(await getProfile(session.user.id, session.access_token)) };
       })(), sendResponse);
+
+    // The account's languages and the one this session uses.
+    case 'GET_LANGUAGES':
+      return reply((async () => {
+        const session = await getValidSession().catch(() => null);
+        if (!session) return { ok: false };
+        return { ok: true, ...(await getLanguages(session)) };
+      })(), sendResponse);
+
+    case 'SET_LANGUAGE':
+      return reply((async () => setLanguage(await getValidSession(), msg.language))(), sendResponse);
 
     case 'GET_TODAY':
       return reply((async () => ({ ok: true, ...(await getToday(await getValidSession())) }))(), sendResponse);
@@ -393,8 +491,9 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       return reply((async () => {
         const session = await getValidSession().catch(() => null);
         if (!session) return { ok: false, deck: {} };
-        const profile = await getProfile(session.user.id, session.access_token);
-        const lang = profile.learningLanguage || msg.language || 'fr';
+        const { language, languages } = await getLanguages(session);
+        const lang = languages.includes(msg.language) ? msg.language : language;
+        if (!lang) return { ok: true, deck: {}, language: null };
         const index = await getDeckIndexCached(session.user.id, lang, session.access_token, { force: !!msg.force });
         return { ok: true, deck: Object.fromEntries(index), language: lang };
       })(), sendResponse);
