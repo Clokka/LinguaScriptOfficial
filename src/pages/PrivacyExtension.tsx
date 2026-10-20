@@ -17,7 +17,7 @@ const PrivacyExtension = () => (
     </header>
     <main className="max-w-3xl mx-auto px-6 py-10">
       <h1 className="text-3xl font-bold mb-2">Chrome Extension Privacy Policy</h1>
-      <p className="text-sm text-muted-foreground mb-8">Last updated: 19 October 2026</p>
+      <p className="text-sm text-muted-foreground mb-8">Last updated: 21 October 2026</p>
 
       <Section title="What the extension does">
         The LinguaScript Chrome extension shows dual-language subtitles on YouTube videos and Netflix shows, lets
@@ -36,6 +36,8 @@ const PrivacyExtension = () => (
             language.</li>
           <li><b>Our backend (supabase.co)</b> — to sign you in, read your learning language,
             daily goal, streak and flashcard decks, and save the words you choose.</li>
+          <li><b>Identity</b> — only when you choose "Continue with Google": Chrome opens a
+            Google sign-in window and passes the sign-in back to the extension.</li>
           <li><b>Storage</b> — to keep you signed in and remember your languages on this
             device.</li>
         </ul>
@@ -44,7 +46,9 @@ const PrivacyExtension = () => (
       <Section title="What data is used">
         <ul className="list-disc pl-5 space-y-1">
           <li><b>Account details</b> — your email address and password are sent to our
-            backend only to sign you in. The password is never stored by the extension.</li>
+            backend only to sign you in. The password is never stored by the extension.
+            With "Continue with Google", Google confirms who you are and we receive your
+            email address; the extension never sees your Google password.</li>
           <li><b>Words you save</b> — the word, its translation and the subtitle line it came
             from are stored in your LinguaScript account so you can review them as
             flashcards.</li>

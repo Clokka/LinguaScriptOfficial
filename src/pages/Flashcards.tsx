@@ -88,7 +88,7 @@ const Flashcards = () => {
   const { user } = useAuth();
   const { active: tourActive } = useTour();
   const { award } = useXp();
-  const { learningLanguage } = useLanguage();
+  const { learningLanguage, setLearningLanguage } = useLanguage();
   const [allCards, setAllCards] = useState<SavedWord[]>([]);
   const [starterDecks, setStarterDecks] = useState<StarterDeck[]>([]);
   const [loading, setLoading] = useState(true);
@@ -171,6 +171,28 @@ const Flashcards = () => {
     }
     setLoading(false);
   }, [user, learningLanguage]);
+
+  // ?lang=fr (the Chrome extension's "Open your French flashcards" link) opens
+  // that language's deck, if it's one of the learner's own languages.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const lang = (params.get("lang") || "").toLowerCase();
+    if (!user || !lang || lang === learningLanguage) return;
+    let cancelled = false;
+    supabase
+      .from("language_profiles")
+      .select("language")
+      .eq("user_id", user.id)
+      .eq("language", lang)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!cancelled && data) setLearningLanguage(lang);
+      });
+    return () => { cancelled = true; };
+    // Only when the page opens or the account changes; switching language
+    // afterwards on this page must not be undone by the link.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   useEffect(() => { fetchCards(); }, [fetchCards]);
 
