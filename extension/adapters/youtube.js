@@ -1,7 +1,8 @@
 // LinguaScript — YouTube adapter
-// YouTube exposes caption tracks, so instead of scraping we fetch the full
-// track, time-sync to the <video>, and render into our own overlay. YouTube's
-// native captions are off by default, so there is nothing to hide here.
+// First try: fetch the full caption track and time-sync it to the <video>.
+// YouTube now often refuses those downloads, so when that comes back empty we
+// switch YouTube's own captions on and mirror them from the screen, the same
+// way the Netflix adapter does (LSCore.LiveCaptions).
 (() => {
   const C = window.LSCore;
   if (!C) { console.warn('[LinguaScript] core not loaded'); return; }
@@ -76,7 +77,9 @@
   }
 
   // ── Sync + render ─────────────────────────────────────────────────────────────
-  let primarySubs = [], secondarySubs = [], currentSubIdx = 0, syncInterval = null, videoEl = null;
+  let primarySubs = [], secondarySubs = [], currentSubIdx = 0, syncInterval = null, videoEl = null, live = null;
+  const video = () => document.querySelector('video');
+  const speed = C.SpeedKeeper(video);
   let lastText = null, lastSecondarySource = null, autoPause = false, autoPausedAt = -1, overlayVisible = true;
 
   function renderPrimary(text) {
@@ -146,6 +149,51 @@
     });
   }
 
+  // ── Screen-caption mode ─────────────────────────────────────────────────────
+  function getScreenText() {
+    const lines = Array.from(document.querySelectorAll('.ytp-caption-window-container .caption-visual-line'))
+      .map((l) => Array.from(l.querySelectorAll('.ytp-caption-segment')).map((s) => s.textContent).join(' ').trim())
+      .filter(Boolean);
+    if (!lines.length) {
+      const segs = Array.from(document.querySelectorAll('.ytp-caption-segment')).map((s) => s.textContent.trim()).filter(Boolean);
+      return segs.length ? segs.join(' ').replace(/\s+/g, ' ') : null;
+    }
+    return lines.join(' ').replace(/\s+/g, ' ');
+  }
+  function turnOnCaptions() {
+    const btn = document.querySelector('.ytp-subtitles-button');
+    if (btn && btn.getAttribute('aria-pressed') === 'false') btn.click();
+    return !!btn;
+  }
+  function setStatus(text) {
+    const el = document.getElementById('ls-primary');
+    if (!el) return;
+    el.style.cssText = 'opacity:0.6;font-size:13px;font-style:italic;background:rgba(0,0,0,0.82);border-radius:6px;padding:8px 18px;';
+    el.textContent = text;
+  }
+  function startScreenCaptions(listEl, myVideoId) {
+    live = C.LiveCaptions({
+      getText: getScreenText,
+      getTarget: () => document.querySelector('#movie_player') || document.body,
+      shield: C.SubtitleShield('.ytp-caption-window-container'),
+      getVideo: video,
+    });
+    live.start(listEl);
+    if (autoPause) live.setAutoPause(true);
+    setStatus('Turning on subtitles…');
+    // The CC button can appear a moment after the player; keep trying briefly.
+    let tries = 0;
+    const timer = setInterval(() => {
+      if (activeVideoId !== myVideoId || !live) { clearInterval(timer); return; }
+      const hasButton = turnOnCaptions();
+      if (live.hasText()) { clearInterval(timer); return; }
+      if (++tries >= 20) {
+        clearInterval(timer);
+        setStatus(hasButton ? 'Waiting for subtitles… (CC is on)' : 'No subtitles for this video');
+      }
+    }, 500);
+  }
+
   // ── Mount ─────────────────────────────────────────────────────────────────────
   async function mount(videoId) {
     document.getElementById('ls-overlay')?.remove();
@@ -154,6 +202,7 @@
     document.getElementById('ls-toast')?.remove();
     C.closeCard(); C.stopWordsRefresh();
     if (syncInterval) { clearInterval(syncInterval); syncInterval = null; }
+    live?.stop(); live = null;
     lastText = null; lastSecondarySource = null; currentSubIdx = 0;
 
     C.injectStyles(OVERLAY_CSS);
@@ -162,23 +211,22 @@
     document.body.appendChild(overlay);
 
     const listEl = C.buildPanelShell('Transcript');
+    // Track mode seeks line by line; screen-caption mode has no timestamps, so
+    // it steps by seconds like Netflix.
+    const nudge = (secs) => { const v = video(); if (v) v.currentTime = Math.max(0, v.currentTime + secs); };
+    const seekBack = () => (live ? nudge(-8) : seekToSub(currentSubIdx - 1));
+    const seekRepeat = () => (live ? nudge(-4) : seekToSub(currentSubIdx));
+    const seekForward = () => (live ? nudge(3) : seekToSub(currentSubIdx + 1));
+    const onAutoPause = (v) => { autoPause = v; autoPausedAt = -1; live?.setAutoPause(v); };
     C.buildControls({
-      seekBack: () => seekToSub(currentSubIdx - 1),
-      seekRepeat: () => seekToSub(currentSubIdx),
-      seekForward: () => seekToSub(currentSubIdx + 1),
-      onSpeed: (sp) => { if (videoEl) videoEl.playbackRate = sp; },
-      onAutoPause: (v) => { autoPause = v; autoPausedAt = -1; },
+      seekBack, seekRepeat, seekForward,
+      onSpeed: speed.set,
+      onAutoPause,
       getAutoPause: () => autoPause,
-      onToggleOverlay: (visible) => { overlayVisible = visible; },
+      onToggleOverlay: (visible) => { overlayVisible = visible; live?.setVisible(visible); },
       extraLinks: [{ label: '📚 Flashcards', href: 'https://linguascript.co.uk/flashcards' }],
     });
-    C.attachKeyboardShortcuts({
-      seekBack: () => seekToSub(currentSubIdx - 1),
-      seekRepeat: () => seekToSub(currentSubIdx),
-      seekForward: () => seekToSub(currentSubIdx + 1),
-      onAutoPause: (v) => { autoPause = v; autoPausedAt = -1; },
-      getAutoPause: () => autoPause,
-    });
+    C.attachKeyboardShortcuts({ seekBack, seekRepeat, seekForward, onAutoPause, getAutoPause: () => autoPause });
 
     const { lang, nativeLang } = await C.loadLangs();
 
@@ -187,12 +235,9 @@
     });
 
     const { primary, secondary } = await fetchSubtitles(videoId, lang, nativeLang);
+    if (activeVideoId !== videoId) return; // the learner moved on while we were fetching
     primarySubs = primary; secondarySubs = secondary;
-    if (!primary.length) {
-      const el = document.getElementById('ls-primary');
-      if (el) { el.style.cssText = 'opacity:0.5;font-size:13px;font-style:italic;background:rgba(0,0,0,0.82);border-radius:6px;padding:8px 18px;'; el.textContent = 'No subtitles for this video'; }
-      return;
-    }
+    if (!primary.length) { startScreenCaptions(listEl, videoId); return; }
     videoEl = document.querySelector('video');
     if (!videoEl) { for (let i = 0; i < 20; i++) { await new Promise((r) => setTimeout(r, 500)); videoEl = document.querySelector('video'); if (videoEl) break; } }
     if (!videoEl) return;
@@ -208,6 +253,7 @@
     ['ls-overlay', 'ls-controls', 'ls-panel', 'ls-toast'].forEach((id) => document.getElementById(id)?.remove());
     C.closeCard(); C.stopWordsRefresh();
     if (syncInterval) { clearInterval(syncInterval); syncInterval = null; }
+    live?.stop(); live = null;
     primarySubs = []; secondarySubs = []; videoEl = null;
   }
   async function checkAndMount() {

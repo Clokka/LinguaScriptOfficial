@@ -390,6 +390,154 @@
     return { hide, show, noteContent, start, stop, isHidden: () => hidden };
   }
 
+  // ── Live captions — mirror the subtitles the site itself shows ─────────────────
+  // Netflix never hands out a subtitle file and YouTube now guards its caption
+  // files, so both read what the player puts on screen and render it into our
+  // overlay (#ls-primary / #ls-secondary). The transcript fills in line by line.
+  //   getText()   → the on-screen subtitle text, or null
+  //   getTarget() → the element to watch for subtitle changes
+  //   shield      → SubtitleShield for the site's own subtitles
+  //   getVideo()  → the <video>
+  function LiveCaptions({ getText, getTarget, shield, getVideo }) {
+    const lines = [];
+    let current = -1, listEl = null, observer = null;
+    let lastPrimary = null, lastSecondarySource = null, autoPause = false, visible = true;
+    let clearDebounce = null, translateDebounce = null;
+
+    function fillPanelLine(div, idx) {
+      div.innerHTML = '';
+      const textEl = document.createElement('div'); textEl.className = 'ls-panel-line-text'; textEl.setAttribute('translate', 'no');
+      textEl.appendChild(makeWordSpansFor(lines[idx].text));
+      const trEl = document.createElement('div'); trEl.className = 'ls-panel-line-tr';
+      div.appendChild(textEl); div.appendChild(trEl);
+      const text = lines[idx].text;
+      translate(text, nativeLang, learningLang).then((tr) => { if (tr && lines[idx]?.text === text) trEl.textContent = tr; });
+    }
+    function addPanelLine(idx) {
+      if (!listEl) return;
+      const div = document.createElement('div');
+      div.className = 'ls-panel-line'; div.dataset.idx = idx;
+      div.addEventListener('click', () => {
+        // No timestamps on screen-read subtitles: step back about 5s per line.
+        const v = getVideo();
+        const diff = idx - current;
+        if (v && diff < 0) v.currentTime = Math.max(0, v.currentTime + diff * 5 - 2);
+        current = idx; updatePanelCurrent();
+      });
+      fillPanelLine(div, idx);
+      listEl.appendChild(div);
+    }
+    function updatePanelCurrent() {
+      document.querySelectorAll('.ls-panel-line').forEach((el) => el.classList.toggle('ls-current', parseInt(el.dataset.idx) === current));
+      document.querySelector('.ls-panel-line.ls-current')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+    function logLine(text) {
+      const last = lines[lines.length - 1];
+      if (last?.text === text) { current = lines.length - 1; updatePanelCurrent(); return; }
+      // Auto-generated captions grow word by word: update that line in place
+      // instead of logging every step.
+      if (last && text.startsWith(last.text)) {
+        last.text = text; current = lines.length - 1;
+        const div = listEl?.querySelector(`.ls-panel-line[data-idx="${current}"]`);
+        if (div) fillPanelLine(div, current);
+        updatePanelCurrent();
+        return;
+      }
+      lines.push({ text });
+      current = lines.length - 1;
+      addPanelLine(current);
+      updatePanelCurrent();
+    }
+
+    function renderPrimary(text) {
+      if (text === lastPrimary) return; lastPrimary = text;
+      logLine(text);
+      const el = document.getElementById('ls-primary'); if (!el) return;
+      el.style.cssText = ''; el.innerHTML = '';
+      el.onclick = () => { const v = getVideo(); if (v) v.currentTime = Math.max(0, v.currentTime - 4); };
+      const { parts, joiner } = splitWords(text, learningLang);
+      parts.forEach((p) => el.appendChild(p.word ? makeWordSpan(p.text, text, joiner) : document.createTextNode(p.text + joiner)));
+    }
+    function renderSecondary(text) {
+      const el = document.getElementById('ls-secondary'); if (!el) return;
+      el.textContent = text || ''; el.style.display = text ? 'block' : 'none';
+    }
+    function clearOverlay() {
+      if (!lastPrimary) return; lastPrimary = null; lastSecondarySource = null;
+      const el = document.getElementById('ls-primary'); if (el) el.innerHTML = '';
+      renderSecondary('');
+      const overlay = document.getElementById('ls-overlay'); if (overlay) overlay.style.opacity = '0';
+      shield.show(); // overlay empty → always let the site's subtitles through
+    }
+
+    function onChange() {
+      if (!visible) return;
+      const text = getText();
+      if (!text) {
+        clearTimeout(clearDebounce);
+        clearDebounce = setTimeout(() => {
+          if (!getText()) {
+            clearOverlay();
+            if (autoPause) { const v = getVideo(); if (v && !v.paused) v.pause(); }
+          }
+        }, 400);
+        return;
+      }
+      clearTimeout(clearDebounce);
+      try {
+        const overlay = document.getElementById('ls-overlay'); if (overlay) overlay.style.opacity = '1';
+        renderPrimary(text);
+        shield.noteContent(); // we now have text → safe to hide the site's subtitles
+      } catch (e) {
+        shield.show(); // never strand the viewer on a render error
+        console.warn('[LinguaScript] render failed, native subs restored', e);
+      }
+      if (learningLang !== nativeLang && text !== lastSecondarySource) {
+        lastSecondarySource = text;
+        clearTimeout(translateDebounce);
+        translateDebounce = setTimeout(async () => {
+          const tr = await translate(text, nativeLang, learningLang);
+          if (lastSecondarySource === text) renderSecondary(tr || '');
+        }, 150);
+      }
+    }
+
+    return {
+      start(panelList) {
+        listEl = panelList;
+        shield.start();
+        observer = new MutationObserver(onChange);
+        observer.observe(getTarget() || document.body, { childList: true, subtree: true, characterData: true });
+        onChange();
+      },
+      stop() {
+        observer?.disconnect(); observer = null;
+        clearTimeout(clearDebounce); clearTimeout(translateDebounce);
+        shield.stop(); shield.show();
+        lines.length = 0; current = -1; listEl = null; lastPrimary = null; lastSecondarySource = null;
+      },
+      setVisible(v) { visible = v; if (v) { shield.hide(); onChange(); } else shield.show(); },
+      setAutoPause(v) { autoPause = v; },
+      getAutoPause: () => autoPause,
+      hasText: () => lines.length > 0,
+    };
+  }
+
+  // ── Playback speed ────────────────────────────────────────────────────────────
+  // Find the <video> on every click (players swap it out) and put the speed back
+  // if the site resets it, which Netflix does.
+  function SpeedKeeper(getVideo) {
+    let rate = 1, watched = null;
+    const enforce = () => { const v = getVideo(); if (v && Math.abs(v.playbackRate - rate) > 0.01) v.playbackRate = rate; };
+    function set(r) {
+      rate = r;
+      const v = getVideo(); if (!v) return;
+      if (watched !== v) { watched?.removeEventListener('ratechange', enforce); v.addEventListener('ratechange', enforce); watched = v; }
+      v.playbackRate = r;
+    }
+    return { set, get: () => rate };
+  }
+
   // ── Panel shell ────────────────────────────────────────────────────────────
   let panelVisible = true;
   function buildPanelShell(metaLabel = 'Transcript') {
@@ -570,7 +718,7 @@
     startWordsRefresh: () => Deck.startAutoRefresh(),
     stopWordsRefresh: () => Deck.stopAutoRefresh(),
     showToast, openCard, closeCard, makeWordSpan, makeWordSpansFor, splitWords, playDing, escapeHtml,
-    SubtitleShield, buildPanelShell, togglePanel, buildControls, attachKeyboardShortcuts,
+    SubtitleShield, LiveCaptions, SpeedKeeper, buildPanelShell, togglePanel, buildControls, attachKeyboardShortcuts,
     injectStyles,
   };
 })();

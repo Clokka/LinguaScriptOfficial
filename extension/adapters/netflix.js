@@ -1,6 +1,6 @@
 // LinguaScript — Netflix adapter
-// Netflix has no caption API we can rely on, so we scrape the live subtitle DOM
-// and mirror it into our overlay. Native subs are hidden via LSCore's
+// Netflix has no caption API we can rely on, so LSCore.LiveCaptions reads the
+// live subtitle DOM and mirrors it into our overlay. Native subs are hidden via
 // SubtitleShield ONLY while our overlay is actually showing text.
 (() => {
   const C = window.LSCore;
@@ -29,103 +29,17 @@
     return null;
   }
 
-  const shield = C.SubtitleShield('.player-timedtext');
   const video = () => document.querySelector('video');
-
-  // ── Transcript panel (incremental — Netflix gives no timestamps) ────────────
-  const transcriptLines = [];
-  let currentLineIdx = -1;
-  let panelListEl = null;
-
-  function logLine(text) {
-    if (!text) return;
-    const last = transcriptLines[transcriptLines.length - 1];
-    if (last?.text === text) { currentLineIdx = transcriptLines.length - 1; updatePanelCurrent(); return; }
-    transcriptLines.push({ text });
-    currentLineIdx = transcriptLines.length - 1;
-    addPanelLine(currentLineIdx);
-    updatePanelCurrent();
-  }
-  function addPanelLine(idx) {
-    if (!panelListEl) return;
-    const div = document.createElement('div');
-    div.className = 'ls-panel-line'; div.dataset.idx = idx;
-    const textEl = document.createElement('div'); textEl.className = 'ls-panel-line-text';
-    textEl.appendChild(C.makeWordSpansFor(transcriptLines[idx].text));
-    const trEl = document.createElement('div'); trEl.className = 'ls-panel-line-tr';
-    div.appendChild(textEl); div.appendChild(trEl);
-    div.addEventListener('click', () => {
-      const v = video();
-      if (v) { const diff = idx - currentLineIdx; if (diff < 0) v.currentTime = Math.max(0, v.currentTime + diff * 5 - 2); }
-      currentLineIdx = idx; updatePanelCurrent();
-    });
-    panelListEl.appendChild(div);
-    C.translate(transcriptLines[idx].text, C.nativeLang, C.learningLang).then((tr) => { if (tr) trEl.textContent = tr; });
-  }
-  function updatePanelCurrent() {
-    document.querySelectorAll('.ls-panel-line').forEach((el) => el.classList.toggle('ls-current', parseInt(el.dataset.idx) === currentLineIdx));
-    document.querySelector('.ls-panel-line.ls-current')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-  }
-
-  // ── Render ───────────────────────────────────────────────────────────────────
-  let lastPrimary = null, lastSecondarySource = null, autoPause = false, autoPauseArmed = false;
-  let clearDebounce = null, translateDebounce = null;
-
-  function renderPrimary(text) {
-    if (text === lastPrimary) return; lastPrimary = text;
-    logLine(text);
-    const el = document.getElementById('ls-primary'); if (!el) return;
-    el.innerHTML = '';
-    el.onclick = () => { const v = video(); if (v) v.currentTime = Math.max(0, v.currentTime - 4); };
-    const { parts, joiner } = C.splitWords(text, C.learningLang);
-    parts.forEach((p) => el.appendChild(p.word ? C.makeWordSpan(p.text, text, joiner) : document.createTextNode(p.text + joiner)));
-  }
-  function renderSecondary(text) {
-    const el = document.getElementById('ls-secondary'); if (!el) return;
-    el.textContent = text || ''; el.style.display = text ? 'block' : 'none';
-  }
-  function clearOverlay() {
-    if (!lastPrimary) return; lastPrimary = null; lastSecondarySource = null;
-    const el = document.getElementById('ls-primary'); if (el) el.innerHTML = '';
-    renderSecondary('');
-    document.getElementById('ls-overlay')?.style && (document.getElementById('ls-overlay').style.opacity = '0');
-    shield.show(); // overlay empty → always let native subs through
-  }
-
-  function onSubtitleChange() {
-    const text = getText();
-    const overlay = document.getElementById('ls-overlay');
-    if (!text) {
-      clearTimeout(clearDebounce);
-      clearDebounce = setTimeout(() => {
-        if (!getText()) {
-          clearOverlay();
-          if (autoPause) { autoPauseArmed = true; const v = video(); if (v && !v.paused) v.pause(); }
-        }
-      }, 400);
-      return;
-    }
-    clearTimeout(clearDebounce);
-    try {
-      if (overlay) overlay.style.opacity = '1';
-      renderPrimary(text);
-      shield.noteContent(); // we now have text → safe to hide native subs
-    } catch (e) {
-      shield.show(); // never strand the viewer on a render error
-      console.warn('[LinguaScript] render failed, native subs restored', e);
-    }
-    if (C.learningLang !== C.nativeLang && text !== lastSecondarySource) {
-      lastSecondarySource = text;
-      clearTimeout(translateDebounce);
-      translateDebounce = setTimeout(async () => {
-        const tr = await C.translate(text, C.nativeLang, C.learningLang);
-        if (lastSecondarySource === text) renderSecondary(tr || '');
-      }, 150);
-    }
-  }
+  const speed = C.SpeedKeeper(video);
+  const live = C.LiveCaptions({
+    getText,
+    getTarget: () => document.querySelector('.watch-video') || document.body,
+    shield: C.SubtitleShield('.player-timedtext'),
+    getVideo: video,
+  });
 
   // ── Mount ─────────────────────────────────────────────────────────────────────
-  let mounted = false, subsObserver = null;
+  let mounted = false;
   async function mount() {
     if (mounted) return; mounted = true;
     C.injectStyles(OVERLAY_CSS);
@@ -133,24 +47,19 @@
     overlay.innerHTML = `<div id="ls-primary" translate="no"></div><div id="ls-secondary" style="display:none"></div>`;
     document.body.appendChild(overlay);
 
-    panelListEl = C.buildPanelShell('Transcript');
+    const panelListEl = C.buildPanelShell('Transcript');
+    const seekBack = () => { const v = video(); if (v) v.currentTime = Math.max(0, v.currentTime - 8); };
+    const seekRepeat = () => { const v = video(); if (v) v.currentTime = Math.max(0, v.currentTime - 4); };
+    const seekForward = () => { const v = video(); if (v) v.currentTime += 3; };
     C.buildControls({
-      seekBack: () => { const v = video(); if (v) v.currentTime = Math.max(0, v.currentTime - 8); },
-      seekRepeat: () => { const v = video(); if (v) v.currentTime = Math.max(0, v.currentTime - 4); },
-      seekForward: () => { const v = video(); if (v) v.currentTime += 3; },
-      onSpeed: (sp) => { const v = video(); if (v) v.playbackRate = sp; },
-      onAutoPause: (v) => { autoPause = v; autoPauseArmed = false; },
-      getAutoPause: () => autoPause,
-      onToggleOverlay: (visible) => { visible ? shield.hide() : shield.show(); },
+      seekBack, seekRepeat, seekForward,
+      onSpeed: speed.set,
+      onAutoPause: live.setAutoPause,
+      getAutoPause: live.getAutoPause,
+      onToggleOverlay: live.setVisible,
       extraLinks: [{ label: '📚 Flashcards', href: 'https://linguascript.co.uk/flashcards' }],
     });
-    C.attachKeyboardShortcuts({
-      seekBack: () => { const v = video(); if (v) v.currentTime = Math.max(0, v.currentTime - 8); },
-      seekRepeat: () => { const v = video(); if (v) v.currentTime = Math.max(0, v.currentTime - 4); },
-      seekForward: () => { const v = video(); if (v) v.currentTime += 3; },
-      onAutoPause: (v) => { autoPause = v; autoPauseArmed = false; },
-      getAutoPause: () => autoPause,
-    });
+    C.attachKeyboardShortcuts({ seekBack, seekRepeat, seekForward, onAutoPause: live.setAutoPause, getAutoPause: live.getAutoPause });
 
     await C.loadLangs();
 
@@ -158,19 +67,14 @@
       if (res?.session) { await C.loadSavedWords(); C.startWordsRefresh(); }
     });
 
-    shield.start(); // watchdog + unload-restore
-    const target = document.querySelector('.watch-video') || document.body;
-    subsObserver = new MutationObserver(onSubtitleChange);
-    subsObserver.observe(target, { childList: true, subtree: true, characterData: true });
+    live.start(panelListEl);
   }
 
   function unmount() {
     if (!mounted) return; mounted = false;
-    subsObserver?.disconnect(); subsObserver = null;
-    shield.stop(); shield.show();
+    live.stop();
     ['ls-overlay', 'ls-controls', 'ls-panel', 'ls-toast'].forEach((id) => document.getElementById(id)?.remove());
     C.closeCard(); C.stopWordsRefresh();
-    transcriptLines.length = 0; currentLineIdx = -1; panelListEl = null; lastPrimary = null; lastSecondarySource = null;
   }
 
   // The script runs on every Netflix page (browse → watch happens without a
