@@ -34,7 +34,10 @@ const TTS_VOICE_MAP: Record<string, string> = {
 
 /**
  * Make sure the learner has a per-language profile row for `language`.
- * Idempotent. Nothing is pre-marked known: every learner starts at zero.
+ * Idempotent. Nobody chose a level here, so a new profile starts as a total
+ * beginner. An existing one is never re-seeded: that brought back words a
+ * learner had cleared with "Start from zero", and beginners are stored as
+ * "a1", so it handed them A1's words too.
  */
 async function ensureLanguageProfile(userId: string, language: string, level: string) {
   try {
@@ -43,7 +46,7 @@ async function ensureLanguageProfile(userId: string, language: string, level: st
       await touchLanguageProfile(userId, language);
       return;
     }
-    await addLanguageProfile({ userId, language, mode: "fluency", level });
+    await addLanguageProfile({ userId, language, mode: "fluency", level, totalBeginner: true });
   } catch (e) {
     console.warn("ensureLanguageProfile failed", e);
   }

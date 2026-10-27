@@ -86,20 +86,22 @@ export async function getLanguageProfile(
 }
 
 /**
- * Create (or fetch) the profile for a language. Safe to call repeatedly.
+ * Create (or fetch) the profile for a language and seed the learner's known
+ * vocabulary for the chosen level + mode. Safe to call repeatedly.
  *
- * Every learner starts at zero known words, whatever level they pick: the
- * level only tunes recommendations. Pre-marking ~1,200 words green for "A2"
- * scared beginners off and filled half the common-words decks on day one.
- * Leaving language_profiles.seeded_level NULL also makes seed_priority_words
- * start the red queue at the most frequent words.
+ * `totalBeginner` is for a learner starting from zero: it skips
+ * seed_known_vocabulary entirely so nothing is falsely pre-marked "known"
+ * (leaving language_profiles.seeded_level NULL), which is exactly the
+ * signal seed_priority_words uses to target the learner's OWN level first
+ * instead of the tier above it — see the migration comment. It is the
+ * default everywhere a level is offered; only a level the learner picks
+ * themselves pre-marks words green.
  */
 export async function addLanguageProfile(opts: {
   userId: string;
   language: string;
   mode: LearningMode;
   level: string;
-  /** Kept for callers; every learner now starts from zero either way. */
   totalBeginner?: boolean;
 }): Promise<{ profile: LanguageProfile | null; error?: string }> {
   const language = opts.language.toLowerCase();
@@ -129,8 +131,24 @@ export async function addLanguageProfile(opts: {
     if (error) return { profile: null, error: error.message };
   }
 
+  if (!opts.totalBeginner) {
+    await seedForProfile(language, opts.level, opts.mode);
+  }
   await topUpPriorityWords(language);
   return { profile: await getLanguageProfile(opts.userId, language) };
+}
+
+export async function seedForProfile(language: string, level: string, mode: LearningMode) {
+  if (!level || level === "below") return;
+  try {
+    await (supabase as any).rpc("seed_known_vocabulary", {
+      _language: language.toLowerCase(),
+      _level: level.toLowerCase(),
+      _mode: mode,
+    });
+  } catch (e) {
+    console.warn("seed_known_vocabulary failed", e);
+  }
 }
 
 /** Populate/top up the Fluency Fast Track red queue for a language. */
