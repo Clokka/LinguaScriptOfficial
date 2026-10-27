@@ -85,7 +85,7 @@ const DECK_CONFIG: Record<DeckKey, { label: string; subtitle: string; color: str
 
 const Flashcards = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { active: tourActive } = useTour();
   const { award } = useXp();
   const { learningLanguage, setLearningLanguage } = useLanguage();
@@ -98,6 +98,9 @@ const Flashcards = () => {
   const [reviewCards, setReviewCards] = useState<SavedWord[]>([]);
 
   const fetchCards = useCallback(async (showSpinner = true) => {
+    // Until we know who this is, keep the spinner: treating a signed-in learner
+    // as a guest showed "0 cards · Get the Chrome Extension" on every visit.
+    if (authLoading) return;
     if (showSpinner) setLoading(true);
     setLoadError(null);
     if (!user) {
@@ -151,6 +154,8 @@ const Flashcards = () => {
       }
       setAllCards(rows);
     }
+    // The learner's own cards are ready: show them now, starter decks follow.
+    setLoading(false);
 
     // Starter decks with counts — one batched query for every deck's card
     // count instead of one round trip per deck (this ran on every visit to
@@ -169,8 +174,7 @@ const Flashcards = () => {
     } else {
       setStarterDecks([]);
     }
-    setLoading(false);
-  }, [user, learningLanguage]);
+  }, [user, authLoading, learningLanguage]);
 
   // ?lang=fr (the Chrome extension's "Open your French flashcards" link) opens
   // that language's deck, if it's one of the learner's own languages.

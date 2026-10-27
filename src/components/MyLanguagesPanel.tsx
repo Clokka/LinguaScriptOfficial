@@ -59,7 +59,7 @@ export const MyLanguagesPanel = ({ nativeLanguage }: { nativeLanguage?: string }
 
   const [newLang, setNewLang] = useState("");
   const [newMode, setNewMode] = useState<LearningMode>("fluency");
-  const [newLevel, setNewLevel] = useState<string>("a1");
+  const [newLevel, setNewLevel] = useState<string>(BEGINNER);
   const [resetLang, setResetLang] = useState<string | null>(null);
   const [resetting, setResetting] = useState(false);
 

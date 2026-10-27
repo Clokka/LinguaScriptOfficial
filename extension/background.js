@@ -128,9 +128,16 @@ function coerceState(raw) {
   return raw === 'green' ? 'green' : raw === 'orange' ? 'orange' : 'red';
 }
 
+// Gold = a green word whose review is due (next_review is a YYYY-MM-DD date),
+// the same rule as wordColour() in mobile/lib/deck-colors.ts.
+function deckState(row, today = new Date().toLocaleDateString('en-CA')) {
+  const state = coerceState(row.state);
+  return state === 'green' && row.next_review && String(row.next_review).slice(0, 10) <= today ? 'gold' : state;
+}
+
 // If a word has more than one row, the more advanced deck wins so a green
 // word is never shown red because of a stray duplicate.
-const STATE_RANK = { red: 0, orange: 1, green: 2 };
+const STATE_RANK = { red: 0, orange: 1, green: 2, gold: 2 };
 function higherState(current, next) {
   if (!current) return next;
   return STATE_RANK[next] > STATE_RANK[current] ? next : current;
@@ -153,13 +160,14 @@ async function fetchAllSavedWords(query, accessToken) {
 // The learner's deck for one language: normalizeToken(word) → state.
 async function loadDeckIndex(userId, language, accessToken) {
   const rows = await fetchAllSavedWords(
-    `saved_words?user_id=eq.${userId}&language=eq.${encodeURIComponent(language)}&select=word,state`,
+    `saved_words?user_id=eq.${userId}&language=eq.${encodeURIComponent(language)}&select=word,state,next_review`,
     accessToken
   );
+  const today = new Date().toLocaleDateString('en-CA');
   const m = new Map();
   for (const row of rows) {
     const key = normalizeToken(row.word);
-    m.set(key, higherState(m.get(key), coerceState(row.state)));
+    m.set(key, higherState(m.get(key), deckState(row, today)));
   }
   return m;
 }
@@ -320,6 +328,79 @@ async function gtxTranslate(text, sl, tl, ms = 4000) {
   return tr && tr.toLowerCase() !== text.toLowerCase() ? tr : null;
 }
 
+// ─── Ringed words: the app's common-words list ───────────────────────────────
+// core_vocabulary ranked by frequency is what the app's Common Words decks
+// (Top 50, 100, 150…) are built from. The extension rings this list's words,
+// so learners get the next most useful words from it, minus anything already
+// in their decks. Readable without logging in.
+const RING_POOL_SIZE = 300;
+const COMMON_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+const _commonCache = new Map(); // language → { ts, words }
+const SEGMENTED = new Set(['zh', 'ja', 'th']);
+
+async function getCommonWords(lang) {
+  const hit = _commonCache.get(lang);
+  if (hit && Date.now() - hit.ts < COMMON_CACHE_TTL_MS) return hit.words;
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/core_vocabulary?language=eq.${encodeURIComponent(lang)}&select=word&order=rank.asc&limit=2000`,
+    { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` } }
+  );
+  if (!res.ok) return hit?.words || [];
+  const seen = new Set();
+  const words = [];
+  for (const row of await res.json()) {
+    const w = normalizeToken(row.word);
+    // Phrases can't match a single subtitle word; single letters are mostly noise.
+    if (!w || seen.has(w) || /\s/.test(w) || (!SEGMENTED.has(lang) && w.length < 2)) continue;
+    seen.add(w);
+    words.push(w);
+  }
+  _commonCache.set(lang, { ts: Date.now(), words });
+  return words;
+}
+
+async function getRingPool(language) {
+  const session = await getValidSession().catch(() => null);
+  let lang = String(language || '').toLowerCase();
+  let deck = new Map();
+  if (session) {
+    const langs = await getLanguages(session);
+    if (!langs.languages.includes(lang)) lang = langs.language || lang;
+    if (lang) deck = await getDeckIndexCached(session.user.id, lang, session.access_token);
+  }
+  if (!lang) return { ok: true, words: [] };
+  const common = await getCommonWords(lang);
+  const words = [];
+  for (const w of common) {
+    if (deck.has(w)) continue;
+    words.push(w);
+    if (words.length >= RING_POOL_SIZE) break;
+  }
+  return { ok: true, words, language: lang };
+}
+
+// ─── XP ───────────────────────────────────────────────────────────────────────
+// Same ledger as the app (src/lib/xp.ts persistXP): an xp_events row plus the
+// atomic increment_xp RPC, so extension XP shows up on the website too.
+async function awardXp(session, amount, meta) {
+  const token = session.access_token;
+  rest('xp_events', token, {
+    method: 'POST',
+    headers: { 'Prefer': 'return=minimal' },
+    body: JSON.stringify({ user_id: session.user.id, action: 'add_word', amount, meta }),
+  }).catch(() => {});
+  const res = await rest('rpc/increment_xp', token, { method: 'POST', body: JSON.stringify({ p_amount: amount }) });
+  if (!res.ok) return null;
+  const total = await res.json();
+  return typeof total === 'number' ? total : null;
+}
+
+async function getXp(session) {
+  const res = await rest(`profiles?user_id=eq.${session.user.id}&select=xp_total`, session.access_token);
+  const rows = res.ok ? await res.json() : [];
+  return rows[0]?.xp_total ?? 0;
+}
+
 // ─── Save one word ────────────────────────────────────────────────────────────
 
 async function saveWord(msg) {
@@ -329,11 +410,18 @@ async function saveWord(msg) {
   const word = normalizeToken(msg.word);
   if (!word) return { ok: false, error: 'Empty word' };
 
-  const profile = await getProfile(userId, token);
   // Save into the language the learner is watching in, and only if it's one of
-  // their LinguaScript languages; never into a guessed deck.
+  // their LinguaScript languages; never into a guessed deck. The lookups run
+  // side by side so a save is one round trip slower than a click, not four.
   const lang = String(msg.language || '').toLowerCase();
-  const { languages } = await getLanguages(session);
+  const [profile, { languages }, checkRes] = await Promise.all([
+    getProfile(userId, token),
+    getLanguages(session),
+    rest(
+      `saved_words?user_id=eq.${userId}&language=eq.${encodeURIComponent(lang)}&word=eq.${encodeURIComponent(word)}&select=id,video_saved_at`,
+      token
+    ),
+  ]);
   if (!languages.includes(lang)) {
     return { ok: false, error: 'not_your_language', language: lang, languages };
   }
@@ -344,10 +432,6 @@ async function saveWord(msg) {
 
   // Already in this language's deck? Mark it as met in a video today so it
   // still counts toward the daily goal (same as the app), then stop.
-  const checkRes = await rest(
-    `saved_words?user_id=eq.${userId}&language=eq.${encodeURIComponent(lang)}&word=eq.${encodeURIComponent(word)}&select=id,video_saved_at`,
-    token
-  );
   const existing = checkRes.ok ? await checkRes.json() : [];
   if (existing.length > 0) {
     const row = existing[0];
@@ -395,7 +479,10 @@ async function saveWord(msg) {
     return { ok: false, error: `Couldn’t save (${insertRes.status})` };
   }
   invalidateDeckCache();
-  return { ok: true, language: lang };
+  // Matches XP_SAVE in ls-core.js; add_word is 20 in the app too.
+  const xp = 20;
+  const xpTotal = await awardXp(session, xp, { source: 'extension' }).catch(() => null);
+  return { ok: true, language: lang, xp, xpTotal };
 }
 
 // ─── Message router ───────────────────────────────────────────────────────────
@@ -405,7 +492,7 @@ function reply(promise, sendResponse) {
   return true;
 }
 
-chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   switch (msg.type) {
     case 'SIGN_IN':
       return reply((async () => {
@@ -500,6 +587,32 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
 
     case 'SAVE_WORD':
       return reply(saveWord(msg), sendResponse);
+
+    // linguascript.co.uk asks to sign in as the extension's account. Only the
+    // site's own bridge may ask, never a script on YouTube or Netflix.
+    case 'SITE_HANDOFF':
+      if (!/^https:\/\/(www\.)?linguascript\.co\.uk$/.test(sender.origin || '')) return false;
+      return reply((async () => {
+        const session = await getValidSession();
+        const res = await fetch(`${SUPABASE_URL}/functions/v1/extension-handoff`, {
+          method: 'POST',
+          headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${session.access_token}` },
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.token_hash) return { ok: false, error: data.error || `Sign-in failed (${res.status})` };
+        return { ok: true, tokenHash: data.token_hash };
+      })(), sendResponse);
+
+    // The next common words to ring for this language.
+    case 'GET_RING_POOL':
+      return reply(getRingPool(msg.language), sendResponse);
+
+    case 'GET_XP':
+      return reply((async () => {
+        const session = await getValidSession().catch(() => null);
+        if (!session) return { ok: false };
+        return { ok: true, xpTotal: await getXp(session) };
+      })(), sendResponse);
 
     default:
       return false;

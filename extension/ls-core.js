@@ -116,6 +116,7 @@
     const native = info?.ok && info.nativeLanguage ? info.nativeLanguage : stored.ls_native_language;
     if (info?.ok && info.language) chrome.storage.local.set({ ls_language: lang, ls_native_language: native });
     setLangs(lang, native); setDebug(stored.ls_debug);
+    Rings.load();
     return { lang, nativeLang: native };
   }
 
@@ -124,6 +125,8 @@
     if (!lang || lang === learningLang) return;
     setLangs(lang, nativeLang);
     Deck.refresh(true);
+    Rings.load();
+    Goal.refresh();
   }
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === 'local' && changes.ls_language) applyLanguage(changes.ls_language.newValue);
@@ -158,24 +161,26 @@
     });
   }
 
-  // ══ Deck — THE red/orange/green colour feature ═══════════════════════════════
+  // ══ Deck — THE red/orange/green/gold colour feature ══════════════════════════
   // Single source of truth for word colours in the extension. It mirrors the
   // user's flashcard decks 1:1:
   //   • background GET_DECK returns { normalizedWord → state } for the CURRENT
   //     learning language — the exact same language-scoped saved_words the app's
   //     Flashcards page reads — so a word wears the same colour here as on its
-  //     card (red = UNKNOWN, orange = LEARNING, green = KNOWN).
-  //   • state is read straight from saved_words.state (what flashcard review
-  //     writes); no SRS re-derivation.
+  //     card (red = UNKNOWN, orange = LEARNING, green = KNOWN, gold = KNOWN but
+  //     due for review, deckState() in background.js).
+  //   • state is read straight from saved_words.state and next_review (what
+  //     flashcard review writes); no SRS re-derivation.
   //   • lookups are keyed by normalizeToken(), identical on both sides, so a
   //     stored "Les." / "le " can't miss its span and fall back to red.
   // Nothing else in the codebase should read or write word colours directly —
   // go through Deck.
   const Deck = {
-    // Exact hexes from DECK_CONFIG in src/pages/Flashcards.tsx.
-    PALETTE: { red: '#FF3B30', orange: '#FF8A00', green: '#34C759' },
-    STATES: ['red', 'orange', 'green'],
-    _map: new Map(),          // normalizedWord → 'red' | 'orange' | 'green'
+    // Exact hexes from DECK_CONFIG in src/pages/Flashcards.tsx; gold is GOLD.core
+    // in src/lib/goldenReveal.ts.
+    PALETTE: { red: '#FF3B30', orange: '#FF8A00', green: '#34C759', gold: '#FFD54A' },
+    STATES: ['red', 'orange', 'green', 'gold'],
+    _map: new Map(),          // normalizedWord → 'red' | 'orange' | 'green' | 'gold'
     _justSaved: new Map(),    // normalizedWord → time saved (stays red meanwhile)
     _timer: null,
 
@@ -185,9 +190,12 @@
     // Paint one span to match its deck (clears all three tier classes first so a
     // recolour red→green never leaves a stale class behind).
     paint(el, word) {
-      const s = this._map.get(normalizeToken(word ?? el.dataset.word ?? ''));
-      el.classList.remove('ls-red', 'ls-orange', 'ls-green');
+      const key = normalizeToken(word ?? el.dataset.word ?? '');
+      const s = this._map.get(key);
+      el.classList.remove('ls-red', 'ls-orange', 'ls-green', 'ls-gold');
       if (s) el.classList.add('ls-' + s);
+      // A ringed common word keeps its ring only until it's in a deck.
+      el.classList.toggle('ls-ring', !s && Rings.isPicked(key));
     },
 
     // Repaint every rendered word span from the current map.
@@ -208,7 +216,7 @@
             if (Date.now() - ts > 120000) this._justSaved.delete(w);
             else if (!this._map.has(w)) this._map.set(w, 'red');
           });
-          const dist = { red: 0, orange: 0, green: 0 };
+          const dist = { red: 0, orange: 0, green: 0, gold: 0 };
           this._map.forEach((s) => dist[s]++);
           log('deck loaded:', this._map.size, 'words', dist, '| le/la/des =', this._map.get('le'), this._map.get('la'), this._map.get('des'));
           this.repaintAll();
@@ -227,6 +235,14 @@
       document.querySelectorAll(`.ls-word[data-word="${CSS.escape(key)}"]`).forEach((el) => this.paint(el, key));
     },
 
+    // Undo markSaved when the save didn't go through.
+    unmarkSaved(word) {
+      const key = normalizeToken(word);
+      this._map.delete(key);
+      this._justSaved.delete(key);
+      document.querySelectorAll(`.ls-word[data-word="${CSS.escape(key)}"]`).forEach((el) => this.paint(el, key));
+    },
+
     // Poll so a card promoted in the app (red→orange→green) recolours live. The
     // background force-refreshes past its cache when we ask on the tick.
     startAutoRefresh(ms = 15000) {
@@ -235,6 +251,102 @@
     },
     stopAutoRefresh() { clearInterval(this._timer); this._timer = null; },
   };
+
+  // ══ Rings — the common words to learn in this video ════════════════════════
+  // The same frequency list as the app's Common Words decks (core_vocabulary,
+  // most frequent first), minus everything already in the learner's decks. The
+  // first RINGS_PER_VIDEO of those that turn up in a video get the app's orange
+  // "tap me" ring (.ls-target-ring in src/index.css), at every appearance, until
+  // saved: a few clear targets beat a screen of words to choose from.
+  const RINGS_PER_VIDEO = 10;
+  const RINGS_PER_LINE = 3; // MAX_RINGS_PER_LINE in src/components/SubtitleOverlay.tsx
+  const GOLD_HEX = { core: '#FFD54A', glow: 'rgba(255,200,60,0.55)' }; // GOLD in src/lib/goldenReveal.ts
+  const Rings = {
+    _pool: new Set(),
+    _video: null,
+    _picked: new Set(),
+    _lineCount: 0,
+
+    // YouTube keeps the video in ?v=, Netflix in the path.
+    _sync() {
+      const v = new URLSearchParams(location.search).get('v');
+      const key = location.hostname + location.pathname + (v ? '?v=' + v : '');
+      if (key !== this._video) { this._video = key; this._picked.clear(); }
+    },
+    async load() {
+      const lang = learningLang;
+      const res = await send({ type: 'GET_RING_POOL', language: lang });
+      if (!res?.ok || lang !== learningLang) return;
+      this._pool = new Set((res.words || []).map(normalizeToken));
+      Deck.repaintAll();
+    },
+    beginLine() { this._sync(); this._lineCount = 0; },
+    isPicked(key) { this._sync(); return this._picked.has(key); },
+    // For each word of a new subtitle line: maybe ring it as one of this video's words.
+    claim(key) {
+      if (!key || Deck.stateOf(key) || this._picked.has(key)) return;
+      if (this._picked.size >= RINGS_PER_VIDEO || this._lineCount >= RINGS_PER_LINE || !this._pool.has(key)) return;
+      this._picked.add(key); this._lineCount++;
+      // The transcript logged this line before its words were claimed.
+      document.querySelectorAll(`.ls-word[data-word="${CSS.escape(key)}"]`).forEach((el) => Deck.paint(el, key));
+    },
+    saved(key) { this._pool.delete(key); },
+  };
+
+  // ══ Today's word goal — the same count as the app ════════════════════════════
+  // Background GET_TODAY counts words met in a video since local midnight in
+  // this language against that language's daily goal, exactly like
+  // useDailyWordGoal on the site, so "3 / 10 today" matches everywhere. A save
+  // bumps it on click; the server count then confirms it. Reaching the goal
+  // pauses the video once a day and sends the learner to review.
+  const Goal = {
+    saved: 0, goal: 0, lang: null, known: false,
+    async refresh() {
+      const r = await send({ type: 'GET_TODAY' });
+      if (r?.ok && r.goal) this.set(r.saved, r.goal, r.language);
+    },
+    set(saved, goal, lang) {
+      const wasBelow = this.known && this.saved < this.goal;
+      Object.assign(this, { saved, goal, lang: lang || learningLang, known: true });
+      renderGoalChip();
+      if (wasBelow && saved >= goal) promptReview();
+    },
+    bump() { if (this.known) this.set(this.saved + 1, this.goal, this.lang); },
+    reached() { return this.known && this.saved >= this.goal; },
+  };
+
+  function renderGoalChip() {
+    const el = document.getElementById('ls-goal');
+    if (!el || !Goal.known) return;
+    const shown = Math.min(Goal.saved, Goal.goal);
+    el.classList.add('ls-show');
+    el.classList.toggle('ls-reached', Goal.reached());
+    el.innerHTML = Goal.reached()
+      ? `✓ ${shown} / ${Goal.goal} today <a class="ls-goal-review" href="${flashcardsUrl(Goal.lang)}" target="_blank" rel="noopener noreferrer">Review ›</a>`
+      : `🎯 ${shown} / ${Goal.goal} today`;
+    el.title = Goal.reached() ? 'Daily goal done: review your flashcards' : 'Words saved today toward your daily goal';
+  }
+
+  // Once per day per language: pause and suggest reviewing what was saved.
+  async function promptReview() {
+    const key = `ls_goal_prompt_${new Date().toLocaleDateString('en-CA')}_${Goal.lang}`;
+    if ((await getStorage([key]))[key] || document.getElementById('ls-goal-card')) return;
+    chrome.storage.local.set({ [key]: true });
+    const v = document.querySelector('video');
+    try { v?.pause(); } catch {}
+    const card = document.createElement('div'); card.id = 'ls-goal-card';
+    card.innerHTML = `
+      <div class="ls-goal-emoji">🎉</div>
+      <div class="ls-goal-kicker">Daily goal done</div>
+      <div class="ls-goal-title">${Goal.goal} / ${Goal.goal} words saved today</div>
+      <p class="ls-goal-text">Now review your flashcards: that's what turns new words green and makes them stick.</p>
+      <a class="ls-goal-btn" href="${flashcardsUrl(Goal.lang)}" target="_blank" rel="noopener noreferrer">📚 Review flashcards</a>
+      <button class="ls-goal-btn ls-goal-secondary">Keep watching</button>`;
+    card.addEventListener('click', (e) => e.stopPropagation());
+    card.querySelector('a').addEventListener('click', () => card.remove());
+    card.querySelector('button').addEventListener('click', () => { card.remove(); try { v?.play(); } catch {} });
+    layerHost().appendChild(card);
+  }
 
   // ── Toast ────────────────────────────────────────────────────────────────────
   let toastTimer;
@@ -252,8 +364,13 @@
   function openCard({ word, clean, fullLine, anchorEl }) {
     closeCard();
     const tier = Deck.stateOf(clean);
-    const tierLabel = tier === 'green' ? '🟢 Known' : tier === 'orange' ? '🟠 Learning' : tier === 'red' ? '🔴 New word' : '⬜ Unseen';
-    const tierColor = tier === 'green' ? Deck.PALETTE.green : tier === 'orange' ? Deck.PALETTE.orange : tier === 'red' ? Deck.PALETTE.red : '#888';
+    const ringed = !tier && Rings.isPicked(clean);
+    const TIERS = {
+      gold: '🟡 Due for review · check it in your flashcards', green: '🟢 Known',
+      orange: '🟠 Learning', red: '🔴 New word',
+    };
+    const tierLabel = TIERS[tier] || (ringed ? '⭕ Common word · worth learning' : '⬜ Unseen');
+    const tierColor = Deck.PALETTE[tier] || (ringed ? Deck.PALETTE.orange : '#888');
     const alreadySaved = !!tier;
 
     const card = document.createElement('div'); card.id = 'ls-card'; activeCard = card;
@@ -263,7 +380,9 @@
       <div id="ls-card-tier" style="color:${tierColor}">${tierLabel}</div>
       <div id="ls-card-trans" style="color:#9A9AA6;font-style:italic;font-size:14px;">looking up…</div>
       <div id="ls-card-body"></div>
-      <div id="ls-card-action"><button id="ls-card-save"${alreadySaved ? ' disabled' : ''}>${alreadySaved ? '✓ In your flashcards' : '+ Save to flashcards'}</button></div>`;
+      <div id="ls-card-action">${tier === 'gold'
+        ? `<a id="ls-card-save" class="ls-card-review" href="${flashcardsUrl(learningLang)}" target="_blank" rel="noopener noreferrer">Review it now →</a>`
+        : `<button id="ls-card-save"${alreadySaved ? ' disabled' : ''}>${alreadySaved ? '✓ In your flashcards' : `+ Save to flashcards · +${XP_SAVE} XP`}</button>`}</div>`;
     layerHost().appendChild(card);
     card.querySelector('#ls-card-close').addEventListener('click', closeCard);
 
@@ -343,10 +462,31 @@
     const d = document.createElement('div'); d.className = cls; d.innerHTML = html; return d;
   }
 
+  // XP for a new word: the app's add_word value.
+  const XP_SAVE = 20;
+
   async function saveFromCard(card, word, context, translation) {
-    setCardAction(card, cardNote('Saving…'));
+    // Red and ding the moment it's clicked, not after the round trips to the
+    // server; the ding must also start inside the click or Chrome mutes it.
+    const key = normalizeToken(word);
+    const optimistic = !Deck.stateOf(key);
+    if (optimistic) {
+      Deck.markSaved(word);
+      playDing();
+      Goal.bump();
+      const tierEl = card.querySelector('#ls-card-tier');
+      if (tierEl) { tierEl.textContent = '🔴 New word'; tierEl.style.color = Deck.PALETTE.red; }
+    }
+    setCardAction(card, cardNote(optimistic ? '✓ Saving to your flashcards…' : 'Saving…'));
     const res = await send({ type: 'SAVE_WORD', word, context, language: learningLang, translation });
-    if (activeCard !== card) return;
+    if (!res?.ok && optimistic) Deck.unmarkSaved(word);
+    // The server's count is the truth (an already-saved word can count too).
+    Goal.refresh();
+    if (activeCard !== card) {
+      if (!res?.ok) showToast('Couldn’t save that word');
+      else if (res.xp) celebrateSave(key, res);
+      return;
+    }
     if (res?.error === 'not_your_language') {
       showLanguagePicker(card, res.languages || [], () => saveFromCard(card, word, context, translation));
       return;
@@ -359,16 +499,20 @@
       setCardAction(card, retry);
       return;
     }
-    Deck.markSaved(word);
-    playDing();
+    if (!optimistic) { Deck.markSaved(word); playDing(); }
     Deck.refresh(true);
-    const tierEl = card.querySelector('#ls-card-tier');
-    if (tierEl && !res.already) { tierEl.textContent = '🔴 New word'; tierEl.style.color = Deck.PALETTE.red; }
+    if (res.xp) celebrateSave(key, res);
     const lang = res.language || learningLang;
     setCardAction(card, cardNote(
       `<b>✓ ${res.already ? 'Already in' : 'Saved to'} your ${langFlag(lang)} ${escapeHtml(langName(lang))} flashcards</b>` +
       `<a href="${flashcardsUrl(lang)}" target="_blank" rel="noopener noreferrer">Open your ${escapeHtml(langName(lang))} flashcards →</a>`,
       'ls-card-status ls-card-saved'));
+  }
+
+  function celebrateSave(key, res) {
+    setXpChip(res.xpTotal);
+    Rings.saved(key);
+    showToast(Goal.known ? `+${res.xp} XP · ${Math.min(Goal.saved, Goal.goal)}/${Goal.goal} words today` : `+${res.xp} XP`);
   }
 
   // Ask which of the learner's languages they're watching in. Only their own
@@ -402,6 +546,8 @@
     const info = await send({ type: 'GET_LANGUAGES' });
     if (activeCard !== card) return;
     Deck.refresh(true); Deck.startAutoRefresh();
+    Goal.refresh();
+    send({ type: 'GET_XP' }).then((r) => { if (r?.ok) setXpChip(r.xpTotal); });
     const languages = info?.languages || [];
     const save = () => saveFromCard(card, word, context, getTranslation());
     if (languages.includes(learningLang)) {
@@ -447,12 +593,15 @@
   }
 
   // ── Word spans ───────────────────────────────────────────────────────────────
-  function makeWordSpan(word, fullLine, joiner = ' ') {
+  // claimRing: this is a new on-screen subtitle line, so its common words may
+  // get a ring (the transcript only shows the ones already picked).
+  function makeWordSpan(word, fullLine, joiner = ' ', claimRing = false) {
     const clean = normalizeToken(word);
     if (!clean) return document.createTextNode(word + joiner);
     const span = document.createElement('span');
     span.className = 'ls-word'; span.dataset.word = clean; span.textContent = word + joiner;
     span.setAttribute('translate', 'no');
+    if (claimRing) Rings.claim(clean);
     Deck.paint(span, clean);
     span.addEventListener('click', (e) => { e.stopPropagation(); openCard({ word, clean, fullLine, anchorEl: span }); });
     return span;
@@ -577,7 +726,8 @@
       el.style.cssText = ''; el.innerHTML = '';
       el.onclick = () => { const v = getVideo(); if (v) v.currentTime = Math.max(0, v.currentTime - 4); };
       const { parts, joiner } = splitWords(text, learningLang);
-      parts.forEach((p) => el.appendChild(p.word ? makeWordSpan(p.text, text, joiner) : document.createTextNode(p.text + joiner)));
+      Rings.beginLine();
+      parts.forEach((p) => el.appendChild(p.word ? makeWordSpan(p.text, text, joiner, true) : document.createTextNode(p.text + joiner)));
     }
     function renderSecondary(text) {
       const el = document.getElementById('ls-secondary'); if (!el) return;
@@ -662,19 +812,34 @@
   // ── Staying out of the site's way ──────────────────────────────────────────────
   // In fullscreen only the fullscreen element is drawn, so our layers live inside
   // it. When the video fills the window (Netflix, fullscreen) the site's own
-  // controls run along the bottom: html.ls-fills lifts our subtitles above them,
-  // moves our bar to the top and stops the transcript short of them. The bar
-  // fades while the mouse is still, like the players' own controls.
-  const LAYERS = ['ls-overlay', 'ls-controls', 'ls-panel', 'ls-card', 'ls-toast'];
+  // controls run along the bottom: html.ls-fills docks our bar just above them
+  // (--ls-dock, measured from getChrome()), lifts the subtitles above the bar
+  // and stops the transcript short of them. The bar fades while the mouse is
+  // still, like the players' own controls.
+  const LAYERS = ['ls-overlay', 'ls-controls', 'ls-panel', 'ls-card', 'ls-toast', 'ls-goal-card'];
   function layerHost() {
     const fs = document.fullscreenElement;
     return fs && fs !== document.documentElement ? fs : document.body;
   }
-  function watchLayout(getVideo) {
+  const DEFAULT_DOCK = 120;
+  function watchLayout(getVideo, getChrome = () => []) {
     const root = document.documentElement;
+    // The site hides its controls while the mouse is still, so keep the highest
+    // top we've seen instead of letting the bar jump up and down with them.
+    let dock = DEFAULT_DOCK, dockWidth = innerWidth;
+    const measureDock = () => {
+      if (dockWidth !== innerWidth) { dock = DEFAULT_DOCK; dockWidth = innerWidth; }
+      for (const el of getChrome()) {
+        const r = el?.getBoundingClientRect();
+        if (!r || !r.height || !r.width || r.bottom < innerHeight - 60) continue;
+        dock = Math.max(dock, Math.min(260, Math.round(innerHeight - r.top + 10)));
+      }
+      root.style.setProperty('--ls-dock', dock + 'px');
+    };
     const update = () => {
       const r = getVideo()?.getBoundingClientRect();
       root.classList.toggle('ls-fills', !!r && r.height >= innerHeight * 0.75 && r.bottom >= innerHeight - 8);
+      measureDock();
       const host = layerHost();
       LAYERS.forEach((id) => { const el = document.getElementById(id); if (el && el.parentElement !== host) host.appendChild(el); });
     };
@@ -695,6 +860,7 @@
       removeEventListener('mousemove', wake);
       clearInterval(timer); clearTimeout(idleTimer);
       root.classList.remove('ls-fills', 'ls-idle');
+      root.style.removeProperty('--ls-dock');
     };
   }
 
@@ -771,11 +937,18 @@
     let autoPause = false;
     const apBtn = mk('A|P Off', 'Q', () => { autoPause = !autoPause; apBtn.innerHTML = `${autoPause ? 'A|P On' : 'A|P Off'}<span class="ls-kbd">Q</span>`; apBtn.classList.toggle('ls-on', autoPause); spec.onAutoPause?.(autoPause); }, 'ls-ap-btn');
     const panelBtn = mk('≡ Transcript', '', () => togglePanel(), 'ls-panel-btn'); panelBtn.classList.add('ls-on');
-    const speedBtns = [0.5, 0.75, 1, 1.25, 1.5].map((sp) => {
-      const b = mk(sp + '×', '', () => { spec.onSpeed?.(sp); speedBtns.forEach((x) => x.classList.remove('ls-on')); b.classList.add('ls-on'); });
-      if (sp === 1) b.classList.add('ls-on');
-      return b;
-    });
+    // One button that steps through the speeds, so the bar fits beside the
+    // transcript with the goal and XP on it. Lit whenever it isn't 1×.
+    const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5];
+    let speedIdx = SPEEDS.indexOf(1);
+    const speedBtn = mk('1× speed', '', () => {
+      speedIdx = (speedIdx + 1) % SPEEDS.length;
+      const sp = SPEEDS[speedIdx];
+      spec.onSpeed?.(sp);
+      speedBtn.textContent = `${sp}× speed`;
+      speedBtn.classList.toggle('ls-on', sp !== 1);
+    }, 'ls-speed-btn');
+    speedBtn.title = 'Click to change speed: 0.5× → 0.75× → 1× → 1.25× → 1.5×';
     let overlayVisible = true;
     const hideBtn = mk('LS', '', () => { overlayVisible = !overlayVisible; hideBtn.classList.toggle('ls-on', overlayVisible); document.getElementById('ls-overlay')?.style && (document.getElementById('ls-overlay').style.opacity = overlayVisible ? '1' : '0'); spec.onToggleOverlay?.(overlayVisible); }, 'ls-hide-btn');
     hideBtn.classList.add('ls-on');
@@ -784,18 +957,83 @@
       mk('⏮', 'A', () => spec.seekBack?.()),
       mk('↩', 'S', () => spec.seekRepeat?.()),
       mk('⏭', 'D', () => spec.seekForward?.()),
-      sep(), apBtn, sep(), ...speedBtns, sep(), panelBtn, hideBtn,
+      sep(), apBtn, speedBtn, sep(), panelBtn, hideBtn,
     ];
     (spec.extraLinks || []).forEach(({ label, href }) => {
       nodes.push(sep());
       const a = document.createElement('a'); a.className = 'ls-btn ls-link'; a.href = href; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.textContent = label;
       nodes.push(a);
     });
+    const goal = document.createElement('span'); goal.id = 'ls-goal'; goal.className = 'ls-goal';
+    const xp = document.createElement('span'); xp.id = 'ls-xp'; xp.className = 'ls-xp'; xp.title = 'Your LinguaScript XP';
+    nodes.push(sep(), goal, xp);
     nodes.forEach((n) => inner.appendChild(n));
     layerHost().appendChild(bar);
+    makeDraggable(bar, inner);
+    send({ type: 'GET_XP' }).then((r) => { if (r?.ok) setXpChip(r.xpTotal); });
+    Goal.refresh();
 
     // Reflect keyboard toggles back onto the A|P button.
     window.__lsSetAutoPause = (v) => { autoPause = v; apBtn.innerHTML = `${v ? 'A|P On' : 'A|P Off'}<span class="ls-kbd">Q</span>`; apBtn.classList.toggle('ls-on', v); };
+  }
+
+  // The learner's XP total on the bar (hidden until we know it, e.g. logged out).
+  function setXpChip(total) {
+    const el = document.getElementById('ls-xp');
+    if (!el || typeof total !== 'number') return;
+    el.textContent = `⭐ ${total.toLocaleString()} XP`;
+    el.classList.add('ls-show');
+    el.classList.remove('ls-bump'); void el.offsetWidth; el.classList.add('ls-bump');
+  }
+
+  // Grab the ⠿ handle to put the bar anywhere; it remembers the spot per site
+  // (as a fraction of the window, so it survives resizing and fullscreen).
+  // Double-click the handle to send it back.
+  function makeDraggable(bar, inner) {
+    const key = 'ls_bar_pos_' + location.hostname;
+    const grip = document.createElement('div');
+    grip.className = 'ls-grip'; grip.textContent = '⠿';
+    grip.title = 'Drag to move the bar · double-click to put it back';
+    inner.prepend(grip);
+    // Clicks on the bar must never reach the player (Netflix pauses on click).
+    inner.addEventListener('click', (e) => e.stopPropagation());
+
+    let pos = null;
+    const apply = () => {
+      if (!pos) { bar.classList.remove('ls-moved'); bar.style.left = bar.style.top = ''; return; }
+      bar.classList.add('ls-moved');
+      const w = inner.offsetWidth, h = inner.offsetHeight;
+      bar.style.left = Math.max(4, Math.min(pos.x * innerWidth, innerWidth - w - 4)) + 'px';
+      bar.style.top = Math.max(4, Math.min(pos.y * innerHeight, innerHeight - h - 4)) + 'px';
+    };
+    getStorage([key]).then((r) => { if (r[key]) { pos = r[key]; apply(); } });
+    addEventListener('resize', apply);
+    document.addEventListener('fullscreenchange', apply);
+
+    grip.addEventListener('pointerdown', (e) => {
+      e.preventDefault(); e.stopPropagation();
+      grip.setPointerCapture(e.pointerId);
+      bar.classList.add('ls-dragging');
+      const r = inner.getBoundingClientRect();
+      const offX = e.clientX - r.left, offY = e.clientY - r.top;
+      const move = (ev) => { pos = { x: (ev.clientX - offX) / innerWidth, y: (ev.clientY - offY) / innerHeight }; apply(); };
+      const up = () => {
+        grip.removeEventListener('pointermove', move);
+        grip.removeEventListener('pointerup', up);
+        grip.removeEventListener('pointercancel', up);
+        bar.classList.remove('ls-dragging');
+        if (pos) chrome.storage.local.set({ [key]: pos });
+      };
+      grip.addEventListener('pointermove', move);
+      grip.addEventListener('pointerup', up);
+      grip.addEventListener('pointercancel', up);
+    });
+    grip.addEventListener('dblclick', (e) => {
+      e.stopPropagation();
+      pos = null; apply();
+      chrome.storage.local.remove(key);
+      showToast('Bar back in its place');
+    });
   }
 
   function attachKeyboardShortcuts(spec) {
@@ -829,6 +1067,12 @@
     .ls-red    { color:${Deck.PALETTE.red}   !important; }
     .ls-orange { color:${Deck.PALETTE.orange}!important; }
     .ls-green  { color:${Deck.PALETTE.green} !important; }
+    /* Gold: a known word that's due for review. */
+    .ls-gold   { color:${Deck.PALETTE.gold} !important; text-shadow:0 0 14px ${GOLD_HEX.glow}, 0 2px 8px rgba(0,0,0,0.95); }
+    /* Ring: one of this video's common words to learn (.ls-target-ring in src/index.css). */
+    .ls-ring { border-radius:10px; box-shadow:0 0 0 2px rgba(249,115,22,0.95), 0 0 0 5px rgba(249,115,22,0.3), 0 0 18px 2px rgba(249,115,22,0.5); animation:ls-ring-pulse 2.2s ease-in-out infinite; }
+    @keyframes ls-ring-pulse { 0%,100% { box-shadow:0 0 0 2px rgba(249,115,22,0.95), 0 0 0 5px rgba(249,115,22,0.3), 0 0 14px 1px rgba(249,115,22,0.4); } 50% { box-shadow:0 0 0 2px rgba(249,115,22,0.95), 0 0 0 6px rgba(249,115,22,0.35), 0 0 24px 4px rgba(249,115,22,0.55); } }
+    @media (prefers-reduced-motion: reduce) { .ls-ring { animation:none; } }
 
     /* Subtitle overlay: the same on YouTube and Netflix. */
     #ls-overlay { position:fixed; bottom:92px; left:0; right:360px; z-index:2147483640; text-align:center; pointer-events:none; font-family:'LS Inter','Inter',system-ui,-apple-system,sans-serif; transition:right .3s ease, opacity .15s ease, bottom .2s ease; }
@@ -840,14 +1084,21 @@
 
     /* Video fills the window (Netflix, fullscreen): keep clear of the site's own
        controls along the bottom (subtitles, audio, settings, fullscreen). */
-    html.ls-fills #ls-overlay { bottom:130px; }
-    html.ls-fills #ls-controls { top:14px; bottom:auto; }
-    html.ls-fills #ls-panel { bottom:120px; border-bottom:1px solid #24242D; border-bottom-left-radius:16px; }
+    html.ls-fills #ls-controls { bottom:var(--ls-dock, 120px); }
+    html.ls-fills #ls-overlay { bottom:calc(var(--ls-dock, 120px) + 54px); }
+    html.ls-fills #ls-panel { bottom:var(--ls-dock, 120px); border-bottom:1px solid #24242D; border-bottom-left-radius:16px; }
     html.ls-fills.ls-idle #ls-controls { opacity:0.15; }
+    /* Moved by hand: sits exactly where it was dropped (left/top set inline). */
+    #ls-controls.ls-moved { right:auto !important; bottom:auto !important; display:block; transition:opacity .4s ease; }
+    #ls-controls.ls-moved #ls-controls-inner { display:inline-flex; }
+    #ls-controls.ls-dragging, html.ls-idle #ls-controls.ls-dragging { opacity:1 !important; }
+    .ls-grip { cursor:grab; color:rgba(255,255,255,0.45); font-size:16px; line-height:1; padding:2px 4px 2px 0; user-select:none; touch-action:none; }
+    .ls-grip:hover { color:#F5F5F7; }
+    #ls-controls.ls-dragging .ls-grip { cursor:grabbing; }
 
     #ls-controls { position:fixed; z-index:2147483641; bottom:22px; transition:right .3s ease, opacity .4s ease; display:flex; align-items:center; justify-content:center; gap:6px; pointer-events:none; left:0; right:360px; }
     #ls-controls.ls-panel-hidden { right:0; }
-    #ls-controls-inner { display:flex; align-items:center; gap:6px; background:rgba(8,8,11,0.94); border:1px solid #24242D; border-radius:999px; padding:7px 12px; backdrop-filter:blur(16px); pointer-events:auto; box-shadow:0 4px 24px rgba(0,0,0,0.7); font-family:'LS Inter','Inter',system-ui,-apple-system,sans-serif; }
+    #ls-controls-inner { display:flex; flex-wrap:wrap; justify-content:center; max-width:calc(100% - 16px); box-sizing:border-box; align-items:center; gap:6px; background:rgba(8,8,11,0.94); border:1px solid #24242D; border-radius:999px; padding:7px 12px; backdrop-filter:blur(16px); pointer-events:auto; box-shadow:0 4px 24px rgba(0,0,0,0.7); font-family:'LS Inter','Inter',system-ui,-apple-system,sans-serif; }
     .ls-btn { background:rgba(255,255,255,0.08); color:#F5F5F7; border:none; border-radius:999px; padding:5px 11px; font-size:12px; font-weight:600; cursor:pointer; transition:background .12s, transform .1s; white-space:nowrap; font-family:inherit; text-decoration:none; display:inline-flex; align-items:center; }
     .ls-btn:hover { background:rgba(255,255,255,0.18); transform:scale(1.04); }
     .ls-btn:active { transform:scale(0.96); }
@@ -857,6 +1108,22 @@
     .ls-btn.ls-link:hover { background:rgba(255,138,0,0.26); }
     .ls-sep { width:1px; height:18px; background:rgba(255,255,255,0.13); margin:0 2px; }
     .ls-kbd { font-size:10px; color:rgba(255,255,255,0.4); margin-left:3px; }
+    .ls-goal { display:none; font-size:12px; font-weight:700; color:#F5F5F7; padding:0 4px; white-space:nowrap; }
+    .ls-goal.ls-show { display:inline-flex; align-items:center; gap:6px; }
+    .ls-goal.ls-reached { color:#34C759; }
+    .ls-goal-review { background:#34C759; color:#08080B; border-radius:999px; padding:3px 9px; font-size:11px; font-weight:800; text-decoration:none; }
+    .ls-goal-review:hover { filter:brightness(1.08); }
+    #ls-goal-card { position:fixed; z-index:2147483647; left:50%; top:50%; transform:translate(-50%,-50%); width:320px; box-sizing:border-box; padding:22px 22px 18px; text-align:center; background:rgba(17,17,22,0.98); border:1px solid rgba(52,199,89,0.45); border-radius:18px; box-shadow:0 20px 60px rgba(0,0,0,0.9); color:#F5F5F7; font-family:'LS Inter','Inter',system-ui,-apple-system,sans-serif; animation:ls-card-in .25s cubic-bezier(0.34,1.56,0.64,1); }
+    .ls-goal-emoji { font-size:40px; line-height:1; }
+    .ls-goal-kicker { margin-top:10px; font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:#34C759; }
+    .ls-goal-title { margin-top:4px; font-size:20px; font-weight:800; }
+    .ls-goal-text { margin:8px 0 16px; font-size:13px; line-height:1.5; color:#B5B5C0; }
+    .ls-goal-btn { display:block; width:100%; box-sizing:border-box; margin-top:8px; padding:11px; border-radius:999px; border:none; background:#34C759; color:#08080B; font-size:14px; font-weight:700; text-decoration:none; cursor:pointer; font-family:inherit; }
+    .ls-goal-btn.ls-goal-secondary { background:transparent; border:1px solid #24242D; color:#F5F5F7; }
+    .ls-xp { display:none; font-size:12px; font-weight:700; color:${GOLD_HEX.core}; padding:0 4px; white-space:nowrap; }
+    .ls-xp.ls-show { display:inline-block; }
+    .ls-xp.ls-bump { animation:ls-xp-bump .5s ease; }
+    @keyframes ls-xp-bump { 40% { transform:scale(1.25); } }
 
     #ls-card { position:fixed; z-index:2147483647; width:300px; max-height:calc(100vh - 16px); overflow-y:auto; box-sizing:border-box; background:rgba(17,17,22,0.98); border:1px solid #24242D; border-radius:16px; padding:16px 18px 14px; font-family:'LS Inter','Inter',system-ui,-apple-system,sans-serif; box-shadow:0 16px 48px rgba(0,0,0,0.9); backdrop-filter:blur(20px); pointer-events:auto; color:#F5F5F7; animation:ls-card-in .22s cubic-bezier(0.34,1.56,0.64,1); }
     @keyframes ls-card-in { from{opacity:0;transform:scale(.88) translateY(6px);} to{opacity:1;transform:scale(1) translateY(0);} }
@@ -873,6 +1140,7 @@
     #ls-card-save:hover { filter:brightness(1.08); }
     #ls-card-save:active { transform:scale(0.98); }
     #ls-card-save:disabled { background:#17171E; color:#9A9AA6; cursor:default; filter:none; }
+    a#ls-card-save.ls-card-review { display:block; box-sizing:border-box; text-align:center; text-decoration:none; background:${Deck.PALETTE.gold}; }
     #ls-card-close { position:absolute; top:12px; right:14px; background:none; border:none; color:#9A9AA6; font-size:16px; cursor:pointer; line-height:1; }
     #ls-card-close:hover { color:#fff; }
     .ls-card-login-note { font-size:12px; color:#9A9AA6; margin-bottom:10px; line-height:1.5; }
@@ -936,7 +1204,7 @@
     loadSavedWords: (force) => Deck.refresh(force),
     startWordsRefresh: () => Deck.startAutoRefresh(),
     stopWordsRefresh: () => Deck.stopAutoRefresh(),
-    showToast, openCard, closeCard, makeWordSpan, makeWordSpansFor, splitWords, playDing, escapeHtml,
+    Rings, showToast, openCard, closeCard, makeWordSpan, makeWordSpansFor, splitWords, playDing, escapeHtml,
     SubtitleShield, LiveCaptions, SpeedKeeper, watchLayout, requestCaptions, setStatus, buildOverlay, layerHost, buildPanelShell, togglePanel, buildControls, attachKeyboardShortcuts,
     injectStyles,
   };

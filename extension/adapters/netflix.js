@@ -65,7 +65,8 @@
       extraLinks: [{ label: '📚 Flashcards', href: 'https://linguascript.co.uk/flashcards' }],
     });
     C.attachKeyboardShortcuts({ seekBack, seekRepeat, seekForward, onAutoPause: live.setAutoPause, getAutoPause: live.getAutoPause });
-    stopLayout = C.watchLayout(video);
+    // Dock our bar just above Netflix's own controls (play, volume, subtitles…).
+    stopLayout = C.watchLayout(video, () => document.querySelectorAll('.watch-video--bottom-controls-container, [data-uia="controls-standard"] [data-uia="timeline"], [data-uia="timeline-bar"]'));
 
     await C.loadLangs();
 
@@ -81,7 +82,7 @@
     if (!mounted) return; mounted = false;
     live.stop();
     stopLayout?.(); stopLayout = null;
-    ['ls-overlay', 'ls-controls', 'ls-panel', 'ls-toast'].forEach((id) => document.getElementById(id)?.remove());
+    ['ls-overlay', 'ls-controls', 'ls-panel', 'ls-toast', 'ls-goal-card'].forEach((id) => document.getElementById(id)?.remove());
     C.closeCard(); C.stopWordsRefresh();
   }
 

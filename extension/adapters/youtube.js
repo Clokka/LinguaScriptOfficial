@@ -81,7 +81,8 @@
     el.innerHTML = '';
     el.onclick = () => { const sub = primarySubs[currentSubIdx]; if (sub && videoEl) videoEl.currentTime = sub.start; };
     const { parts, joiner } = C.splitWords(text, C.learningLang);
-    parts.forEach((p) => el.appendChild(p.word ? C.makeWordSpan(p.text, text, joiner) : document.createTextNode(p.text + joiner)));
+    C.Rings.beginLine();
+    parts.forEach((p) => el.appendChild(p.word ? C.makeWordSpan(p.text, text, joiner, true) : document.createTextNode(p.text + joiner)));
   }
   function renderSecondary(text) {
     const el = document.getElementById('ls-secondary'); if (!el) return;
@@ -203,7 +204,7 @@
 
     C.injectStyles();
     C.buildOverlay();
-    stopLayout?.(); stopLayout = C.watchLayout(video);
+    stopLayout?.(); stopLayout = C.watchLayout(video, () => document.querySelectorAll('.ytp-chrome-bottom'));
 
     const listEl = C.buildPanelShell('Transcript');
     // Track mode seeks line by line; screen-caption mode has no timestamps, so
@@ -245,7 +246,7 @@
   // watch page is often reached without a reload); only show the player
   // overlay while a video is open, and take it down when the learner leaves.
   function unmount() {
-    ['ls-overlay', 'ls-controls', 'ls-panel', 'ls-toast'].forEach((id) => document.getElementById(id)?.remove());
+    ['ls-overlay', 'ls-controls', 'ls-panel', 'ls-toast', 'ls-goal-card'].forEach((id) => document.getElementById(id)?.remove());
     C.closeCard(); C.stopWordsRefresh();
     if (syncInterval) { clearInterval(syncInterval); syncInterval = null; }
     live?.stop(); live = null;

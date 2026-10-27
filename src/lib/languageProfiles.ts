@@ -93,7 +93,9 @@ export async function getLanguageProfile(
  * seed_known_vocabulary entirely so nothing is falsely pre-marked "known"
  * (leaving language_profiles.seeded_level NULL), which is exactly the
  * signal seed_priority_words uses to target the learner's OWN level first
- * instead of the tier above it — see the migration comment.
+ * instead of the tier above it — see the migration comment. It is the
+ * default everywhere a level is offered; only a level the learner picks
+ * themselves pre-marks words green.
  */
 export async function addLanguageProfile(opts: {
   userId: string;

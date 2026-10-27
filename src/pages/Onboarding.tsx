@@ -65,7 +65,9 @@ const Onboarding = () => {
   const [step, setStep] = useState<number>(initialPersisted?.step ?? 0);
   const [native, setNative] = useState(initialPersisted?.native ?? "en");
   const [target, setTarget] = useState(initialPersisted?.target ?? "");
-  const [level, setLevel] = useState<Level | null>(initialPersisted?.level ?? null);
+  // Complete beginner unless the learner picks a level: a level above it
+  // pre-marks hundreds of common words green.
+  const [level, setLevel] = useState<Level | null>(initialPersisted?.level ?? "beginner");
   const [mode, setMode] = useState<LearningMode>(initialPersisted?.mode ?? "fluency");
   const [school, setSchool] = useState(initialPersisted?.school ?? "");
   const [wordGoal, setWordGoal] = useState<number>(initialPersisted?.wordGoal ?? DEFAULT_WORD_GOAL);

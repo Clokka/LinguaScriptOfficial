@@ -16,6 +16,7 @@ import WebView from 'react-native-webview';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import { tapLight, tapMedium, success } from '@/native/haptics';
+import { WORD_COLOURS, wordColour, type WordColour } from '@/lib/deck-colors';
 
 const { height: SCREEN_H } = Dimensions.get('window');
 
@@ -104,7 +105,8 @@ export default function WatchScreen() {
   const [secondarySubs, setSecondarySubs] = useState<SubLine[]>([]);
   const [subsLoading, setSubsLoading] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
-  const [savedWords, setSavedWords] = useState<Set<string>>(new Set());
+  // Saved word → its colour (red / orange / green, gold when due for review).
+  const [savedWords, setSavedWords] = useState<Map<string, WordColour>>(new Map());
 
   const [popup, setPopup] = useState<WordPopupData | null>(null);
   const [popupLoading, setPopupLoading] = useState(false);
@@ -129,17 +131,27 @@ export default function WatchScreen() {
       });
   }, [id]);
 
-  // Load saved words (for green highlight)
+  // Load saved words, coloured like the website and the Chrome extension.
+  // Large decks pass the Data API's 1,000-row page, so read them all.
   useEffect(() => {
     if (!user || !film?.language) return;
-    supabase
-      .from('saved_words')
-      .select('word')
-      .eq('user_id', user.id)
-      .eq('language', film.language)
-      .then(({ data }) => {
-        if (data) setSavedWords(new Set((data as any[]).map((r) => r.word.toLowerCase())));
-      });
+    let alive = true;
+    (async () => {
+      const colours = new Map<string, WordColour>();
+      for (let from = 0; ; from += 1000) {
+        const { data, error } = await supabase
+          .from('saved_words')
+          .select('word, state, next_review')
+          .eq('user_id', user.id)
+          .eq('language', film.language)
+          .range(from, from + 999);
+        if (error || !data) break;
+        for (const r of data as any[]) colours.set(r.word.toLowerCase(), wordColour(r.state, r.next_review));
+        if (data.length < 1000) break;
+      }
+      if (alive) setSavedWords(colours);
+    })();
+    return () => { alive = false; };
   }, [user, film?.language]);
 
   // Fetch subtitles from cache or edge function
@@ -260,8 +272,13 @@ export default function WatchScreen() {
   const saveWord = async () => {
     if (!user || !film || !popup) return;
     tapMedium();
+    // Red the moment it's tapped, not after the round trip.
+    const key = popup.word.toLowerCase();
+    const before = savedWords.get(key);
+    if (!before) setSavedWords((prev) => new Map(prev).set(key, 'red'));
     const today = new Date().toISOString().slice(0, 10);
-    await supabase.from('saved_words').upsert({
+    // ignoreDuplicates: saving a word again must not knock a green word back to red.
+    const { error } = await supabase.from('saved_words').upsert({
       user_id: user.id,
       word: popup.word,
       translation: popup.translation,
@@ -274,8 +291,11 @@ export default function WatchScreen() {
       state: 'red',
       review_count: 0,
       times_correct: 0,
-    }, { onConflict: 'user_id,word,language' });
-    setSavedWords((prev) => new Set([...prev, popup.word.toLowerCase()]));
+    }, { onConflict: 'user_id,word,language', ignoreDuplicates: true });
+    if (error) {
+      if (!before) setSavedWords((prev) => { const next = new Map(prev); next.delete(key); return next; });
+      return;
+    }
     success();
     setJustSaved(true);
     setTimeout(() => {
@@ -352,7 +372,7 @@ export default function WatchScreen() {
               <View style={styles.subsRow}>
                 {activePrimary.text.split(' ').map((token, i) => {
                   const clean = token.replace(/[.,!?;:"'«»()[\]…]/g, '');
-                  const saved = savedWords.has(clean.toLowerCase());
+                  const colour = savedWords.get(clean.toLowerCase());
                   return (
                     <TouchableOpacity
                       key={i}
@@ -360,7 +380,7 @@ export default function WatchScreen() {
                       onPress={() => handleWordTap(token, activePrimary.text)}
                       style={{ marginRight: 4, marginBottom: 4 }}
                     >
-                      <Text style={[styles.subWord, saved && styles.subWordSaved]}>{token}</Text>
+                      <Text style={[styles.subWord, colour && { color: WORD_COLOURS[colour] }]}>{token}</Text>
                     </TouchableOpacity>
                   );
                 })}
@@ -459,7 +479,6 @@ const styles = StyleSheet.create({
   subsArea: { minHeight: 80, paddingHorizontal: 16, paddingVertical: 8 },
   subsRow: { flexDirection: 'row', flexWrap: 'wrap' },
   subWord: { color: '#fff', fontSize: 19, fontWeight: '500' },
-  subWordSaved: { color: '#22c55e' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
   popupSheet: {
     backgroundColor: '#131f26',
