@@ -195,7 +195,7 @@
       el.classList.remove('ls-red', 'ls-orange', 'ls-green', 'ls-gold');
       if (s) el.classList.add('ls-' + s);
       // A ringed common word keeps its ring only until it's in a deck.
-      el.classList.toggle('ls-ring', !s && Rings.isPicked(key));
+      el.classList.toggle('ls-ring', !s && Rings.isPicked(key) && !el.dataset.noRing);
     },
 
     // Repaint every rendered word span from the current map.
@@ -254,12 +254,14 @@
 
   // ══ Rings — the common words to learn in this video ════════════════════════
   // The same frequency list as the app's Common Words decks (core_vocabulary,
-  // most frequent first), minus everything already in the learner's decks. The
-  // first RINGS_PER_VIDEO of those that turn up in a video get the app's orange
-  // "tap me" ring (.ls-target-ring in src/index.css), at every appearance, until
-  // saved: a few clear targets beat a screen of words to choose from.
-  const RINGS_PER_VIDEO = 10;
-  const RINGS_PER_LINE = 3; // MAX_RINGS_PER_LINE in src/components/SubtitleOverlay.tsx
+  // most frequent first), minus everything already in the learner's decks. Any
+  // of those that turn up in a video get the app's orange "tap me" ring
+  // (.ls-target-ring in src/index.css), at every appearance, until saved. The
+  // extension only ever sees the line on screen, so there is no per-video cap:
+  // the list of unsaved common words is the limit, and it shrinks as the
+  // learner saves them. Per line it stops at RINGS_PER_LINE so a line of very
+  // common words never turns into a wall of circles.
+  const RINGS_PER_LINE = 4;
   const GOLD_HEX = { core: '#FFD54A', glow: 'rgba(255,200,60,0.55)' }; // GOLD in src/lib/goldenReveal.ts
   const Rings = {
     _pool: new Set(),
@@ -282,13 +284,18 @@
     },
     beginLine() { this._sync(); this._lineCount = 0; },
     isPicked(key) { this._sync(); return this._picked.has(key); },
-    // For each word of a new subtitle line: maybe ring it as one of this video's words.
+    // For each word of a new subtitle line: true if this occurrence gets a ring.
+    // Every ring on the line counts toward RINGS_PER_LINE, new words and ones
+    // ringed on earlier lines alike.
     claim(key) {
-      if (!key || Deck.stateOf(key) || this._picked.has(key)) return;
-      if (this._picked.size >= RINGS_PER_VIDEO || this._lineCount >= RINGS_PER_LINE || !this._pool.has(key)) return;
-      this._picked.add(key); this._lineCount++;
-      // The transcript logged this line before its words were claimed.
-      document.querySelectorAll(`.ls-word[data-word="${CSS.escape(key)}"]`).forEach((el) => Deck.paint(el, key));
+      if (!key || Deck.stateOf(key) || !this._pool.has(key) || this._lineCount >= RINGS_PER_LINE) return false;
+      this._lineCount++;
+      if (!this._picked.has(key)) {
+        this._picked.add(key);
+        // The transcript logged this line before its words were claimed.
+        document.querySelectorAll(`.ls-word[data-word="${CSS.escape(key)}"]`).forEach((el) => Deck.paint(el, key));
+      }
+      return true;
     },
     saved(key) { this._pool.delete(key); },
   };
@@ -601,7 +608,8 @@
     const span = document.createElement('span');
     span.className = 'ls-word'; span.dataset.word = clean; span.textContent = word + joiner;
     span.setAttribute('translate', 'no');
-    if (claimRing) Rings.claim(clean);
+    // A common word past this line's ring limit stays plain on screen.
+    if (claimRing && !Rings.claim(clean) && Rings.isPicked(clean)) span.dataset.noRing = '1';
     Deck.paint(span, clean);
     span.addEventListener('click', (e) => { e.stopPropagation(); openCard({ word, clean, fullLine, anchorEl: span }); });
     return span;

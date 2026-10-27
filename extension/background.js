@@ -333,7 +333,7 @@ async function gtxTranslate(text, sl, tl, ms = 4000) {
 // (Top 50, 100, 150…) are built from. The extension rings this list's words,
 // so learners get the next most useful words from it, minus anything already
 // in their decks. Readable without logging in.
-const RING_POOL_SIZE = 300;
+const RING_POOL_SIZE = 500;
 const COMMON_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 const _commonCache = new Map(); // language → { ts, words }
 const SEGMENTED = new Set(['zh', 'ja', 'th']);
