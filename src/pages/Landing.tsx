@@ -32,7 +32,7 @@ const FLOW = [
   { icon: Play, label: "Watch a show with two subtitle lines" },
   { icon: MousePointerClick, label: "Tap a word. It goes into your flashcards" },
   { icon: Layers, label: "Review it: red → orange → green" },
-  { icon: Sparkles, label: "Green for the first time? It turns gold" },
+  { icon: Sparkles, label: "Time to review a green word? It turns gold" },
 ];
 
 const reveal = {

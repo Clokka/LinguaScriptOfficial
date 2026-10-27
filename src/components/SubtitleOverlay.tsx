@@ -15,17 +15,8 @@ import {
 import { greenScoreForLine } from "@/lib/understanding";
 import { ChameleonReaction, ReactionMode } from "./ChameleonReaction";
 import { useXp } from "@/contexts/XpContext";
-import {
-  isPendingGreen,
-  revealGreenWord,
-  touchGoldWord,
-  MAX_GOLD_PER_LINE,
-  GOLD,
-  type GoldCandidate,
-} from "@/lib/goldenReveal";
-import { playDing } from "@/lib/sound";
+import { isDueForReview, GOLD } from "@/lib/dueGold";
 import { LineBlastOverlay } from "@/components/LineBlastOverlay";
-import { GoldenDust, type DustAnchor } from "./GoldenDust";
 import {
   COMBO_CAP,
   PRAISE,
@@ -118,41 +109,17 @@ export const SubtitleOverlay = ({
     return deck.get(normalizeToken(text))?.state;
   };
 
-  // ── Golden Reveal ────────────────────────────────────────────────────────
-  // A word promoted to green renders GOLD until the learner witnesses it and
-  // claims it. See src/lib/goldenReveal.ts for the state rule.
-
-  /** Words claimed during this line, so they flip to green without a refetch. */
-  const [justClaimed, setJustClaimed] = useState<Set<string>>(new Set());
-  const [dustAnchors, setDustAnchors] = useState<DustAnchor[]>([]);
-  const wordElsRef = useRef<Map<string, HTMLElement>>(new Map());
-  /**
-   * Lines already counted toward the decay threshold. Without this, every
-   * React re-render would call touch_gold_word again and push a word past
-   * GOLD_DECAY_APPEARANCES within a second — auto-claiming it before it was
-   * ever seen.
-   */
-  const seenLineKeysRef = useRef<Set<string>>(new Set());
-
-  /**
-   * Which tokens on this line are gold, capped at MAX_GOLD_PER_LINE.
-   *
-   * The cap is what keeps gold feeling rare: a learner returning after a few
-   * days of reviews could otherwise face a whole line of it at once. Words
-   * over the cap render plain green.
-   */
+  // ── Gold = due for review ────────────────────────────────────────────────
+  // A green word whose spaced-repetition review is due renders gold until it's
+  // reviewed in Flashcards. See src/lib/dueGold.ts for the rule.
   const goldTokens = useMemo(() => {
     const out = new Set<string>();
     for (const raw of primaryText.split(" ")) {
       const token = normalizeToken(raw);
-      if (!token || out.has(token) || justClaimed.has(token)) continue;
-      if (isPendingGreen(deck.get(token) as GoldCandidate | undefined)) {
-        out.add(token);
-        if (out.size >= MAX_GOLD_PER_LINE) break;
-      }
+      if (token && isDueForReview(deck.get(token))) out.add(token);
     }
     return out;
-  }, [primaryText, deck, justClaimed]);
+  }, [primaryText, deck]);
 
   /** Ringed words saved during this visit — the ring has done its job. */
   const [ringDone, setRingDone] = useState<Set<string>>(new Set());
@@ -167,7 +134,7 @@ export const SubtitleOverlay = ({
     if (!targetWords?.size) return out;
     for (const raw of primaryText.split(" ")) {
       const token = normalizeToken(raw);
-      if (!token || out.has(token) || goldTokens.has(token) || ringDone.has(token)) continue;
+      if (!token || out.has(token) || ringDone.has(token)) continue;
       if (!targetWords.has(token) || deck.get(token)?.state === "green") continue;
       const clean = raw.toLowerCase().replace(/[.,!?]/g, "");
       if (!words.some((w) => w.text.toLowerCase() === clean)) continue;
@@ -175,7 +142,7 @@ export const SubtitleOverlay = ({
       if (out.size >= MAX_RINGS_PER_LINE) break;
     }
     return out;
-  }, [primaryText, words, targetWords, deck, goldTokens, ringDone]);
+  }, [primaryText, words, targetWords, deck, ringDone]);
 
   const ringKey = Array.from(ringTokens).join("|");
   const onRingWordsRef = useRef(onRingWords);
@@ -183,47 +150,6 @@ export const SubtitleOverlay = ({
   useEffect(() => {
     if (ringKey) onRingWordsRef.current?.(ringKey.split("|"));
   }, [primaryText, ringKey]);
-
-  /** Live view of the gold set for the deferred blast guard. */
-  const goldTokensRef = useRef<Set<string>>(goldTokens);
-  goldTokensRef.current = goldTokens;
-
-  // Count one appearance per line, once, and let the RPC auto-claim past the
-  // threshold so an ignored word stops glittering forever.
-  useEffect(() => {
-    if (!user || goldTokens.size === 0) return;
-    for (const token of goldTokens) {
-      const key = `${primaryText}::${token}`;
-      if (seenLineKeysRef.current.has(key)) continue;
-      seenLineKeysRef.current.add(key);
-      const word = deck.get(token);
-      if (word?.id) void touchGoldWord(word.id);
-    }
-  }, [goldTokens, primaryText, deck, user]);
-
-  // Feed the shared dust canvas the on-screen position of each gold word.
-  useEffect(() => {
-    if (goldTokens.size === 0) {
-      setDustAnchors([]);
-      return;
-    }
-    const measure = () => {
-      const next: DustAnchor[] = [];
-      for (const token of goldTokens) {
-        const el = wordElsRef.current.get(token);
-        if (el) next.push({ key: token, rect: el.getBoundingClientRect() });
-      }
-      setDustAnchors(next);
-    };
-    measure();
-    // Subtitles move with the player chrome; re-measure rather than drift.
-    const id = window.setInterval(measure, 500);
-    window.addEventListener("resize", measure);
-    return () => {
-      window.clearInterval(id);
-      window.removeEventListener("resize", measure);
-    };
-  }, [goldTokens, primaryText]);
 
   // ── Line Blast ───────────────────────────────────────────────────────────
   // Identical to /landingpage4 by construction: every constant, timing and
@@ -250,12 +176,6 @@ export const SubtitleOverlay = ({
 
   const maybeBlastLine = () => {
     if (blastedLinesRef.current.has(primaryText)) return;
-
-    // A gold word is green in the deck but not yet green on screen — it is
-    // still asking to be claimed. Blasting over the top of one would celebrate
-    // a line the learner can plainly see is unfinished, and would spend the
-    // reveal they were about to collect.
-    if (goldTokensRef.current.size > 0) return;
 
     // Defensive: every caller checks this already, but the check is what the
     // effect *means*, so it belongs where the effect fires rather than only in
@@ -304,30 +224,6 @@ export const SubtitleOverlay = ({
     if (!blastedLinesRef.current.has(primaryText)) comboRef.current = 0;
     confettiRef.current?.reset();
   }, [primaryText]);
-
-  /** Claim a gold word: chime, settle to green, award XP, maybe blast. */
-  const claimGoldWord = async (token: string) => {
-    const word = deck.get(token);
-    if (!word?.id) return;
-
-    // Optimistic — the gold should die under the finger, not after a round trip,
-    // with the same ding as saving a flashcard.
-    setJustClaimed((prev) => new Set(prev).add(token));
-    playDing("success");
-
-    const { revealed, awardedXp } = await revealGreenWord(word.id);
-    // `revealed: false` means it was already claimed elsewhere; staying silent
-    // is what stops a double-tap paying twice.
-    if (!revealed) return;
-
-    if (awardedXp > 0) award("reinforcement");
-
-    // A claim can be the thing that completes the line — the last gold word
-    // burning off is exactly the moment worth celebrating. Deferred like the
-    // other call sites so maybeBlastLine's guards see the claim applied; its
-    // own checks decide whether the line is genuinely finished.
-    window.setTimeout(maybeBlastLine, 40);
-  };
 
   const handleWordClick = async (word: Word, event: React.MouseEvent) => {
     const rect = event.currentTarget.getBoundingClientRect();
@@ -386,9 +282,7 @@ export const SubtitleOverlay = ({
       if (tk === targetKey) {
         if (state !== expect) return false;
         sawTarget = true;
-      } else if (state !== "green" || goldTokens.has(tk)) {
-        // Gold counts as unfinished: the line is not complete until the
-        // learner has claimed every shimmering word on it.
+      } else if (state !== "green") {
         return false;
       }
     }
@@ -414,8 +308,7 @@ export const SubtitleOverlay = ({
       );
       const deckState = stateForToken(text);
       const token = normalizeToken(text);
-      // A green word the learner hasn't witnessed yet renders GOLD, not green
-      // — the promotion is a reward to be claimed, not a status to be shown.
+      // A green word that's due for review renders gold.
       const isGold = goldTokens.has(token);
       const isTarget = !isGold && ringTokens.has(token) && !ringed.has(token);
       if (isTarget) ringed.add(token);
@@ -429,16 +322,12 @@ export const SubtitleOverlay = ({
       return (
         <span
           key={index}
-          ref={(el) => {
-            if (isGold && el) wordElsRef.current.set(token, el);
-            else if (!isGold) wordElsRef.current.delete(token);
-          }}
           data-tour={wordData ? "subtitle-word" : undefined}
           className={cn(
             "subtitle-word inline-flex items-baseline transition-colors duration-500",
             // Only real words are interactive; everything else stays
             // click-through so the video controls underneath remain reachable.
-            (wordData || isGold) && "cursor-pointer pointer-events-auto rounded hover:bg-white/10",
+            wordData && "cursor-pointer pointer-events-auto rounded hover:bg-white/10",
             deckColor ? "font-semibold" : "text-white font-medium",
             isTarget && "ls-target-ring font-semibold",
           )}
@@ -446,18 +335,12 @@ export const SubtitleOverlay = ({
             deckColor
               ? {
                   color: deckColor,
-                  // The glow is what sells "claimable" before the dust loads.
                   textShadow: isGold ? `0 0 14px ${GOLD.glow}` : undefined,
                 }
               : undefined
           }
+          title={isGold ? "Due for review — check it in Flashcards" : undefined}
           onClick={(e) => {
-            // Claiming takes precedence over the translation popup: on a gold
-            // word the tap means "this one's mine", not "what does it mean".
-            if (isGold) {
-              void claimGoldWord(token);
-              return;
-            }
             if (wordData) handleWordClick(wordData, e);
           }}
         >
@@ -540,8 +423,6 @@ export const SubtitleOverlay = ({
         />
       </div>
 
-      {/* One canvas for every gold word on screen — see GoldenDust. */}
-      {dustAnchors.length > 0 && <GoldenDust anchors={dustAnchors} />}
 
 
       {selectedWord && (

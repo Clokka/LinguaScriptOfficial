@@ -128,9 +128,16 @@ function coerceState(raw) {
   return raw === 'green' ? 'green' : raw === 'orange' ? 'orange' : 'red';
 }
 
+// Gold = a green word whose review is due (next_review is a YYYY-MM-DD date),
+// the same rule as isDueForReview in src/lib/dueGold.ts.
+function deckState(row, today = new Date().toLocaleDateString('en-CA')) {
+  const state = coerceState(row.state);
+  return state === 'green' && row.next_review && String(row.next_review).slice(0, 10) <= today ? 'gold' : state;
+}
+
 // If a word has more than one row, the more advanced deck wins so a green
 // word is never shown red because of a stray duplicate.
-const STATE_RANK = { red: 0, orange: 1, green: 2 };
+const STATE_RANK = { red: 0, orange: 1, green: 2, gold: 2 };
 function higherState(current, next) {
   if (!current) return next;
   return STATE_RANK[next] > STATE_RANK[current] ? next : current;
@@ -153,13 +160,14 @@ async function fetchAllSavedWords(query, accessToken) {
 // The learner's deck for one language: normalizeToken(word) → state.
 async function loadDeckIndex(userId, language, accessToken) {
   const rows = await fetchAllSavedWords(
-    `saved_words?user_id=eq.${userId}&language=eq.${encodeURIComponent(language)}&select=word,state`,
+    `saved_words?user_id=eq.${userId}&language=eq.${encodeURIComponent(language)}&select=word,state,next_review`,
     accessToken
   );
+  const today = new Date().toLocaleDateString('en-CA');
   const m = new Map();
   for (const row of rows) {
     const key = normalizeToken(row.word);
-    m.set(key, higherState(m.get(key), coerceState(row.state)));
+    m.set(key, higherState(m.get(key), deckState(row, today)));
   }
   return m;
 }
@@ -320,12 +328,12 @@ async function gtxTranslate(text, sl, tl, ms = 4000) {
   return tr && tr.toLowerCase() !== text.toLowerCase() ? tr : null;
 }
 
-// ─── Golden words: the app's common-words list ───────────────────────────────
+// ─── Ringed words: the app's common-words list ───────────────────────────────
 // core_vocabulary ranked by frequency is what the app's Common Words decks
-// (Top 50, 100, 150…) are built from. The extension rings this list's words
-// gold, so learners get the next most useful words from it, minus anything
-// already in their decks. Readable without logging in.
-const GOLD_POOL_SIZE = 300;
+// (Top 50, 100, 150…) are built from. The extension rings this list's words,
+// so learners get the next most useful words from it, minus anything already
+// in their decks. Readable without logging in.
+const RING_POOL_SIZE = 300;
 const COMMON_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 const _commonCache = new Map(); // language → { ts, words }
 const SEGMENTED = new Set(['zh', 'ja', 'th']);
@@ -351,7 +359,7 @@ async function getCommonWords(lang) {
   return words;
 }
 
-async function getGoldPool(language) {
+async function getRingPool(language) {
   const session = await getValidSession().catch(() => null);
   let lang = String(language || '').toLowerCase();
   let deck = new Map();
@@ -366,7 +374,7 @@ async function getGoldPool(language) {
   for (const w of common) {
     if (deck.has(w)) continue;
     words.push(w);
-    if (words.length >= GOLD_POOL_SIZE) break;
+    if (words.length >= RING_POOL_SIZE) break;
   }
   return { ok: true, words, language: lang };
 }
@@ -471,9 +479,9 @@ async function saveWord(msg) {
     return { ok: false, error: `Couldn’t save (${insertRes.status})` };
   }
   invalidateDeckCache();
-  // Matches XP_SAVE / XP_GOLDEN in ls-core.js; add_word is 20 in the app too.
-  const xp = msg.golden ? 50 : 20;
-  const xpTotal = await awardXp(session, xp, { source: 'extension', golden: !!msg.golden }).catch(() => null);
+  // Matches XP_SAVE in ls-core.js; add_word is 20 in the app too.
+  const xp = 20;
+  const xpTotal = await awardXp(session, xp, { source: 'extension' }).catch(() => null);
   return { ok: true, language: lang, xp, xpTotal };
 }
 
@@ -595,9 +603,9 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         return { ok: true, tokenHash: data.token_hash };
       })(), sendResponse);
 
-    // The next common words to ring gold for this language.
-    case 'GET_GOLD_POOL':
-      return reply(getGoldPool(msg.language), sendResponse);
+    // The next common words to ring for this language.
+    case 'GET_RING_POOL':
+      return reply(getRingPool(msg.language), sendResponse);
 
     case 'GET_XP':
       return reply((async () => {

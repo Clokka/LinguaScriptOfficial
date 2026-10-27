@@ -81,7 +81,7 @@
     el.innerHTML = '';
     el.onclick = () => { const sub = primarySubs[currentSubIdx]; if (sub && videoEl) videoEl.currentTime = sub.start; };
     const { parts, joiner } = C.splitWords(text, C.learningLang);
-    C.Gold.beginLine();
+    C.Rings.beginLine();
     parts.forEach((p) => el.appendChild(p.word ? C.makeWordSpan(p.text, text, joiner, true) : document.createTextNode(p.text + joiner)));
   }
   function renderSecondary(text) {

@@ -116,7 +116,7 @@
     const native = info?.ok && info.nativeLanguage ? info.nativeLanguage : stored.ls_native_language;
     if (info?.ok && info.language) chrome.storage.local.set({ ls_language: lang, ls_native_language: native });
     setLangs(lang, native); setDebug(stored.ls_debug);
-    Gold.load();
+    Rings.load();
     return { lang, nativeLang: native };
   }
 
@@ -125,7 +125,7 @@
     if (!lang || lang === learningLang) return;
     setLangs(lang, nativeLang);
     Deck.refresh(true);
-    Gold.load();
+    Rings.load();
     Goal.refresh();
   }
   chrome.storage.onChanged.addListener((changes, area) => {
@@ -161,24 +161,26 @@
     });
   }
 
-  // ══ Deck — THE red/orange/green colour feature ═══════════════════════════════
+  // ══ Deck — THE red/orange/green/gold colour feature ══════════════════════════
   // Single source of truth for word colours in the extension. It mirrors the
   // user's flashcard decks 1:1:
   //   • background GET_DECK returns { normalizedWord → state } for the CURRENT
   //     learning language — the exact same language-scoped saved_words the app's
   //     Flashcards page reads — so a word wears the same colour here as on its
-  //     card (red = UNKNOWN, orange = LEARNING, green = KNOWN).
-  //   • state is read straight from saved_words.state (what flashcard review
-  //     writes); no SRS re-derivation.
+  //     card (red = UNKNOWN, orange = LEARNING, green = KNOWN, gold = KNOWN but
+  //     due for review, like isDueForReview in src/lib/dueGold.ts).
+  //   • state is read straight from saved_words.state and next_review (what
+  //     flashcard review writes); no SRS re-derivation.
   //   • lookups are keyed by normalizeToken(), identical on both sides, so a
   //     stored "Les." / "le " can't miss its span and fall back to red.
   // Nothing else in the codebase should read or write word colours directly —
   // go through Deck.
   const Deck = {
-    // Exact hexes from DECK_CONFIG in src/pages/Flashcards.tsx.
-    PALETTE: { red: '#FF3B30', orange: '#FF8A00', green: '#34C759' },
-    STATES: ['red', 'orange', 'green'],
-    _map: new Map(),          // normalizedWord → 'red' | 'orange' | 'green'
+    // Exact hexes from DECK_CONFIG in src/pages/Flashcards.tsx; gold is GOLD.core
+    // in src/lib/dueGold.ts.
+    PALETTE: { red: '#FF3B30', orange: '#FF8A00', green: '#34C759', gold: '#FFD54A' },
+    STATES: ['red', 'orange', 'green', 'gold'],
+    _map: new Map(),          // normalizedWord → 'red' | 'orange' | 'green' | 'gold'
     _justSaved: new Map(),    // normalizedWord → time saved (stays red meanwhile)
     _timer: null,
 
@@ -190,10 +192,10 @@
     paint(el, word) {
       const key = normalizeToken(word ?? el.dataset.word ?? '');
       const s = this._map.get(key);
-      el.classList.remove('ls-red', 'ls-orange', 'ls-green');
+      el.classList.remove('ls-red', 'ls-orange', 'ls-green', 'ls-gold');
       if (s) el.classList.add('ls-' + s);
-      // A golden word stays golden only until it's in a deck.
-      el.classList.toggle('ls-gold', !s && Gold.isPicked(key));
+      // A ringed common word keeps its ring only until it's in a deck.
+      el.classList.toggle('ls-ring', !s && Rings.isPicked(key));
     },
 
     // Repaint every rendered word span from the current map.
@@ -214,7 +216,7 @@
             if (Date.now() - ts > 120000) this._justSaved.delete(w);
             else if (!this._map.has(w)) this._map.set(w, 'red');
           });
-          const dist = { red: 0, orange: 0, green: 0 };
+          const dist = { red: 0, orange: 0, green: 0, gold: 0 };
           this._map.forEach((s) => dist[s]++);
           log('deck loaded:', this._map.size, 'words', dist, '| le/la/des =', this._map.get('le'), this._map.get('la'), this._map.get('des'));
           this.repaintAll();
@@ -250,52 +252,45 @@
     stopAutoRefresh() { clearInterval(this._timer); this._timer = null; },
   };
 
-  // ══ Golden words — the common words to hunt in this video ═══════════════════
+  // ══ Rings — the common words to learn in this video ════════════════════════
   // The same frequency list as the app's Common Words decks (core_vocabulary,
   // most frequent first), minus everything already in the learner's decks. The
-  // first GOLD_PER_VIDEO of those that turn up in a video glow gold, at every
-  // appearance, until saved. Few on purpose: a golden word should feel rare,
-  // and ten clear targets beat a screen of words to choose from.
-  const GOLD_PER_VIDEO = 10;
-  const GOLD_PER_LINE = 2;
-  const GOLD_HEX = { core: '#FFD54A', deep: '#FFAA1A', glow: 'rgba(255,200,60,0.55)' }; // GOLD in src/lib/goldenReveal.ts
-  const Gold = {
+  // first RINGS_PER_VIDEO of those that turn up in a video get the app's orange
+  // "tap me" ring (.ls-target-ring in src/index.css), at every appearance, until
+  // saved: a few clear targets beat a screen of words to choose from.
+  const RINGS_PER_VIDEO = 10;
+  const RINGS_PER_LINE = 3; // MAX_RINGS_PER_LINE in src/components/SubtitleOverlay.tsx
+  const GOLD_HEX = { core: '#FFD54A', glow: 'rgba(255,200,60,0.55)' }; // GOLD in src/lib/dueGold.ts
+  const Rings = {
     _pool: new Set(),
     _video: null,
     _picked: new Set(),
-    _found: new Set(),
     _lineCount: 0,
 
     // YouTube keeps the video in ?v=, Netflix in the path.
     _sync() {
       const v = new URLSearchParams(location.search).get('v');
       const key = location.hostname + location.pathname + (v ? '?v=' + v : '');
-      if (key !== this._video) { this._video = key; this._picked.clear(); this._found.clear(); }
+      if (key !== this._video) { this._video = key; this._picked.clear(); }
     },
     async load() {
       const lang = learningLang;
-      const res = await send({ type: 'GET_GOLD_POOL', language: lang });
+      const res = await send({ type: 'GET_RING_POOL', language: lang });
       if (!res?.ok || lang !== learningLang) return;
       this._pool = new Set((res.words || []).map(normalizeToken));
       Deck.repaintAll();
     },
     beginLine() { this._sync(); this._lineCount = 0; },
     isPicked(key) { this._sync(); return this._picked.has(key); },
-    // For each word of a new subtitle line: maybe make it one of this video's golden words.
+    // For each word of a new subtitle line: maybe ring it as one of this video's words.
     claim(key) {
       if (!key || Deck.stateOf(key) || this._picked.has(key)) return;
-      if (this._picked.size >= GOLD_PER_VIDEO || this._lineCount >= GOLD_PER_LINE || !this._pool.has(key)) return;
+      if (this._picked.size >= RINGS_PER_VIDEO || this._lineCount >= RINGS_PER_LINE || !this._pool.has(key)) return;
       this._picked.add(key); this._lineCount++;
       // The transcript logged this line before its words were claimed.
       document.querySelectorAll(`.ls-word[data-word="${CSS.escape(key)}"]`).forEach((el) => Deck.paint(el, key));
     },
-    // A golden word was saved: how many of this video's ten are found now.
-    markFound(key) {
-      this._pool.delete(key);
-      if (!this._picked.has(key)) return null;
-      this._found.add(key);
-      return this._found.size;
-    },
+    saved(key) { this._pool.delete(key); },
   };
 
   // ══ Today's word goal — the same count as the app ════════════════════════════
@@ -355,11 +350,10 @@
 
   // ── Toast ────────────────────────────────────────────────────────────────────
   let toastTimer;
-  function showToast(msg, variant = '') {
+  function showToast(msg) {
     let t = document.getElementById('ls-toast');
     if (!t) { t = document.createElement('div'); t.id = 'ls-toast'; layerHost().appendChild(t); }
     t.textContent = msg; t.classList.add('ls-show');
-    t.classList.toggle('ls-toast-gold', variant === 'gold');
     clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('ls-show'), 2200);
   }
 
@@ -370,21 +364,25 @@
   function openCard({ word, clean, fullLine, anchorEl }) {
     closeCard();
     const tier = Deck.stateOf(clean);
-    const golden = !tier && Gold.isPicked(clean);
-    const tierLabel = tier === 'green' ? '🟢 Known' : tier === 'orange' ? '🟠 Learning' : tier === 'red' ? '🔴 New word' : golden ? '✨ Golden word · one of the most common words' : '⬜ Unseen';
-    const tierColor = tier === 'green' ? Deck.PALETTE.green : tier === 'orange' ? Deck.PALETTE.orange : tier === 'red' ? Deck.PALETTE.red : golden ? GOLD_HEX.core : '#888';
+    const ringed = !tier && Rings.isPicked(clean);
+    const TIERS = {
+      gold: '🟡 Due for review · check it in your flashcards', green: '🟢 Known',
+      orange: '🟠 Learning', red: '🔴 New word',
+    };
+    const tierLabel = TIERS[tier] || (ringed ? '⭕ Common word · worth learning' : '⬜ Unseen');
+    const tierColor = Deck.PALETTE[tier] || (ringed ? Deck.PALETTE.orange : '#888');
     const alreadySaved = !!tier;
-    const saveLabel = golden ? `✨ Save golden word · +${XP_GOLDEN} XP` : `+ Save to flashcards · +${XP_SAVE} XP`;
 
     const card = document.createElement('div'); card.id = 'ls-card'; activeCard = card;
-    card.classList.toggle('ls-card-golden', golden);
     card.innerHTML = `
       <button id="ls-card-close">✕</button>
       <div id="ls-card-word" translate="no">${escapeHtml(word.replace(/[.,!?;:"`«»()\[\]…，。、！？；：「」『』（）《》〈〉“”‘’]/g, '').trim() || word)}</div>
       <div id="ls-card-tier" style="color:${tierColor}">${tierLabel}</div>
       <div id="ls-card-trans" style="color:#9A9AA6;font-style:italic;font-size:14px;">looking up…</div>
       <div id="ls-card-body"></div>
-      <div id="ls-card-action"><button id="ls-card-save"${alreadySaved ? ' disabled' : ''}>${alreadySaved ? '✓ In your flashcards' : saveLabel}</button></div>`;
+      <div id="ls-card-action">${tier === 'gold'
+        ? `<a id="ls-card-save" class="ls-card-review" href="${flashcardsUrl(learningLang)}" target="_blank" rel="noopener noreferrer">Review it now →</a>`
+        : `<button id="ls-card-save"${alreadySaved ? ' disabled' : ''}>${alreadySaved ? '✓ In your flashcards' : `+ Save to flashcards · +${XP_SAVE} XP`}</button>`}</div>`;
     layerHost().appendChild(card);
     card.querySelector('#ls-card-close').addEventListener('click', closeCard);
 
@@ -464,16 +462,14 @@
     const d = document.createElement('div'); d.className = cls; d.innerHTML = html; return d;
   }
 
-  // XP for a new word: the app's add_word value, more for a golden one.
+  // XP for a new word: the app's add_word value.
   const XP_SAVE = 20;
-  const XP_GOLDEN = 50;
 
   async function saveFromCard(card, word, context, translation) {
     // Red and ding the moment it's clicked, not after the round trips to the
     // server; the ding must also start inside the click or Chrome mutes it.
     const key = normalizeToken(word);
     const optimistic = !Deck.stateOf(key);
-    const golden = optimistic && Gold.isPicked(key);
     if (optimistic) {
       Deck.markSaved(word);
       playDing();
@@ -482,13 +478,13 @@
       if (tierEl) { tierEl.textContent = '🔴 New word'; tierEl.style.color = Deck.PALETTE.red; }
     }
     setCardAction(card, cardNote(optimistic ? '✓ Saving to your flashcards…' : 'Saving…'));
-    const res = await send({ type: 'SAVE_WORD', word, context, language: learningLang, translation, golden });
+    const res = await send({ type: 'SAVE_WORD', word, context, language: learningLang, translation });
     if (!res?.ok && optimistic) Deck.unmarkSaved(word);
     // The server's count is the truth (an already-saved word can count too).
     Goal.refresh();
     if (activeCard !== card) {
       if (!res?.ok) showToast('Couldn’t save that word');
-      else if (res.xp) celebrateSave(key, res, golden);
+      else if (res.xp) celebrateSave(key, res);
       return;
     }
     if (res?.error === 'not_your_language') {
@@ -505,7 +501,7 @@
     }
     if (!optimistic) { Deck.markSaved(word); playDing(); }
     Deck.refresh(true);
-    if (res.xp) celebrateSave(key, res, golden);
+    if (res.xp) celebrateSave(key, res);
     const lang = res.language || learningLang;
     setCardAction(card, cardNote(
       `<b>✓ ${res.already ? 'Already in' : 'Saved to'} your ${langFlag(lang)} ${escapeHtml(langName(lang))} flashcards</b>` +
@@ -513,16 +509,10 @@
       'ls-card-status ls-card-saved'));
   }
 
-  function celebrateSave(key, res, golden) {
+  function celebrateSave(key, res) {
     setXpChip(res.xpTotal);
-    const n = Gold.markFound(key);
-    if (golden && n) {
-      showToast(n >= GOLD_PER_VIDEO
-        ? `🏆 All ${GOLD_PER_VIDEO} golden words found! +${res.xp} XP`
-        : `✨ Golden word! +${res.xp} XP · ${n} of ${GOLD_PER_VIDEO} golden words`, 'gold');
-    } else {
-      showToast(Goal.known ? `+${res.xp} XP · ${Math.min(Goal.saved, Goal.goal)}/${Goal.goal} words today` : `+${res.xp} XP`);
-    }
+    Rings.saved(key);
+    showToast(Goal.known ? `+${res.xp} XP · ${Math.min(Goal.saved, Goal.goal)}/${Goal.goal} words today` : `+${res.xp} XP`);
   }
 
   // Ask which of the learner's languages they're watching in. Only their own
@@ -603,15 +593,15 @@
   }
 
   // ── Word spans ───────────────────────────────────────────────────────────────
-  // claimGold: this is a new on-screen subtitle line, so its common words may
-  // become golden (the transcript only shows the ones already picked).
-  function makeWordSpan(word, fullLine, joiner = ' ', claimGold = false) {
+  // claimRing: this is a new on-screen subtitle line, so its common words may
+  // get a ring (the transcript only shows the ones already picked).
+  function makeWordSpan(word, fullLine, joiner = ' ', claimRing = false) {
     const clean = normalizeToken(word);
     if (!clean) return document.createTextNode(word + joiner);
     const span = document.createElement('span');
     span.className = 'ls-word'; span.dataset.word = clean; span.textContent = word + joiner;
     span.setAttribute('translate', 'no');
-    if (claimGold) Gold.claim(clean);
+    if (claimRing) Rings.claim(clean);
     Deck.paint(span, clean);
     span.addEventListener('click', (e) => { e.stopPropagation(); openCard({ word, clean, fullLine, anchorEl: span }); });
     return span;
@@ -736,7 +726,7 @@
       el.style.cssText = ''; el.innerHTML = '';
       el.onclick = () => { const v = getVideo(); if (v) v.currentTime = Math.max(0, v.currentTime - 4); };
       const { parts, joiner } = splitWords(text, learningLang);
-      Gold.beginLine();
+      Rings.beginLine();
       parts.forEach((p) => el.appendChild(p.word ? makeWordSpan(p.text, text, joiner, true) : document.createTextNode(p.text + joiner)));
     }
     function renderSecondary(text) {
@@ -1077,10 +1067,12 @@
     .ls-red    { color:${Deck.PALETTE.red}   !important; }
     .ls-orange { color:${Deck.PALETTE.orange}!important; }
     .ls-green  { color:${Deck.PALETTE.green} !important; }
-    /* Golden word: one of this video's ten common words to find. */
-    .ls-gold { color:${GOLD_HEX.core} !important; box-shadow:0 0 0 2px ${GOLD_HEX.deep}, 0 0 14px ${GOLD_HEX.glow}; border-radius:7px; animation:ls-gold-glow 1.8s ease-in-out infinite; }
-    @keyframes ls-gold-glow { 0%,100% { box-shadow:0 0 0 2px ${GOLD_HEX.deep}, 0 0 8px ${GOLD_HEX.glow}; } 50% { box-shadow:0 0 0 2px ${GOLD_HEX.core}, 0 0 20px ${GOLD_HEX.glow}; } }
-    @media (prefers-reduced-motion: reduce) { .ls-gold { animation:none; } }
+    /* Gold: a known word that's due for review. */
+    .ls-gold   { color:${Deck.PALETTE.gold} !important; text-shadow:0 0 14px ${GOLD_HEX.glow}, 0 2px 8px rgba(0,0,0,0.95); }
+    /* Ring: one of this video's common words to learn (.ls-target-ring in src/index.css). */
+    .ls-ring { border-radius:10px; box-shadow:0 0 0 2px rgba(249,115,22,0.95), 0 0 0 5px rgba(249,115,22,0.3), 0 0 18px 2px rgba(249,115,22,0.5); animation:ls-ring-pulse 2.2s ease-in-out infinite; }
+    @keyframes ls-ring-pulse { 0%,100% { box-shadow:0 0 0 2px rgba(249,115,22,0.95), 0 0 0 5px rgba(249,115,22,0.3), 0 0 14px 1px rgba(249,115,22,0.4); } 50% { box-shadow:0 0 0 2px rgba(249,115,22,0.95), 0 0 0 6px rgba(249,115,22,0.35), 0 0 24px 4px rgba(249,115,22,0.55); } }
+    @media (prefers-reduced-motion: reduce) { .ls-ring { animation:none; } }
 
     /* Subtitle overlay: the same on YouTube and Netflix. */
     #ls-overlay { position:fixed; bottom:92px; left:0; right:360px; z-index:2147483640; text-align:center; pointer-events:none; font-family:'LS Inter','Inter',system-ui,-apple-system,sans-serif; transition:right .3s ease, opacity .15s ease, bottom .2s ease; }
@@ -1148,8 +1140,7 @@
     #ls-card-save:hover { filter:brightness(1.08); }
     #ls-card-save:active { transform:scale(0.98); }
     #ls-card-save:disabled { background:#17171E; color:#9A9AA6; cursor:default; filter:none; }
-    #ls-card.ls-card-golden { border-color:${GOLD_HEX.deep}; box-shadow:0 0 0 1px ${GOLD_HEX.deep}, 0 16px 48px rgba(0,0,0,0.9), 0 0 32px ${GOLD_HEX.glow}; }
-    #ls-card.ls-card-golden #ls-card-save:not(:disabled) { background:linear-gradient(135deg, ${GOLD_HEX.core}, ${GOLD_HEX.deep}); }
+    a#ls-card-save.ls-card-review { display:block; box-sizing:border-box; text-align:center; text-decoration:none; background:${Deck.PALETTE.gold}; }
     #ls-card-close { position:absolute; top:12px; right:14px; background:none; border:none; color:#9A9AA6; font-size:16px; cursor:pointer; line-height:1; }
     #ls-card-close:hover { color:#fff; }
     .ls-card-login-note { font-size:12px; color:#9A9AA6; margin-bottom:10px; line-height:1.5; }
@@ -1192,7 +1183,6 @@
 
     #ls-toast { position:fixed; bottom:80px; left:50%; transform:translateX(-50%); background:#34C759; color:#08080B; padding:8px 20px; border-radius:999px; font-size:13px; font-weight:700; pointer-events:none; opacity:0; transition:opacity .2s; z-index:2147483647; font-family:'LS Inter','Inter',system-ui,-apple-system,sans-serif; }
     #ls-toast.ls-show { opacity:1; }
-    #ls-toast.ls-toast-gold { background:linear-gradient(135deg, ${GOLD_HEX.core}, ${GOLD_HEX.deep}); box-shadow:0 0 24px ${GOLD_HEX.glow}; }
   `;
 
   function injectStyles(extraCss = '') {
@@ -1214,7 +1204,7 @@
     loadSavedWords: (force) => Deck.refresh(force),
     startWordsRefresh: () => Deck.startAutoRefresh(),
     stopWordsRefresh: () => Deck.stopAutoRefresh(),
-    Gold, showToast, openCard, closeCard, makeWordSpan, makeWordSpansFor, splitWords, playDing, escapeHtml,
+    Rings, showToast, openCard, closeCard, makeWordSpan, makeWordSpansFor, splitWords, playDing, escapeHtml,
     SubtitleShield, LiveCaptions, SpeedKeeper, watchLayout, requestCaptions, setStatus, buildOverlay, layerHost, buildPanelShell, togglePanel, buildControls, attachKeyboardShortcuts,
     injectStyles,
   };

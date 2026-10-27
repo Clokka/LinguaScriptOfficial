@@ -19,8 +19,8 @@ Learn languages on YouTube and Netflix. Dual subtitles, tap any word for its mea
 >
 > ● Dual subtitles on YouTube and Netflix: the language you're learning plus your own
 > ● Tap any word for its meaning, synonyms and examples
-> ● Words are coloured by your flashcard decks: red = new, orange = learning, green = known
-> ● ✨ Golden words: the 10 most useful common words in each video glow gold. Find them for bonus XP
+> ● Words are coloured by your flashcard decks: red = new, orange = learning, green = known, gold = time to review
+> ● The most useful common words in each video get a ring, so you know which ones to learn first
 > ● Save words straight to your LinguaScript flashcards and review them on linguascript.co.uk
 > ● Today's word goal on the player ("3 / 10 today"), the same goal as the app. Hit it and LinguaScript sends you to review your flashcards
 > ● Today's word goal and your 🔥 streak in the toolbar pop-up
@@ -89,7 +89,9 @@ Leave everything else unticked (no health, financial, location, web history, use
 - Netflix: the toolbar sits at the bottom again, just above Netflix's own buttons
 - Drag the toolbar anywhere; double-click its ⠿ handle to put it back
 - Saving a word turns it red and dings straight away
-- ✨ Golden words from the app's common-words list (10 per video), +50 XP each; +20 XP for any other new word, XP shown on the toolbar
+- Rings on common words to learn (from the app's common-words list, 10 per video)
+- Gold = a known (green) word that's due for review; tap it to jump to your flashcards
+- +20 XP for each new word, XP shown on the toolbar
 - Signing in to the extension signs linguascript.co.uk into the same account
 - Today's word goal on the toolbar ("3 / 10 today", same count as the app); reaching it pauses the video once a day and offers "Review flashcards"
 - The five speed buttons are now one button that steps through 0.5× → 1.5×, so the toolbar fits beside the transcript
@@ -98,4 +100,4 @@ Note: 1.4.0 adds linguascript.co.uk to the sites the extension runs on, so
 Chrome asks existing users to approve it once when they update.
 
 ## What's not in 1.4.0 (coming in updates)
-- Auto-pause on golden words, pre-teach warm-up
+- Auto-pause on ringed words, pre-teach warm-up
