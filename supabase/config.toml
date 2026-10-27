@@ -32,3 +32,6 @@ project_id = "ffephracinqeylfhqkiz"
 
 [functions.speak-word]
 verify_jwt = false
+
+[functions.extension-handoff]
+verify_jwt = true

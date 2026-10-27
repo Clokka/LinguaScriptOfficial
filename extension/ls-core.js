@@ -116,6 +116,7 @@
     const native = info?.ok && info.nativeLanguage ? info.nativeLanguage : stored.ls_native_language;
     if (info?.ok && info.language) chrome.storage.local.set({ ls_language: lang, ls_native_language: native });
     setLangs(lang, native); setDebug(stored.ls_debug);
+    Gold.load();
     return { lang, nativeLang: native };
   }
 
@@ -124,6 +125,7 @@
     if (!lang || lang === learningLang) return;
     setLangs(lang, nativeLang);
     Deck.refresh(true);
+    Gold.load();
   }
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === 'local' && changes.ls_language) applyLanguage(changes.ls_language.newValue);
@@ -185,9 +187,12 @@
     // Paint one span to match its deck (clears all three tier classes first so a
     // recolour red→green never leaves a stale class behind).
     paint(el, word) {
-      const s = this._map.get(normalizeToken(word ?? el.dataset.word ?? ''));
+      const key = normalizeToken(word ?? el.dataset.word ?? '');
+      const s = this._map.get(key);
       el.classList.remove('ls-red', 'ls-orange', 'ls-green');
       if (s) el.classList.add('ls-' + s);
+      // A golden word stays golden only until it's in a deck.
+      el.classList.toggle('ls-gold', !s && Gold.isPicked(key));
     },
 
     // Repaint every rendered word span from the current map.
@@ -227,6 +232,14 @@
       document.querySelectorAll(`.ls-word[data-word="${CSS.escape(key)}"]`).forEach((el) => this.paint(el, key));
     },
 
+    // Undo markSaved when the save didn't go through.
+    unmarkSaved(word) {
+      const key = normalizeToken(word);
+      this._map.delete(key);
+      this._justSaved.delete(key);
+      document.querySelectorAll(`.ls-word[data-word="${CSS.escape(key)}"]`).forEach((el) => this.paint(el, key));
+    },
+
     // Poll so a card promoted in the app (red→orange→green) recolours live. The
     // background force-refreshes past its cache when we ask on the tick.
     startAutoRefresh(ms = 15000) {
@@ -236,12 +249,61 @@
     stopAutoRefresh() { clearInterval(this._timer); this._timer = null; },
   };
 
+  // ══ Golden words — the common words to hunt in this video ═══════════════════
+  // The same frequency list as the app's Common Words decks (core_vocabulary,
+  // most frequent first), minus everything already in the learner's decks. The
+  // first GOLD_PER_VIDEO of those that turn up in a video glow gold, at every
+  // appearance, until saved. Few on purpose: a golden word should feel rare,
+  // and ten clear targets beat a screen of words to choose from.
+  const GOLD_PER_VIDEO = 10;
+  const GOLD_PER_LINE = 2;
+  const GOLD_HEX = { core: '#FFD54A', deep: '#FFAA1A', glow: 'rgba(255,200,60,0.55)' }; // GOLD in src/lib/goldenReveal.ts
+  const Gold = {
+    _pool: new Set(),
+    _video: null,
+    _picked: new Set(),
+    _found: new Set(),
+    _lineCount: 0,
+
+    // YouTube keeps the video in ?v=, Netflix in the path.
+    _sync() {
+      const v = new URLSearchParams(location.search).get('v');
+      const key = location.hostname + location.pathname + (v ? '?v=' + v : '');
+      if (key !== this._video) { this._video = key; this._picked.clear(); this._found.clear(); }
+    },
+    async load() {
+      const lang = learningLang;
+      const res = await send({ type: 'GET_GOLD_POOL', language: lang });
+      if (!res?.ok || lang !== learningLang) return;
+      this._pool = new Set((res.words || []).map(normalizeToken));
+      Deck.repaintAll();
+    },
+    beginLine() { this._sync(); this._lineCount = 0; },
+    isPicked(key) { this._sync(); return this._picked.has(key); },
+    // For each word of a new subtitle line: maybe make it one of this video's golden words.
+    claim(key) {
+      if (!key || Deck.stateOf(key) || this._picked.has(key)) return;
+      if (this._picked.size >= GOLD_PER_VIDEO || this._lineCount >= GOLD_PER_LINE || !this._pool.has(key)) return;
+      this._picked.add(key); this._lineCount++;
+      // The transcript logged this line before its words were claimed.
+      document.querySelectorAll(`.ls-word[data-word="${CSS.escape(key)}"]`).forEach((el) => Deck.paint(el, key));
+    },
+    // A golden word was saved: how many of this video's ten are found now.
+    markFound(key) {
+      this._pool.delete(key);
+      if (!this._picked.has(key)) return null;
+      this._found.add(key);
+      return this._found.size;
+    },
+  };
+
   // ── Toast ────────────────────────────────────────────────────────────────────
   let toastTimer;
-  function showToast(msg) {
+  function showToast(msg, variant = '') {
     let t = document.getElementById('ls-toast');
     if (!t) { t = document.createElement('div'); t.id = 'ls-toast'; layerHost().appendChild(t); }
     t.textContent = msg; t.classList.add('ls-show');
+    t.classList.toggle('ls-toast-gold', variant === 'gold');
     clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('ls-show'), 2200);
   }
 
@@ -252,18 +314,21 @@
   function openCard({ word, clean, fullLine, anchorEl }) {
     closeCard();
     const tier = Deck.stateOf(clean);
-    const tierLabel = tier === 'green' ? '🟢 Known' : tier === 'orange' ? '🟠 Learning' : tier === 'red' ? '🔴 New word' : '⬜ Unseen';
-    const tierColor = tier === 'green' ? Deck.PALETTE.green : tier === 'orange' ? Deck.PALETTE.orange : tier === 'red' ? Deck.PALETTE.red : '#888';
+    const golden = !tier && Gold.isPicked(clean);
+    const tierLabel = tier === 'green' ? '🟢 Known' : tier === 'orange' ? '🟠 Learning' : tier === 'red' ? '🔴 New word' : golden ? '✨ Golden word · one of the most common words' : '⬜ Unseen';
+    const tierColor = tier === 'green' ? Deck.PALETTE.green : tier === 'orange' ? Deck.PALETTE.orange : tier === 'red' ? Deck.PALETTE.red : golden ? GOLD_HEX.core : '#888';
     const alreadySaved = !!tier;
+    const saveLabel = golden ? `✨ Save golden word · +${XP_GOLDEN} XP` : `+ Save to flashcards · +${XP_SAVE} XP`;
 
     const card = document.createElement('div'); card.id = 'ls-card'; activeCard = card;
+    card.classList.toggle('ls-card-golden', golden);
     card.innerHTML = `
       <button id="ls-card-close">✕</button>
       <div id="ls-card-word" translate="no">${escapeHtml(word.replace(/[.,!?;:"`«»()\[\]…，。、！？；：「」『』（）《》〈〉“”‘’]/g, '').trim() || word)}</div>
       <div id="ls-card-tier" style="color:${tierColor}">${tierLabel}</div>
       <div id="ls-card-trans" style="color:#9A9AA6;font-style:italic;font-size:14px;">looking up…</div>
       <div id="ls-card-body"></div>
-      <div id="ls-card-action"><button id="ls-card-save"${alreadySaved ? ' disabled' : ''}>${alreadySaved ? '✓ In your flashcards' : '+ Save to flashcards'}</button></div>`;
+      <div id="ls-card-action"><button id="ls-card-save"${alreadySaved ? ' disabled' : ''}>${alreadySaved ? '✓ In your flashcards' : saveLabel}</button></div>`;
     layerHost().appendChild(card);
     card.querySelector('#ls-card-close').addEventListener('click', closeCard);
 
@@ -343,10 +408,30 @@
     const d = document.createElement('div'); d.className = cls; d.innerHTML = html; return d;
   }
 
+  // XP for a new word: the app's add_word value, more for a golden one.
+  const XP_SAVE = 20;
+  const XP_GOLDEN = 50;
+
   async function saveFromCard(card, word, context, translation) {
-    setCardAction(card, cardNote('Saving…'));
-    const res = await send({ type: 'SAVE_WORD', word, context, language: learningLang, translation });
-    if (activeCard !== card) return;
+    // Red and ding the moment it's clicked, not after the round trips to the
+    // server; the ding must also start inside the click or Chrome mutes it.
+    const key = normalizeToken(word);
+    const optimistic = !Deck.stateOf(key);
+    const golden = optimistic && Gold.isPicked(key);
+    if (optimistic) {
+      Deck.markSaved(word);
+      playDing();
+      const tierEl = card.querySelector('#ls-card-tier');
+      if (tierEl) { tierEl.textContent = '🔴 New word'; tierEl.style.color = Deck.PALETTE.red; }
+    }
+    setCardAction(card, cardNote(optimistic ? '✓ Saving to your flashcards…' : 'Saving…'));
+    const res = await send({ type: 'SAVE_WORD', word, context, language: learningLang, translation, golden });
+    if (!res?.ok && optimistic) Deck.unmarkSaved(word);
+    if (activeCard !== card) {
+      if (!res?.ok) showToast('Couldn’t save that word');
+      else if (res.xp) celebrateSave(key, res, golden);
+      return;
+    }
     if (res?.error === 'not_your_language') {
       showLanguagePicker(card, res.languages || [], () => saveFromCard(card, word, context, translation));
       return;
@@ -359,16 +444,26 @@
       setCardAction(card, retry);
       return;
     }
-    Deck.markSaved(word);
-    playDing();
+    if (!optimistic) { Deck.markSaved(word); playDing(); }
     Deck.refresh(true);
-    const tierEl = card.querySelector('#ls-card-tier');
-    if (tierEl && !res.already) { tierEl.textContent = '🔴 New word'; tierEl.style.color = Deck.PALETTE.red; }
+    if (res.xp) celebrateSave(key, res, golden);
     const lang = res.language || learningLang;
     setCardAction(card, cardNote(
       `<b>✓ ${res.already ? 'Already in' : 'Saved to'} your ${langFlag(lang)} ${escapeHtml(langName(lang))} flashcards</b>` +
       `<a href="${flashcardsUrl(lang)}" target="_blank" rel="noopener noreferrer">Open your ${escapeHtml(langName(lang))} flashcards →</a>`,
       'ls-card-status ls-card-saved'));
+  }
+
+  function celebrateSave(key, res, golden) {
+    setXpChip(res.xpTotal);
+    const n = Gold.markFound(key);
+    if (golden && n) {
+      showToast(n >= GOLD_PER_VIDEO
+        ? `🏆 All ${GOLD_PER_VIDEO} golden words found! +${res.xp} XP`
+        : `✨ Golden word! +${res.xp} XP · ${n}/${GOLD_PER_VIDEO} found`, 'gold');
+    } else {
+      showToast(`+${res.xp} XP`);
+    }
   }
 
   // Ask which of the learner's languages they're watching in. Only their own
@@ -447,12 +542,15 @@
   }
 
   // ── Word spans ───────────────────────────────────────────────────────────────
-  function makeWordSpan(word, fullLine, joiner = ' ') {
+  // claimGold: this is a new on-screen subtitle line, so its common words may
+  // become golden (the transcript only shows the ones already picked).
+  function makeWordSpan(word, fullLine, joiner = ' ', claimGold = false) {
     const clean = normalizeToken(word);
     if (!clean) return document.createTextNode(word + joiner);
     const span = document.createElement('span');
     span.className = 'ls-word'; span.dataset.word = clean; span.textContent = word + joiner;
     span.setAttribute('translate', 'no');
+    if (claimGold) Gold.claim(clean);
     Deck.paint(span, clean);
     span.addEventListener('click', (e) => { e.stopPropagation(); openCard({ word, clean, fullLine, anchorEl: span }); });
     return span;
@@ -577,7 +675,8 @@
       el.style.cssText = ''; el.innerHTML = '';
       el.onclick = () => { const v = getVideo(); if (v) v.currentTime = Math.max(0, v.currentTime - 4); };
       const { parts, joiner } = splitWords(text, learningLang);
-      parts.forEach((p) => el.appendChild(p.word ? makeWordSpan(p.text, text, joiner) : document.createTextNode(p.text + joiner)));
+      Gold.beginLine();
+      parts.forEach((p) => el.appendChild(p.word ? makeWordSpan(p.text, text, joiner, true) : document.createTextNode(p.text + joiner)));
     }
     function renderSecondary(text) {
       const el = document.getElementById('ls-secondary'); if (!el) return;
@@ -662,19 +761,34 @@
   // ── Staying out of the site's way ──────────────────────────────────────────────
   // In fullscreen only the fullscreen element is drawn, so our layers live inside
   // it. When the video fills the window (Netflix, fullscreen) the site's own
-  // controls run along the bottom: html.ls-fills lifts our subtitles above them,
-  // moves our bar to the top and stops the transcript short of them. The bar
-  // fades while the mouse is still, like the players' own controls.
+  // controls run along the bottom: html.ls-fills docks our bar just above them
+  // (--ls-dock, measured from getChrome()), lifts the subtitles above the bar
+  // and stops the transcript short of them. The bar fades while the mouse is
+  // still, like the players' own controls.
   const LAYERS = ['ls-overlay', 'ls-controls', 'ls-panel', 'ls-card', 'ls-toast'];
   function layerHost() {
     const fs = document.fullscreenElement;
     return fs && fs !== document.documentElement ? fs : document.body;
   }
-  function watchLayout(getVideo) {
+  const DEFAULT_DOCK = 120;
+  function watchLayout(getVideo, getChrome = () => []) {
     const root = document.documentElement;
+    // The site hides its controls while the mouse is still, so keep the highest
+    // top we've seen instead of letting the bar jump up and down with them.
+    let dock = DEFAULT_DOCK, dockWidth = innerWidth;
+    const measureDock = () => {
+      if (dockWidth !== innerWidth) { dock = DEFAULT_DOCK; dockWidth = innerWidth; }
+      for (const el of getChrome()) {
+        const r = el?.getBoundingClientRect();
+        if (!r || !r.height || !r.width || r.bottom < innerHeight - 60) continue;
+        dock = Math.max(dock, Math.min(260, Math.round(innerHeight - r.top + 10)));
+      }
+      root.style.setProperty('--ls-dock', dock + 'px');
+    };
     const update = () => {
       const r = getVideo()?.getBoundingClientRect();
       root.classList.toggle('ls-fills', !!r && r.height >= innerHeight * 0.75 && r.bottom >= innerHeight - 8);
+      measureDock();
       const host = layerHost();
       LAYERS.forEach((id) => { const el = document.getElementById(id); if (el && el.parentElement !== host) host.appendChild(el); });
     };
@@ -695,6 +809,7 @@
       removeEventListener('mousemove', wake);
       clearInterval(timer); clearTimeout(idleTimer);
       root.classList.remove('ls-fills', 'ls-idle');
+      root.style.removeProperty('--ls-dock');
     };
   }
 
@@ -791,11 +906,74 @@
       const a = document.createElement('a'); a.className = 'ls-btn ls-link'; a.href = href; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.textContent = label;
       nodes.push(a);
     });
+    const xp = document.createElement('span'); xp.id = 'ls-xp'; xp.className = 'ls-xp'; xp.title = 'Your LinguaScript XP';
+    nodes.push(xp);
     nodes.forEach((n) => inner.appendChild(n));
     layerHost().appendChild(bar);
+    makeDraggable(bar, inner);
+    send({ type: 'GET_XP' }).then((r) => { if (r?.ok) setXpChip(r.xpTotal); });
 
     // Reflect keyboard toggles back onto the A|P button.
     window.__lsSetAutoPause = (v) => { autoPause = v; apBtn.innerHTML = `${v ? 'A|P On' : 'A|P Off'}<span class="ls-kbd">Q</span>`; apBtn.classList.toggle('ls-on', v); };
+  }
+
+  // The learner's XP total on the bar (hidden until we know it, e.g. logged out).
+  function setXpChip(total) {
+    const el = document.getElementById('ls-xp');
+    if (!el || typeof total !== 'number') return;
+    el.textContent = `⭐ ${total.toLocaleString()} XP`;
+    el.classList.add('ls-show');
+    el.classList.remove('ls-bump'); void el.offsetWidth; el.classList.add('ls-bump');
+  }
+
+  // Grab the ⠿ handle to put the bar anywhere; it remembers the spot per site
+  // (as a fraction of the window, so it survives resizing and fullscreen).
+  // Double-click the handle to send it back.
+  function makeDraggable(bar, inner) {
+    const key = 'ls_bar_pos_' + location.hostname;
+    const grip = document.createElement('div');
+    grip.className = 'ls-grip'; grip.textContent = '⠿';
+    grip.title = 'Drag to move the bar · double-click to put it back';
+    inner.prepend(grip);
+    // Clicks on the bar must never reach the player (Netflix pauses on click).
+    inner.addEventListener('click', (e) => e.stopPropagation());
+
+    let pos = null;
+    const apply = () => {
+      if (!pos) { bar.classList.remove('ls-moved'); bar.style.left = bar.style.top = ''; return; }
+      bar.classList.add('ls-moved');
+      const w = inner.offsetWidth, h = inner.offsetHeight;
+      bar.style.left = Math.max(4, Math.min(pos.x * innerWidth, innerWidth - w - 4)) + 'px';
+      bar.style.top = Math.max(4, Math.min(pos.y * innerHeight, innerHeight - h - 4)) + 'px';
+    };
+    getStorage([key]).then((r) => { if (r[key]) { pos = r[key]; apply(); } });
+    addEventListener('resize', apply);
+    document.addEventListener('fullscreenchange', apply);
+
+    grip.addEventListener('pointerdown', (e) => {
+      e.preventDefault(); e.stopPropagation();
+      grip.setPointerCapture(e.pointerId);
+      bar.classList.add('ls-dragging');
+      const r = inner.getBoundingClientRect();
+      const offX = e.clientX - r.left, offY = e.clientY - r.top;
+      const move = (ev) => { pos = { x: (ev.clientX - offX) / innerWidth, y: (ev.clientY - offY) / innerHeight }; apply(); };
+      const up = () => {
+        grip.removeEventListener('pointermove', move);
+        grip.removeEventListener('pointerup', up);
+        grip.removeEventListener('pointercancel', up);
+        bar.classList.remove('ls-dragging');
+        if (pos) chrome.storage.local.set({ [key]: pos });
+      };
+      grip.addEventListener('pointermove', move);
+      grip.addEventListener('pointerup', up);
+      grip.addEventListener('pointercancel', up);
+    });
+    grip.addEventListener('dblclick', (e) => {
+      e.stopPropagation();
+      pos = null; apply();
+      chrome.storage.local.remove(key);
+      showToast('Bar back in its place');
+    });
   }
 
   function attachKeyboardShortcuts(spec) {
@@ -829,6 +1007,10 @@
     .ls-red    { color:${Deck.PALETTE.red}   !important; }
     .ls-orange { color:${Deck.PALETTE.orange}!important; }
     .ls-green  { color:${Deck.PALETTE.green} !important; }
+    /* Golden word: one of this video's ten common words to find. */
+    .ls-gold { color:${GOLD_HEX.core} !important; box-shadow:0 0 0 2px ${GOLD_HEX.deep}, 0 0 14px ${GOLD_HEX.glow}; border-radius:7px; animation:ls-gold-glow 1.8s ease-in-out infinite; }
+    @keyframes ls-gold-glow { 0%,100% { box-shadow:0 0 0 2px ${GOLD_HEX.deep}, 0 0 8px ${GOLD_HEX.glow}; } 50% { box-shadow:0 0 0 2px ${GOLD_HEX.core}, 0 0 20px ${GOLD_HEX.glow}; } }
+    @media (prefers-reduced-motion: reduce) { .ls-gold { animation:none; } }
 
     /* Subtitle overlay: the same on YouTube and Netflix. */
     #ls-overlay { position:fixed; bottom:92px; left:0; right:360px; z-index:2147483640; text-align:center; pointer-events:none; font-family:'LS Inter','Inter',system-ui,-apple-system,sans-serif; transition:right .3s ease, opacity .15s ease, bottom .2s ease; }
@@ -840,10 +1022,17 @@
 
     /* Video fills the window (Netflix, fullscreen): keep clear of the site's own
        controls along the bottom (subtitles, audio, settings, fullscreen). */
-    html.ls-fills #ls-overlay { bottom:130px; }
-    html.ls-fills #ls-controls { top:14px; bottom:auto; }
-    html.ls-fills #ls-panel { bottom:120px; border-bottom:1px solid #24242D; border-bottom-left-radius:16px; }
+    html.ls-fills #ls-controls { bottom:var(--ls-dock, 120px); }
+    html.ls-fills #ls-overlay { bottom:calc(var(--ls-dock, 120px) + 54px); }
+    html.ls-fills #ls-panel { bottom:var(--ls-dock, 120px); border-bottom:1px solid #24242D; border-bottom-left-radius:16px; }
     html.ls-fills.ls-idle #ls-controls { opacity:0.15; }
+    /* Moved by hand: sits exactly where it was dropped (left/top set inline). */
+    #ls-controls.ls-moved { right:auto !important; bottom:auto !important; display:block; transition:opacity .4s ease; }
+    #ls-controls.ls-moved #ls-controls-inner { display:inline-flex; }
+    #ls-controls.ls-dragging, html.ls-idle #ls-controls.ls-dragging { opacity:1 !important; }
+    .ls-grip { cursor:grab; color:rgba(255,255,255,0.45); font-size:16px; line-height:1; padding:2px 4px 2px 0; user-select:none; touch-action:none; }
+    .ls-grip:hover { color:#F5F5F7; }
+    #ls-controls.ls-dragging .ls-grip { cursor:grabbing; }
 
     #ls-controls { position:fixed; z-index:2147483641; bottom:22px; transition:right .3s ease, opacity .4s ease; display:flex; align-items:center; justify-content:center; gap:6px; pointer-events:none; left:0; right:360px; }
     #ls-controls.ls-panel-hidden { right:0; }
@@ -857,6 +1046,10 @@
     .ls-btn.ls-link:hover { background:rgba(255,138,0,0.26); }
     .ls-sep { width:1px; height:18px; background:rgba(255,255,255,0.13); margin:0 2px; }
     .ls-kbd { font-size:10px; color:rgba(255,255,255,0.4); margin-left:3px; }
+    .ls-xp { display:none; font-size:12px; font-weight:700; color:${GOLD_HEX.core}; padding:0 4px; white-space:nowrap; }
+    .ls-xp.ls-show { display:inline-block; }
+    .ls-xp.ls-bump { animation:ls-xp-bump .5s ease; }
+    @keyframes ls-xp-bump { 40% { transform:scale(1.25); } }
 
     #ls-card { position:fixed; z-index:2147483647; width:300px; max-height:calc(100vh - 16px); overflow-y:auto; box-sizing:border-box; background:rgba(17,17,22,0.98); border:1px solid #24242D; border-radius:16px; padding:16px 18px 14px; font-family:'LS Inter','Inter',system-ui,-apple-system,sans-serif; box-shadow:0 16px 48px rgba(0,0,0,0.9); backdrop-filter:blur(20px); pointer-events:auto; color:#F5F5F7; animation:ls-card-in .22s cubic-bezier(0.34,1.56,0.64,1); }
     @keyframes ls-card-in { from{opacity:0;transform:scale(.88) translateY(6px);} to{opacity:1;transform:scale(1) translateY(0);} }
@@ -873,6 +1066,8 @@
     #ls-card-save:hover { filter:brightness(1.08); }
     #ls-card-save:active { transform:scale(0.98); }
     #ls-card-save:disabled { background:#17171E; color:#9A9AA6; cursor:default; filter:none; }
+    #ls-card.ls-card-golden { border-color:${GOLD_HEX.deep}; box-shadow:0 0 0 1px ${GOLD_HEX.deep}, 0 16px 48px rgba(0,0,0,0.9), 0 0 32px ${GOLD_HEX.glow}; }
+    #ls-card.ls-card-golden #ls-card-save:not(:disabled) { background:linear-gradient(135deg, ${GOLD_HEX.core}, ${GOLD_HEX.deep}); }
     #ls-card-close { position:absolute; top:12px; right:14px; background:none; border:none; color:#9A9AA6; font-size:16px; cursor:pointer; line-height:1; }
     #ls-card-close:hover { color:#fff; }
     .ls-card-login-note { font-size:12px; color:#9A9AA6; margin-bottom:10px; line-height:1.5; }
@@ -915,6 +1110,7 @@
 
     #ls-toast { position:fixed; bottom:80px; left:50%; transform:translateX(-50%); background:#34C759; color:#08080B; padding:8px 20px; border-radius:999px; font-size:13px; font-weight:700; pointer-events:none; opacity:0; transition:opacity .2s; z-index:2147483647; font-family:'LS Inter','Inter',system-ui,-apple-system,sans-serif; }
     #ls-toast.ls-show { opacity:1; }
+    #ls-toast.ls-toast-gold { background:linear-gradient(135deg, ${GOLD_HEX.core}, ${GOLD_HEX.deep}); box-shadow:0 0 24px ${GOLD_HEX.glow}; }
   `;
 
   function injectStyles(extraCss = '') {
@@ -936,7 +1132,7 @@
     loadSavedWords: (force) => Deck.refresh(force),
     startWordsRefresh: () => Deck.startAutoRefresh(),
     stopWordsRefresh: () => Deck.stopAutoRefresh(),
-    showToast, openCard, closeCard, makeWordSpan, makeWordSpansFor, splitWords, playDing, escapeHtml,
+    Gold, showToast, openCard, closeCard, makeWordSpan, makeWordSpansFor, splitWords, playDing, escapeHtml,
     SubtitleShield, LiveCaptions, SpeedKeeper, watchLayout, requestCaptions, setStatus, buildOverlay, layerHost, buildPanelShell, togglePanel, buildControls, attachKeyboardShortcuts,
     injectStyles,
   };

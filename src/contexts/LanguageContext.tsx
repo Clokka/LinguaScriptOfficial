@@ -5,7 +5,6 @@ import { hasSpeechSynthesis, speakViaCloud } from "@/lib/cloudSpeech";
 import {
   addLanguageProfile,
   getLanguageProfile,
-  seedForProfile,
   touchLanguageProfile,
 } from "@/lib/languageProfiles";
 
@@ -34,15 +33,14 @@ const TTS_VOICE_MAP: Record<string, string> = {
 
 
 /**
- * Make sure the learner has a per-language profile row for `language`, then
- * seed their known vocabulary for that language's level + mode. Idempotent.
+ * Make sure the learner has a per-language profile row for `language`.
+ * Idempotent. Nothing is pre-marked known: every learner starts at zero.
  */
 async function ensureLanguageProfile(userId: string, language: string, level: string) {
   try {
     const existing = await getLanguageProfile(userId, language);
     if (existing) {
       await touchLanguageProfile(userId, language);
-      await seedForProfile(language, existing.cefr_level, existing.mode);
       return;
     }
     await addLanguageProfile({ userId, language, mode: "fluency", level });
