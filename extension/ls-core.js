@@ -126,6 +126,7 @@
     setLangs(lang, nativeLang);
     Deck.refresh(true);
     Gold.load();
+    Goal.refresh();
   }
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === 'local' && changes.ls_language) applyLanguage(changes.ls_language.newValue);
@@ -297,6 +298,61 @@
     },
   };
 
+  // ══ Today's word goal — the same count as the app ════════════════════════════
+  // Background GET_TODAY counts words met in a video since local midnight in
+  // this language against that language's daily goal, exactly like
+  // useDailyWordGoal on the site, so "3 / 10 today" matches everywhere. A save
+  // bumps it on click; the server count then confirms it. Reaching the goal
+  // pauses the video once a day and sends the learner to review.
+  const Goal = {
+    saved: 0, goal: 0, lang: null, known: false,
+    async refresh() {
+      const r = await send({ type: 'GET_TODAY' });
+      if (r?.ok && r.goal) this.set(r.saved, r.goal, r.language);
+    },
+    set(saved, goal, lang) {
+      const wasBelow = this.known && this.saved < this.goal;
+      Object.assign(this, { saved, goal, lang: lang || learningLang, known: true });
+      renderGoalChip();
+      if (wasBelow && saved >= goal) promptReview();
+    },
+    bump() { if (this.known) this.set(this.saved + 1, this.goal, this.lang); },
+    reached() { return this.known && this.saved >= this.goal; },
+  };
+
+  function renderGoalChip() {
+    const el = document.getElementById('ls-goal');
+    if (!el || !Goal.known) return;
+    const shown = Math.min(Goal.saved, Goal.goal);
+    el.classList.add('ls-show');
+    el.classList.toggle('ls-reached', Goal.reached());
+    el.innerHTML = Goal.reached()
+      ? `✓ ${shown} / ${Goal.goal} today <a class="ls-goal-review" href="${flashcardsUrl(Goal.lang)}" target="_blank" rel="noopener noreferrer">Review ›</a>`
+      : `🎯 ${shown} / ${Goal.goal} today`;
+    el.title = Goal.reached() ? 'Daily goal done: review your flashcards' : 'Words saved today toward your daily goal';
+  }
+
+  // Once per day per language: pause and suggest reviewing what was saved.
+  async function promptReview() {
+    const key = `ls_goal_prompt_${new Date().toLocaleDateString('en-CA')}_${Goal.lang}`;
+    if ((await getStorage([key]))[key] || document.getElementById('ls-goal-card')) return;
+    chrome.storage.local.set({ [key]: true });
+    const v = document.querySelector('video');
+    try { v?.pause(); } catch {}
+    const card = document.createElement('div'); card.id = 'ls-goal-card';
+    card.innerHTML = `
+      <div class="ls-goal-emoji">🎉</div>
+      <div class="ls-goal-kicker">Daily goal done</div>
+      <div class="ls-goal-title">${Goal.goal} / ${Goal.goal} words saved today</div>
+      <p class="ls-goal-text">Now review your flashcards: that's what turns new words green and makes them stick.</p>
+      <a class="ls-goal-btn" href="${flashcardsUrl(Goal.lang)}" target="_blank" rel="noopener noreferrer">📚 Review flashcards</a>
+      <button class="ls-goal-btn ls-goal-secondary">Keep watching</button>`;
+    card.addEventListener('click', (e) => e.stopPropagation());
+    card.querySelector('a').addEventListener('click', () => card.remove());
+    card.querySelector('button').addEventListener('click', () => { card.remove(); try { v?.play(); } catch {} });
+    layerHost().appendChild(card);
+  }
+
   // ── Toast ────────────────────────────────────────────────────────────────────
   let toastTimer;
   function showToast(msg, variant = '') {
@@ -421,12 +477,15 @@
     if (optimistic) {
       Deck.markSaved(word);
       playDing();
+      Goal.bump();
       const tierEl = card.querySelector('#ls-card-tier');
       if (tierEl) { tierEl.textContent = '🔴 New word'; tierEl.style.color = Deck.PALETTE.red; }
     }
     setCardAction(card, cardNote(optimistic ? '✓ Saving to your flashcards…' : 'Saving…'));
     const res = await send({ type: 'SAVE_WORD', word, context, language: learningLang, translation, golden });
     if (!res?.ok && optimistic) Deck.unmarkSaved(word);
+    // The server's count is the truth (an already-saved word can count too).
+    Goal.refresh();
     if (activeCard !== card) {
       if (!res?.ok) showToast('Couldn’t save that word');
       else if (res.xp) celebrateSave(key, res, golden);
@@ -460,9 +519,9 @@
     if (golden && n) {
       showToast(n >= GOLD_PER_VIDEO
         ? `🏆 All ${GOLD_PER_VIDEO} golden words found! +${res.xp} XP`
-        : `✨ Golden word! +${res.xp} XP · ${n}/${GOLD_PER_VIDEO} found`, 'gold');
+        : `✨ Golden word! +${res.xp} XP · ${n} of ${GOLD_PER_VIDEO} golden words`, 'gold');
     } else {
-      showToast(`+${res.xp} XP`);
+      showToast(Goal.known ? `+${res.xp} XP · ${Math.min(Goal.saved, Goal.goal)}/${Goal.goal} words today` : `+${res.xp} XP`);
     }
   }
 
@@ -497,6 +556,8 @@
     const info = await send({ type: 'GET_LANGUAGES' });
     if (activeCard !== card) return;
     Deck.refresh(true); Deck.startAutoRefresh();
+    Goal.refresh();
+    send({ type: 'GET_XP' }).then((r) => { if (r?.ok) setXpChip(r.xpTotal); });
     const languages = info?.languages || [];
     const save = () => saveFromCard(card, word, context, getTranslation());
     if (languages.includes(learningLang)) {
@@ -765,7 +826,7 @@
   // (--ls-dock, measured from getChrome()), lifts the subtitles above the bar
   // and stops the transcript short of them. The bar fades while the mouse is
   // still, like the players' own controls.
-  const LAYERS = ['ls-overlay', 'ls-controls', 'ls-panel', 'ls-card', 'ls-toast'];
+  const LAYERS = ['ls-overlay', 'ls-controls', 'ls-panel', 'ls-card', 'ls-toast', 'ls-goal-card'];
   function layerHost() {
     const fs = document.fullscreenElement;
     return fs && fs !== document.documentElement ? fs : document.body;
@@ -886,11 +947,18 @@
     let autoPause = false;
     const apBtn = mk('A|P Off', 'Q', () => { autoPause = !autoPause; apBtn.innerHTML = `${autoPause ? 'A|P On' : 'A|P Off'}<span class="ls-kbd">Q</span>`; apBtn.classList.toggle('ls-on', autoPause); spec.onAutoPause?.(autoPause); }, 'ls-ap-btn');
     const panelBtn = mk('≡ Transcript', '', () => togglePanel(), 'ls-panel-btn'); panelBtn.classList.add('ls-on');
-    const speedBtns = [0.5, 0.75, 1, 1.25, 1.5].map((sp) => {
-      const b = mk(sp + '×', '', () => { spec.onSpeed?.(sp); speedBtns.forEach((x) => x.classList.remove('ls-on')); b.classList.add('ls-on'); });
-      if (sp === 1) b.classList.add('ls-on');
-      return b;
-    });
+    // One button that steps through the speeds, so the bar fits beside the
+    // transcript with the goal and XP on it. Lit whenever it isn't 1×.
+    const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5];
+    let speedIdx = SPEEDS.indexOf(1);
+    const speedBtn = mk('1× speed', '', () => {
+      speedIdx = (speedIdx + 1) % SPEEDS.length;
+      const sp = SPEEDS[speedIdx];
+      spec.onSpeed?.(sp);
+      speedBtn.textContent = `${sp}× speed`;
+      speedBtn.classList.toggle('ls-on', sp !== 1);
+    }, 'ls-speed-btn');
+    speedBtn.title = 'Click to change speed: 0.5× → 0.75× → 1× → 1.25× → 1.5×';
     let overlayVisible = true;
     const hideBtn = mk('LS', '', () => { overlayVisible = !overlayVisible; hideBtn.classList.toggle('ls-on', overlayVisible); document.getElementById('ls-overlay')?.style && (document.getElementById('ls-overlay').style.opacity = overlayVisible ? '1' : '0'); spec.onToggleOverlay?.(overlayVisible); }, 'ls-hide-btn');
     hideBtn.classList.add('ls-on');
@@ -899,19 +967,21 @@
       mk('⏮', 'A', () => spec.seekBack?.()),
       mk('↩', 'S', () => spec.seekRepeat?.()),
       mk('⏭', 'D', () => spec.seekForward?.()),
-      sep(), apBtn, sep(), ...speedBtns, sep(), panelBtn, hideBtn,
+      sep(), apBtn, speedBtn, sep(), panelBtn, hideBtn,
     ];
     (spec.extraLinks || []).forEach(({ label, href }) => {
       nodes.push(sep());
       const a = document.createElement('a'); a.className = 'ls-btn ls-link'; a.href = href; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.textContent = label;
       nodes.push(a);
     });
+    const goal = document.createElement('span'); goal.id = 'ls-goal'; goal.className = 'ls-goal';
     const xp = document.createElement('span'); xp.id = 'ls-xp'; xp.className = 'ls-xp'; xp.title = 'Your LinguaScript XP';
-    nodes.push(xp);
+    nodes.push(sep(), goal, xp);
     nodes.forEach((n) => inner.appendChild(n));
     layerHost().appendChild(bar);
     makeDraggable(bar, inner);
     send({ type: 'GET_XP' }).then((r) => { if (r?.ok) setXpChip(r.xpTotal); });
+    Goal.refresh();
 
     // Reflect keyboard toggles back onto the A|P button.
     window.__lsSetAutoPause = (v) => { autoPause = v; apBtn.innerHTML = `${v ? 'A|P On' : 'A|P Off'}<span class="ls-kbd">Q</span>`; apBtn.classList.toggle('ls-on', v); };
@@ -1036,7 +1106,7 @@
 
     #ls-controls { position:fixed; z-index:2147483641; bottom:22px; transition:right .3s ease, opacity .4s ease; display:flex; align-items:center; justify-content:center; gap:6px; pointer-events:none; left:0; right:360px; }
     #ls-controls.ls-panel-hidden { right:0; }
-    #ls-controls-inner { display:flex; align-items:center; gap:6px; background:rgba(8,8,11,0.94); border:1px solid #24242D; border-radius:999px; padding:7px 12px; backdrop-filter:blur(16px); pointer-events:auto; box-shadow:0 4px 24px rgba(0,0,0,0.7); font-family:'LS Inter','Inter',system-ui,-apple-system,sans-serif; }
+    #ls-controls-inner { display:flex; flex-wrap:wrap; justify-content:center; max-width:calc(100% - 16px); box-sizing:border-box; align-items:center; gap:6px; background:rgba(8,8,11,0.94); border:1px solid #24242D; border-radius:999px; padding:7px 12px; backdrop-filter:blur(16px); pointer-events:auto; box-shadow:0 4px 24px rgba(0,0,0,0.7); font-family:'LS Inter','Inter',system-ui,-apple-system,sans-serif; }
     .ls-btn { background:rgba(255,255,255,0.08); color:#F5F5F7; border:none; border-radius:999px; padding:5px 11px; font-size:12px; font-weight:600; cursor:pointer; transition:background .12s, transform .1s; white-space:nowrap; font-family:inherit; text-decoration:none; display:inline-flex; align-items:center; }
     .ls-btn:hover { background:rgba(255,255,255,0.18); transform:scale(1.04); }
     .ls-btn:active { transform:scale(0.96); }
@@ -1046,6 +1116,18 @@
     .ls-btn.ls-link:hover { background:rgba(255,138,0,0.26); }
     .ls-sep { width:1px; height:18px; background:rgba(255,255,255,0.13); margin:0 2px; }
     .ls-kbd { font-size:10px; color:rgba(255,255,255,0.4); margin-left:3px; }
+    .ls-goal { display:none; font-size:12px; font-weight:700; color:#F5F5F7; padding:0 4px; white-space:nowrap; }
+    .ls-goal.ls-show { display:inline-flex; align-items:center; gap:6px; }
+    .ls-goal.ls-reached { color:#34C759; }
+    .ls-goal-review { background:#34C759; color:#08080B; border-radius:999px; padding:3px 9px; font-size:11px; font-weight:800; text-decoration:none; }
+    .ls-goal-review:hover { filter:brightness(1.08); }
+    #ls-goal-card { position:fixed; z-index:2147483647; left:50%; top:50%; transform:translate(-50%,-50%); width:320px; box-sizing:border-box; padding:22px 22px 18px; text-align:center; background:rgba(17,17,22,0.98); border:1px solid rgba(52,199,89,0.45); border-radius:18px; box-shadow:0 20px 60px rgba(0,0,0,0.9); color:#F5F5F7; font-family:'LS Inter','Inter',system-ui,-apple-system,sans-serif; animation:ls-card-in .25s cubic-bezier(0.34,1.56,0.64,1); }
+    .ls-goal-emoji { font-size:40px; line-height:1; }
+    .ls-goal-kicker { margin-top:10px; font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:#34C759; }
+    .ls-goal-title { margin-top:4px; font-size:20px; font-weight:800; }
+    .ls-goal-text { margin:8px 0 16px; font-size:13px; line-height:1.5; color:#B5B5C0; }
+    .ls-goal-btn { display:block; width:100%; box-sizing:border-box; margin-top:8px; padding:11px; border-radius:999px; border:none; background:#34C759; color:#08080B; font-size:14px; font-weight:700; text-decoration:none; cursor:pointer; font-family:inherit; }
+    .ls-goal-btn.ls-goal-secondary { background:transparent; border:1px solid #24242D; color:#F5F5F7; }
     .ls-xp { display:none; font-size:12px; font-weight:700; color:${GOLD_HEX.core}; padding:0 4px; white-space:nowrap; }
     .ls-xp.ls-show { display:inline-block; }
     .ls-xp.ls-bump { animation:ls-xp-bump .5s ease; }

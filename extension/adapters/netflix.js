@@ -82,7 +82,7 @@
     if (!mounted) return; mounted = false;
     live.stop();
     stopLayout?.(); stopLayout = null;
-    ['ls-overlay', 'ls-controls', 'ls-panel', 'ls-toast'].forEach((id) => document.getElementById(id)?.remove());
+    ['ls-overlay', 'ls-controls', 'ls-panel', 'ls-toast', 'ls-goal-card'].forEach((id) => document.getElementById(id)?.remove());
     C.closeCard(); C.stopWordsRefresh();
   }
 

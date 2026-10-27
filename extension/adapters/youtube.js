@@ -246,7 +246,7 @@
   // watch page is often reached without a reload); only show the player
   // overlay while a video is open, and take it down when the learner leaves.
   function unmount() {
-    ['ls-overlay', 'ls-controls', 'ls-panel', 'ls-toast'].forEach((id) => document.getElementById(id)?.remove());
+    ['ls-overlay', 'ls-controls', 'ls-panel', 'ls-toast', 'ls-goal-card'].forEach((id) => document.getElementById(id)?.remove());
     C.closeCard(); C.stopWordsRefresh();
     if (syncInterval) { clearInterval(syncInterval); syncInterval = null; }
     live?.stop(); live = null;
