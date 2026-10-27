@@ -31,14 +31,12 @@ export const nextCefrLevel = (level: string): CefrLevel | null => {
 export const MODE_META: Record<LearningMode, { label: string; blurb: string; emoji: string }> = {
   fluency: {
     label: "Fluency fast-track",
-    blurb:
-      "The 3,000 most useful words, in frequency order. Fastest route to understanding real speech — ideal for travel and everyday conversation.",
+    blurb: "The most common words first.",
     emoji: "⚡",
   },
   cefr: {
     label: "Exam track (CEFR)",
-    blurb:
-      "Official A1–C2 level word lists. Learn every word of your level to advance to the next — built for students sitting CEFR-based exams.",
+    blurb: "Follow the CEFR levels, A1 to C2.",
     emoji: "🎓",
   },
 };
