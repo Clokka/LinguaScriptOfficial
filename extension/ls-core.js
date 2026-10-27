@@ -168,7 +168,7 @@
   //     learning language — the exact same language-scoped saved_words the app's
   //     Flashcards page reads — so a word wears the same colour here as on its
   //     card (red = UNKNOWN, orange = LEARNING, green = KNOWN, gold = KNOWN but
-  //     due for review, like isDueForReview in src/lib/dueGold.ts).
+  //     due for review, deckState() in background.js).
   //   • state is read straight from saved_words.state and next_review (what
   //     flashcard review writes); no SRS re-derivation.
   //   • lookups are keyed by normalizeToken(), identical on both sides, so a
@@ -177,7 +177,7 @@
   // go through Deck.
   const Deck = {
     // Exact hexes from DECK_CONFIG in src/pages/Flashcards.tsx; gold is GOLD.core
-    // in src/lib/dueGold.ts.
+    // in src/lib/goldenReveal.ts.
     PALETTE: { red: '#FF3B30', orange: '#FF8A00', green: '#34C759', gold: '#FFD54A' },
     STATES: ['red', 'orange', 'green', 'gold'],
     _map: new Map(),          // normalizedWord → 'red' | 'orange' | 'green' | 'gold'
@@ -260,7 +260,7 @@
   // saved: a few clear targets beat a screen of words to choose from.
   const RINGS_PER_VIDEO = 10;
   const RINGS_PER_LINE = 3; // MAX_RINGS_PER_LINE in src/components/SubtitleOverlay.tsx
-  const GOLD_HEX = { core: '#FFD54A', glow: 'rgba(255,200,60,0.55)' }; // GOLD in src/lib/dueGold.ts
+  const GOLD_HEX = { core: '#FFD54A', glow: 'rgba(255,200,60,0.55)' }; // GOLD in src/lib/goldenReveal.ts
   const Rings = {
     _pool: new Set(),
     _video: null,

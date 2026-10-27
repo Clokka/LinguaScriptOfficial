@@ -3,7 +3,7 @@
 // one — the visible proof that they are adapting to this video.
 import { useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
-import { GOLD } from "@/lib/dueGold";
+import { GOLD } from "@/lib/goldenReveal";
 import { prefersReducedMotion } from "@/lib/lineBlast";
 import { loadSnapshot, saveSnapshot, type TileState, type WordTile } from "@/lib/videoWordMap";
 

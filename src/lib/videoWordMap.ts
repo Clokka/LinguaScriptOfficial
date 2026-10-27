@@ -1,6 +1,6 @@
 /**
  * The video word map: every word in a video as a tile coloured by the
- * learner's deck (red → orange → green, gold when due for review). Each time a
+ * learner's deck (red → orange → green, gold when newly earned). Each time a
  * map is shown, tiles flip from the colours seen last time to their current
  * ones, so a rewatch ends with the learner watching themselves adapt.
  *
@@ -10,7 +10,7 @@
 import { useEffect, useState } from "react";
 import { fetchSubtitleTokens } from "@/lib/videoComprehension";
 import { loadDeckIndex, type DeckState } from "@/lib/vocab";
-import { isDueForReview } from "@/lib/dueGold";
+import { isPendingGreen } from "@/lib/goldenReveal";
 
 export type TileState = DeckState | "gold";
 
@@ -51,7 +51,7 @@ function writeJson(key: string, value: unknown) {
 
 /**
  * Every distinct word in the video, in the order it is first heard, coloured
- * by the learner's deck. Gold = green and due for review.
+ * by the learner's deck. Gold = green but not yet seen to turn green.
  */
 export async function loadVideoWordMap(
   userId: string | null,
@@ -68,7 +68,7 @@ export async function loadVideoWordMap(
     if (seen.has(word)) continue;
     seen.add(word);
     const entry = deck.get(word);
-    const state: TileState = isDueForReview(entry) ? "gold" : entry?.state ?? "red";
+    const state: TileState = isPendingGreen(entry) ? "gold" : entry?.state ?? "red";
     tiles.push({ word, state });
   }
   return tiles;
@@ -95,7 +95,7 @@ export function saveSnapshot(filmId: string, tiles: WordTile[]) {
   // Keep storage small: only the most recent few films need a "before".
   delete all[filmId];
   for (const old of Object.keys(all).slice(0, -9)) delete all[old];
-  // Gold is green plus a due date; remember it as green so the map compares decks.
+  // Gold is a one-off reward moment; remember it as green so it isn't replayed.
   all[filmId] = Object.fromEntries(tiles.map((t) => [t.word, t.state === "gold" ? "green" : t.state]));
   writeJson(SNAP_KEY, all);
 }

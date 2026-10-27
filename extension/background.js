@@ -129,7 +129,7 @@ function coerceState(raw) {
 }
 
 // Gold = a green word whose review is due (next_review is a YYYY-MM-DD date),
-// the same rule as isDueForReview in src/lib/dueGold.ts.
+// the same rule as wordColour() in mobile/lib/deck-colors.ts.
 function deckState(row, today = new Date().toLocaleDateString('en-CA')) {
   const state = coerceState(row.state);
   return state === 'green' && row.next_review && String(row.next_review).slice(0, 10) <= today ? 'gold' : state;

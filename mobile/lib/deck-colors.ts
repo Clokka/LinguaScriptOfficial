@@ -20,15 +20,15 @@ export const DECK = {
 
 export type DeckState = keyof typeof DECK;
 
-/** A known word that's due for review (GOLD.core in src/lib/dueGold.ts). */
+/** A known word that's due for review (GOLD.core in src/lib/goldenReveal.ts). */
 export const GOLD = "#FFD54A";
 
 export type WordColour = DeckState | "gold";
 
 /**
  * A saved word's colour: its deck, or gold when it's green and its review is
- * due (next_review is a YYYY-MM-DD date). Same rule as isDueForReview in
- * src/lib/dueGold.ts; reviewing it turns it back to green.
+ * due (next_review is a YYYY-MM-DD date). Same rule as
+ * deckState() in extension/background.js; reviewing it turns it back to green.
  */
 export function wordColour(state: string | null | undefined, nextReview?: string | null): WordColour {
   const deck: DeckState = state === "green" ? "green" : state === "orange" ? "orange" : "red";
