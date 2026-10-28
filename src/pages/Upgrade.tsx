@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { getEnabledFallbackPlans, type StripeFallbackPlan, type StripePlanKey } from '@/lib/stripeFallback';
-import { StripeEmbeddedCheckout } from '@/components/StripeEmbeddedCheckout';
+import { CheckoutWithTerms } from '@/components/CheckoutWithTerms';
 import { Button } from '@/components/ui/button';
 import { useSubscription } from '@/hooks/useSubscription';
 import { ManageBillingButton } from '@/components/ManageBillingButton';
@@ -285,7 +285,7 @@ export default function Upgrade() {
           </div>
         </header>
         <main className="mx-auto max-w-2xl px-2 pb-[calc(env(safe-area-inset-bottom,0px)+2rem)] pt-2 sm:px-4">
-          <StripeEmbeddedCheckout
+          <CheckoutWithTerms
             priceId={checkoutPriceId}
             customerEmail={user?.email ?? undefined}
             userId={user?.id}
@@ -531,6 +531,9 @@ export default function Upgrade() {
         <div className="flex flex-wrap justify-center gap-5 mt-10 text-[#52525b] text-xs">
           <a href="/privacy" className="hover:text-[#a1a1aa] transition-colors">Privacy</a>
           <a href="/terms"   className="hover:text-[#a1a1aa] transition-colors">Terms</a>
+          <a href="/terms#refunds" className="hover:text-[#a1a1aa] transition-colors">Refunds</a>
+          <a href="/terms#cancellation" className="hover:text-[#a1a1aa] transition-colors">Cancellation</a>
+          <a href="mailto:rowan@linguascript.co.uk" className="hover:text-[#a1a1aa] transition-colors">Support</a>
         </div>
       </section>
 

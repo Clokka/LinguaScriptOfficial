@@ -240,6 +240,7 @@ const LandingClear = () => {
           <div className="flex flex-wrap items-center gap-4 text-xs text-white/40">
             <a href="/privacy" className="hover:text-white/80">Privacy Policy</a>
             <a href="/terms" className="hover:text-white/80">Terms of Service</a>
+            <a href="/terms#refunds" className="hover:text-white/80">Refunds</a>
             <a href="mailto:rowan@linguascript.co.uk" className="hover:text-white/80">Contact</a>
             <span className="text-white/30">© {new Date().getFullYear()} LinguaScript</span>
           </div>

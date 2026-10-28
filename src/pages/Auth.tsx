@@ -26,12 +26,21 @@ function GoogleIcon() {
 
 // "Failed to fetch" means the browser never reached the login server
 // (server paused/down, ad blocker, or network filter) — say that plainly.
+// Raw Supabase errors like "Email not confirmed" or "User already registered"
+// tell a stranger which email addresses have accounts. Only errors that say
+// nothing about the account (network, password rules, rate limits) are shown
+// as they are; everything else gets one generic message.
 const authErrorMessage = (e: { message?: string } | null | undefined) => {
   const msg = e?.message ?? "Please try again";
-  return /failed to fetch|networkerror|load failed|network request failed/i.test(msg)
-    ? "Couldn't reach the LinguaScript server. Check your internet, turn off ad blockers for this site, and try again in a minute."
-    : msg;
+  if (/failed to fetch|networkerror|load failed|network request failed/i.test(msg)) {
+    return "Couldn't reach the LinguaScript server. Check your internet, turn off ad blockers for this site, and try again in a minute.";
+  }
+  if (/password should|password must|weak password|rate limit|too many requests/i.test(msg)) return msg;
+  return "That didn't work. Check your email and password — and if you've just signed up, click the link in your confirmation email first.";
 };
+
+const isAlreadyRegistered = (e: { message?: string } | null | undefined) =>
+  /already registered|already exists/i.test(e?.message ?? "");
 
 const Auth = () => {
   // ?mode=signup / ?mode=forgot open those forms directly (links from the
@@ -136,7 +145,9 @@ const Auth = () => {
             (inviteToken ? `/auth?invite=${inviteToken}` : "/discover"),
         },
       });
-      if (error) {
+      // An existing account gets the same "check your email" answer as a new
+      // one, so signup can't be used to test which emails are registered.
+      if (error && !isAlreadyRegistered(error)) {
         toast({ title: "Signup failed", description: authErrorMessage(error), variant: "destructive" });
       } else {
         toast({

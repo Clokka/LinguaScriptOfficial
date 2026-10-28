@@ -1,5 +1,8 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { type StripeEnv, createStripeClient } from "../_shared/stripe.ts";
+import { safeReturnUrl } from "../_shared/safeReturnUrl.ts";
+
+const DEFAULT_RETURN_URL = "https://linguascript.co.uk/checkout/return?session_id={CHECKOUT_SESSION_ID}";
 
 const TRIAL_DAYS = 14;
 
@@ -80,7 +83,8 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { priceId, quantity, customerEmail, returnUrl, environment } = await req.json();
+    // `quantity` from the browser is ignored on purpose: Pro is one seat, always.
+    const { priceId, customerEmail, returnUrl, environment } = await req.json();
 
     // A client-supplied userId is never trustworthy on its own — anyone can
     // call this function directly with an arbitrary id and bind a Stripe
@@ -100,6 +104,16 @@ Deno.serve(async (req) => {
     }
 
     if (!priceId || !/^[a-zA-Z0-9_-]+$/.test(priceId)) throw new Error("Invalid priceId");
+
+    // Only plans switched on in /admin (the payment_plans table) can be bought.
+    // Before this, any price in the Stripe account was accepted — someone could
+    // pass the id of a cheap one-time price and be granted lifetime Pro.
+    const { data: plan } = await supabase.from("payment_plans")
+      .select("plan_key").eq("price_id", priceId).eq("enabled", true).maybeSingle();
+    if (!plan) throw new Error("Price not found");
+
+    // Sandbox (test-card) checkouts are still allowed so previews can be
+    // tested, but the webhook and the database never grant Pro for them.
     const env: StripeEnv = environment === "live" ? "live" : "sandbox";
     const stripe = createStripeClient(env);
 
@@ -142,17 +156,24 @@ Deno.serve(async (req) => {
     }
 
     const session = await stripe.checkout.sessions.create({
-      line_items: [{ price: stripePrice.id, quantity: quantity || 1 }],
+      line_items: [{ price: stripePrice.id, quantity: 1 }],
       mode: isRecurring ? "subscription" : "payment",
       ui_mode: "embedded_page",
-      return_url: returnUrl,
+      return_url: safeReturnUrl(returnUrl, DEFAULT_RETURN_URL),
       billing_address_collection: "auto",
       phone_number_collection: { enabled: false },
       automatic_tax: { enabled: true },
       submit_type: "auto",
       ...(isRecurring && { payment_method_collection: "always" }),
       ...(customerId && { customer: customerId }),
-      ...(!isRecurring && { payment_intent_data: { description: productDescription } }),
+      // userId on the payment itself lets payments-webhook find the buyer
+      // again if this one-time purchase is later refunded.
+      ...(!isRecurring && {
+        payment_intent_data: {
+          description: productDescription,
+          ...(userId && { metadata: { userId } }),
+        },
+      }),
       // `discounts` and `allow_promotion_codes` are mutually exclusive.
       ...(studentCoupon
         ? { discounts: [{ coupon: studentCoupon }] }

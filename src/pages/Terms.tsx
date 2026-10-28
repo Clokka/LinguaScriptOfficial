@@ -1,13 +1,26 @@
-import { Link } from "react-router-dom";
+import { useEffect } from "react";
+import { Link, useLocation } from "react-router-dom";
 
-const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
-  <section className="mb-8">
+// Links like /terms#refunds (from checkout and the footers) land on the right
+// section; an app page doesn't scroll to #anchors on its own.
+const useScrollToHash = () => {
+  const { hash } = useLocation();
+  useEffect(() => {
+    if (!hash) return;
+    document.getElementById(hash.slice(1))?.scrollIntoView();
+  }, [hash]);
+};
+
+const Section = ({ id, title, children }: { id?: string; title: string; children: React.ReactNode }) => (
+  <section id={id} className="mb-8 scroll-mt-6">
     <h2 className="text-xl font-semibold mb-2">{title}</h2>
     <div className="text-muted-foreground space-y-2 leading-relaxed">{children}</div>
   </section>
 );
 
-const Terms = () => (
+const Terms = () => {
+  useScrollToHash();
+  return (
   <div className="min-h-screen bg-background text-foreground">
     <header className="border-b border-border">
       <div className="max-w-3xl mx-auto px-6 py-6 flex items-center justify-between">
@@ -20,7 +33,7 @@ const Terms = () => (
     </header>
     <main className="max-w-3xl mx-auto px-6 py-10">
       <h1 className="text-3xl font-bold mb-2">Terms of Service</h1>
-      <p className="text-sm text-muted-foreground mb-8">Last updated: 23 August 2026</p>
+      <p className="text-sm text-muted-foreground mb-8">Last updated: 29 October 2026</p>
 
       <Section title="1. Acceptance of terms">
         <p>
@@ -61,10 +74,24 @@ const Terms = () => (
         </p>
       </Section>
 
-      <Section title="4. Subscriptions and payments">
+      <Section id="plans" title="4. Plans, limits and payments">
         <p>
-          LinguaScript has a free tier and a paid "Pro" tier. Paid plans are handled as follows:
+          LinguaScript has a free tier and a paid "Pro" tier. What you get is measured in
+          <b> new words saved per day</b> and <b>new videos opened per day</b>:
         </p>
+        <ul className="list-disc pl-5 space-y-1 mt-2">
+          <li><b>Free:</b> save up to 8 new words a day and watch videos from the LinguaScript
+            library. When you reach 8 words, you can keep watching and reviewing your flashcards,
+            but saving more new words that day needs Pro. The count starts again the next day.</li>
+          <li><b>Pro:</b> no daily limit on saving words, plus one brand-new video a day in each
+            language you learn (videos you or others have already opened don't count). When you
+            reach the new-video limit, you can still watch everything already available and open
+            a new video the next day.</li>
+          <li>To keep the Service fair and affordable, some features (such as translations and
+            pronunciation audio) also have generous daily fair-use limits. If you reach one, the
+            feature works again the next day.</li>
+        </ul>
+        <p className="mt-2">Paid plans are handled as follows:</p>
         <ul className="list-disc pl-5 space-y-1 mt-2">
           <li><b>On the website</b>, payments are processed by Stripe. We never receive or store
             your card details.</li>
@@ -72,28 +99,53 @@ const Terms = () => (
             app purchases are made through the Apple App Store or Google Play.</li>
           <li>Recurring plans renew automatically at the end of each billing period until
             cancelled. Prices are shown before you pay, including any applicable tax.</li>
+          <li><b>Free trial:</b> a website subscription starts with a 14-day free trial, once per
+            account. A card is needed to start it. We email you 3 days before the trial ends; if
+            you don't cancel before it ends, the first payment is taken then.</li>
+          <li>A <b>lifetime</b> plan (where offered) is a single payment for Pro on your account
+            for as long as the Service runs, with no renewals.</li>
           <li>We may also grant Pro access directly (for example through a gift link or a school
             arrangement). Granted access is not a purchase and may be time-limited.</li>
         </ul>
       </Section>
 
-      <Section title="5. Cancellation and refunds">
+      <Section id="cancellation" title="5. Cancellation">
         <p>
-          You can cancel a subscription at any time. Cancelling stops future renewals; you keep
-          Pro access until the end of the period you have already paid for. Subscriptions bought
-          on the website are cancelled through the billing portal linked from your account or by
-          emailing us; subscriptions bought in the mobile app must be cancelled through your
-          Apple or Google account, because those stores control the billing.
-        </p>
-        <p>
-          Refunds for App Store or Google Play purchases are handled by Apple or Google under
-          their policies — we cannot issue them. For purchases made on the website, contact us
-          and we will handle the request in line with your statutory rights, including UK/EU
-          consumer cancellation rights where they apply.
+          You can cancel a subscription at any time. Cancelling stops future renewals and takes
+          effect at the end of the billing period you have already paid for — you keep Pro until
+          then. If you cancel during the free trial, you are not charged and Pro ends when the
+          trial ends. Subscriptions bought on the website are cancelled from your Profile page
+          (Manage billing) or by emailing us; subscriptions bought in the mobile app must be
+          cancelled through your Apple or Google account, because those stores control the
+          billing.
         </p>
       </Section>
 
-      <Section title="6. Acceptable use">
+      <Section id="refunds" title="6. Refunds">
+        <p>
+          LinguaScript is a digital service. If you are a consumer in the UK or EU, you normally
+          have 14 days from purchase to change your mind. Because Pro starts straight away, if you
+          cancel within those 14 days we may deduct a fair amount for the time you have already
+          used. Where a free trial comes first, the 14 days run from your first payment.
+        </p>
+        <p>
+          We will also refund in full if you were charged by mistake (for example, twice), or if
+          Pro did not work and we could not fix it. Outside these cases, payments for periods
+          that have already started are not refundable, but you can cancel at any time to stop
+          future payments.
+        </p>
+        <p>
+          To ask for a refund on a website purchase, email{" "}
+          <a className="underline" href="mailto:rowan@linguascript.co.uk">rowan@linguascript.co.uk</a>{" "}
+          with the email address on your account. We reply within 5 working days, and approved
+          refunds go back to the original card, usually within 5–10 working days. If a lifetime
+          purchase is refunded, Pro is removed from the account. Refunds for App Store or Google
+          Play purchases are handled by Apple or Google under their policies — we cannot issue
+          them. None of this affects your statutory rights.
+        </p>
+      </Section>
+
+      <Section title="7. Acceptable use">
         <p>You agree not to:</p>
         <ul className="list-disc pl-5 space-y-1 mt-2">
           <li>Scrape, bulk-download or redistribute content or data from the Service.</li>
@@ -107,7 +159,7 @@ const Terms = () => (
         </ul>
       </Section>
 
-      <Section title="7. Your content">
+      <Section title="8. Your content">
         <p>
           The material you create in LinguaScript is mostly learning data: saved words and
           phrases, decks, exercise answers, progress, plus profile details such as your display
@@ -122,7 +174,7 @@ const Terms = () => (
         </p>
       </Section>
 
-      <Section title="8. Intellectual property">
+      <Section title="9. Intellectual property">
         <p>
           The LinguaScript name, logo, mascot, interface, original copy and software are ours and
           are protected by intellectual property law. These terms do not give you any right to
@@ -130,7 +182,7 @@ const Terms = () => (
         </p>
       </Section>
 
-      <Section title="9. Third-party content and services">
+      <Section title="10. Third-party content and services">
         <p>
           LinguaScript does not host, own or license the videos you watch. Video is embedded from
           YouTube and remains the property of its rights holders; your use of it is subject to
@@ -145,7 +197,7 @@ const Terms = () => (
         </p>
       </Section>
 
-      <Section title="10. Service availability and changes">
+      <Section title="11. Service availability and changes">
         <p>
           We aim to keep LinguaScript available but we do not guarantee uninterrupted service.
           Features may change, and features that depend on third parties (video playback,
@@ -155,7 +207,7 @@ const Terms = () => (
         </p>
       </Section>
 
-      <Section title="11. Suspension and termination">
+      <Section title="12. Suspension and termination">
         <p>
           We may suspend or terminate an account that breaches these terms or that poses a
           security or legal risk, normally with notice where practical. You may stop using the
@@ -165,7 +217,7 @@ const Terms = () => (
         </p>
       </Section>
 
-      <Section title="12. Disclaimer">
+      <Section title="13. Disclaimer">
         <p>
           The Service is provided "as is" and "as available". We do not warrant that translations,
           comprehension estimates, difficulty ratings or generated exercises are accurate, nor
@@ -175,7 +227,7 @@ const Terms = () => (
         </p>
       </Section>
 
-      <Section title="13. Limitation of liability">
+      <Section title="14. Limitation of liability">
         <p>
           To the fullest extent permitted by law, we are not liable for indirect or consequential
           loss, loss of profits, or loss of data arising from your use of the Service. Where we
@@ -185,7 +237,7 @@ const Terms = () => (
         </p>
       </Section>
 
-      <Section title="14. Changes to these terms">
+      <Section title="15. Changes to these terms">
         <p>
           We may update these terms. We will post the updated version here with a new date and,
           for significant changes affecting paid users, notify you by email. Continued use after
@@ -193,7 +245,7 @@ const Terms = () => (
         </p>
       </Section>
 
-      <Section title="15. Governing law">
+      <Section title="16. Governing law">
         <p>
           These terms are governed by the laws of England and Wales, and disputes will be heard
           in the courts of England and Wales. If you are a consumer in another UK/EU jurisdiction,
@@ -201,7 +253,7 @@ const Terms = () => (
         </p>
       </Section>
 
-      <Section title="16. Contact">
+      <Section title="17. Contact">
         <p>
           Rowan, LinguaScript —{" "}
           <a className="underline" href="mailto:rowan@linguascript.co.uk">rowan@linguascript.co.uk</a>
@@ -214,6 +266,7 @@ const Terms = () => (
       </p>
     </main>
   </div>
-);
+  );
+};
 
 export default Terms;

@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { aiChat, hasAIKey } from "../_shared/aiChat.ts";
+import { enforceDailyCap } from "../_shared/usageCap.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -53,6 +54,9 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
+
+  const capped = await enforceDailyCap(req, 'generate-linguascript', corsHeaders);
+  if (capped) return capped;
 
   try {
     const { targetWord, language, interests } = await req.json() as GenerateRequest;

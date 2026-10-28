@@ -137,6 +137,8 @@ const App = () => (
                 <Route path="/privacy" element={<Privacy />} />
                 <Route path="/privacy-extension" element={<PrivacyExtension />} />
                 <Route path="/terms" element={<Terms />} />
+                <Route path="/refunds" element={<Navigate to="/terms#refunds" replace />} />
+                <Route path="/cancellation" element={<Navigate to="/terms#cancellation" replace />} />
                 <Route path="/teacher" element={<Teacher />} />
                 <Route path="/progress" element={<Progress />} />
                 <Route path="/gift" element={<GiftClaim />} />

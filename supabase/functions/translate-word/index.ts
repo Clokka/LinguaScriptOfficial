@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { aiChat, hasAIKey } from "../_shared/aiChat.ts";
 import { freeTranslate } from "../_shared/freeTranslate.ts";
+import { enforceDailyCap } from "../_shared/usageCap.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -29,6 +30,9 @@ async function callAI(system: string, user: string) {
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
+
+  const capped = await enforceDailyCap(req, 'translate-word', corsHeaders);
+  if (capped) return capped;
 
   try {
     const { word, context, fromLanguage, toLanguage } = await req.json();

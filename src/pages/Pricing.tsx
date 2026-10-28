@@ -7,7 +7,7 @@ import { ChameleonMascot } from "@/components/ChameleonMascot";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
 import { getEnabledFallbackPlans, type StripeFallbackPlan, type StripePlanKey } from "@/lib/stripeFallback";
-import { StripeEmbeddedCheckout } from "@/components/StripeEmbeddedCheckout";
+import { CheckoutWithTerms } from "@/components/CheckoutWithTerms";
 import { isPaymentsConfigured } from "@/lib/stripe";
 import { cn } from "@/lib/utils";
 import { TrialTimeline } from "@/components/TrialTimeline";
@@ -79,7 +79,7 @@ export default function Pricing() {
           </div>
         </header>
         <main className="mx-auto max-w-2xl px-2 pb-[calc(env(safe-area-inset-bottom,0px)+2rem)] pt-2 sm:px-4">
-          <StripeEmbeddedCheckout
+          <CheckoutWithTerms
             priceId={stripePriceId}
             customerEmail={user?.email ?? undefined}
             userId={user?.id}
@@ -225,6 +225,14 @@ export default function Pricing() {
             Sign in to upgrade
           </Button>
         )}
+
+        <nav aria-label="Policies" className="mt-10 flex flex-wrap justify-center gap-x-5 gap-y-2 text-xs text-white/50">
+          <a href="/terms" className="hover:text-white/80">Terms</a>
+          <a href="/terms#refunds" className="hover:text-white/80">Refunds</a>
+          <a href="/terms#cancellation" className="hover:text-white/80">Cancellation</a>
+          <a href="/privacy" className="hover:text-white/80">Privacy</a>
+          <a href="mailto:rowan@linguascript.co.uk" className="hover:text-white/80">Support</a>
+        </nav>
       </div>
 
     </div>

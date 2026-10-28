@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { type StripeEnv, createStripeClient } from "../_shared/stripe.ts";
+import { safeReturnUrl } from "../_shared/safeReturnUrl.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -37,7 +38,7 @@ Deno.serve(async (req) => {
     const stripe = createStripeClient(env);
     const portal = await stripe.billingPortal.sessions.create({
       customer: (sub as any).stripe_customer_id,
-      ...(returnUrl && { return_url: returnUrl }),
+      return_url: safeReturnUrl(returnUrl, "https://linguascript.co.uk/profile"),
     });
     return new Response(JSON.stringify({ url: portal.url }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

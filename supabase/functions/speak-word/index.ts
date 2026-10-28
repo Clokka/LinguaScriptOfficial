@@ -1,3 +1,4 @@
+import { enforceDailyCap } from "../_shared/usageCap.ts";
 const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -8,6 +9,9 @@ const MODEL = "google/gemini-3.1-flash-tts-preview";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
+
+  const capped = await enforceDailyCap(req, "speak-word", cors);
+  if (capped) return capped;
   try {
     const { text } = await req.json();
     const clean = String(text || "").trim().slice(0, 300);

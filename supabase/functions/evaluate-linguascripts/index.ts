@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { aiChat } from "../_shared/aiChat.ts";
+import { enforceDailyCap } from "../_shared/usageCap.ts";
 
 // Browsers block a cross-origin call without these, so the function was
 // unreachable from the app even once the client stopped posting to /api.
@@ -113,6 +114,9 @@ serve(async (req) => {
   if (req.method !== "POST") {
     return new Response("Method not allowed", { status: 405, headers: corsHeaders });
   }
+
+  const capped = await enforceDailyCap(req, "evaluate-linguascripts", corsHeaders);
+  if (capped) return capped;
 
   try {
     const { sentences, language, nativeLanguage } = await req.json();

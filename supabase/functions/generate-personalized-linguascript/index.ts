@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { aiChat, hasAIKey } from "../_shared/aiChat.ts";
+import { enforceDailyCap } from "../_shared/usageCap.ts";
 
 interface GenerateRequest {
   word: string;
@@ -21,6 +22,9 @@ serve(async (req: Request) => {
   if (req.method !== "POST") {
     return new Response("Method not allowed", { status: 405 });
   }
+
+  const capped = await enforceDailyCap(req, "generate-personalized-linguascript", {});
+  if (capped) return capped;
 
   try {
     const body: GenerateRequest = await req.json();

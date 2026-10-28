@@ -1,5 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { type StripeEnv, verifyWebhook } from "../_shared/stripe.ts";
+import { type StripeEnv, createStripeClient, verifyWebhook } from "../_shared/stripe.ts";
 
 let _supabase: ReturnType<typeof createClient> | null = null;
 function getSupabase() {
@@ -66,7 +66,10 @@ async function markCanceled(subscription: any, env: StripeEnv) {
 // the same way admin/lifetime grants already work (a permanent flag, no
 // expiry), guarded so it only fires for a completed, paid, non-recurring
 // session with a known userId.
-async function grantOneTimePro(session: any) {
+async function grantOneTimePro(session: any, env: StripeEnv) {
+  // Sandbox payments use Stripe's public test cards, so they must never grant
+  // real Pro (the browser chooses the environment, so anyone could pick it).
+  if (env !== "live") return;
   if (session.mode !== "payment" || session.payment_status !== "paid") return;
   const userId = session.metadata?.userId;
   if (!userId) {
@@ -77,6 +80,28 @@ async function grantOneTimePro(session: any) {
     .from("profiles")
     .update({ is_pro: true, pro_source: "stripe_one_time", pro_expires_at: null })
     .eq("user_id", userId);
+}
+
+// A fully refunded one-time ("lifetime") purchase takes Pro away again.
+// Subscriptions don't need this: refunding one in Stripe doesn't end it, and
+// cancelling it already fires customer.subscription.deleted. Only Pro that
+// came from a one-time purchase is touched, so admin/gift grants survive.
+async function revokeRefundedOneTimePro(charge: any, env: StripeEnv) {
+  if (env !== "live" || !charge.refunded || !charge.payment_intent) return;
+  const paymentIntentId = typeof charge.payment_intent === "string"
+    ? charge.payment_intent
+    : charge.payment_intent.id;
+  const paymentIntent = await createStripeClient(env).paymentIntents.retrieve(paymentIntentId);
+  const userId = paymentIntent.metadata?.userId;
+  if (!userId) {
+    console.log("charge.refunded with no userId on the payment (not a lifetime purchase)", charge.id);
+    return;
+  }
+  await getSupabase()
+    .from("profiles")
+    .update({ is_pro: false, pro_source: "none", pro_expires_at: null })
+    .eq("user_id", userId)
+    .eq("pro_source", "stripe_one_time");
 }
 
 // A subscription's renewal invoices are generated automatically, outside the
@@ -218,7 +243,10 @@ Deno.serve(async (req) => {
         await markCanceled(event.data.object, env);
         break;
       case "checkout.session.completed":
-        await grantOneTimePro(event.data.object);
+        await grantOneTimePro(event.data.object, env);
+        break;
+      case "charge.refunded":
+        await revokeRefundedOneTimePro(event.data.object, env);
         break;
       case "invoice.finalization_failed":
         await flagTaxIssue(event.data.object);

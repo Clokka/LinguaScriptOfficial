@@ -263,6 +263,7 @@ const Landing = () => {
           <div className="flex gap-4">
             <a href="/privacy" className="hover:text-white/80">Privacy Policy</a>
             <a href="/terms" className="hover:text-white/80">Terms</a>
+            <a href="/terms#refunds" className="hover:text-white/80">Refunds</a>
             <a href="mailto:rowan@linguascript.co.uk" className="hover:text-white/80">Contact</a>
           </div>
         </div>
