@@ -23,7 +23,6 @@ import { DEFAULT_WORD_GOAL, videoGoalForWords, wordGoalForVideos } from "@/lib/p
 import { INTERESTS } from "@/lib/interests";
 import { MODE_META, addLanguageProfile, type LearningMode } from "@/lib/languageProfiles";
 import { rememberGuestOnboarding, applyGuestOnboarding } from "@/lib/guestOnboarding";
-import { COURSES } from "@/lib/landingCourses";
 
 // "beginner" is a true zero-knowledge start — not a CEFR level, a signal
 // that nothing should be pre-marked as already known. See addLanguageProfile's
@@ -338,24 +337,6 @@ const Onboarding = () => {
                         </button>
                       ))}
                     </div>
-                    {level === "beginner" && (
-                      <div className="mt-4 rounded-2xl bg-[#34C759]/10 border border-[#34C759]/30 p-4 text-sm text-white/75 leading-relaxed">
-                        Perfect — we'll start you on the single most useful {getLanguageLabel(target) || "language"}{" "}
-                        words first, in the order native speakers actually use them, and build up from there.
-                        {(COURSES as Record<string, { name: string; by: string; url: string }[]>)[target]?.[0] && (() => {
-                          const c = (COURSES as Record<string, { name: string; by: string; url: string }[]>)[target][0];
-                          return (
-                            <p className="mt-3 text-xs text-white/55">
-                              Tip: LinguaScript builds vocabulary. A beginner course alongside it gives you the alphabet and
-                              grammar base. One we like:{" "}
-                              <a href={c.url} target="_blank" rel="noopener noreferrer" className="underline text-white/80 hover:text-white">
-                                {c.name}
-                              </a>{" "}({c.by}).
-                            </p>
-                          );
-                        })()}
-                      </div>
-                    )}
                   </Field>
 
                   <Field label={t("schoolOptional")}>

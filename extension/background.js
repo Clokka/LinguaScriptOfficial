@@ -148,7 +148,8 @@ async function fetchAllSavedWords(query, accessToken) {
   const PAGE = 1000;
   const rows = [];
   for (let offset = 0; ; offset += PAGE) {
-    const res = await rest(`${query}&limit=${PAGE}&offset=${offset}`, accessToken);
+    // Ordered, so a word can't fall between two pages while the table is read.
+    const res = await rest(`${query}&order=id.asc&limit=${PAGE}&offset=${offset}`, accessToken);
     if (!res.ok) throw new Error(`Failed to load saved_words (${res.status})`);
     const page = await res.json();
     rows.push(...page);
@@ -333,7 +334,12 @@ async function gtxTranslate(text, sl, tl, ms = 4000) {
 // (Top 50, 100, 150…) are built from. The extension rings this list's words,
 // so learners get the next most useful words from it, minus anything already
 // in their decks. Readable without logging in.
-const RING_POOL_SIZE = 300;
+const RING_POOL_SIZE = 500;
+// Rings are only for languages that are written with spaces between words, in
+// the Latin alphabet, where the frequency list's words match what the subtitles
+// are split into. Japanese, Chinese and Thai are split by Intl.Segmenter into
+// pieces that don't line up with the list yet, so they get no rings for now.
+const RING_LANGS = new Set(['fr', 'es', 'de', 'it', 'pt', 'en', 'nl', 'pl', 'sv']);
 const COMMON_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 const _commonCache = new Map(); // language → { ts, words }
 const SEGMENTED = new Set(['zh', 'ja', 'th']);
@@ -368,7 +374,7 @@ async function getRingPool(language) {
     if (!langs.languages.includes(lang)) lang = langs.language || lang;
     if (lang) deck = await getDeckIndexCached(session.user.id, lang, session.access_token);
   }
-  if (!lang) return { ok: true, words: [] };
+  if (!lang || !RING_LANGS.has(lang)) return { ok: true, words: [], language: lang };
   const common = await getCommonWords(lang);
   const words = [];
   for (const w of common) {
@@ -403,7 +409,19 @@ async function getXp(session) {
 
 // ─── Save one word ────────────────────────────────────────────────────────────
 
+// A hiccup (network, server error, rate limit) is worth one quiet retry; a
+// real rejection (logged out, wrong language) is not. Saving is safe to repeat:
+// a word that already exists is only touched, never duplicated.
 async function saveWord(msg) {
+  try {
+    return await saveWordOnce(msg);
+  } catch (e) {
+    const message = e?.message || 'Network error';
+    return { ok: false, error: message, transient: !/log(ged)? ?in|expired/i.test(message) };
+  }
+}
+
+async function saveWordOnce(msg) {
   const session = await getValidSession();
   const userId = session.user.id;
   const token = session.access_token;
@@ -476,7 +494,7 @@ async function saveWord(msg) {
   if (!insertRes.ok) {
     const err = await insertRes.text();
     console.error('[LinguaScript] save failed:', insertRes.status, err);
-    return { ok: false, error: `Couldn’t save (${insertRes.status})` };
+    return { ok: false, error: `Couldn’t save (${insertRes.status})`, transient: insertRes.status >= 500 || insertRes.status === 429 };
   }
   invalidateDeckCache();
   // Matches XP_SAVE in ls-core.js; add_word is 20 in the app too.
