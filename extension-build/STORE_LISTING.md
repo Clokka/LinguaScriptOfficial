@@ -89,7 +89,9 @@ Leave everything else unticked (no health, financial, location, web history, use
 - Netflix: the toolbar sits at the bottom again, just above Netflix's own buttons
 - Drag the toolbar anywhere; double-click its ⠿ handle to put it back
 - Saving a word turns it red and dings straight away
-- Rings on every common word you haven't saved yet (from the app's common-words list, up to 4 per subtitle line); the ring goes when you save the word
+- Rings on every common word you haven't saved yet (from the app's common-words list, up to 4 per subtitle line); the ring goes when you save the word. Rings are for French, Spanish, German, Italian, Portuguese, English, Dutch, Polish and Swedish for now
+- A saved word turns red straight away and stays red; the word card stays open to say it was saved
+- Subtitles in a different language than the one picked are no longer saved as one long "word": the card says so instead
 - Gold = a known (green) word that's due for review; tap it to jump to your flashcards
 - +20 XP for each new word, XP shown on the toolbar
 - Signing in to the extension signs linguascript.co.uk into the same account

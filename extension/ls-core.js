@@ -68,6 +68,17 @@
   // lines into words with Intl.Segmenter (like src/lib/wordSegments.ts);
   // everything else splits on spaces.
   const SEGMENTED_LANGS = new Set(['zh', 'ja', 'th']);
+  // Same ranges as SCRIPT_BY_LANG in background.js. A language written in the
+  // Latin alphabet must not be handed kana, hanzi, Thai, Cyrillic, etc.
+  const SCRIPT_BY_LANG = {
+    ru: /[Ѐ-ӿ]/, zh: /[一-鿿]/, ja: /[぀-ヿ一-鿿]/,
+    ko: /[가-힯]/, ar: /[؀-ۿ]/, hi: /[ऀ-ॿ]/, th: /[฀-๿]/,
+  };
+  const NON_LATIN = /[Ѐ-ӿ぀-ヿ一-鿿가-힯؀-ۿऀ-ॿ฀-๿]/;
+  function wordFitsLanguage(word, lang) {
+    const re = SCRIPT_BY_LANG[(lang || '').toLowerCase().split('-')[0]];
+    return re ? re.test(word) : !NON_LATIN.test(word);
+  }
   function splitWords(text, lang) {
     const base = (lang || '').toLowerCase().split('-')[0];
     if (SEGMENTED_LANGS.has(base) && typeof Intl !== 'undefined' && Intl.Segmenter) {
@@ -93,7 +104,15 @@
   let DEBUG = false;
   function setLangs(l, n) { learningLang = l || 'fr'; nativeLang = n || 'en'; }
   function setDebug(v) { DEBUG = !!v; }
-  const send = (msg) => new Promise((r) => chrome.runtime.sendMessage(msg, (res) => r(chrome.runtime.lastError ? null : res)));
+  // After the extension is reloaded or updated, tabs that were already open keep
+  // this script but lose their connection to it (chrome.runtime.id goes away).
+  const extensionAlive = () => { try { return !!chrome.runtime?.id; } catch { return false; } };
+  const send = (msg) => new Promise((r) => {
+    try { chrome.runtime.sendMessage(msg, (res) => r(chrome.runtime.lastError ? null : res)); }
+    catch { r(null); }
+  });
+  /** The languages on the learner's account, once known (null until then). */
+  let accountLangs = null;
 
   const SITE = 'https://linguascript.co.uk';
   const LANGUAGES = {
@@ -115,6 +134,7 @@
     const lang = info?.ok && info.language ? info.language : stored.ls_language;
     const native = info?.ok && info.nativeLanguage ? info.nativeLanguage : stored.ls_native_language;
     if (info?.ok && info.language) chrome.storage.local.set({ ls_language: lang, ls_native_language: native });
+    accountLangs = info?.ok ? info.languages || [] : null;
     setLangs(lang, native); setDebug(stored.ls_debug);
     Rings.load();
     return { lang, nativeLang: native };
@@ -146,19 +166,11 @@
         if (tr && tr.toLowerCase() !== text.toLowerCase()) return tr;
       }
     } catch {}
-    return new Promise((resolve) => {
-      let tries = 0;
-      (function attempt() {
-        tries++;
-        chrome.runtime.sendMessage({ type: 'TRANSLATE', text, targetLang, sourceLang }, (res) => {
-          if (chrome.runtime.lastError) {
-            if (tries < 3) { setTimeout(attempt, 500); return; }
-            resolve(null); return;
-          }
-          resolve(res?.translation ?? null);
-        });
-      })();
-    });
+    for (let tries = 1; ; tries++) {
+      const res = await send({ type: 'TRANSLATE', text, targetLang, sourceLang });
+      if (res || tries >= 3) return res?.translation ?? null;
+      await new Promise((r) => setTimeout(r, 500));
+    }
   }
 
   // ══ Deck — THE red/orange/green/gold colour feature ══════════════════════════
@@ -204,24 +216,24 @@
     // Pull the deck for the active learning language from the background and
     // repaint. Called on mount and every refresh tick.
     refresh(force = false) {
-      return new Promise((resolve) => {
-        chrome.runtime.sendMessage({ type: 'GET_DECK', language: learningLang, force }, (res) => {
-          if (chrome.runtime.lastError || !res?.ok) { log('GET_DECK failed'); resolve(false); return; }
+      return send({ type: 'GET_DECK', language: learningLang, force }).then((res) => {
+          if (!res?.ok) { log('GET_DECK failed'); return false; }
           this._map.clear();
           for (const [word, state] of Object.entries(res.deck || {})) {
             if (this.STATES.includes(state)) this._map.set(normalizeToken(word), state);
           }
-          // A word saved seconds ago may not be in the server's list yet.
+          // A word saved moments ago may not be in the server's list yet: keep it
+          // red until the server has it (then it is confirmed), or give up after
+          // ten minutes so a save that never landed doesn't stay red forever.
           this._justSaved.forEach((ts, w) => {
-            if (Date.now() - ts > 120000) this._justSaved.delete(w);
-            else if (!this._map.has(w)) this._map.set(w, 'red');
+            if (this._map.has(w) || Date.now() - ts > 10 * 60000) this._justSaved.delete(w);
+            else this._map.set(w, 'red');
           });
           const dist = { red: 0, orange: 0, green: 0, gold: 0 };
           this._map.forEach((s) => dist[s]++);
           log('deck loaded:', this._map.size, 'words', dist, '| le/la/des =', this._map.get('le'), this._map.get('la'), this._map.get('des'));
           this.repaintAll();
-          resolve(true);
-        });
+          return true;
       });
     },
 
@@ -366,7 +378,7 @@
 
   // ── Word card ──────────────────────────────────────────────────────────────
   let activeCard = null;
-  function closeCard() { activeCard?.remove(); activeCard = null; }
+  function closeCard() { activeCard?._off?.(); activeCard?.remove(); activeCard = null; }
 
   function openCard({ word, clean, fullLine, anchorEl }) {
     closeCard();
@@ -376,8 +388,13 @@
       gold: '🟡 Due for review · check it in your flashcards', green: '🟢 Known',
       orange: '🟠 Learning', red: '🔴 New word',
     };
-    const tierLabel = TIERS[tier] || (ringed ? '⭕ Common word · worth learning' : '⬜ Unseen');
-    const tierColor = Deck.PALETTE[tier] || (ringed ? Deck.PALETTE.orange : '#888');
+    // Subtitles in another language than the one picked (say Japanese while the
+    // account is on French) have no spaces, so a whole line looked like one word
+    // and got saved as a "phrase". Offer a translation, but not a save.
+    const wrongScript = !tier && !wordFitsLanguage(clean, learningLang);
+    const tierLabel = wrongScript ? `⚠️ Not ${langName(learningLang)}`
+      : TIERS[tier] || (ringed ? '⭕ Common word · worth learning' : '⬜ Unseen');
+    const tierColor = wrongScript ? '#FFD54A' : Deck.PALETTE[tier] || (ringed ? Deck.PALETTE.orange : '#888');
     const alreadySaved = !!tier;
 
     const card = document.createElement('div'); card.id = 'ls-card'; activeCard = card;
@@ -387,7 +404,9 @@
       <div id="ls-card-tier" style="color:${tierColor}">${tierLabel}</div>
       <div id="ls-card-trans" style="color:#9A9AA6;font-style:italic;font-size:14px;">looking up…</div>
       <div id="ls-card-body"></div>
-      <div id="ls-card-action">${tier === 'gold'
+      <div id="ls-card-action">${wrongScript
+        ? `<div class="ls-card-status">These subtitles aren't in ${escapeHtml(langName(learningLang))}. Pick the language you're watching in the LinguaScript pop-up (add it under <a href="${SITE}/profile" target="_blank" rel="noopener noreferrer">My languages</a> first).</div>`
+        : tier === 'gold'
         ? `<a id="ls-card-save" class="ls-card-review" href="${flashcardsUrl(learningLang)}" target="_blank" rel="noopener noreferrer">Review it now →</a>`
         : `<button id="ls-card-save"${alreadySaved ? ' disabled' : ''}>${alreadySaved ? '✓ In your flashcards' : `+ Save to flashcards · +${XP_SAVE} XP`}</button>`}</div>`;
     layerHost().appendChild(card);
@@ -406,10 +425,15 @@
     };
     place();
     new ResizeObserver(place).observe(card);
-    setTimeout(() => document.addEventListener('click', (e) => { if (!card.contains(e.target)) closeCard(); }, { once: true }), 0);
+    // Close on a click anywhere outside the card. composedPath() is taken when the
+    // click happens: pressing Save swaps the button out of the card, and judging
+    // the click afterwards ("is the target inside?") closed the card on every save.
+    const onDocClick = (e) => { if (!e.composedPath().includes(card)) closeCard(); };
+    card._off = () => document.removeEventListener('click', onDocClick);
+    setTimeout(() => { if (activeCard === card) document.addEventListener('click', onDocClick); }, 0);
 
     let resolvedTranslation = '';
-    chrome.runtime.sendMessage({ type: 'WORD_DETAIL', word: clean, sourceLang: learningLang, targetLang: nativeLang }, (detail) => {
+    send({ type: 'WORD_DETAIL', word: clean, sourceLang: wrongScript ? 'auto' : learningLang, targetLang: nativeLang }).then((detail) => {
       if (!activeCard) return;
       const transEl = card.querySelector('#ls-card-trans');
       const bodyEl = card.querySelector('#ls-card-body');
@@ -447,8 +471,8 @@
       }
     });
 
-    chrome.runtime.sendMessage({ type: 'GET_AUTH' }, (authRes) => {
-      if (!activeCard) return;
+    send({ type: 'GET_AUTH' }).then((authRes) => {
+      if (!activeCard || wrongScript) return;
       const saveBtn = card.querySelector('#ls-card-save');
       if (!authRes?.session) {
         setCardAction(card, buildMiniLogin(card, clean, fullLine, () => resolvedTranslation));
@@ -472,11 +496,21 @@
   // XP for a new word: the app's add_word value.
   const XP_SAVE = 20;
 
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
   async function saveFromCard(card, word, context, translation) {
+    // A tab left open while the extension was reloaded or updated can't reach it
+    // any more. Say so, instead of turning the word red for a save that can't happen.
+    if (!extensionAlive()) {
+      setCardAction(card, cardNote('LinguaScript was just updated. <b>Refresh this page</b> to keep saving words.'));
+      return;
+    }
     // Red and ding the moment it's clicked, not after the round trips to the
-    // server; the ding must also start inside the click or Chrome mutes it.
+    // server; the ding must also start inside the click or Chrome mutes it. Not
+    // when we already know the language isn't on the account: that save will be
+    // refused, and red-then-white would just be a flicker.
     const key = normalizeToken(word);
-    const optimistic = !Deck.stateOf(key);
+    const optimistic = !Deck.stateOf(key) && (!accountLangs || accountLangs.includes(learningLang));
     if (optimistic) {
       Deck.markSaved(word);
       playDing();
@@ -485,35 +519,55 @@
       if (tierEl) { tierEl.textContent = '🔴 New word'; tierEl.style.color = Deck.PALETTE.red; }
     }
     setCardAction(card, cardNote(optimistic ? '✓ Saving to your flashcards…' : 'Saving…'));
-    const res = await send({ type: 'SAVE_WORD', word, context, language: learningLang, translation });
-    if (!res?.ok && optimistic) Deck.unmarkSaved(word);
+    const ask = () => send({ type: 'SAVE_WORD', word, context, language: learningLang, translation });
+    let res = await ask();
+    // One quiet retry for a hiccup (no reply, network or server error), so a
+    // blip doesn't undo the red. Repeating a save is safe.
+    if (!res || res.transient) { await sleep(1200); res = await ask(); }
+    // No reply at all means we can't tell whether it landed. The word stays red
+    // and the server's deck settles it; only a clear "no" turns it back.
+    const unconfirmed = !res;
+    if (!unconfirmed && !res.ok && optimistic) Deck.unmarkSaved(word);
     // The server's count is the truth (an already-saved word can count too).
     Goal.refresh();
+    if (unconfirmed) setTimeout(() => Deck.refresh(true), 3000);
+    // What the save means for the page doesn't depend on the card still being open.
+    if (res?.ok) {
+      if (!optimistic) { Deck.markSaved(word); playDing(); }
+      Deck.refresh(true);
+      if (res.xp) celebrateSave(key, res);
+    }
     if (activeCard !== card) {
-      if (!res?.ok) showToast('Couldn’t save that word');
-      else if (res.xp) celebrateSave(key, res);
+      if (unconfirmed) showToast('Couldn’t confirm that save. Check your flashcards.');
+      else if (!res.ok) showToast('Couldn’t save that word');
       return;
     }
-    if (res?.error === 'not_your_language') {
-      showLanguagePicker(card, res.languages || [], () => saveFromCard(card, word, context, translation));
-      return;
-    }
-    if (!res?.ok) {
+    if (unconfirmed) {
       const retry = document.createElement('button'); retry.id = 'ls-card-save';
-      retry.textContent = res?.message || 'Couldn’t save. Tap to try again';
-      retry.disabled = !!res?.message;
+      retry.textContent = 'Couldn’t confirm the save. Tap to try again';
       retry.addEventListener('click', () => saveFromCard(card, word, context, translation));
       setCardAction(card, retry);
       return;
     }
-    if (!optimistic) { Deck.markSaved(word); playDing(); }
-    Deck.refresh(true);
-    if (res.xp) celebrateSave(key, res);
+    if (res.error === 'not_your_language') {
+      showLanguagePicker(card, res.languages || [], () => saveFromCard(card, word, context, translation));
+      return;
+    }
+    if (!res.ok) {
+      const retry = document.createElement('button'); retry.id = 'ls-card-save';
+      retry.textContent = res.message || 'Couldn’t save. Tap to try again';
+      retry.disabled = !!res.message;
+      retry.addEventListener('click', () => saveFromCard(card, word, context, translation));
+      setCardAction(card, retry);
+      return;
+    }
     const lang = res.language || learningLang;
     setCardAction(card, cardNote(
       `<b>✓ ${res.already ? 'Already in' : 'Saved to'} your ${langFlag(lang)} ${escapeHtml(langName(lang))} flashcards</b>` +
       `<a href="${flashcardsUrl(lang)}" target="_blank" rel="noopener noreferrer">Open your ${escapeHtml(langName(lang))} flashcards →</a>`,
       'ls-card-status ls-card-saved'));
+    // Long enough to read (and to tap the link); a click elsewhere closes it sooner.
+    setTimeout(() => { if (activeCard === card) closeCard(); }, 4000);
   }
 
   function celebrateSave(key, res) {
@@ -556,6 +610,7 @@
     Goal.refresh();
     send({ type: 'GET_XP' }).then((r) => { if (r?.ok) setXpChip(r.xpTotal); });
     const languages = info?.languages || [];
+    accountLangs = languages;
     const save = () => saveFromCard(card, word, context, getTranslation());
     if (languages.includes(learningLang)) {
       await send({ type: 'SET_LANGUAGE', language: learningLang });
