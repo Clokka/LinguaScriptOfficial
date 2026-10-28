@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { User, Session } from "@supabase/supabase-js";
+import posthog from "posthog-js";
 import { supabase } from "@/integrations/supabase/client";
 import { migrateGuestWords } from "@/lib/guestWords";
 import { syncTimezone } from "@/lib/syncTimezone";
@@ -18,6 +19,10 @@ export function useAuth() {
         // Flush any guest-mode flashcards into the freshly signed-in account.
         if (event === "SIGNED_IN" && session?.user) {
           void migrateGuestWords(session.user.id);
+          posthog.identify(session.user.id, { email: session.user.email });
+        }
+        if (event === "SIGNED_OUT") {
+          posthog.reset();
         }
         if (session?.user) void syncTimezone(session.user.id);
       }
@@ -27,12 +32,16 @@ export function useAuth() {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
+      if (session?.user) {
+        posthog.identify(session.user.id, { email: session.user.email });
+      }
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
   const signOut = async () => {
+    posthog.reset();
     await supabase.auth.signOut();
   };
 
