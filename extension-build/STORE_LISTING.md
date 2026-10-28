@@ -1,8 +1,8 @@
-# Chrome Web Store listing — LinguaScript 1.4.0
+# Chrome Web Store listing — LinguaScript 1.4.1
 
 Everything to paste into the Chrome Web Store Developer Dashboard
 (https://chrome.google.com/webstore/devconsole). Build the upload zip with
-`scripts/pack-extension.sh` → `extension-build/linguascript-extension-1.4.0.zip`.
+`scripts/pack-extension.sh` → `extension-build/linguascript-extension-1.4.1.zip`.
 
 ## Store listing tab
 
@@ -85,7 +85,7 @@ Leave everything else unticked (no health, financial, location, web history, use
 - Regions: All regions
 - Pricing: Free
 
-## What's new in 1.4.0
+## What's new in 1.4.1
 - Netflix: the toolbar sits at the bottom again, just above Netflix's own buttons
 - Drag the toolbar anywhere; double-click its ⠿ handle to put it back
 - Saving a word turns it red and dings straight away
@@ -98,8 +98,8 @@ Leave everything else unticked (no health, financial, location, web history, use
 - Today's word goal on the toolbar ("3 / 10 today", same count as the app); reaching it pauses the video once a day and offers "Review flashcards"
 - The five speed buttons are now one button that steps through 0.5× → 1.5×, so the toolbar fits beside the transcript
 
-Note: 1.4.0 adds linguascript.co.uk to the sites the extension runs on, so
+Note: 1.4.1 adds linguascript.co.uk to the sites the extension runs on, so
 Chrome asks existing users to approve it once when they update.
 
-## What's not in 1.4.0 (coming in updates)
+## What's not in 1.4.1 (coming in updates)
 - Auto-pause on ringed words, pre-teach warm-up
