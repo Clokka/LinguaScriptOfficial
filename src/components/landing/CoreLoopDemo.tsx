@@ -149,7 +149,7 @@ export const CoreLoopDemo = ({ line, language, languageLabel, onTry }: Props) =>
   }, [allGreen, board]);
 
   const tapWord = (i: number) => {
-    if (tiers[i] === 3) { set(i, 2); setBoard(true); return; } // gold → progress board
+    if (tiers[i] === 3) { set(i, 2); return; } // gold → green, no pop-up
     const r = wordRefs.current[i]?.getBoundingClientRect();
     if (r) setPopup({ i, x: r.left + r.width / 2, y: r.bottom + 8 });
   };
