@@ -72,6 +72,7 @@ The core loop (home, review cards, my words, profile, onboarding) is built nativ
    - Review cards with red/orange/green/gold, using `displayState`, `nextReviewInterval` and `submitReview` from core.
    - My words (filter by colour).
    - Profile and settings, including the 🦎 bubble switch and Colour/Rings, sent as `linguascriptbubble://` links.
+   - 📷 Scan a page: photo of a book page → circled words go red, highlighted ones go into their colour's deck. Uses the `scan-page` function and `saveScannedWords` from core, the same ones the website uses.
 4. **Watch**
    - A WebView screen for `/watch/:id`, using the existing bridge messages typed in `bridge.ts`.
    - The select-text inbox and the bubble deck keep working through the same files (`ls-inbox.json`, `ls-deck.json`).
@@ -143,6 +144,15 @@ STEP 3 — CORE SCREENS
   bridge.ts) so the bubble works without opening Watch.
 - On start, read APP_FILES.inbox (select-text saves) and save them to
   saved_words as red, then clear them (same as src/components/AppInbox.tsx).
+- 📷 Scan a page (big button on Home and Review): camera via expo-image-picker
+  (launchCameraAsync, also allow picking from the gallery) → resize to max
+  1600px JPEG with expo-image-manipulator → call the "scan-page" Supabase
+  function with { image: dataUrl, language, nativeLanguage } → show the same
+  review list as src/components/ScanPageButton.tsx (tick/untick, tap the
+  colour pill to change deck) → save with saveScannedWords() from core.
+  Pen circle/underline = red; highlighter red = red, orange/yellow = orange,
+  green = green (green comes back gold 5 minutes later). Add the CAMERA
+  permission.
 
 STEP 4 — WATCH
 - WebView of https://linguascript.co.uk/watch/:id with the user agent tag

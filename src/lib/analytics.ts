@@ -43,7 +43,9 @@ export type AnalyticsEvent =
   | "speak_finished"
   | "phone_colour_enabled"
   | "phone_colour_disabled"
-  | "phone_colour_style";
+  | "phone_colour_style"
+  | "page_scan_started"
+  | "page_scanned";
 
 type Props = Record<string, string | number | boolean | null | undefined>;
 
