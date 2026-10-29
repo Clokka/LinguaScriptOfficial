@@ -34,7 +34,7 @@ export const InterestsPromptModal = () => {
   }, [user, loading]);
 
   const toggle = (id: string) =>
-    setSelected((curr) => curr.includes(id) ? curr.filter((x) => x !== id) : [...curr, id]);
+    setSelected([id]);
 
   const save = async () => {
     if (!user || selected.length === 0) return;

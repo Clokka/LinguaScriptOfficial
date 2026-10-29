@@ -1,4 +1,5 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+import { popularityScore } from "../../../src/lib/videoPopularity.ts";
 
 /**
  * Convert ISO 8601 duration (e.g. PT4M13S) -> total seconds.
@@ -91,13 +92,7 @@ function qualityScore(it: {
   audioLang: string;
   hasCaptions?: boolean;
 }, lang: string): number {
-  const engagementRatio = it.viewCount > 0 ? it.likeCount / it.viewCount : 0;
-  const durationCloseness = 1 - Math.min(1, Math.abs(it.durationSeconds - IDEAL_DURATION_SECONDS) / IDEAL_DURATION_SECONDS);
-  const ciBoost = isComprehensibleInput(it.title || "", it.channel || "", lang) ? 1 : 0;
-  // Weighted so CI content wins ties decisively, engagement quality matters
-  // more than exact duration, and nothing so extreme one factor alone
-  // dominates every other signal.
-  return engagementRatio * 100 + durationCloseness * 3 + ciBoost * 5 + (it.hasCaptions ? 2 : 0);
+  return popularityScore(it);
 }
 
 // YouTube's search.list costs 100 quota units of a 10,000/day allowance —
@@ -166,7 +161,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const cacheKey = `${(lang || "any").toLowerCase()}::${q.trim().toLowerCase()}`;
+    const cacheKey = `hobby-v3:${(lang || "any").toLowerCase()}::${q.trim().toLowerCase()}`;
     const cached = await readCache(cacheKey);
     if (cached && cached.ageMs < CACHE_TTL_MS) {
       return new Response(JSON.stringify({ items: cached.items, cached: true }), {
@@ -179,7 +174,8 @@ Deno.serve(async (req) => {
     searchUrl.searchParams.set("part", "snippet");
     searchUrl.searchParams.set("q", q);
     searchUrl.searchParams.set("type", "video");
-    searchUrl.searchParams.set("maxResults", "25");
+    searchUrl.searchParams.set("maxResults", "50");
+    searchUrl.searchParams.set("order", "viewCount");
     searchUrl.searchParams.set("videoEmbeddable", "true");
     if (lang) searchUrl.searchParams.set("relevanceLanguage", lang);
     searchUrl.searchParams.set("key", apiKey);

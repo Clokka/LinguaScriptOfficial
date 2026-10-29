@@ -42,7 +42,7 @@ class WordOverlayView(
   )
   private val deep = mapOf(
     DeckStore.RED to Color.parseColor("#D92B21"), DeckStore.ORANGE to Color.parseColor("#C05F00"),
-    DeckStore.GREEN to Color.parseColor("#1E8E3E"), DeckStore.GOLD to Color.parseColor("#B07A00"),
+    DeckStore.GREEN to Color.parseColor("#34C759"), DeckStore.GOLD to Color.parseColor("#B07A00"),
   )
 
   private val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }

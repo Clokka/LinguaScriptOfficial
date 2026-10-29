@@ -27,7 +27,7 @@ export type DisplayState = DeckState | "gold";
 export const DECK_COLOURS: Record<DisplayState, { hex: string; deep: string }> = {
   red: { hex: "#FF3B30", deep: "#D92B21" },
   orange: { hex: "#FF8A00", deep: "#C05F00" },
-  green: { hex: "#34C759", deep: "#1E8E3E" },
+  green: { hex: "#34C759", deep: "#34C759" },
   gold: { hex: "#FFD54A", deep: "#B07A00" },
 };
 export const BRAND_GREEN = "#7bbf27";

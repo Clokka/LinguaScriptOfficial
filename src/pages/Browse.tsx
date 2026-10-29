@@ -749,9 +749,7 @@ const HomeTab = ({
       {/* Live YouTube recommendations by onboarding hobby + learning language.
           Existed as a component but was never mounted anywhere in the app. */}
       {/* YouTube picks are new videos, a Pro feature — free learners get the library. */}
-      {isPro && (
-        <PersonalizedRails interests={interests} nativeLanguage={nativeLanguage} onWatch={onWatchYoutube} importing={creating} />
-      )}
+      <PersonalizedRails interests={interests} nativeLanguage={nativeLanguage} onWatch={isPro ? onWatchYoutube : async () => { onLocked(); }} importing={creating} />
 
       {/* Paste YouTube Link — shown locked to free learners; a tap opens the Pro lock. */}
       <div className="glass-panel-strong p-6 rounded-2xl relative">
@@ -795,7 +793,7 @@ const HomeTab = ({
       </div>
 
       {/* Admin-curated rails — the new browsing surface. */}
-      <HomeCatalogRows />
+      {interests.length === 0 && <HomeCatalogRows />}
       </div>
       </div>
 

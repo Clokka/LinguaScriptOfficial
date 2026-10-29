@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Loader2, Sparkles, ChevronRight, RefreshCw } from "lucide-react";
+import { PageLoading } from "@/components/PageLoading";
 import { Button } from "@/components/ui/button";
 import { FlashcardReview } from "@/components/FlashcardReview";
 import { supabase } from "@/integrations/supabase/client";
@@ -119,14 +120,17 @@ const Flashcards = () => {
     if (showSpinner && !hadCache) setLoading(true);
 
     if (learningLanguage) {
-      const key = `ls.focusTopUp.${learningLanguage}`;
+      const key = `ls.focusTopUp.${user.id}.${learningLanguage}`;
       const today = new Date().toDateString();
       if (localStorage.getItem(key) !== today) {
-        try {
+        void (async () => { try {
           const { topUpDailyNew } = await import("@/lib/focusDeck");
           const r = await topUpDailyNew(user.id, learningLanguage);
-          if (r) localStorage.setItem(key, today);
-        } catch (e) { console.warn("[focusDeck]", e); }
+          if (r) {
+            localStorage.setItem(key, today);
+            window.dispatchEvent(new Event("ls:words-saved"));
+          }
+        } catch (e) { console.warn("[focusDeck]", e); } })();
       }
     }
     // Large accounts exceed the 1,000-row window: get the count with the first
@@ -194,7 +198,12 @@ const Flashcards = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  useEffect(() => { fetchCards(); }, [fetchCards]);
+  useEffect(() => {
+    void fetchCards();
+    const refresh = () => { void fetchCards(false); };
+    window.addEventListener("ls:words-saved", refresh);
+    return () => window.removeEventListener("ls:words-saved", refresh);
+  }, [fetchCards]);
 
   // Realtime: re-fetch when the extension (or any other client) inserts a new
   // word OR changes a word's state (red → orange → green). Listening to both
@@ -323,9 +332,7 @@ const Flashcards = () => {
 
       <div className="max-w-5xl mx-auto px-6 py-8 space-y-10">
         {loading ? (
-          <div className="flex justify-center py-12">
-            <Loader2 className="w-8 h-8 animate-spin text-primary" />
-          </div>
+          <PageLoading />
         ) : (
           <>
             {loadError && (
