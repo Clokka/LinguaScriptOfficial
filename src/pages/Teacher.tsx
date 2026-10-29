@@ -7,13 +7,36 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Card } from "@/components/ui/card";
-import { Loader2, Copy, GraduationCap, Plus, Users } from "lucide-react";
+import { Loader2, Copy, GraduationCap, Plus, Users, Download } from "lucide-react";
+import PageLoading from "@/components/PageLoading";
 
 interface School { school_id: string; name: string; slug: string; member_role: string; }
 interface Student {
   user_id: string; display_name: string; email: string;
-  xp_total: number; xp_level: number; streak_count: number;
-  words_known: number; minutes_watched: number; joined_at: string;
+  learning_language: string | null; streak_count: number;
+  words_learned: number; words_this_week: number | null; reviews_this_week: number | null;
+  minutes_this_week: number | null; minutes_total: number;
+  last_active_at: string | null; joined_at: string;
+}
+
+const DAY = 86400000;
+function activity(st: Student): { label: string; tone: string } {
+  if (!st.last_active_at) return { label: "Not started", tone: "bg-destructive/15 text-destructive" };
+  const days = Math.floor((Date.now() - new Date(st.last_active_at).getTime()) / DAY);
+  if (days <= 1) return { label: "Active today", tone: "bg-primary/15 text-primary" };
+  if (days <= 7) return { label: `${days} days ago`, tone: "bg-secondary text-secondary-foreground" };
+  return { label: `Inactive ${days}d`, tone: "bg-destructive/15 text-destructive" };
+}
+
+function downloadCsv(name: string, rows: Student[]) {
+  const head = ["Name", "Email", "Language", "Streak", "Words learned", "New words (7d)", "Reviews (7d)", "Minutes (7d)", "Minutes total", "Last active"];
+  const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  const body = rows.map((r) => [r.display_name, r.email, r.learning_language, r.streak_count, r.words_learned, r.words_this_week, r.reviews_this_week, r.minutes_this_week, r.minutes_total, r.last_active_at?.slice(0, 10)].map(esc).join(","));
+  const blob = new Blob([[head.join(","), ...body].join("\n")], { type: "text/csv" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `${name}-progress.csv`;
+  a.click();
 }
 interface Invite { id: string; email: string; token: string; status: string; created_at: string; }
 
@@ -47,13 +70,27 @@ export default function Teacher() {
 
   useEffect(() => { if (user) void loadSchools(); }, [user]);
 
+  const loadStudents = async (schoolId: string): Promise<Student[]> => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const v2 = await (supabase.rpc as any)("school_class_progress", { _school_id: schoolId });
+    if (!v2.error) return (v2.data || []) as Student[];
+    const v1 = await supabase.rpc("list_school_students", { _school_id: schoolId });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return ((v1.data || []) as any[]).map((r) => ({
+      user_id: r.user_id, display_name: r.display_name, email: r.email, learning_language: null,
+      streak_count: r.streak_count, words_learned: r.words_known, words_this_week: null,
+      reviews_this_week: null, minutes_this_week: null, minutes_total: r.minutes_watched,
+      last_active_at: null, joined_at: r.joined_at,
+    }));
+  };
+
   const loadSchoolData = async (s: School) => {
     const [stu, inv] = await Promise.all([
-      supabase.rpc("list_school_students", { _school_id: s.school_id }),
+      loadStudents(s.school_id),
       supabase.from("school_invites").select("id,email,token,status,created_at")
         .eq("school_id", s.school_id).order("created_at", { ascending: false }),
     ]);
-    setStudents((stu.data || []) as Student[]);
+    setStudents(stu);
     setInvites((inv.data || []) as Invite[]);
   };
 
@@ -97,7 +134,7 @@ export default function Teacher() {
   };
 
   if (authLoading || loading) {
-    return <div className="min-h-screen grid place-items-center bg-background"><Loader2 className="w-6 h-6 animate-spin" /></div>;
+    return <PageLoading />;
   }
 
   return (
@@ -170,36 +207,70 @@ export default function Teacher() {
                   </div>
                 </Card>
 
+                {(() => {
+                  const active = students.filter((st) => st.last_active_at && Date.now() - new Date(st.last_active_at).getTime() <= 7 * DAY).length;
+                  const sum = (k: keyof Student) => students.reduce((a, st) => a + (Number(st[k]) || 0), 0);
+                  const stats = [
+                    ["Students", students.length],
+                    ["Active this week", `${active}/${students.length}`],
+                    ["New words (7 days)", sum("words_this_week")],
+                    ["Reviews (7 days)", sum("reviews_this_week")],
+                    ["Minutes watched (7 days)", sum("minutes_this_week")],
+                  ];
+                  return (
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                      {stats.map(([k, v]) => (
+                        <Card key={k as string} className="p-4">
+                          <div className="text-2xl font-bold">{v}</div>
+                          <div className="text-xs text-muted-foreground">{k}</div>
+                        </Card>
+                      ))}
+                    </div>
+                  );
+                })()}
+
                 <Card className="p-6">
-                  <h2 className="font-semibold mb-4">Students ({students.length})</h2>
+                  <div className="flex items-center justify-between mb-4 gap-2">
+                    <h2 className="font-semibold">Class progress</h2>
+                    <Button size="sm" variant="outline" disabled={!students.length} onClick={() => downloadCsv(selected.slug, students)}>
+                      <Download className="w-4 h-4 mr-1" />Download CSV
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground mb-3">Words learned counts only words the student turned green themselves, not words assumed from their starting level. Least active students are listed first.</p>
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead className="text-muted-foreground text-xs uppercase">
                         <tr>
                           <th className="text-left py-2 pr-3">Student</th>
-                          <th className="text-left py-2 pr-3">Email</th>
-                          <th className="text-right py-2 pr-3">XP</th>
-                          <th className="text-right py-2 pr-3">Level</th>
+                          <th className="text-left py-2 pr-3">Activity</th>
                           <th className="text-right py-2 pr-3">Streak</th>
-                          <th className="text-right py-2 pr-3">Words</th>
-                          <th className="text-right py-2 pr-3">Minutes</th>
+                          <th className="text-right py-2 pr-3">Words learned</th>
+                          <th className="text-right py-2 pr-3">New (7d)</th>
+                          <th className="text-right py-2 pr-3">Reviews (7d)</th>
+                          <th className="text-right py-2 pr-3">Min (7d)</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {students.map((st) => (
-                          <tr key={st.user_id} className="border-t border-border">
-                            <td className="py-2 pr-3">{st.display_name}</td>
-                            <td className="py-2 pr-3 text-muted-foreground">{st.email}</td>
-                            <td className="py-2 pr-3 text-right">{st.xp_total}</td>
-                            <td className="py-2 pr-3 text-right">{st.xp_level}</td>
-                            <td className="py-2 pr-3 text-right">{st.streak_count}</td>
-                            <td className="py-2 pr-3 text-right">{st.words_known}</td>
-                            <td className="py-2 pr-3 text-right">{st.minutes_watched}</td>
-                          </tr>
-                        ))}
+                        {[...students].sort((a, b) => (a.last_active_at ? new Date(a.last_active_at).getTime() : 0) - (b.last_active_at ? new Date(b.last_active_at).getTime() : 0)).map((st) => {
+                          const act = activity(st);
+                          return (
+                            <tr key={st.user_id} className="border-t border-border">
+                              <td className="py-2 pr-3">
+                                <div className="font-medium">{st.display_name}</div>
+                                <div className="text-xs text-muted-foreground">{st.email}{st.learning_language ? ` · ${st.learning_language.toUpperCase()}` : ""}</div>
+                              </td>
+                              <td className="py-2 pr-3"><span className={`text-xs rounded-full px-2 py-0.5 whitespace-nowrap ${act.tone}`}>{act.label}</span></td>
+                              <td className="py-2 pr-3 text-right">{st.streak_count}</td>
+                              <td className="py-2 pr-3 text-right">{st.words_learned}</td>
+                              <td className="py-2 pr-3 text-right">{st.words_this_week ?? "–"}</td>
+                              <td className="py-2 pr-3 text-right">{st.reviews_this_week ?? "–"}</td>
+                              <td className="py-2 pr-3 text-right">{st.minutes_this_week ?? "–"}</td>
+                            </tr>
+                          );
+                        })}
                         {students.length === 0 && (
                           <tr><td colSpan={7} className="py-6 text-center text-muted-foreground">
-                            No students have joined yet.
+                            No students have joined yet. Invite them above and share their links.
                           </td></tr>
                         )}
                       </tbody>
