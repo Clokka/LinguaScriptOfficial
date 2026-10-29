@@ -5,6 +5,8 @@
 // learner's phone is never blocked the way a server can be, so a tapped word
 // always gets a meaning instead of "Couldn't translate".
 
+import { instantGloss } from "@/lib/instantGloss";
+
 /** App language code ("fr", "zh", "pt") → Google code. */
 function googleCode(code: string): string {
   const c = (code || "").toLowerCase();
@@ -111,6 +113,26 @@ export async function translateWord(
   to: string,
   labels: { from: string; to: string },
 ): Promise<WordTranslation> {
+  // Common words (top ~5,000 per language) come from the curated dictionary
+  // instantly — no AI wait, and no wrong answers for tiny words like "que".
+  try {
+    const hit = await instantGloss(word, from, to);
+    if (hit) {
+      return {
+        translation: hit.translation,
+        pronunciation: hit.pronunciation,
+        ipa: "",
+        contextTranslation: "",
+        lemma: null,
+        lemmaTranslation: null,
+        pos: null,
+        isInflected: false,
+        grammarNote: null,
+      };
+    }
+  } catch {
+    /* fall through to the server */
+  }
   try {
     // A slow server shouldn't keep the learner on "Translating…": after
     // SERVER_TIMEOUT_MS the browser translates instead.

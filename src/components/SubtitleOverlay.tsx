@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { translateWord } from "@/lib/browserTranslate";
+import { preloadGlossary } from "@/lib/instantGloss";
 import { cn } from "@/lib/utils";
 import { WordPopup } from "./WordPopup";
 import { supabase } from "@/integrations/supabase/client";
@@ -102,6 +103,11 @@ export const SubtitleOverlay = ({
   // prop from the player; only fall back to languageContext when the
   // caller hasn't tagged the content yet.
   const effectiveLang = contentLanguage || languageContext;
+  // Load the common-word dictionary as soon as the player opens, so the
+  // first tapped word is already instant.
+  useEffect(() => {
+    if (effectiveLang) preloadGlossary(effectiveLang, nativeLanguage || "en");
+  }, [effectiveLang, nativeLanguage]);
   const { user } = useAuth();
   const { award } = useXp();
   const [deck, setDeck] = useState<Map<string, SavedWordLite>>(new Map());
