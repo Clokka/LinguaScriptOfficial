@@ -102,79 +102,74 @@ const Flashcards = () => {
     // Until we know who this is, keep the spinner: treating a signed-in learner
     // as a guest showed "0 cards · Get the Chrome Extension" on every visit.
     if (authLoading) return;
-    if (showSpinner) setLoading(true);
     setLoadError(null);
     if (!user) {
       const guest = getGuestWords();
       setAllCards(guest as unknown as SavedWord[]);
-    } else {
-      // Always fetch fresh from Supabase — the Chrome extension can write to
-      // saved_words too, so cached state would go stale. Large accounts exceed
-      // the Data API's default 1,000-row window, so page through everything.
-      // Today's 10 new words from the focus (Top N) deck join the pile first.
-      if (learningLanguage) {
-        const key = `ls.focusTopUp.${learningLanguage}`;
-        const today = new Date().toDateString();
-        if (localStorage.getItem(key) !== today) {
-          try {
-            const { topUpDailyNew } = await import("@/lib/focusDeck");
-            const r = await topUpDailyNew(user.id, learningLanguage);
-            if (r) localStorage.setItem(key, today);
-          } catch (e) { console.warn("[focusDeck]", e); }
-        }
-      }
-      const pageSize = 1000;
-      let from = 0;
-      const rows: SavedWord[] = [];
-      while (true) {
-        let q = supabase
-          .from("saved_words")
-          .select("id, word, translation, pronunciation, ipa, context, language, next_review, review_count, state, times_correct, is_phrase, ease_factor, interval_days, image_url, lemma, lemma_translation, is_inflected, grammar_note, created_at, state_changed_at, pos")
-          .eq("user_id", user.id)
-          .order("next_review", { ascending: true, nullsFirst: true })
-          .range(from, from + pageSize - 1);
-        if (learningLanguage) q = q.eq("language", learningLanguage);
-        const { data, error } = await q;
-        if (error) {
-          console.error("Flashcards fetch failed", error);
-          setLoadError(error.message);
-          toast.error("Couldn't load your flashcards", { description: error.message });
-          break;
-        }
-        const batch = (data as SavedWord[]) || [];
-        rows.push(...batch);
-        if (batch.length < pageSize) break;
-        from += pageSize;
-      }
-      // Coming from the video word counter: today's new words go first.
-      if (new URLSearchParams(window.location.search).get("focus") === "today") {
-        const start = new Date();
-        start.setHours(0, 0, 0, 0);
-        const isToday = (r: any) => r.created_at && new Date(r.created_at) >= start;
-        rows.sort((a, b) => Number(isToday(b)) - Number(isToday(a)));
-      }
-      setAllCards(rows);
+      setLoading(false);
+      return;
     }
-    // The learner's own cards are ready: show them now, starter decks follow.
-    setLoading(false);
+    // Show the last copy of this deck instantly, then refresh from the server.
+    const cacheKey = `ls.cards.${user.id}.${learningLanguage || "all"}`;
+    let hadCache = false;
+    try {
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) { setAllCards(JSON.parse(cached)); setLoading(false); hadCache = true; }
+    } catch { /* ignore */ }
+    if (showSpinner && !hadCache) setLoading(true);
 
-    // Starter decks with counts — one batched query for every deck's card
-    // count instead of one round trip per deck (this ran on every visit to
-    // this page, for every user).
-    const { data: decks } = await supabase.from("starter_decks").select("id, slug, name, emoji, description, language").order("sort_order");
-    if (decks && decks.length > 0) {
-      const { data: cardRows } = await supabase
-        .from("starter_deck_cards")
-        .select("deck_id")
-        .in("deck_id", decks.map((d: any) => d.id));
-      const counts = new Map<string, number>();
-      for (const row of (cardRows as { deck_id: string }[]) || []) {
-        counts.set(row.deck_id, (counts.get(row.deck_id) ?? 0) + 1);
+    if (learningLanguage) {
+      const key = `ls.focusTopUp.${learningLanguage}`;
+      const today = new Date().toDateString();
+      if (localStorage.getItem(key) !== today) {
+        try {
+          const { topUpDailyNew } = await import("@/lib/focusDeck");
+          const r = await topUpDailyNew(user.id, learningLanguage);
+          if (r) localStorage.setItem(key, today);
+        } catch (e) { console.warn("[focusDeck]", e); }
       }
-      setStarterDecks(decks.map((d: any) => ({ ...d, card_count: counts.get(d.id) ?? 0 } as StarterDeck)));
-    } else {
-      setStarterDecks([]);
     }
+    // Large accounts exceed the 1,000-row window: get the count with the first
+    // page, then fetch every other page at the same time.
+    const pageSize = 1000;
+    const page = (from: number, withCount = false) => {
+      let q = supabase
+        .from("saved_words")
+        .select("id, word, translation, pronunciation, ipa, context, language, next_review, review_count, state, times_correct, is_phrase, ease_factor, interval_days, image_url, lemma, lemma_translation, is_inflected, grammar_note, created_at, state_changed_at, pos", withCount ? { count: "exact" } : undefined)
+        .eq("user_id", user.id)
+        .order("next_review", { ascending: true, nullsFirst: true })
+        .order("id", { ascending: true })
+        .range(from, from + pageSize - 1);
+      if (learningLanguage) q = q.eq("language", learningLanguage);
+      return q;
+    };
+    const first = await page(0, true);
+    if (first.error) {
+      console.error("Flashcards fetch failed", first.error);
+      setLoadError(first.error.message);
+      toast.error("Couldn't load your flashcards", { description: first.error.message });
+      setLoading(false);
+      return;
+    }
+    const rows: SavedWord[] = [...((first.data as SavedWord[]) || [])];
+    const total = first.count ?? rows.length;
+    if (total > pageSize) {
+      const rest = await Promise.all(
+        Array.from({ length: Math.ceil(total / pageSize) - 1 }, (_, i) => page((i + 1) * pageSize)),
+      );
+      for (const r of rest) if (!r.error) rows.push(...((r.data as SavedWord[]) || []));
+    }
+    // Coming from the video word counter: today's new words go first.
+    if (new URLSearchParams(window.location.search).get("focus") === "today") {
+      const start = new Date();
+      start.setHours(0, 0, 0, 0);
+      const isToday = (r: any) => r.created_at && new Date(r.created_at) >= start;
+      rows.sort((a, b) => Number(isToday(b)) - Number(isToday(a)));
+    }
+    setAllCards(rows);
+    setLoading(false);
+    try { localStorage.setItem(cacheKey, JSON.stringify(rows)); } catch { /* storage full: skip */ }
+    setStarterDecks([]);
   }, [user, authLoading, learningLanguage]);
 
   // ?lang=fr (the Chrome extension's "Open your French flashcards" link) opens
