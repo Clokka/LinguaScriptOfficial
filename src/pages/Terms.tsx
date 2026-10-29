@@ -20,7 +20,7 @@ const Terms = () => (
     </header>
     <main className="max-w-3xl mx-auto px-6 py-10">
       <h1 className="text-3xl font-bold mb-2">Terms of Service</h1>
-      <p className="text-sm text-muted-foreground mb-8">Last updated: 23 August 2026</p>
+      <p className="text-sm text-muted-foreground mb-8">Last updated: 30 October 2026</p>
 
       <Section title="1. Acceptance of terms">
         <p>
@@ -208,9 +208,21 @@ const Terms = () => (
         </p>
       </Section>
 
+      <Section title="Copyright complaints">
+        <p>
+          Videos shown in LinguaScript are embedded from YouTube and remain the property of their
+          owners; we do not host or download them. If you believe content or subtitles shown in
+          LinguaScript infringe your rights, email{" "}
+          <a className="underline" href="mailto:rowan@linguascript.co.uk">rowan@linguascript.co.uk</a>{" "}
+          with the link, the work concerned and your contact details, and we will review and remove
+          it promptly where appropriate.
+        </p>
+      </Section>
+
       <p className="text-xs text-muted-foreground mt-10">
         See also our <Link to="/privacy" className="underline">Privacy Policy</Link> and our{" "}
-        <Link to="/privacy-extension" className="underline">Chrome Extension privacy policy</Link>.
+        <Link to="/privacy-extension" className="underline">Chrome Extension privacy policy</Link> and{" "}
+        <Link to="/cookies" className="underline">Cookie Notice</Link>.
       </p>
     </main>
   </div>

@@ -20,7 +20,7 @@ const Privacy = () => (
     </header>
     <main className="max-w-3xl mx-auto px-6 py-10">
       <h1 className="text-3xl font-bold mb-2">Privacy Policy</h1>
-      <p className="text-sm text-muted-foreground mb-8">Last updated: 23 August 2026</p>
+      <p className="text-sm text-muted-foreground mb-8">Last updated: 30 October 2026</p>
 
       <Section title="1. Who we are">
         <p>
@@ -141,15 +141,21 @@ const Privacy = () => (
             used to send our account and reminder emails.</li>
         </ul>
         <p>
-          We do not use advertising networks, and we do not currently run any third-party
-          analytics or tracking product on the website.
+          We do not use advertising networks and we never sell your data. With your consent
+          only, we use <b>PostHog</b> (product analytics, hosted in the EU) and{" "}
+          <b>Microsoft Clarity</b> (session replays and heatmaps) to understand how LinguaScript
+          is used. When you are signed in and have accepted analytics, PostHog links events to
+          your account ID and email. You can withdraw consent at any time on our{" "}
+          <Link to="/cookies" className="underline">Cookie Notice</Link> page.
         </p>
       </Section>
 
       <Section title="6. Cookies and browser storage">
         <p>
-          We do not use advertising or tracking cookies. LinguaScript stores data in your
-          browser for the app to function:
+          We do not use advertising cookies. Analytics cookies (PostHog, Microsoft Clarity) are
+          only set after you tap "Accept" — see the{" "}
+          <Link to="/cookies" className="underline">Cookie Notice</Link>. LinguaScript also
+          stores data in your browser for the app to function:
         </p>
         <ul className="list-disc pl-5 space-y-1 mt-2">
           <li>Your authentication session, stored by our authentication provider so you stay
