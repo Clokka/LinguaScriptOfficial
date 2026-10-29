@@ -241,7 +241,7 @@ export const PersonalizedRails = ({
         // The shared, prefilled candidate catalog costs no search quota and
         // opens before per-learner caption scoring.
         const { data: catalog } = await supabase.from("hobby_video_catalog")
-          .select("*").eq("language", lang).eq("hobby", i.id).limit(10);
+          .select("*").eq("language", lang).eq("hobby", i.id);
         if (catalog?.length) return {
           items: catalog.map((row) => ({ videoId: row.video_id, title: row.title, channel: row.channel, thumbnail: row.thumbnail_url ?? undefined, durationSeconds: row.duration_seconds, viewCount: row.view_count, likeCount: row.like_count ?? undefined })),
           failed: false,
@@ -312,7 +312,7 @@ export const PersonalizedRails = ({
       setBeginner(beginnerItems);
       setLoading(false);
       setScoring(false);
-      writeFeed(feedKey, { interestRails: displayRails, recommended: recommendedItems, trending: trendingItems, beginner: beginnerItems });
+      writeFeed(feedKey, { interestRails: displayRails, recommended: [], trending: trendingItems, beginner: beginnerItems });
     };
     void load().catch(() => { if (!cancelled) { setSearchFailed(true); setLoading(false); setScoring(false); } });
     return () => { cancelled = true; };
