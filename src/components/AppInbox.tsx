@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useXp } from "@/contexts/XpContext";
-import { normalizeToken } from "@/lib/vocab";
+import { loadDeckIndex, normalizeToken, reviewDueAt } from "@/lib/vocab";
 import { track } from "@/lib/analytics";
 
 /**
@@ -94,8 +94,25 @@ export function AppInbox() {
       }
     };
 
+    // The 🦎 bubble's copy of your deck (Android): word → [state, dueAt, tappedAt].
+    // It works out gold on the phone with the same rule as isDueGold().
+    const sendDeck = async (learning: string, native: string) => {
+      if (!learning) return;
+      const deck = await loadDeckIndex(userId!, learning);
+      const words: Record<string, [string, number, number]> = {};
+      deck.forEach((w, key) => {
+        const due = reviewDueAt(w as any) ?? 0;
+        const tapped = (w as any).green_revealed_at ? Date.parse((w as any).green_revealed_at) : 0;
+        words[key] = [w.state, due, tapped];
+      });
+      toApp({ type: "deck", language: learning, native, words });
+    };
+
     languagesOf()
-      .then(({ learning, native }) => toApp({ type: "langs", learning, native }))
+      .then(({ learning, native }) => {
+        toApp({ type: "langs", learning, native });
+        void sendDeck(learning, native).catch(() => {});
+      })
       .catch(() => {})
       .finally(() => toApp({ type: "inbox-ready" }));
 

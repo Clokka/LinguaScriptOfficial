@@ -39,7 +39,26 @@ import java.net.URLEncoder
 import java.util.Locale
 import kotlin.concurrent.thread
 
+/** Lets the 🦎 bubble know when a card closes, and what it saved. */
+object CardEvents {
+  var onClosed: ((saved: String?) -> Unit)? = null
+}
+
 class ProcessTextActivity : Activity() {
+
+  companion object {
+    /** Opened from the bubble: the line the word sits in. */
+    const val EXTRA_CONTEXT = "ls_context"
+    /** Opened from the bubble: the language it's in (no guessing needed). */
+    const val EXTRA_LANGUAGE = "ls_language"
+    /** Opened from the bubble: red / orange / green / gold if already in a deck. */
+    const val EXTRA_STATE = "ls_state"
+  }
+
+  private var contextLine = ""
+  private var knownLanguage = ""
+  private var state = ""
+  private var savedWord: String? = null
 
   private val bg = Color.parseColor("#08080B")
   private val surface = Color.parseColor("#121218")
@@ -64,6 +83,9 @@ class ProcessTextActivity : Activity() {
     selected = (intent.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT)?.toString() ?: "")
       .replace(Regex("\\s+"), " ").trim().take(200)
     if (selected.isEmpty()) { finish(); return }
+    contextLine = intent.getStringExtra(EXTRA_CONTEXT)?.trim()?.take(300) ?: ""
+    knownLanguage = intent.getStringExtra(EXTRA_LANGUAGE) ?: ""
+    state = intent.getStringExtra(EXTRA_STATE) ?: ""
 
     // Languages the app last saw on the website (written by app/index.tsx).
     try {
@@ -132,9 +154,19 @@ class ProcessTextActivity : Activity() {
       text = "…"
       setTextColor(muted)
       setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f)
-      setPadding(0, 0, 0, dp(16))
+      setPadding(0, 0, 0, if (contextLine.isNotEmpty() && contextLine != selected) dp(6) else dp(16))
     }
     card.addView(transView)
+    if (contextLine.isNotEmpty() && contextLine != selected) {
+      card.addView(TextView(this).apply {
+        text = "« $contextLine »"
+        setTextColor(muted)
+        setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
+        setTypeface(typeface, Typeface.ITALIC)
+        setPadding(0, 0, 0, dp(16))
+        maxLines = 3
+      })
+    }
 
     val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
     saveBtn = Button(this).apply {
@@ -183,7 +215,9 @@ class ProcessTextActivity : Activity() {
 
   private fun translate() {
     thread {
-      var res = gtx(selected, "auto", native)
+      // From the bubble we already know the language; from the text menu we guess.
+      var res = gtx(selected, knownLanguage.ifEmpty { "auto" }, native)
+      if (res != null && knownLanguage.isNotEmpty()) res = Pair(res.first, knownLanguage)
       // Selected text in your own language? Show it in the language you're learning.
       if (res != null && res.second.startsWith(native) && learning.isNotEmpty() && learning != native) {
         val back = gtx(selected, native, learning)
@@ -198,7 +232,15 @@ class ProcessTextActivity : Activity() {
           transView.text = translation
           transView.setTextColor(white)
         }
-        saveBtn.isEnabled = true
+        when (state) {
+          "" -> saveBtn.isEnabled = true
+          "gold" -> {
+            saveBtn.text = "🟡  Review it"
+            saveBtn.isEnabled = true
+            saveBtn.setOnClickListener { openApp("/flashcards") }
+          }
+          else -> { saveBtn.text = "✓  In your flashcards"; saveBtn.isEnabled = false }
+        }
       }
     }
   }
@@ -212,13 +254,14 @@ class ProcessTextActivity : Activity() {
         put("word", if (reversed) translation else selected)
         put("translation", if (reversed) selected else translation)
         put("language", if (reversed) learning else detected.substringBefore("-"))
-        put("context", selected)
+        put("context", contextLine.ifEmpty { selected })
         put("at", System.currentTimeMillis())
       }
       val file = File(filesDir, "ls-inbox.json")
       val list = try { JSONArray(file.readText()) } catch (_: Exception) { JSONArray() }
       list.put(item)
       file.writeText(list.toString())
+      savedWord = if (reversed) translation else selected
       saveBtn.text = "✓  Saved"
       saveBtn.setTextColor(Color.parseColor("#08080B"))
       saveBtn.background = rounded(red, 16, red)
@@ -240,6 +283,8 @@ class ProcessTextActivity : Activity() {
   }
 
   override fun finish() {
+    CardEvents.onClosed?.invoke(savedWord)
+    CardEvents.onClosed = null
     super.finish()
     if (Build.VERSION.SDK_INT >= 34) {
       overrideActivityTransition(OVERRIDE_TRANSITION_CLOSE, 0, android.R.anim.fade_out)

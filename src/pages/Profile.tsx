@@ -28,6 +28,7 @@ import { INTERESTS } from "@/lib/interests";
 import { useToast } from "@/hooks/use-toast";
 import { useT } from "@/i18n";
 import { MyLanguagesPanel } from "@/components/MyLanguagesPanel";
+import { PhoneBubbleSetting } from "@/components/PhoneBubbleSetting";
 import { DailyWordGoalSetting } from "@/components/DailyWordGoalSetting";
 import { PetGallery } from "@/components/pets/PetGallery";
 import { usePet } from "@/contexts/PetContext";
@@ -363,6 +364,7 @@ const Profile = () => {
 
           {/* Languages you're learning (up to 5, each with its own mode) */}
           <MyLanguagesPanel nativeLanguage={nativeLanguage} />
+          <PhoneBubbleSetting />
           <DailyWordGoalSetting />
 
           {/* Hobbies — drives the "Because you like X" rails and interest-matched
