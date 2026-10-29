@@ -2,7 +2,7 @@
   "expo": {
     "name": "LinguaScript",
     "slug": "linguascript-chameleon",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "linguascript",
@@ -136,7 +136,8 @@
             "com.google.android.googlequicksearchbox"
           ]
         }
-      ]
+      ],
+      "./plugins/withProcessText"
     ],
     "experiments": {
       "typedRoutes": true
