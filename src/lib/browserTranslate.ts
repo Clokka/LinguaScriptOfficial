@@ -80,9 +80,16 @@ export async function browserTranslateLines(lines: string[], from: string, to: s
 const SERVER_TIMEOUT_MS = 8000;
 
 /** The popup's loading/error text — never a real meaning to save on a card. */
-export function isPlaceholderMeaning(text: string | null | undefined): boolean {
+export function isPlaceholderMeaning(text: string | null | undefined, word?: string | null): boolean {
   const t = (text || "").trim();
-  return !t || /^(Translating|Couldn't translate)/i.test(t);
+  if (!t || /^(Translating|Couldn't translate)/i.test(t)) return true;
+  // A "translation" that's just the word again (the translator gave up) is no
+  // meaning at all — it made flashcards show the same word on both sides.
+  if (word) {
+    const flat = (s: string) => s.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/[^\p{L}\p{N}]/gu, "");
+    if (flat(t) === flat(word)) return true;
+  }
+  return false;
 }
 
 export interface WordTranslation {

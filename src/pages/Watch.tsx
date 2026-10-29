@@ -991,7 +991,7 @@ const Watch = () => {
     let grammarNote: string | null = null;
 
     // A popup placeholder is not a meaning — never save it onto a card.
-    if (isPlaceholderMeaning(translation)) translation = "";
+    if (isPlaceholderMeaning(translation, word.text)) translation = "";
 
     // Never file an English word as "Chinese" (it happened with mislabelled
     // subtitle tracks: "who" saved as a Chinese card).
@@ -1248,7 +1248,7 @@ const Watch = () => {
     const langCode = film?.language || learningLanguage || "fr";
     // Tapped while the popup still said "Translating…" or "Couldn't
     // translate": fetch the meaning now rather than saving that text.
-    let meaning = isPlaceholderMeaning(word.translation) ? "" : (word.translation || "").trim();
+    let meaning = isPlaceholderMeaning(word.translation, word.text) ? "" : (word.translation || "").trim();
     if (!meaning) {
       try {
         const t = await translateWord(

@@ -133,7 +133,7 @@ export const FlashcardReview = ({ cards: initialCards, onClose, onCardReviewed, 
   const meaningFetchTried = useRef<Set<string>>(new Set());
   useEffect(() => {
     const card = cards[currentIndex];
-    if (!card || !isPlaceholderMeaning(card.translation)) return;
+    if (!card || !isPlaceholderMeaning(card.translation, card.word)) return;
     if (meaningFetchTried.current.has(card.id)) return;
     meaningFetchTried.current.add(card.id);
     const from = card.language || languageContext || "";
@@ -143,7 +143,7 @@ export const FlashcardReview = ({ cards: initialCards, onClose, onCardReviewed, 
       { from: getLanguageLabel(from), to: getLanguageLabel(nativeLang) },
     )
       .then((t) => {
-        if (!t.translation) return;
+        if (isPlaceholderMeaning(t.translation, card.word)) return;
         setCards((prev) => prev.map((c) => (c.id === card.id
           ? { ...c, translation: t.translation, pronunciation: c.pronunciation || t.pronunciation }
           : c)));

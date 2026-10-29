@@ -58,9 +58,6 @@ export const DailyGoalPicker = ({ value, onChange, compact }: DailyGoalPickerPro
                 </p>
                 <p className="text-neutral-500">{preset.label}</p>
               </div>
-              <p className="mt-3 text-xs italic text-orange-600 leading-snug">
-                {preset.milestone}
-              </p>
             </motion.button>
           );
         })}

@@ -180,7 +180,9 @@ export default function Speak() {
     const open = () => {
       const rec = new SR();
       rec.lang = LANG_MAP[lang];
-      rec.continuous = true;
+      // Android Chrome's continuous mode re-sends earlier words, so on Android
+      // listen one phrase at a time (onend starts the next one straight away).
+      rec.continuous = !/Android/i.test(navigator.userAgent);
       rec.interimResults = true;
       rec.maxAlternatives = 1;
       // Rebuild this session's text from ALL results every time. Android
@@ -213,7 +215,9 @@ export default function Speak() {
       // Chrome ends a session after a pause — keep listening until time's up.
       rec.onend = () => {
         // Keep what this session heard, then start a fresh one.
-        if (sessionRef.current) baseRef.current += sessionRef.current + " ";
+        // (Skip it if it's the same phrase again — Android sometimes repeats the last one.)
+        const sess = sessionRef.current;
+        if (sess && !squash(baseRef.current).endsWith(squash(sess))) baseRef.current += sess + " ";
         sessionRef.current = "";
         if (liveRef.current) { try { open(); } catch { /* retry next tick */ } }
       };
