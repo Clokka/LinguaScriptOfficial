@@ -10,7 +10,7 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#22c55e',
+        tabBarActiveTintColor: '#34C759',
         tabBarInactiveTintColor: '#64748b',
         tabBarStyle: {
           backgroundColor: '#0b1215',
@@ -30,17 +30,26 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="discover"
         options={{
-          title: 'Discover',
-          tabBarIcon: ({ color }) => <Icon label="🔍" color={color} />,
+          title: 'Watch',
+          tabBarIcon: ({ color }) => <Icon label="📖" color={color} />,
+        }}
+      />
+      {/* The Chameleon Method's three pillars: 📖 read & watch · ✍️ write · 🗣️ speak */}
+      <Tabs.Screen
+        name="write"
+        options={{
+          title: 'Write',
+          tabBarIcon: ({ color }) => <Icon label="✍️" color={color} />,
         }}
       />
       <Tabs.Screen
-        name="linguascripts"
+        name="speak"
         options={{
-          title: 'Exercises',
-          tabBarIcon: ({ color }) => <Icon label="📝" color={color} />,
+          title: 'Speak',
+          tabBarIcon: ({ color }) => <Icon label="🗣️" color={color} />,
         }}
       />
+      <Tabs.Screen name="linguascripts" options={{ href: null }} />
       <Tabs.Screen
         name="flashcards"
         options={{
@@ -48,13 +57,7 @@ export default function TabsLayout() {
           tabBarIcon: ({ color }) => <Icon label="🃏" color={color} />,
         }}
       />
-      <Tabs.Screen
-        name="vocabulary"
-        options={{
-          title: 'Vocab',
-          tabBarIcon: ({ color }) => <Icon label="📚" color={color} />,
-        }}
-      />
+      <Tabs.Screen name="vocabulary" options={{ href: null }} />
       <Tabs.Screen
         name="profile"
         options={{

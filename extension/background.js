@@ -606,6 +606,10 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     case 'SAVE_WORD':
       return reply(saveWord(msg), sendResponse);
 
+    // Pop-up "Read this page" button (activeTab is granted by opening the pop-up).
+    case 'READER_TOGGLE_TAB':
+      return reply(toggleReader(msg.tabId), sendResponse);
+
     // linguascript.co.uk asks to sign in as the extension's account. Only the
     // site's own bridge may ask, never a script on YouTube or Netflix.
     case 'SITE_HANDOFF':
@@ -635,4 +639,45 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     default:
       return false;
   }
+});
+
+// ─── Reader: pillar 1 on ANY website ────────────────────────────────────────────
+// Injected only when the learner asks (pop-up button, right-click, Alt+L), using
+// activeTab — no "read all your data on all websites" permission.
+const READER_FILES = ['ls-core.js', 'adapters/reader.js'];
+const CAN_INJECT = (url) => /^https?:/.test(url || '') && !/^https:\/\/(chrome\.google\.com\/webstore|chromewebstore\.google\.com)/.test(url || '');
+
+async function toggleReader(tabId) {
+  if (!tabId) return { ok: false, error: 'No tab' };
+  const tab = await chrome.tabs.get(tabId).catch(() => null);
+  if (!tab || !CAN_INJECT(tab.url)) return { ok: false, error: 'LinguaScript can’t read this page' };
+  await chrome.scripting.executeScript({ target: { tabId }, files: READER_FILES });
+  return { ok: true };
+}
+
+async function saveSelectionIn(tabId, text) {
+  const tab = await chrome.tabs.get(tabId).catch(() => null);
+  if (!tab || !CAN_INJECT(tab.url)) return;
+  await chrome.scripting.executeScript({ target: { tabId }, func: () => { window.__lsReaderSaveOnly = true; } });
+  await chrome.scripting.executeScript({ target: { tabId }, files: READER_FILES });
+  chrome.tabs.sendMessage(tabId, { type: 'READER_SAVE_SELECTION', text }).catch?.(() => {});
+}
+
+function setupMenus() {
+  chrome.contextMenus.removeAll(() => {
+    chrome.contextMenus.create({ id: 'ls-save', title: 'Save “%s” to LinguaScript', contexts: ['selection'] });
+    chrome.contextMenus.create({ id: 'ls-read', title: 'Read this page with LinguaScript', contexts: ['page'] });
+  });
+}
+chrome.runtime.onInstalled.addListener(setupMenus);
+chrome.runtime.onStartup?.addListener(setupMenus);
+
+chrome.contextMenus.onClicked.addListener((info, tab) => {
+  if (!tab?.id) return;
+  if (info.menuItemId === 'ls-save' && info.selectionText) saveSelectionIn(tab.id, info.selectionText).catch(() => {});
+  if (info.menuItemId === 'ls-read') toggleReader(tab.id).catch(() => {});
+});
+
+chrome.commands?.onCommand.addListener((command, tab) => {
+  if (command === 'toggle-reader' && tab?.id) toggleReader(tab.id).catch(() => {});
 });

@@ -282,6 +282,58 @@ export async function bestStateForLemma(
   return data.reduce<DeckState>((acc, row) => maxState(acc, coerceDeckState(row.state)), "red");
 }
 
+/**
+ * The LinguaScript review ladder — the ONE schedule for every surface (web
+ * flashcards, the player's gold words, the mobile app via packages/core).
+ *
+ *   red → orange → green, then green → GOLD (due) → reviewed → green …
+ *
+ * Once a word turns green it comes back after 1, 3, 7, 14 and 30 days. After
+ * that the gap keeps growing ×1.5 forever (45, 68, 101, 152 … days), so a
+ * word is never "finished" — it just visits less and less often.
+ *
+ * Keep REVIEW_LADDER_DAYS / REVIEW_GROWTH / nextReviewInterval identical to
+ * packages/core/src/vocab.ts.
+ */
+export const REVIEW_LADDER_DAYS = [1, 3, 7, 14, 30] as const;
+export const REVIEW_GROWTH = 1.5;
+
+/**
+ * Days until the next review.
+ *  - Missed it, or still red/orange: tomorrow.
+ *  - Just turned green: tomorrow (first rung of the ladder).
+ *  - Green and remembered again: the next rung, then ×1.5 forever.
+ */
+export function nextReviewInterval(prevIntervalDays: number | null | undefined, correct: boolean, wasGreen: boolean, isGreen: boolean): number {
+  if (!correct || !isGreen || !wasGreen) return 1;
+  const prev = Math.max(0, prevIntervalDays ?? 0);
+  const rung = REVIEW_LADDER_DAYS.find((d) => d > prev);
+  if (rung !== undefined) return rung;
+  return Math.max(prev + 1, Math.round(prev * REVIEW_GROWTH));
+}
+
+/** Today's date as YYYY-MM-DD in the learner's own timezone. */
+export function todayLocal(d = new Date()): string {
+  return d.toLocaleDateString("en-CA");
+}
+
+/** YYYY-MM-DD, `days` from today in the learner's own timezone. */
+export function dateInDays(days: number, from = new Date()): string {
+  const d = new Date(from);
+  d.setDate(d.getDate() + days);
+  return todayLocal(d);
+}
+
+/**
+ * GOLD = a green word whose review is due. Reviewing it (flashcards, or
+ * tapping it in a video) sends it back to green until the next rung.
+ * Same rule as `deckState()` in extension/background.js.
+ */
+export function isDueGold(word: { state?: string | null; next_review?: string | null } | null | undefined): boolean {
+  if (!word || word.state !== "green" || !word.next_review) return false;
+  return String(word.next_review).slice(0, 10) <= todayLocal();
+}
+
 /** The saved_words columns a real review cycle needs to read and rewrite. */
 export interface SrsInput {
   ease_factor?: number | null;
@@ -300,50 +352,25 @@ export interface SrsResult {
 }
 
 /**
- * A simplified SM-2: the same algorithm Anki's default scheduler is built
- * on, adapted for a binary correct/incorrect grade instead of a 0-5 quality
- * score.
- *
- *  - Incorrect ("Again"): interval resets to 1 day and the ease factor dips
- *    slightly (floor 1.3), so a forgotten word resurfaces tomorrow instead
- *    of drifting back onto whatever interval it was previously on.
- *  - Correct: interval grows 1 → 6 → previous×ease, and the ease factor
- *    nudges up — successive correct answers space reviews further apart,
- *    which is the entire point of spaced repetition and the thing the old
- *    no-op `recordReview` never did.
+ * Schedule the next review on the LinguaScript ladder (see
+ * `nextReviewInterval`). `wasGreen` / `isGreen` are the deck state before and
+ * after this answer — the ladder only climbs while a word stays green.
  *
  * Deliberately does not touch `state` (red/orange/green) — see `nextState`.
+ * ease_factor is kept (passed through) for older rows; the ladder ignores it.
  */
-export function applySrsReview(current: SrsInput, correct: boolean): SrsResult {
-  const prevEase = current.ease_factor ?? 2.5;
-  const prevInterval = current.interval_days ?? 1;
-  const prevReviewCount = current.review_count ?? 0;
-  const now = new Date();
-  const nowIso = now.toISOString();
-
-  let easeFactor: number;
-  let intervalDays: number;
-  let reviewCount: number;
-
-  if (!correct) {
-    easeFactor = Math.max(1.3, prevEase - 0.2);
-    intervalDays = 1;
-    reviewCount = 0;
-  } else {
-    easeFactor = Math.max(1.3, Math.min(3.0, prevEase + 0.1));
-    reviewCount = prevReviewCount + 1;
-    if (reviewCount === 1) intervalDays = 1;
-    else if (reviewCount === 2) intervalDays = 6;
-    else intervalDays = Math.round(prevInterval * easeFactor);
-  }
-
-  const nextReview = new Date(now.getTime() + intervalDays * 24 * 60 * 60 * 1000);
-
+export function applySrsReview(
+  current: SrsInput,
+  correct: boolean,
+  states: { wasGreen: boolean; isGreen: boolean } = { wasGreen: false, isGreen: false },
+): SrsResult {
+  const nowIso = new Date().toISOString();
+  const intervalDays = nextReviewInterval(current.interval_days, correct, states.wasGreen, states.isGreen);
   return {
-    ease_factor: easeFactor,
+    ease_factor: current.ease_factor ?? 2.5,
     interval_days: intervalDays,
-    review_count: reviewCount,
-    next_review: nextReview.toISOString().split("T")[0],
+    review_count: correct ? (current.review_count ?? 0) + 1 : 0,
+    next_review: dateInDays(intervalDays),
     last_reviewed_at: nowIso,
     ...(correct ? { last_correct_at: nowIso } : {}),
   };

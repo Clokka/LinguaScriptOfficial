@@ -1,6 +1,6 @@
 {
   "name": "linguascript-mobile",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "main": "expo-router/entry",
   "scripts": {
     "start": "expo start",
@@ -31,6 +31,7 @@
     "expo-router": "~3.5.24",
     "expo-secure-store": "~13.0.2",
     "expo-sharing": "~12.0.1",
+    "expo-speech-recognition": "0.3.2",
     "expo-splash-screen": "~0.27.7",
     "expo-status-bar": "~1.12.1",
     "expo-system-ui": "~3.0.7",

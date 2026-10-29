@@ -42,6 +42,8 @@ import {
 // the Remotion studio pages, etc. before it could render anything. Splitting
 // each route into its own lazy chunk means a page only pays for its own code.
 const Landing = lazy(() => import("./pages/Landing"));
+const Write = lazy(() => import("./pages/Write"));
+const Speak = lazy(() => import("./pages/Speak"));
 const LandingPage2 = lazy(() => import("./pages/LandingPage2"));
 const LandingPage3 = lazy(() => import("./pages/LandingPage3"));
 const LandingPage4 = lazy(() => import("./pages/LandingPage4"));
@@ -126,6 +128,8 @@ const App = () => (
                 <Route path="/flashcards/starter/:slug" element={<StarterDeck />} />
                 <Route path="/flashcards/common" element={<CommonWordsDeck />} />
                 <Route path="/vocabulary" element={<Vocabulary />} />
+                <Route path="/write" element={<Write />} />
+                <Route path="/speak" element={<Speak />} />
                 <Route path="/admin" element={<Admin />} />
                 <Route path="/story" element={<Story />} />
                 <Route path="/friends" element={<Friends />} />

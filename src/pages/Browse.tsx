@@ -19,6 +19,8 @@ import {
   Target,
   Lock,
   Users,
+  PenLine,
+  Mic,
 } from "lucide-react";
 import { UpgradeLockDialog } from "@/components/UpgradeLockDialog";
 import { Button } from "@/components/ui/button";
@@ -84,14 +86,27 @@ interface ActivityDay {
 
 type TabKey = "home" | "discover" | "calendar" | "settings";
 
-const SIDEBAR_ITEMS: { icon: typeof Home; label: string; key: TabKey | "flashcards" | "vocabulary" | "friends" | "linguascripts" }[] = [
+const SIDEBAR_ITEMS: { icon: typeof Home; label: string; key: TabKey | "flashcards" | "vocabulary" | "friends" | "linguascripts" | "write" | "speak" }[] = [
   { icon: Home, label: "Home", key: "home" },
+  // The Chameleon Method's other two pillars (reading + watching is Home).
+  { icon: PenLine, label: "Write", key: "write" },
+  { icon: Mic, label: "Speak", key: "speak" },
   { icon: Target, label: "Comprehension", key: "vocabulary" },
   { icon: BookOpen, label: "Flashcards", key: "flashcards" },
   { icon: Users, label: "Friends", key: "friends" },
   { icon: CalendarIcon, label: "Calendar", key: "calendar" },
   { icon: Settings, label: "Settings", key: "settings" },
 ];
+
+/** Sidebar keys that open their own page instead of a tab. */
+const ROUTE_KEYS: Record<string, string> = {
+  flashcards: "/flashcards",
+  vocabulary: "/vocabulary",
+  friends: "/friends",
+  linguascripts: "/flashcards",
+  write: "/write",
+  speak: "/speak",
+};
 
 function getYouTubeId(url: string): string | null {
   const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?.*v=|embed\/|v\/|shorts\/))([^&?\s#]+)/);
@@ -455,7 +470,7 @@ const Browse = () => {
             <button
               key={key}
               data-tour={`nav-${key}`}
-              onClick={() => key === "flashcards" ? navigate("/flashcards") : key === "vocabulary" ? navigate("/vocabulary") : key === "friends" ? navigate("/friends") : key === "linguascripts" ? navigate("/flashcards") : setActiveTab(key as TabKey)}
+              onClick={() => ROUTE_KEYS[key] ? navigate(ROUTE_KEYS[key]) : setActiveTab(key as TabKey)}
               className={cn(
                 "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors",
                 activeTab === key
@@ -491,7 +506,7 @@ const Browse = () => {
                 <button
                   key={key}
                   data-tour={`nav-${key}`}
-                  onClick={() => key === "flashcards" ? navigate("/flashcards") : key === "vocabulary" ? navigate("/vocabulary") : key === "friends" ? navigate("/friends") : key === "linguascripts" ? navigate("/flashcards") : setActiveTab(key as TabKey)}
+                  onClick={() => ROUTE_KEYS[key] ? navigate(ROUTE_KEYS[key]) : setActiveTab(key as TabKey)}
                   className={cn(
                     "p-2 rounded-lg transition-colors",
                     activeTab === key ? "bg-primary/15 text-primary" : "text-muted-foreground"

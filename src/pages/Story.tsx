@@ -240,7 +240,7 @@ const Story = () => {
             </StoryBlock>
 
             <StoryBlock>
-              <p>I read about Kátó Lomb, who learned 27 languages using:</p>
+              <p>I read about Kató Lomb, who learned 27 languages using:</p>
               <ul className="mt-5 space-y-3">
                 {[
                   ["Autolexia", "Reading for pleasure"],
