@@ -13,11 +13,11 @@ if (!key || !url || !serviceKey) throw new Error("Catalog credentials unavailabl
 const db = createClient(url, serviceKey, { auth: { persistSession: false } });
 const fr: Record<string, string> = {
   gaming: "jeux vidéo gameplay français", football: "football analyse français", fitness: "musculation entraînement français",
-  travel: "voyage découverte reportage français", cooking: "recette cuisine français", music: "musique interview artiste français",
+  travel: "voyage échappées belles france", cooking: "recette cuisine français", music: "musique interview artiste français",
   films: "cinéma critique film français", comedy: "humour sketch français", history: "histoire documentaire français",
-  business: "économie entreprise français", news: "actualité reportage français", podcasts: "podcast interview français",
+  business: "économie entreprise français", news: "actualité reportage france info", podcasts: "podcast interview français",
   cars: "automobile essai français", art: "art dessin peinture français", culture: "culture reportage français",
-  language: "apprentissage langues témoignage français", tech: "technologie test français",
+  language: "apprentissage langues témoignage français", tech: "test smartphone français",
   entrepreneurship: "entrepreneur réussite entreprise français", anime: "anime analyse français",
 };
 const report: { language: string; hobby: string; stored: number; reason?: string }[] = [];

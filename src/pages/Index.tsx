@@ -46,7 +46,7 @@ const Index = () => {
         setNext(pendingNext && pendingNext.startsWith("/") && !pendingNext.startsWith("//") ? pendingNext : null);
         setOnboarded(done);
       }
-    })();
+    })().catch(() => { if (!cancelled) setOnboarded(false); });
     return () => {
       cancelled = true;
     };

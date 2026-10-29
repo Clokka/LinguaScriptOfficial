@@ -121,7 +121,7 @@ const Profile = () => {
           setNativeLanguage(g.nativeLanguage ?? "en");
           setLearningLanguage(g.learningLanguage ?? "");
           setSchool(g.school ?? "");
-          setInterests(Array.isArray(g.interests) ? g.interests : []);
+          setInterests(Array.isArray(g.interests) ? g.interests.slice(0, 1) : []);
         }
       } catch { /* ignore */ }
       setLoadingProfile(false);
@@ -141,7 +141,7 @@ const Profile = () => {
       setNativeLanguage(data.native_language ?? "en");
       setLearningLanguage(data.learning_language ?? "");
       setSchool((data as any).school ?? "");
-      setInterests(Array.isArray((data as any).interests) ? (data as any).interests : []);
+      setInterests(Array.isArray((data as any).interests) ? (data as any).interests.slice(0, 1) : []);
       setIsPublic(!!(data as any).is_public);
     }
     setLoadingProfile(false);
