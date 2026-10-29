@@ -1,3 +1,4 @@
+import { supabase } from "@/integrations/supabase/client";
 // Last-resort translation straight from the learner's browser (Google's free
 // "gtx" endpoint, CORS-open, no key). Used only when the translate-word /
 // translate-subtitles edge functions fail — AI credits gone, Gemini key
@@ -80,9 +81,16 @@ export async function browserTranslateLines(lines: string[], from: string, to: s
 const SERVER_TIMEOUT_MS = 8000;
 
 /** The popup's loading/error text — never a real meaning to save on a card. */
-export function isPlaceholderMeaning(text: string | null | undefined): boolean {
+export function isPlaceholderMeaning(text: string | null | undefined, word?: string | null): boolean {
   const t = (text || "").trim();
-  return !t || /^(Translating|Couldn't translate)/i.test(t);
+  if (!t || /^(Translating|Couldn't translate)/i.test(t)) return true;
+  // A "translation" that's just the word again (the translator gave up) is no
+  // meaning at all — it made flashcards show the same word on both sides.
+  if (word) {
+    const flat = (s: string) => s.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/[^\p{L}\p{N}]/gu, "");
+    if (flat(t) === flat(word)) return true;
+  }
+  return false;
 }
 
 export interface WordTranslation {
@@ -102,6 +110,10 @@ export interface WordTranslation {
  * (it adds lemma, part of speech and grammar notes), then the browser fallback
  * if the server fails or returns nothing. Throws only if both fail.
  * `from` / `to` are app language codes ("ja", "en").
+ *
+ * Fastest path first: the shared word dictionary (the 10,000 most common
+ * words per language + every word looked up before) is read straight from
+ * the database — no function start-up, no translator.
  */
 export async function translateWord(
   invoke: (body: Record<string, unknown>) => Promise<{ data: unknown; error: unknown }>,
@@ -111,6 +123,16 @@ export async function translateWord(
   to: string,
   labels: { from: string; to: string },
 ): Promise<WordTranslation> {
+  const hit = await dictionaryLookup(word, from, to);
+  if (hit) {
+    const ctx = context && context !== word
+      ? await Promise.race([
+          browserTranslate(context, from, to).then((r) => r.text).catch(() => ""),
+          new Promise<string>((r) => setTimeout(() => r(""), 1500)),
+        ])
+      : "";
+    return { ...hit, contextTranslation: ctx };
+  }
   try {
     // A slow server shouldn't keep the learner on "Translating…": after
     // SERVER_TIMEOUT_MS the browser translates instead.
@@ -155,4 +177,41 @@ export async function translateWord(
     isInflected: false,
     grammarNote: null,
   };
+}
+
+/** The shared dictionary (public.word_dictionary), or null on a miss. */
+async function dictionaryLookup(word: string, from: string, to: string): Promise<WordTranslation | null> {
+  const key = word
+    .toLowerCase()
+    .replace(/[.,!?;:"'`«»()\[\]…，。、！？；：「」『』（）《》〈〉“”‘’]/g, "")
+    .trim();
+  const lang = (from || "").toLowerCase().split("-")[0];
+  const target = (to || "").toLowerCase().split("-")[0];
+  if (!key || !lang || !target || lang === target) return null;
+  try {
+    const { data } = await Promise.race([
+      (supabase as any)
+        .from("word_dictionary")
+        .select("translation, lemma, pos, ipa, pronunciation")
+        .eq("language", lang)
+        .eq("word", key)
+        .eq("target", target)
+        .maybeSingle(),
+      new Promise<{ data: null }>((r) => setTimeout(() => r({ data: null }), 1200)),
+    ]);
+    if (!data?.translation || isPlaceholderMeaning(data.translation, word)) return null;
+    return {
+      translation: data.translation,
+      pronunciation: data.pronunciation || "",
+      ipa: data.ipa || "",
+      contextTranslation: "",
+      lemma: data.lemma || null,
+      lemmaTranslation: data.lemma ? data.translation : null,
+      pos: data.pos || null,
+      isInflected: !!data.lemma && data.lemma.toLowerCase() !== key,
+      grammarNote: null,
+    };
+  } catch {
+    return null; // table missing or offline → translate as before
+  }
 }

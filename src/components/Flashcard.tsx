@@ -110,7 +110,7 @@ export const Flashcard = ({
   // popup's "Couldn't translate" text.
   const learningMeaning = useLemma && lemmaTranslation
     ? lemmaTranslation
-    : isPlaceholderMeaning(translation) ? "…" : translation;
+    : isPlaceholderMeaning(translation, learningWord) ? "…" : translation;
 
   // Image mode always leads with the learning-language word — the point is
   // recalling the picture from the word, not choosing a translation direction.

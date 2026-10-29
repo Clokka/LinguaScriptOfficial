@@ -19,8 +19,6 @@ import {
   Target,
   Lock,
   Users,
-  PenLine,
-  Mic,
 } from "lucide-react";
 import { UpgradeLockDialog } from "@/components/UpgradeLockDialog";
 import { Button } from "@/components/ui/button";
@@ -88,9 +86,6 @@ type TabKey = "home" | "discover" | "calendar" | "settings";
 
 const SIDEBAR_ITEMS: { icon: typeof Home; label: string; key: TabKey | "flashcards" | "vocabulary" | "friends" | "linguascripts" | "write" | "speak" }[] = [
   { icon: Home, label: "Home", key: "home" },
-  // The Chameleon Method's other two pillars (reading + watching is Home).
-  { icon: PenLine, label: "Write", key: "write" },
-  { icon: Mic, label: "Speak", key: "speak" },
   { icon: Target, label: "Comprehension", key: "vocabulary" },
   { icon: BookOpen, label: "Flashcards", key: "flashcards" },
   { icon: Users, label: "Friends", key: "friends" },

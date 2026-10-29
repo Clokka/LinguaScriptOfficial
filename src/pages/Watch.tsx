@@ -50,6 +50,8 @@ import { WatchGoalGate } from "@/components/WatchGoalGate";
 import { WatchWordCounter } from "@/components/WatchWordCounter";
 import { VideoBlockedScreen, type VideoBlockKind } from "@/components/VideoBlockedScreen";
 import { checkPetMilestones } from "@/lib/pets";
+import { track, trackOnce } from "@/lib/analytics";
+import { trackAll } from "@/lib/experiments";
 import { browserTranslateLines, isPlaceholderMeaning, translateWord } from "@/lib/browserTranslate";
 
 interface FilmData {
@@ -670,7 +672,10 @@ const Watch = () => {
   useEffect(() => {
     if (!id) return;
     supabase.from("films").select("*").eq("id", id).single().then(({ data }) => {
-      if (data) setFilm(data);
+      if (data) {
+        setFilm(data);
+        track("video_started", { film_id: String(id), language: String((data as any).language || "") });
+      }
       setLoading(false);
     });
   }, [id]);
@@ -986,7 +991,7 @@ const Watch = () => {
     let grammarNote: string | null = null;
 
     // A popup placeholder is not a meaning — never save it onto a card.
-    if (isPlaceholderMeaning(translation)) translation = "";
+    if (isPlaceholderMeaning(translation, word.text)) translation = "";
 
     // Never file an English word as "Chinese" (it happened with mislabelled
     // subtitle tracks: "who" saved as a Chinese card).
@@ -1114,6 +1119,9 @@ const Watch = () => {
       return;
     }
     award("add_word");
+    track("word_saved", { language: langCode, film_id: film.id, source: "player", state: initialState, saved_today: savedTodayRef.current + 1 });
+    trackOnce("first_word_saved", { language: langCode, film_id: film.id });
+    trackAll("first_word");
     triggerReaction("happy", 2000);
     savedTodayRef.current += 1;
     onWordSaved(savedTodayRef.current);
@@ -1240,7 +1248,7 @@ const Watch = () => {
     const langCode = film?.language || learningLanguage || "fr";
     // Tapped while the popup still said "Translating…" or "Couldn't
     // translate": fetch the meaning now rather than saving that text.
-    let meaning = isPlaceholderMeaning(word.translation) ? "" : (word.translation || "").trim();
+    let meaning = isPlaceholderMeaning(word.translation, word.text) ? "" : (word.translation || "").trim();
     if (!meaning) {
       try {
         const t = await translateWord(

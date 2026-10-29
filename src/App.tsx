@@ -41,6 +41,8 @@ import {
 // to download and parse one ~2.8MB bundle containing Watch, Admin, Teacher,
 // the Remotion studio pages, etc. before it could render anything. Splitting
 // each route into its own lazy chunk means a page only pays for its own code.
+import { FunnelTracker } from "./components/FunnelTracker";
+import { AppInbox } from "./components/AppInbox";
 const Landing = lazy(() => import("./pages/Landing"));
 const Write = lazy(() => import("./pages/Write"));
 const Speak = lazy(() => import("./pages/Speak"));
@@ -106,6 +108,8 @@ const App = () => (
           <XpProvider>
             <PetProvider>
             <I18nProvider><TourProvider>
+              <FunnelTracker />
+              <AppInbox />
               <Suspense fallback={<RouteFallback />}>
               <Routes>
                 <Route path="/" element={<Index />} />

@@ -61,13 +61,14 @@ async function loadLanguages() {
   $('lang-picker').classList.toggle('hidden', !info.needsChoice);
 }
 
-// Pillar 1 — reading: switch LinguaScript on for the page in this tab.
-$('read-btn').addEventListener('click', async () => {
-  $('read-error').textContent = '';
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  const res = await send({ type: 'READER_TOGGLE_TAB', tabId: tab?.id });
-  if (!res?.ok) { $('read-error').textContent = res?.error || 'Couldn’t read this page.'; return; }
-  window.close();
+// Word style: the word itself coloured, or a ring around it. Every open tab follows.
+function showStyle(style) {
+  $('style-text').setAttribute('aria-checked', String(style !== 'ring'));
+  $('style-ring').setAttribute('aria-checked', String(style === 'ring'));
+}
+chrome.storage.local.get({ ls_style: 'text' }, (r) => showStyle(r.ls_style));
+['text', 'ring'].forEach((style) => {
+  $(`style-${style}`).addEventListener('click', () => { chrome.storage.local.set({ ls_style: style }); showStyle(style); });
 });
 
 $('lang-change').addEventListener('click', () => $('lang-picker').classList.toggle('hidden'));

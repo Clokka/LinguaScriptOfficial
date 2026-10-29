@@ -4,6 +4,7 @@ import { PostHogProvider } from "posthog-js/react";
 import App from "./App.tsx";
 import "./index.css";
 import { initIntegrations } from "./lib/integrations";
+import { initAnalytics } from "./lib/analytics";
 
 initIntegrations();
 
@@ -12,6 +13,7 @@ posthog.init("phc_rMYDUoc4Azeu3Awaf9KLjUmuvdDmPXq2pCSEKJdE9BDS", {
   person_profiles: "identified_only",
   capture_pageview: "history_change",
 });
+initAnalytics();
 
 createRoot(document.getElementById("root")!).render(
   <PostHogProvider client={posthog}>

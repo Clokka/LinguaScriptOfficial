@@ -141,12 +141,12 @@ export default function WatchScreen() {
       for (let from = 0; ; from += 1000) {
         const { data, error } = await supabase
           .from('saved_words')
-          .select('word, state, next_review')
+          .select('word, state, next_review, interval_days, state_changed_at')
           .eq('user_id', user.id)
           .eq('language', film.language)
           .range(from, from + 999);
         if (error || !data) break;
-        for (const r of data as any[]) colours.set(r.word.toLowerCase(), wordColour(r.state, r.next_review));
+        for (const r of data as any[]) colours.set(r.word.toLowerCase(), wordColour(r));
         if (data.length < 1000) break;
       }
       if (alive) setSavedWords(colours);

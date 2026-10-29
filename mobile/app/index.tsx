@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { View, ActivityIndicator, StyleSheet, BackHandler, Platform } from 'react-native';
+import { View, ActivityIndicator, StyleSheet, BackHandler, Platform, AppState } from 'react-native';
+import * as FileSystem from 'expo-file-system';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView, type WebViewNavigation } from 'react-native-webview';
 import * as Notifications from 'expo-notifications';
@@ -64,6 +65,27 @@ function siteUrlFromLink(url: string | null): string | null {
   return url.startsWith(APP_URL) ? url : null;
 }
 
+// "Select text → LinguaScript" (plugins/withProcessText.js) queues words here;
+// the site saves them (src/components/AppInbox.tsx). ls-config.json tells the
+// native card which languages you learn / speak.
+const INBOX = `${FileSystem.documentDirectory}ls-inbox.json`;
+const CONFIG = `${FileSystem.documentDirectory}ls-config.json`;
+const DECK = `${FileSystem.documentDirectory}ls-deck.json`;
+
+async function readInbox(): Promise<{ at: number }[]> {
+  try {
+    const info = await FileSystem.getInfoAsync(INBOX);
+    if (!info.exists) return [];
+    const list = JSON.parse(await FileSystem.readAsStringAsync(INBOX));
+    return Array.isArray(list) ? list : [];
+  } catch { return []; }
+}
+
+async function removeFromInbox(ats: number[]) {
+  const keep = (await readInbox()).filter((i) => !ats.includes(i.at));
+  try { await FileSystem.writeAsStringAsync(INBOX, JSON.stringify(keep)); } catch {}
+}
+
 export default function AppScreen() {
   const webRef = useRef<WebView>(null);
   const canGoBack = useRef(false);
@@ -72,6 +94,20 @@ export default function AppScreen() {
   const goTo = useCallback((url: string) => {
     webRef.current?.injectJavaScript(`window.location.href = ${JSON.stringify(url)}; true;`);
   }, []);
+
+  /** Hand any words saved from other apps to the site (it puts them in the red deck). */
+  const flushInbox = useCallback(async () => {
+    if (Platform.OS !== 'android') return;
+    const items = await readInbox();
+    if (!items.length) return;
+    webRef.current?.injectJavaScript(`window.__lsInbox && window.__lsInbox(${JSON.stringify(items)}); true;`);
+  }, []);
+
+  // Coming back to the app after saving words elsewhere.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (s) => { if (s === 'active') flushInbox(); });
+    return () => sub.remove();
+  }, [flushInbox]);
 
   useEffect(() => {
     Linking.getInitialURL().then((url) => setStartUrl(siteUrlFromLink(url) ?? APP_URL));
@@ -166,6 +202,22 @@ export default function AppScreen() {
         onMessage={(e) => {
           try {
             const msg = JSON.parse(e.nativeEvent.data);
+            if (msg.type === 'inbox-ready') { flushInbox(); return; }
+            if (msg.type === 'inbox-saved' && Array.isArray(msg.ats)) { removeFromInbox(msg.ats); return; }
+            // The 🦎 bubble (plugins/withWordBubble.js): its copy of the deck, and on/off.
+            if (msg.type === 'deck' && msg.words) {
+              FileSystem.writeAsStringAsync(DECK, JSON.stringify({ language: msg.language, native: msg.native, words: msg.words })).catch(() => {});
+              return;
+            }
+            if (msg.type === 'bubble' && Platform.OS === 'android') {
+              const style = msg.style === 'ring' ? 'ring' : 'text';
+              Linking.openURL(`linguascriptbubble://${msg.on ? 'start' : 'stop'}?style=${style}`).catch(() => {});
+              return;
+            }
+            if (msg.type === 'langs') {
+              FileSystem.writeAsStringAsync(CONFIG, JSON.stringify({ learning: msg.learning || '', native: msg.native || '' })).catch(() => {});
+              return;
+            }
             if (msg.type === 'session' && msg.userId && msg.accessToken) {
               const webClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
                 auth: { persistSession: false, autoRefreshToken: false },

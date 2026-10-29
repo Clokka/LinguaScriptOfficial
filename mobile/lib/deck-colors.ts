@@ -1,3 +1,4 @@
+import { isDueGold } from "@linguascript/core";
 /**
  * Canonical LinguaScript colours for the mobile app.
  *
@@ -27,13 +28,12 @@ export type WordColour = DeckState | "gold";
 
 /**
  * A saved word's colour: its deck, or gold when it's green and its review is
- * due (next_review is a YYYY-MM-DD date). Same rule as
- * deckState() in extension/background.js; reviewing it turns it back to green.
+ * due — 5 minutes after turning green, then on next_review. Same rule as
+ * isDueGold() in packages/core/src/vocab.ts and deckState() in the extension.
  */
-export function wordColour(state: string | null | undefined, nextReview?: string | null): WordColour {
-  const deck: DeckState = state === "green" ? "green" : state === "orange" ? "orange" : "red";
-  const today = new Date().toLocaleDateString("en-CA");
-  return deck === "green" && nextReview && nextReview.slice(0, 10) <= today ? "gold" : deck;
+export function wordColour(w: { state?: string | null; next_review?: string | null; interval_days?: number | null; state_changed_at?: string | null; green_revealed_at?: string | null }): WordColour {
+  const deck: DeckState = w.state === "green" ? "green" : w.state === "orange" ? "orange" : "red";
+  return isDueGold(w) ? "gold" : deck;
 }
 
 export const WORD_COLOURS: Record<WordColour, string> = { ...DECK, gold: GOLD };

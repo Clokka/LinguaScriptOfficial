@@ -24,6 +24,7 @@ export interface PillarWord {
   interval_days: number | null;
   review_count: number | null;
   times_correct: number | null;
+  state_changed_at?: string | null;
 }
 
 export interface PillarDeck {
@@ -39,7 +40,7 @@ export async function loadPillarDeck(client: LinguaScriptSupabaseClient, userId:
   for (let from = 0; from < 10000; from += 1000) {
     const { data, error } = await client
       .from('saved_words')
-      .select('id, word, translation, state, next_review, interval_days, review_count, times_correct, created_at')
+      .select('id, word, translation, state, next_review, interval_days, review_count, times_correct, state_changed_at, created_at')
       .eq('user_id', userId)
       .eq('language', language)
       .order('created_at', { ascending: false })

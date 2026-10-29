@@ -18,6 +18,8 @@ export interface SavedWordLite {
   review_count: number;
   /** Due date for the next review — used to gate the in-video gap challenge. */
   next_review?: string | null;
+  /** 0 on a green word = first review 5 minutes after state_changed_at. */
+  interval_days?: number | null;
   /** When the deck state last changed — the Golden Reveal compares against it. */
   state_changed_at?: string | null;
   created_at?: string | null;
@@ -86,7 +88,7 @@ export function normalizeToken(raw: string): string {
  * anyway, so there is no point degrading — let the error surface.
  */
 const DECK_BASE_COLUMNS =
-  "id, word, language, state, times_correct, review_count, next_review, state_changed_at, created_at";
+  "id, word, language, state, times_correct, review_count, next_review, interval_days, state_changed_at, created_at";
 
 /**
  * Columns the Golden Reveal adds. These live behind a migration, so a database
@@ -284,28 +286,35 @@ export async function bestStateForLemma(
 
 /**
  * The LinguaScript review ladder — the ONE schedule for every surface (web
- * flashcards, the player's gold words, the mobile app via packages/core).
+ * flashcards, the player's gold words, the mobile app via packages/core, and
+ * deckState() in extension/background.js).
  *
- *   red → orange → green, then green → GOLD (due) → reviewed → green …
+ *   red → orange → GREEN → (5 minutes) → GOLD = first review due
+ *   reviewed → green → 1, 3, 7, 14, 30 days → then ×1.5 forever (45, 68, 102 …)
  *
- * Once a word turns green it comes back after 1, 3, 7, 14 and 30 days. After
- * that the gap keeps growing ×1.5 forever (45, 68, 101, 152 … days), so a
- * word is never "finished" — it just visits less and less often.
+ * interval_days = 0 on a green word means "just turned green, first review is
+ * 5 minutes after state_changed_at". next_review is a date column, so it can't
+ * hold minutes — that's why the first step uses state_changed_at.
  *
- * Keep REVIEW_LADDER_DAYS / REVIEW_GROWTH / nextReviewInterval identical to
- * packages/core/src/vocab.ts.
+ * Tapping a gold word in a video turns it green on screen (green_revealed_at)
+ * but does NOT count as a review: it stays due in flashcards until reviewed.
+ *
+ * Keep identical to packages/core/src/vocab.ts and extension/background.js.
  */
 export const REVIEW_LADDER_DAYS = [1, 3, 7, 14, 30] as const;
 export const REVIEW_GROWTH = 1.5;
+/** First review after a word turns green. */
+export const FIRST_REVIEW_MINUTES = 5;
 
 /**
- * Days until the next review.
+ * Days until the next review (0 = the 5-minute first step).
  *  - Missed it, or still red/orange: tomorrow.
- *  - Just turned green: tomorrow (first rung of the ladder).
+ *  - Just turned green: 0 → gold 5 minutes later.
  *  - Green and remembered again: the next rung, then ×1.5 forever.
  */
 export function nextReviewInterval(prevIntervalDays: number | null | undefined, correct: boolean, wasGreen: boolean, isGreen: boolean): number {
-  if (!correct || !isGreen || !wasGreen) return 1;
+  if (!correct || !isGreen) return 1;
+  if (!wasGreen) return 0;
   const prev = Math.max(0, prevIntervalDays ?? 0);
   const rung = REVIEW_LADDER_DAYS.find((d) => d > prev);
   if (rung !== undefined) return rung;
@@ -324,14 +333,40 @@ export function dateInDays(days: number, from = new Date()): string {
   return todayLocal(d);
 }
 
+export interface ReviewFields {
+  state?: string | null;
+  next_review?: string | null;
+  interval_days?: number | null;
+  state_changed_at?: string | null;
+  green_revealed_at?: string | null;
+}
+
+/** When this green word's review falls due (ms), or null if it isn't green. */
+export function reviewDueAt(w: ReviewFields | null | undefined): number | null {
+  if (!w || w.state !== "green") return null;
+  if ((w.interval_days ?? 1) === 0 && w.state_changed_at) {
+    return Date.parse(w.state_changed_at) + FIRST_REVIEW_MINUTES * 60_000;
+  }
+  if (!w.next_review) return null;
+  const [y, m, d] = String(w.next_review).slice(0, 10).split("-").map(Number);
+  return new Date(y, (m || 1) - 1, d || 1).getTime(); // local midnight
+}
+
+/** The review is due (counts in flashcards) — whether or not it was tapped in a video. */
+export function isReviewDue(w: ReviewFields | null | undefined, now = Date.now()): boolean {
+  const at = reviewDueAt(w);
+  return at !== null && at <= now;
+}
+
 /**
- * GOLD = a green word whose review is due. Reviewing it (flashcards, or
- * tapping it in a video) sends it back to green until the next rung.
- * Same rule as `deckState()` in extension/background.js.
+ * Shows GOLD: the review is due and the learner hasn't tapped it in a video
+ * since it fell due. Same rule as deckState() in extension/background.js.
  */
-export function isDueGold(word: { state?: string | null; next_review?: string | null } | null | undefined): boolean {
-  if (!word || word.state !== "green" || !word.next_review) return false;
-  return String(word.next_review).slice(0, 10) <= todayLocal();
+export function isDueGold(w: ReviewFields | null | undefined, now = Date.now()): boolean {
+  const at = reviewDueAt(w);
+  if (at === null || at > now) return false;
+  const tapped = w?.green_revealed_at ? Date.parse(w.green_revealed_at) : 0;
+  return !(tapped >= at);
 }
 
 /** The saved_words columns a real review cycle needs to read and rewrite. */

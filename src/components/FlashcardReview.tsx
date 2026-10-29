@@ -15,6 +15,7 @@ import { getLanguageLabel } from "@/lib/languages";
 import { toast } from "sonner";
 import { playDing } from "@/lib/sound";
 import { Image as ImageIcon, Type } from "lucide-react";
+import { track } from "@/lib/analytics";
 
 type Direction = "learn-to-native" | "native-to-learn";
 const DIR_KEY = "flashcardDirection";
@@ -132,7 +133,7 @@ export const FlashcardReview = ({ cards: initialCards, onClose, onCardReviewed, 
   const meaningFetchTried = useRef<Set<string>>(new Set());
   useEffect(() => {
     const card = cards[currentIndex];
-    if (!card || !isPlaceholderMeaning(card.translation)) return;
+    if (!card || !isPlaceholderMeaning(card.translation, card.word)) return;
     if (meaningFetchTried.current.has(card.id)) return;
     meaningFetchTried.current.add(card.id);
     const from = card.language || languageContext || "";
@@ -142,7 +143,7 @@ export const FlashcardReview = ({ cards: initialCards, onClose, onCardReviewed, 
       { from: getLanguageLabel(from), to: getLanguageLabel(nativeLang) },
     )
       .then((t) => {
-        if (!t.translation) return;
+        if (isPlaceholderMeaning(t.translation, card.word)) return;
         setCards((prev) => prev.map((c) => (c.id === card.id
           ? { ...c, translation: t.translation, pronunciation: c.pronunciation || t.pronunciation }
           : c)));
@@ -171,6 +172,8 @@ export const FlashcardReview = ({ cards: initialCards, onClose, onCardReviewed, 
     const newTimes = prevTimes + (wasCorrect ? 1 : 0);
     const newState = nextState(prevState, newTimes, wasCorrect);
     if (newState === "green" && prevState !== "green") promotedToGreenRef.current += 1;
+    track("flashcard_reviewed", { correct: wasCorrect, from_state: prevState, to_state: newState, language: card.language || "" });
+    if (newState === "green" && prevState !== "green") track("word_turned_green", { language: card.language || "" });
 
     // Real spaced-repetition scheduling: grows/shrinks the review interval
     // via SM-2 instead of leaving next_review frozen at whatever it was set
@@ -271,6 +274,7 @@ export const FlashcardReview = ({ cards: initialCards, onClose, onCardReviewed, 
       if (localStorage.getItem("ls.lastLevelUpDay") === today) return;
     } catch { /* ignore */ }
     award("daily_goal_reached");
+    track("daily_goal_reached", { reviewed });
   };
 
   const handleCorrect = () => {

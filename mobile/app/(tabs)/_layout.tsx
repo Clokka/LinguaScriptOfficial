@@ -10,7 +10,7 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#34C759',
+        tabBarActiveTintColor: '#22c55e',
         tabBarInactiveTintColor: '#64748b',
         tabBarStyle: {
           backgroundColor: '#0b1215',
@@ -30,26 +30,20 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="discover"
         options={{
-          title: 'Watch',
-          tabBarIcon: ({ color }) => <Icon label="📖" color={color} />,
-        }}
-      />
-      {/* The Chameleon Method's three pillars: 📖 read & watch · ✍️ write · 🗣️ speak */}
-      <Tabs.Screen
-        name="write"
-        options={{
-          title: 'Write',
-          tabBarIcon: ({ color }) => <Icon label="✍️" color={color} />,
+          title: 'Discover',
+          tabBarIcon: ({ color }) => <Icon label="🔍" color={color} />,
         }}
       />
       <Tabs.Screen
-        name="speak"
+        name="linguascripts"
         options={{
-          title: 'Speak',
-          tabBarIcon: ({ color }) => <Icon label="🗣️" color={color} />,
+          title: 'Exercises',
+          tabBarIcon: ({ color }) => <Icon label="📝" color={color} />,
         }}
       />
-      <Tabs.Screen name="linguascripts" options={{ href: null }} />
+      {/* Write + Speak exist but stay hidden from the tab bar for now. */}
+      <Tabs.Screen name="write" options={{ href: null }} />
+      <Tabs.Screen name="speak" options={{ href: null }} />
       <Tabs.Screen
         name="flashcards"
         options={{
@@ -57,7 +51,13 @@ export default function TabsLayout() {
           tabBarIcon: ({ color }) => <Icon label="🃏" color={color} />,
         }}
       />
-      <Tabs.Screen name="vocabulary" options={{ href: null }} />
+      <Tabs.Screen
+        name="vocabulary"
+        options={{
+          title: 'Vocab',
+          tabBarIcon: ({ color }) => <Icon label="📚" color={color} />,
+        }}
+      />
       <Tabs.Screen
         name="profile"
         options={{

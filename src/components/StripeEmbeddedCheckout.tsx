@@ -1,6 +1,7 @@
 import { EmbeddedCheckoutProvider, EmbeddedCheckout } from "@stripe/react-stripe-js";
 import { getStripe, getStripeEnvironment } from "@/lib/stripe";
 import { supabase } from "@/integrations/supabase/client";
+import { track } from "@/lib/analytics";
 
 interface Props {
   priceId: string;
@@ -11,6 +12,7 @@ interface Props {
 
 export function StripeEmbeddedCheckout({ priceId, customerEmail, userId, returnUrl }: Props) {
   const fetchClientSecret = async (): Promise<string> => {
+    track("checkout_started", { price_id: priceId });
     const { data, error } = await supabase.functions.invoke("create-checkout", {
       body: {
         priceId,

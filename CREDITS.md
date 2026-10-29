@@ -14,3 +14,10 @@ attribution is at [/credits](https://linguascript.app/credits).
   https://sketchfab.com/xama27280
 - **Trucker Hat Red (Toon)** — by shimtimultimedia — CC BY 4.0 —
   https://sketchfab.com/shimtimultimedia
+
+## Word frequency lists
+
+- **FrequencyWords** — by Hermit Dave — word lists CC BY-SA 4.0 (code MIT),
+  built from OpenSubtitles — https://github.com/hermitdave/FrequencyWords.
+  Used by the `seed-dictionary` function to pick the 10,000 most common words
+  per language for the shared word dictionary.

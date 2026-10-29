@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Seo } from "@/components/Seo";
 import { playDing } from "@/lib/sound";
+import { track } from "@/lib/analytics";
 import {
   ABOUT_QUESTION,
   COLOUR_HEX,
@@ -133,6 +134,7 @@ export default function Write() {
     setChecking(false);
     if (!r) { setError("⚠️"); return; }
     setResult(r);
+    track("write_checked", { score: r.score, red_words: pair.length, interest, language: lang });
     if (r.score >= 30 && user) {
       playDing();
       award("review_card", { correct: true });

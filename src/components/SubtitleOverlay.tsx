@@ -23,6 +23,7 @@ import {
   GOLD,
   type GoldCandidate,
 } from "@/lib/goldenReveal";
+import { track } from "@/lib/analytics";
 import { playDing } from "@/lib/sound";
 import { LineBlastOverlay } from "@/components/LineBlastOverlay";
 import { GoldenDust, type DustAnchor } from "./GoldenDust";
@@ -321,6 +322,7 @@ export const SubtitleOverlay = ({
     if (!revealed) return;
 
     if (awardedXp > 0) award("reinforcement");
+    track("gold_word_tapped", { language: effectiveLang });
 
     // A claim can be the thing that completes the line — the last gold word
     // burning off is exactly the moment worth celebrating. Deferred like the

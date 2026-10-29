@@ -148,6 +148,16 @@
     Rings.load();
     Goal.refresh();
   }
+  // Word style: 'text' (the word itself turns red/orange/green/gold) or
+  // 'ring' (a coloured circle around it). Chosen in the pop-up, every tab follows.
+  function applyWordStyle(style) {
+    document.documentElement.classList.toggle('ls-style-ring', style === 'ring');
+  }
+  getStorage({ ls_style: 'text' }).then((r) => applyWordStyle(r.ls_style));
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && changes.ls_style) applyWordStyle(changes.ls_style.newValue);
+  });
+
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === 'local' && changes.ls_language) applyLanguage(changes.ls_language.newValue);
   });
@@ -1131,7 +1141,23 @@
     .ls-orange { color:${Deck.PALETTE.orange}!important; }
     .ls-green  { color:${Deck.PALETTE.green} !important; }
     /* Gold: a known word that's due for review. */
-    .ls-gold   { color:${Deck.PALETTE.gold} !important; text-shadow:0 0 14px ${GOLD_HEX.glow}, 0 2px 8px rgba(0,0,0,0.95); }
+    .ls-gold   { color:${Deck.PALETTE.gold} !important; text-shadow:none !important; background:linear-gradient(100deg, ${Deck.PALETTE.gold} 0%, ${Deck.PALETTE.gold} 35%, #FFF6C8 50%, ${Deck.PALETTE.gold} 65%, ${Deck.PALETTE.gold} 100%); background-size:200% 100%; -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; animation:ls-glimmer 2.2s linear infinite; filter:drop-shadow(0 0 6px ${GOLD_HEX.glow}) drop-shadow(0 2px 4px rgba(0,0,0,0.85)); }
+    @keyframes ls-glimmer { 0% { background-position:-100% 0; } 100% { background-position:200% 0; } }
+    @media (prefers-reduced-motion: reduce) { .ls-gold { animation:none; } }
+    .ls-word.ls-gold:hover { -webkit-text-fill-color:${Deck.PALETTE.gold}; }
+
+    /* Word style "Rings" (pop-up switch): a coloured circle around the word,
+       the word itself keeps its own colour. Default style "Text" colours the word. */
+    html.ls-style-ring .ls-word.ls-red,
+    html.ls-style-ring .ls-word.ls-orange,
+    html.ls-style-ring .ls-word.ls-green,
+    html.ls-style-ring .ls-word.ls-gold { color:inherit !important; -webkit-text-fill-color:currentColor; background:none !important; filter:none; border-radius:10px; }
+    html.ls-style-ring .ls-word.ls-red    { box-shadow:0 0 0 2px ${Deck.PALETTE.red}; }
+    html.ls-style-ring .ls-word.ls-orange { box-shadow:0 0 0 2px ${Deck.PALETTE.orange}; }
+    html.ls-style-ring .ls-word.ls-green  { box-shadow:0 0 0 2px ${Deck.PALETTE.green}; }
+    html.ls-style-ring .ls-word.ls-gold   { box-shadow:0 0 0 2px ${Deck.PALETTE.gold}, 0 0 12px 2px ${GOLD_HEX.glow}; animation:ls-gold-ring 1.8s ease-in-out infinite; }
+    @keyframes ls-gold-ring { 0%,100% { box-shadow:0 0 0 2px ${Deck.PALETTE.gold}, 0 0 6px 1px ${GOLD_HEX.glow}; } 50% { box-shadow:0 0 0 2px ${Deck.PALETTE.gold}, 0 0 18px 5px ${GOLD_HEX.glow}; } }
+    @media (prefers-reduced-motion: reduce) { html.ls-style-ring .ls-word.ls-gold { animation:none; } }
     /* Ring: one of this video's common words to learn (.ls-target-ring in src/index.css). */
     .ls-ring { border-radius:10px; box-shadow:0 0 0 2px rgba(249,115,22,0.95), 0 0 0 5px rgba(249,115,22,0.3), 0 0 18px 2px rgba(249,115,22,0.5); animation:ls-ring-pulse 2.2s ease-in-out infinite; }
     @keyframes ls-ring-pulse { 0%,100% { box-shadow:0 0 0 2px rgba(249,115,22,0.95), 0 0 0 5px rgba(249,115,22,0.3), 0 0 14px 1px rgba(249,115,22,0.4); } 50% { box-shadow:0 0 0 2px rgba(249,115,22,0.95), 0 0 0 6px rgba(249,115,22,0.35), 0 0 24px 4px rgba(249,115,22,0.55); } }

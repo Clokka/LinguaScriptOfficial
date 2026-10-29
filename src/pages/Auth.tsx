@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { track } from "@/lib/analytics";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
@@ -74,6 +75,7 @@ const Auth = () => {
       // without letting it navigate, then push the TOP window there so the
       // OAuth screen always breaks out of any frame it's running in.
       const framed = window.top !== window.self;
+      track("signup_started", { method: "google", mode: isLogin ? "login" : "signup" });
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
@@ -126,6 +128,7 @@ const Auth = () => {
         navigate(done ? next : "/onboarding", { replace: true });
       }
     } else {
+      track("signup_started", { method: "email", mode: "signup" });
       const { error } = await supabase.auth.signUp({
         email,
         password,

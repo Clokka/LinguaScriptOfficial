@@ -1,6 +1,15 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { aiChat, hasAIKey } from "../_shared/aiChat.ts";
 import { freeTranslate } from "../_shared/freeTranslate.ts";
+import { baseCode, echoes, googleTranslate, lookup, save } from "../_shared/dictionary.ts";
+
+// Run work after the reply has gone (Supabase Edge Runtime), so enriching
+// the dictionary never slows the learner down.
+const later = (p: Promise<unknown>) => {
+  const rt = (globalThis as any).EdgeRuntime;
+  if (rt?.waitUntil) rt.waitUntil(p.catch(() => {}));
+  else p.catch(() => {});
+};
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -69,37 +78,74 @@ Return ONLY valid JSON with these exact fields:
 }`;
 
 
-    let result: any = null;
-    try {
-      if (!hasAIKey()) throw new Error('No AI key configured');
-      result = await callAI(system, userPrompt);
+    const fromCode = baseCode(from);
+    const toCode = baseCode(to);
+    const json = (body: unknown) => new Response(JSON.stringify(body), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
-      // Retry once if the AI echoed the source word
-      if (
-        result.translation &&
-        typeof result.translation === 'string' &&
-        result.translation.trim().toLowerCase() === String(word).trim().toLowerCase()
-      ) {
+    // The full AI answer (lemma, IPA, grammar), saved to the dictionary.
+    const askAI = async () => {
+      if (!hasAIKey()) throw new Error('No AI key configured');
+      let r = await callAI(system, userPrompt);
+      if (r?.translation && echoes(String(r.translation), String(word))) {
         console.warn('AI echoed source word, retrying with stricter prompt');
-        result = await callAI(
+        r = await callAI(
           system,
           `Give ONLY the ${to} meaning of the ${from} word "${word}". The "translation" field MUST be a ${to} word, never "${word}". ${context ? `Sentence: "${context}".` : ''} Return the same JSON schema as before.`
         );
       }
+      return r;
+    };
+    const enrich = (r: any) => save([{
+      language: fromCode, word: String(word), target: toCode, translation: String(r.translation || ''),
+      lemma: r.lemma || null, pos: r.pos || null, ipa: r.ipa || null, pronunciation: r.pronunciation || null, source: 'ai',
+    }]);
+    const contextTranslation = () => (context ? googleTranslate(String(context), from, to).catch(() => '') : Promise.resolve(''));
 
+    // 1. Dictionary — instant for the 10,000 most common words and anything looked up before.
+    const hit = await lookup(fromCode, String(word), toCode);
+    if (hit && !echoes(hit.translation, String(word))) {
+      if (hit.source !== 'ai') later(askAI().then(enrich)); // fill in lemma / IPA for next time
+      return json({
+        translation: hit.translation,
+        pronunciation: hit.pronunciation || '',
+        ipa: hit.ipa || (isChinese ? hit.pronunciation || '' : ''),
+        contextTranslation: await contextTranslation(),
+        lemma: hit.lemma || String(word),
+        lemmaTranslation: hit.translation,
+        pos: hit.pos || 'other',
+        isInflected: !!hit.lemma && hit.lemma.toLowerCase() !== String(word).toLowerCase(),
+        grammarNote: '',
+        source: 'dictionary',
+      });
+    }
+
+    // 2. Google — fast (word and sentence at the same time).
+    const [g, ctxT] = await Promise.all([
+      googleTranslate(String(word), from, to).catch(() => ''),
+      contextTranslation(),
+    ]);
+    if (g && !echoes(g, String(word))) {
+      later(save([{ language: fromCode, word: String(word), target: toCode, translation: g, source: 'google' }]).then(() => askAI().then(enrich)));
+      return json({
+        translation: g, pronunciation: '', ipa: '', contextTranslation: ctxT,
+        lemma: String(word), lemmaTranslation: g, pos: 'other', isInflected: false, grammarNote: '', source: 'google',
+      });
+    }
+
+    // 3. Google gave the word straight back (slang, two words stuck together,
+    //    a rare form): ask the AI, which reads the whole sentence.
+    let result: any = null;
+    try {
+      result = await askAI();
+      if (result?.translation && !echoes(String(result.translation), String(word))) later(enrich(result));
     } catch (aiError) {
-      // AI gateway out of credits (402), rate-limited (429) or down — fall
-      // back to the free translator so the learner still gets a meaning.
       console.warn('AI translation unavailable, using free fallback:', (aiError as Error).message);
-      const [wordRes, contextRes] = await Promise.all([
-        freeTranslate(String(word), from, to),
-        context ? freeTranslate(String(context), from, to).catch(() => null) : Promise.resolve(null),
-      ]);
+      const wordRes = await freeTranslate(String(word), from, to);
       result = {
         translation: wordRes.text,
         pronunciation: wordRes.romanization,
         ipa: isChinese ? wordRes.romanization : '',
-        contextTranslation: contextRes?.text || '',
+        contextTranslation: ctxT,
         lemma: String(word),
         lemmaTranslation: wordRes.text,
         pos: 'other',
