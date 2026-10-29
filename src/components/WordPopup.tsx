@@ -113,7 +113,7 @@ export const WordPopup = ({ word, position, language, translating, deckColor, on
             <Button
               data-tour="word-save"
               variant="success"
-              className="w-full"
+              className="w-full disabled:opacity-100"
               onClick={onSave}
               disabled={translating}
             >
