@@ -271,7 +271,7 @@ class BubbleService : Service() {
         main.post {
           busy = false
           hits = found
-          if (found.none { it.colour != null }) {
+          if (found.none { it.colour != null && it.colour != DeckStore.COMMON }) {
             Toast.makeText(this, "No LinguaScript words on this screen", Toast.LENGTH_SHORT).show()
           } else showOverlay()
         }
@@ -345,7 +345,7 @@ class BubbleService : Service() {
       .putExtra(Intent.EXTRA_PROCESS_TEXT, hit.text)
       .putExtra(ProcessTextActivity.EXTRA_CONTEXT, hit.context)
       .putExtra(ProcessTextActivity.EXTRA_LANGUAGE, DeckStore.language)
-      .putExtra(ProcessTextActivity.EXTRA_STATE, hit.colour ?: "")
+      .putExtra(ProcessTextActivity.EXTRA_STATE, hit.colour?.takeIf { it != DeckStore.COMMON } ?: "")
       .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
   }
 
@@ -354,7 +354,7 @@ class BubbleService : Service() {
     main.post {
       if (saved != null) {
         DeckStore.markSaved(saved)
-        hits.filter { DeckStore.key(it.text) == DeckStore.key(saved) && it.colour == null }.forEach { it.colour = DeckStore.RED }
+        hits.filter { DeckStore.key(it.text) == DeckStore.key(saved) && (it.colour == null || it.colour == DeckStore.COMMON) }.forEach { it.colour = DeckStore.RED }
         showOverlay()
       } else {
         overlay?.visibility = View.VISIBLE
