@@ -679,3 +679,16 @@ async function toggleReader(tabId) {
 chrome.commands?.onCommand.addListener((command, tab) => {
   if (command === 'toggle-reader' && tab?.id) toggleReader(tab.id).catch(() => {});
 });
+
+// ─── Right-click "Add to LinguaScript" on any site ──────────────────────────────
+// Highlighting shows a button on supported sites; everywhere else the learner
+// right-clicks the highlighted word. Uses activeTab, so no extra site access.
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.contextMenus?.create({ id: 'ls-add-selection', title: 'Add "%s" to LinguaScript', contexts: ['selection'] }, () => void chrome.runtime.lastError);
+});
+chrome.contextMenus?.onClicked.addListener(async (info, tab) => {
+  if (info.menuItemId !== 'ls-add-selection' || !tab?.id || !CAN_INJECT(tab.url)) return;
+  const target = { tabId: tab.id, frameIds: [info.frameId || 0] };
+  await chrome.scripting.executeScript({ target, files: ['ls-core.js'] }).catch(() => {});
+  await chrome.scripting.executeScript({ target, func: () => window.LSCore?.openSelectionCard() }).catch(() => {});
+});
