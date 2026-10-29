@@ -39,6 +39,12 @@
     .langs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
     .lang-btn { padding: 8px 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface-2); color: var(--fg); font: 600 13px var(--font); cursor: pointer; }
     .lang-btn:hover, .lang-btn.on { border-color: var(--green); }
+    .style-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .style-btn { display: flex; align-items: center; justify-content: center; gap: 8px; height: 40px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--fg); font: 600 13px var(--font); cursor: pointer; }
+    .style-btn[aria-checked="true"] { border-color: var(--green); background: var(--surface-2); }
+    .sw-text { font-size: 15px; letter-spacing: 0.02em; }
+    .sw-rings { display: flex; gap: 3px; }
+    .sw-rings i { width: 9px; height: 9px; border-radius: 50%; border: 2px solid; display: block; }
   </style>
 </head>
 <body>
@@ -84,6 +90,10 @@
     <div class="row" style="justify-content: space-between; align-items: center;">
       <span class="streak">🔥 <b id="streak">0</b> day streak</span>
       <span class="lang lang-row"><span id="lang-label"></span><button class="link-btn hidden" id="lang-change" type="button">change</button></span>
+    </div>
+    <div class="style-row" role="radiogroup" aria-label="Word style">
+      <button type="button" class="style-btn" id="style-text" role="radio" aria-checked="true"><span class="sw-text"><b style="color:#FF3B30">A</b><b style="color:#FF8A00">a</b><b style="color:#34C759">a</b><b style="color:#FFD54A">a</b></span>Colour</button>
+      <button type="button" class="style-btn" id="style-ring" role="radio" aria-checked="false"><span class="sw-rings"><i style="border-color:#FF3B30"></i><i style="border-color:#FF8A00"></i><i style="border-color:#34C759"></i><i style="border-color:#FFD54A"></i></span>Rings</button>
     </div>
     <div class="row">
       <a class="btn btn-primary" style="flex:1" href="https://www.youtube.com" target="_blank" rel="noopener noreferrer">YouTube</a>

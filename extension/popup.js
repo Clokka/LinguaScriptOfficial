@@ -61,6 +61,16 @@ async function loadLanguages() {
   $('lang-picker').classList.toggle('hidden', !info.needsChoice);
 }
 
+// Word style: the word itself coloured, or a ring around it. Every open tab follows.
+function showStyle(style) {
+  $('style-text').setAttribute('aria-checked', String(style !== 'ring'));
+  $('style-ring').setAttribute('aria-checked', String(style === 'ring'));
+}
+chrome.storage.local.get({ ls_style: 'text' }, (r) => showStyle(r.ls_style));
+['text', 'ring'].forEach((style) => {
+  $(`style-${style}`).addEventListener('click', () => { chrome.storage.local.set({ ls_style: style }); showStyle(style); });
+});
+
 $('lang-change').addEventListener('click', () => $('lang-picker').classList.toggle('hidden'));
 
 async function init() {

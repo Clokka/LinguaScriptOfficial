@@ -66,10 +66,31 @@
     }
     const chunk = document.createElement('span');
     chunk.className = CHUNK;
+    if (onLightBackground(node.parentElement)) chunk.classList.add('ls-light');
     chunk.__lsOriginal = node; // put back on switch-off
     chunk.appendChild(frag);
     node.parentNode.replaceChild(chunk, node);
     return count;
+  }
+
+  // Is the text sitting on a light background? Walk up to the first element
+  // with a solid background colour (cached per element).
+  const bgCache = new WeakMap();
+  function onLightBackground(el) {
+    const seen = [];
+    let light = true; // pages without a background are white
+    for (let e = el; e; e = e.parentElement) {
+      if (bgCache.has(e)) { light = bgCache.get(e); break; }
+      seen.push(e);
+      const m = getComputedStyle(e).backgroundColor.match(/rgba?\(([^)]+)\)/);
+      if (!m) continue;
+      const [r, g, b, a = 1] = m[1].split(',').map((x) => parseFloat(x));
+      if (a < 0.5) continue;
+      light = (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.55;
+      break;
+    }
+    seen.forEach((e) => bgCache.set(e, light));
+    return light;
   }
 
   // The sentence a word sits in becomes the flashcard's example line.
@@ -123,14 +144,23 @@
 
   // Reading on a white page: deck colours as a tinted highlight + underline, so
   // text stays readable (bright green text on white is not).
+  // Reading on a normal page. Style "Text" (default): the word itself turns
+  // red / orange / green, gold glimmers. On a light background the brand hexes
+  // are too pale to read, so the chunk gets .ls-light and deeper shades of the
+  // same four colours. Style "Rings" (html.ls-style-ring): circles instead.
   const READER_CSS = `
-    .${CHUNK} .ls-word { font:inherit !important; padding:0 !important; border-radius:3px; color:inherit; text-shadow:none !important; }
-    .${CHUNK} .ls-word:hover { background:rgba(123,191,39,0.22); }
-    .${CHUNK} .ls-word.ls-red    { color:inherit !important; background:rgba(255,59,48,0.16);  box-shadow:inset 0 -2px 0 #FF3B30; }
-    .${CHUNK} .ls-word.ls-orange { color:inherit !important; background:rgba(255,138,0,0.16);  box-shadow:inset 0 -2px 0 #FF8A00; }
-    .${CHUNK} .ls-word.ls-green  { color:inherit !important; background:rgba(52,199,89,0.14);  box-shadow:inset 0 -2px 0 #34C759; }
-    .${CHUNK} .ls-word.ls-gold   { color:inherit !important; background:rgba(255,213,74,0.30); box-shadow:inset 0 -2px 0 #FFAA1A, 0 0 10px rgba(255,200,60,0.55); text-shadow:none !important; }
-    .${CHUNK} .ls-word.ls-ring   { animation:none; box-shadow:none; }
+    .${CHUNK} .ls-word { font:inherit !important; padding:0 !important; border-radius:4px; color:inherit; text-shadow:none !important; }
+    .${CHUNK} .ls-word:hover { background:rgba(123,191,39,0.18); }
+    .${CHUNK} .ls-word.ls-ring { animation:none; box-shadow:none; }
+    .${CHUNK}.ls-light .ls-word.ls-red    { color:#D92B21 !important; }
+    .${CHUNK}.ls-light .ls-word.ls-orange { color:#C05F00 !important; }
+    .${CHUNK}.ls-light .ls-word.ls-green  { color:#1E8E3E !important; }
+    .${CHUNK} .ls-word.ls-gold { filter:drop-shadow(0 0 5px rgba(255,200,60,0.6)); }
+    .${CHUNK}.ls-light .ls-word.ls-gold { color:#B07A00 !important; background-image:linear-gradient(100deg,#B07A00 0%,#B07A00 35%,#FFE27A 50%,#B07A00 65%,#B07A00 100%); filter:drop-shadow(0 0 4px rgba(255,190,40,0.45)); }
+    html.ls-style-ring .${CHUNK} .ls-word.ls-red,
+    html.ls-style-ring .${CHUNK} .ls-word.ls-orange,
+    html.ls-style-ring .${CHUNK} .ls-word.ls-green,
+    html.ls-style-ring .${CHUNK} .ls-word.ls-gold { color:inherit !important; background-image:none !important; padding:0 3px !important; }
     #ls-reader-badge { position:fixed; right:16px; bottom:16px; z-index:2147483646; display:flex; align-items:center; gap:8px; padding:8px 12px; border-radius:999px; border:1px solid #24242D; background:rgba(8,8,11,0.92); color:#F5F5F7; font:600 14px 'LS Inter',system-ui,sans-serif; cursor:pointer; box-shadow:0 8px 24px rgba(0,0,0,0.35); }
     #ls-reader-badge:hover { border-color:#7bbf27; }
     #ls-reader-badge .ls-rb-dots { display:flex; gap:3px; }
