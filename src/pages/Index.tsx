@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import LandingPageTest from "@/components/landing/LandingPageTest";
 import { supabase } from "@/integrations/supabase/client";
 import { applyGuestOnboarding } from "@/lib/guestOnboarding";
+import { PageLoading } from "@/components/PageLoading";
 
 // Root route: unauthenticated visitors get the landing page A/B test
 // (Landing5 vs LandingClear, see LandingPageTest).
@@ -51,9 +52,9 @@ const Index = () => {
     };
   }, [user]);
 
-  if (loading) return null;
+  if (loading) return <PageLoading />;
   if (!user) return <LandingPageTest />;
-  if (onboarded === null) return null;
+  if (onboarded === null) return <PageLoading />;
   return <Navigate to={onboarded ? next ?? "/discover" : "/onboarding"} replace />;
 };
 

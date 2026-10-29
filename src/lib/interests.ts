@@ -35,7 +35,7 @@ export const INTERESTS: Interest[] = [
   { id: "anime",           label: "Anime",             emoji: "🇯🇵", query: "anime dubbed" },
 ];
 
-export const MAX_INTERESTS = 5;
+export const MAX_INTERESTS = 1;
 
 export function interestById(id: string): Interest | undefined {
   return INTERESTS.find((i) => i.id === id);

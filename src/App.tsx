@@ -18,7 +18,7 @@ import { XpToast } from "@/components/XpToast";
 import { InterestsPromptModal } from "@/components/InterestsPromptModal";
 import { PetProvider } from "@/contexts/PetContext";
 import { PetCompanion } from "@/components/pets/PetCompanion";
-import { Loader2 } from "lucide-react";
+import { PageLoading } from "@/components/PageLoading";
 // Marketing pages stay statically imported (unlike everything below) —
 // they're a small shared chunk and not worth the added indirection of
 // lazy-loading named exports out of a barrel file.
@@ -93,11 +93,7 @@ const BlogPostPage = lazy(() => import("./pages/BlogPost"));
 
 const queryClient = new QueryClient();
 
-const RouteFallback = () => (
-  <div className="min-h-screen flex items-center justify-center bg-background">
-    <Loader2 className="w-8 h-8 animate-spin text-primary" />
-  </div>
-);
+const RouteFallback = PageLoading;
 
 const App = () => (
   <HelmetProvider>

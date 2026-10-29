@@ -54,7 +54,7 @@ export function useAuth() {
       if (session?.user) {
         posthog.identify(session.user.id, { email: session.user.email });
       }
-    });
+    }).catch(() => setLoading(false));
 
     return () => subscription.unsubscribe();
   }, []);
