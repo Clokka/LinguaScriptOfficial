@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useXp } from "@/contexts/XpContext";
 import { loadDeckIndex, normalizeToken, reviewDueAt } from "@/lib/vocab";
 import { track } from "@/lib/analytics";
+import type { BubbleDeckWords, InboxItem, SiteToAppMessage } from "@linguascript/core/bridge";
 
 /**
  * Words saved on Android with "select text → LinguaScript" (in any app) wait
@@ -18,9 +19,8 @@ import { track } from "@/lib/analytics";
  *
  * Only runs inside the app (window.ReactNativeWebView).
  */
-interface InboxItem { word: string; translation?: string; language?: string; context?: string; at: number }
 
-const toApp = (msg: unknown) => {
+const toApp = (msg: SiteToAppMessage) => {
   try { (window as any).ReactNativeWebView?.postMessage(JSON.stringify(msg)); } catch { /* not in the app */ }
 };
 
@@ -99,7 +99,7 @@ export function AppInbox() {
     const sendDeck = async (learning: string, native: string) => {
       if (!learning) return;
       const deck = await loadDeckIndex(userId!, learning);
-      const words: Record<string, [string, number, number]> = {};
+      const words: BubbleDeckWords = {};
       deck.forEach((w, key) => {
         const due = reviewDueAt(w as any) ?? 0;
         const tapped = (w as any).green_revealed_at ? Date.parse((w as any).green_revealed_at) : 0;

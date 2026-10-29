@@ -20,6 +20,7 @@ export type Database = {
           date: string
           goal_met: boolean
           id: string
+          language: string
           minutes_watched: number | null
           user_id: string
           videos_watched: number | null
@@ -31,6 +32,7 @@ export type Database = {
           date?: string
           goal_met?: boolean
           id?: string
+          language?: string
           minutes_watched?: number | null
           user_id: string
           videos_watched?: number | null
@@ -42,11 +44,66 @@ export type Database = {
           date?: string
           goal_met?: boolean
           id?: string
+          language?: string
           minutes_watched?: number | null
           user_id?: string
           videos_watched?: number | null
           words_learned?: number | null
           words_reviewed?: number
+        }
+        Relationships: []
+      }
+      blog_posts: {
+        Row: {
+          author_id: string | null
+          author_name: string | null
+          body: string
+          cover_image_url: string | null
+          created_at: string
+          excerpt: string | null
+          id: string
+          meta_description: string | null
+          meta_title: string | null
+          published_at: string | null
+          slug: string
+          status: string
+          tags: string[]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          author_id?: string | null
+          author_name?: string | null
+          body?: string
+          cover_image_url?: string | null
+          created_at?: string
+          excerpt?: string | null
+          id?: string
+          meta_description?: string | null
+          meta_title?: string | null
+          published_at?: string | null
+          slug: string
+          status?: string
+          tags?: string[]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          author_id?: string | null
+          author_name?: string | null
+          body?: string
+          cover_image_url?: string | null
+          created_at?: string
+          excerpt?: string | null
+          id?: string
+          meta_description?: string | null
+          meta_title?: string | null
+          published_at?: string | null
+          slug?: string
+          status?: string
+          tags?: string[]
+          title?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -161,6 +218,7 @@ export type Database = {
       core_vocabulary: {
         Row: {
           audio_url: string | null
+          cefr_level: string | null
           created_at: string
           example_en: string | null
           example_fr: string | null
@@ -178,6 +236,7 @@ export type Database = {
         }
         Insert: {
           audio_url?: string | null
+          cefr_level?: string | null
           created_at?: string
           example_en?: string | null
           example_fr?: string | null
@@ -195,6 +254,7 @@ export type Database = {
         }
         Update: {
           audio_url?: string | null
+          cefr_level?: string | null
           created_at?: string
           example_en?: string | null
           example_fr?: string | null
@@ -209,6 +269,33 @@ export type Database = {
           translation?: string
           updated_at?: string
           word?: string
+        }
+        Relationships: []
+      }
+      device_tokens: {
+        Row: {
+          created_at: string
+          expo_push_token: string
+          id: string
+          last_seen_at: string
+          platform: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expo_push_token: string
+          id?: string
+          last_seen_at?: string
+          platform: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expo_push_token?: string
+          id?: string
+          last_seen_at?: string
+          platform?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -317,6 +404,80 @@ export type Database = {
         }
         Relationships: []
       }
+      experiment_events: {
+        Row: {
+          created_at: string
+          event: string
+          experiment_key: string
+          id: string
+          segment: Json
+          user_id: string | null
+          variant: string
+          visitor_id: string
+        }
+        Insert: {
+          created_at?: string
+          event: string
+          experiment_key: string
+          id?: string
+          segment?: Json
+          user_id?: string | null
+          variant: string
+          visitor_id: string
+        }
+        Update: {
+          created_at?: string
+          event?: string
+          experiment_key?: string
+          id?: string
+          segment?: Json
+          user_id?: string | null
+          variant?: string
+          visitor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "experiment_events_experiment_key_fkey"
+            columns: ["experiment_key"]
+            isOneToOne: false
+            referencedRelation: "experiments"
+            referencedColumns: ["key"]
+          },
+        ]
+      }
+      experiments: {
+        Row: {
+          ai_summary: string | null
+          created_at: string
+          key: string
+          name: string
+          status: string
+          updated_at: string
+          variants: string[]
+          winner: string | null
+        }
+        Insert: {
+          ai_summary?: string | null
+          created_at?: string
+          key: string
+          name: string
+          status?: string
+          updated_at?: string
+          variants: string[]
+          winner?: string | null
+        }
+        Update: {
+          ai_summary?: string | null
+          created_at?: string
+          key?: string
+          name?: string
+          status?: string
+          updated_at?: string
+          variants?: string[]
+          winner?: string | null
+        }
+        Relationships: []
+      }
       films: {
         Row: {
           category: string | null
@@ -402,6 +563,7 @@ export type Database = {
           email_sent_at: string | null
           id: string
           kind: string
+          push_sent_at: string | null
           recipient_id: string
         }
         Insert: {
@@ -410,6 +572,7 @@ export type Database = {
           email_sent_at?: string | null
           id?: string
           kind: string
+          push_sent_at?: string | null
           recipient_id: string
         }
         Update: {
@@ -418,6 +581,7 @@ export type Database = {
           email_sent_at?: string | null
           id?: string
           kind?: string
+          push_sent_at?: string | null
           recipient_id?: string
         }
         Relationships: []
@@ -449,40 +613,109 @@ export type Database = {
         }
         Relationships: []
       }
-      linguascript_reviews: {
+      language_profiles: {
         Row: {
-          correct: boolean
-          created_at: string | null
+          cefr_level: string
+          created_at: string
+          daily_video_goal: number
+          daily_word_goal: number
           id: string
+          interests: string[]
+          language: string
+          last_active_at: string
           mode: string
-          timestamp: string | null
+          seeded_level: string | null
+          seeded_mode: string | null
+          understanding_score: number
+          updated_at: string
           user_id: string
-          word_id: string
+          words_known: number
         }
         Insert: {
-          correct: boolean
-          created_at?: string | null
+          cefr_level?: string
+          created_at?: string
+          daily_video_goal?: number
+          daily_word_goal?: number
           id?: string
-          mode: string
-          timestamp?: string | null
+          interests?: string[]
+          language: string
+          last_active_at?: string
+          mode?: string
+          seeded_level?: string | null
+          seeded_mode?: string | null
+          understanding_score?: number
+          updated_at?: string
           user_id: string
-          word_id: string
+          words_known?: number
         }
         Update: {
-          correct?: boolean
-          created_at?: string | null
+          cefr_level?: string
+          created_at?: string
+          daily_video_goal?: number
+          daily_word_goal?: number
           id?: string
+          interests?: string[]
+          language?: string
+          last_active_at?: string
           mode?: string
-          timestamp?: string | null
+          seeded_level?: string | null
+          seeded_mode?: string | null
+          understanding_score?: number
+          updated_at?: string
           user_id?: string
-          word_id?: string
+          words_known?: number
+        }
+        Relationships: []
+      }
+      linguascript_reviews: {
+        Row: {
+          ai_feedback: string | null
+          created_at: string | null
+          first_try_correct: boolean | null
+          id: string
+          linguascript_id: string
+          method_used: string
+          performance: number
+          response_time_ms: number | null
+          session_id: string | null
+          updated_at: string | null
+          user_id: string
+          user_text: string | null
+        }
+        Insert: {
+          ai_feedback?: string | null
+          created_at?: string | null
+          first_try_correct?: boolean | null
+          id?: string
+          linguascript_id: string
+          method_used: string
+          performance?: number
+          response_time_ms?: number | null
+          session_id?: string | null
+          updated_at?: string | null
+          user_id: string
+          user_text?: string | null
+        }
+        Update: {
+          ai_feedback?: string | null
+          created_at?: string | null
+          first_try_correct?: boolean | null
+          id?: string
+          linguascript_id?: string
+          method_used?: string
+          performance?: number
+          response_time_ms?: number | null
+          session_id?: string | null
+          updated_at?: string | null
+          user_id?: string
+          user_text?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "linguascript_reviews_word_id_fkey"
-            columns: ["word_id"]
+            foreignKeyName: "linguascript_reviews_linguascript_id_fkey"
+            columns: ["linguascript_id"]
             isOneToOne: false
-            referencedRelation: "saved_words"
+            referencedRelation: "linguascripts"
             referencedColumns: ["id"]
           },
         ]
@@ -503,16 +736,20 @@ export type Database = {
           language: string
           mcq_answer: number | null
           mcq_options: Json | null
+          pattern_id: string | null
           saved_word_id: string | null
+          scheduled_for: string
           scheduled_to_srs: boolean | null
           sentence: string
           speaking_answer: string | null
+          stage: number
           status: string | null
           target_word: string
           time_spent_ms: number | null
           translation: string
           updated_at: string | null
           user_id: string
+          word_state: string
           xp_earned: number | null
         }
         Insert: {
@@ -530,16 +767,20 @@ export type Database = {
           language?: string
           mcq_answer?: number | null
           mcq_options?: Json | null
+          pattern_id?: string | null
           saved_word_id?: string | null
+          scheduled_for?: string
           scheduled_to_srs?: boolean | null
           sentence: string
           speaking_answer?: string | null
+          stage?: number
           status?: string | null
           target_word: string
           time_spent_ms?: number | null
           translation: string
           updated_at?: string | null
           user_id: string
+          word_state?: string
           xp_earned?: number | null
         }
         Update: {
@@ -557,19 +798,30 @@ export type Database = {
           language?: string
           mcq_answer?: number | null
           mcq_options?: Json | null
+          pattern_id?: string | null
           saved_word_id?: string | null
+          scheduled_for?: string
           scheduled_to_srs?: boolean | null
           sentence?: string
           speaking_answer?: string | null
+          stage?: number
           status?: string | null
           target_word?: string
           time_spent_ms?: number | null
           translation?: string
           updated_at?: string | null
           user_id?: string
+          word_state?: string
           xp_earned?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "linguascripts_pattern_id_fkey"
+            columns: ["pattern_id"]
+            isOneToOne: false
+            referencedRelation: "sentence_patterns"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "linguascripts_saved_word_id_fkey"
             columns: ["saved_word_id"]
@@ -579,8 +831,290 @@ export type Database = {
           },
         ]
       }
+      notification_preferences: {
+        Row: {
+          daily_reminder_enabled: boolean
+          daily_reminder_time: string
+          flashcards_due: boolean
+          friend_activity: boolean
+          streak_nudges: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          daily_reminder_enabled?: boolean
+          daily_reminder_time?: string
+          flashcards_due?: boolean
+          friend_activity?: boolean
+          streak_nudges?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          daily_reminder_enabled?: boolean
+          daily_reminder_time?: string
+          flashcards_due?: boolean
+          friend_activity?: boolean
+          streak_nudges?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      payment_plans: {
+        Row: {
+          enabled: boolean
+          label: string
+          plan_key: string
+          price_display: string
+          price_id: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          enabled?: boolean
+          label: string
+          plan_key: string
+          price_display: string
+          price_id?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          enabled?: boolean
+          label?: string
+          plan_key?: string
+          price_display?: string
+          price_id?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      pet_collection: {
+        Row: {
+          gifted_from: string | null
+          id: string
+          pet_id: string
+          unlocked_at: string | null
+          user_id: string
+        }
+        Insert: {
+          gifted_from?: string | null
+          id?: string
+          pet_id: string
+          unlocked_at?: string | null
+          user_id: string
+        }
+        Update: {
+          gifted_from?: string | null
+          id?: string
+          pet_id?: string
+          unlocked_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      pet_equipment: {
+        Row: {
+          accessory_id: string
+          created_at: string | null
+          equipped: boolean
+          id: string
+          pet_id: string
+          slot: string
+          user_id: string
+        }
+        Insert: {
+          accessory_id: string
+          created_at?: string | null
+          equipped?: boolean
+          id?: string
+          pet_id: string
+          slot: string
+          user_id: string
+        }
+        Update: {
+          accessory_id?: string
+          created_at?: string | null
+          equipped?: boolean
+          id?: string
+          pet_id?: string
+          slot?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      pet_gift_links: {
+        Row: {
+          accessories: string[] | null
+          claimed_at: string | null
+          claimed_by: string | null
+          created_at: string | null
+          expires_at: string | null
+          id: string
+          pet_id: string
+          sender_id: string | null
+          token: string
+        }
+        Insert: {
+          accessories?: string[] | null
+          claimed_at?: string | null
+          claimed_by?: string | null
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          pet_id: string
+          sender_id?: string | null
+          token?: string
+        }
+        Update: {
+          accessories?: string[] | null
+          claimed_at?: string | null
+          claimed_by?: string | null
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          pet_id?: string
+          sender_id?: string | null
+          token?: string
+        }
+        Relationships: []
+      }
+      pet_gifts: {
+        Row: {
+          id: string
+          pet_id: string
+          recipient_id: string
+          sender_id: string | null
+          sent_at: string | null
+        }
+        Insert: {
+          id?: string
+          pet_id: string
+          recipient_id: string
+          sender_id?: string | null
+          sent_at?: string | null
+        }
+        Update: {
+          id?: string
+          pet_id?: string
+          recipient_id?: string
+          sender_id?: string | null
+          sent_at?: string | null
+        }
+        Relationships: []
+      }
+      pro_chameleon_claims: {
+        Row: {
+          created_at: string
+          email: string | null
+          id: string
+          link_id: string
+          pet_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          link_id: string
+          pet_id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          link_id?: string
+          pet_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pro_chameleon_claims_link_id_fkey"
+            columns: ["link_id"]
+            isOneToOne: false
+            referencedRelation: "pro_chameleon_links"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pro_chameleon_links: {
+        Row: {
+          active: boolean
+          created_at: string
+          created_by: string | null
+          id: string
+          label: string | null
+          pet_id: string
+          token: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          label?: string | null
+          pet_id?: string
+          token: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          label?: string | null
+          pet_id?: string
+          token?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      pro_gift_links: {
+        Row: {
+          claimed_at: string | null
+          claimed_by: string | null
+          created_at: string
+          created_by: string | null
+          days: number | null
+          expires_at: string
+          id: string
+          note: string | null
+          token: string
+          updated_at: string
+        }
+        Insert: {
+          claimed_at?: string | null
+          claimed_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          days?: number | null
+          expires_at?: string
+          id?: string
+          note?: string | null
+          token: string
+          updated_at?: string
+        }
+        Update: {
+          claimed_at?: string | null
+          claimed_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          days?: number | null
+          expires_at?: string
+          id?: string
+          note?: string | null
+          token?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
+          active_pet: string | null
           avatar_url: string | null
           cef_level: string | null
           created_at: string
@@ -595,10 +1129,14 @@ export type Database = {
           is_pro: boolean
           is_public: boolean
           language_switches_used: number
+          last_flashcard_push_at: string | null
           last_friend_email_at: string | null
+          last_goal_nudge_at: string | null
+          last_goal_push_at: string | null
           last_monthly_email_at: string | null
           last_review_email_at: string | null
           last_streak_date: string | null
+          last_streak_push_at: string | null
           last_streak_rescue_email_at: string | null
           last_video_id: string | null
           last_weekly_email_at: string | null
@@ -617,6 +1155,7 @@ export type Database = {
           show_on_global_leaderboard: boolean
           streak_count: number
           streak_rescue_for_streak: number | null
+          timezone: string
           updated_at: string
           user_id: string
           username: string | null
@@ -627,6 +1166,7 @@ export type Database = {
           xp_total: number
         }
         Insert: {
+          active_pet?: string | null
           avatar_url?: string | null
           cef_level?: string | null
           created_at?: string
@@ -641,10 +1181,14 @@ export type Database = {
           is_pro?: boolean
           is_public?: boolean
           language_switches_used?: number
+          last_flashcard_push_at?: string | null
           last_friend_email_at?: string | null
+          last_goal_nudge_at?: string | null
+          last_goal_push_at?: string | null
           last_monthly_email_at?: string | null
           last_review_email_at?: string | null
           last_streak_date?: string | null
+          last_streak_push_at?: string | null
           last_streak_rescue_email_at?: string | null
           last_video_id?: string | null
           last_weekly_email_at?: string | null
@@ -663,6 +1207,7 @@ export type Database = {
           show_on_global_leaderboard?: boolean
           streak_count?: number
           streak_rescue_for_streak?: number | null
+          timezone?: string
           updated_at?: string
           user_id: string
           username?: string | null
@@ -673,6 +1218,7 @@ export type Database = {
           xp_total?: number
         }
         Update: {
+          active_pet?: string | null
           avatar_url?: string | null
           cef_level?: string | null
           created_at?: string
@@ -687,10 +1233,14 @@ export type Database = {
           is_pro?: boolean
           is_public?: boolean
           language_switches_used?: number
+          last_flashcard_push_at?: string | null
           last_friend_email_at?: string | null
+          last_goal_nudge_at?: string | null
+          last_goal_push_at?: string | null
           last_monthly_email_at?: string | null
           last_review_email_at?: string | null
           last_streak_date?: string | null
+          last_streak_push_at?: string | null
           last_streak_rescue_email_at?: string | null
           last_video_id?: string | null
           last_weekly_email_at?: string | null
@@ -709,6 +1259,7 @@ export type Database = {
           show_on_global_leaderboard?: boolean
           streak_count?: number
           streak_rescue_for_streak?: number | null
+          timezone?: string
           updated_at?: string
           user_id?: string
           username?: string | null
@@ -729,15 +1280,26 @@ export type Database = {
           created_at: string
           ease_factor: number
           film_id: string | null
+          frequency_level: string | null
+          frequency_rank: number | null
+          gold_seen_count: number
+          grammar_note: string | null
+          green_revealed_at: string | null
           id: string
+          image_attribution: string | null
+          image_url: string | null
           interval_days: number
           ipa: string
+          is_inflected: boolean | null
           is_phrase: boolean
           language: string
           last_correct_at: string | null
           last_reviewed_at: string | null
+          lemma: string | null
+          lemma_translation: string | null
           next_review: string
           next_review_at: string | null
+          pos: string | null
           pronunciation: string
           review_count: number
           state: string
@@ -745,7 +1307,9 @@ export type Database = {
           times_correct: number
           translation: string
           user_id: string
+          video_saved_at: string | null
           word: string
+          word_form_id: string | null
         }
         Insert: {
           appearance_count?: number | null
@@ -755,15 +1319,26 @@ export type Database = {
           created_at?: string
           ease_factor?: number
           film_id?: string | null
+          frequency_level?: string | null
+          frequency_rank?: number | null
+          gold_seen_count?: number
+          grammar_note?: string | null
+          green_revealed_at?: string | null
           id?: string
+          image_attribution?: string | null
+          image_url?: string | null
           interval_days?: number
           ipa?: string
+          is_inflected?: boolean | null
           is_phrase?: boolean
           language?: string
           last_correct_at?: string | null
           last_reviewed_at?: string | null
+          lemma?: string | null
+          lemma_translation?: string | null
           next_review?: string
           next_review_at?: string | null
+          pos?: string | null
           pronunciation?: string
           review_count?: number
           state?: string
@@ -771,7 +1346,9 @@ export type Database = {
           times_correct?: number
           translation?: string
           user_id: string
+          video_saved_at?: string | null
           word: string
+          word_form_id?: string | null
         }
         Update: {
           appearance_count?: number | null
@@ -781,15 +1358,26 @@ export type Database = {
           created_at?: string
           ease_factor?: number
           film_id?: string | null
+          frequency_level?: string | null
+          frequency_rank?: number | null
+          gold_seen_count?: number
+          grammar_note?: string | null
+          green_revealed_at?: string | null
           id?: string
+          image_attribution?: string | null
+          image_url?: string | null
           interval_days?: number
           ipa?: string
+          is_inflected?: boolean | null
           is_phrase?: boolean
           language?: string
           last_correct_at?: string | null
           last_reviewed_at?: string | null
+          lemma?: string | null
+          lemma_translation?: string | null
           next_review?: string
           next_review_at?: string | null
+          pos?: string | null
           pronunciation?: string
           review_count?: number
           state?: string
@@ -797,7 +1385,9 @@ export type Database = {
           times_correct?: number
           translation?: string
           user_id?: string
+          video_saved_at?: string | null
           word?: string
+          word_form_id?: string | null
         }
         Relationships: [
           {
@@ -805,6 +1395,13 @@ export type Database = {
             columns: ["film_id"]
             isOneToOne: false
             referencedRelation: "films"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "saved_words_word_form_id_fkey"
+            columns: ["word_form_id"]
+            isOneToOne: false
+            referencedRelation: "word_forms"
             referencedColumns: ["id"]
           },
         ]
@@ -912,6 +1509,48 @@ export type Database = {
           name?: string
           slug?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      sentence_patterns: {
+        Row: {
+          cefr_level: string
+          created_at: string
+          example: string
+          example_translation: string
+          explanation: string
+          id: string
+          language: string
+          slots: Json
+          template: string
+          updated_at: string
+          usage_rank: number
+        }
+        Insert: {
+          cefr_level: string
+          created_at?: string
+          example: string
+          example_translation: string
+          explanation: string
+          id?: string
+          language: string
+          slots?: Json
+          template: string
+          updated_at?: string
+          usage_rank: number
+        }
+        Update: {
+          cefr_level?: string
+          created_at?: string
+          example?: string
+          example_translation?: string
+          explanation?: string
+          id?: string
+          language?: string
+          slots?: Json
+          template?: string
+          updated_at?: string
+          usage_rank?: number
         }
         Relationships: []
       }
@@ -1105,6 +1744,36 @@ export type Database = {
         }
         Relationships: []
       }
+      user_interest_signals: {
+        Row: {
+          id: string
+          interest_id: string
+          language: string
+          last_picked_at: string | null
+          picks: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          interest_id: string
+          language: string
+          last_picked_at?: string | null
+          picks?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          interest_id?: string
+          language?: string
+          last_picked_at?: string | null
+          picks?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_lessons: {
         Row: {
           created_at: string
@@ -1275,6 +1944,33 @@ export type Database = {
         }
         Relationships: []
       }
+      vocab_translations: {
+        Row: {
+          created_at: string
+          id: string
+          language: string
+          native_language: string
+          translation: string
+          word: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          language: string
+          native_language: string
+          translation: string
+          word: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          language?: string
+          native_language?: string
+          translation?: string
+          word?: string
+        }
+        Relationships: []
+      }
       watch_history: {
         Row: {
           completion_pct: number
@@ -1396,6 +2092,54 @@ export type Database = {
           },
         ]
       }
+      word_forms: {
+        Row: {
+          created_at: string
+          form: string | null
+          id: string
+          language: string
+          lemma: string
+          mood: string | null
+          number: string | null
+          person: string | null
+          pos: string
+          source: string
+          surface: string
+          tense: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          form?: string | null
+          id?: string
+          language: string
+          lemma: string
+          mood?: string | null
+          number?: string | null
+          person?: string | null
+          pos: string
+          source?: string
+          surface: string
+          tense?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          form?: string | null
+          id?: string
+          language?: string
+          lemma?: string
+          mood?: string | null
+          number?: string | null
+          person?: string | null
+          pos?: string
+          source?: string
+          surface?: string
+          tense?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       xp_events: {
         Row: {
           action: string
@@ -1423,6 +2167,36 @@ export type Database = {
         }
         Relationships: []
       }
+      youtube_search_cache: {
+        Row: {
+          cache_key: string
+          created_at: string
+          hit_count: number
+          items: Json
+          language: string | null
+          query: string | null
+          updated_at: string
+        }
+        Insert: {
+          cache_key: string
+          created_at?: string
+          hit_count?: number
+          items?: Json
+          language?: string | null
+          query?: string | null
+          updated_at?: string
+        }
+        Update: {
+          cache_key?: string
+          created_at?: string
+          hit_count?: number
+          items?: Json
+          language?: string | null
+          query?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -1432,9 +2206,22 @@ export type Database = {
       accept_school_invite: { Args: { _token: string }; Returns: string }
       add_friend_by_code: { Args: { _code: string }; Returns: string }
       add_friend_by_user_id: { Args: { _target: string }; Returns: string }
+      admin_fill_vocab_translations: { Args: { _rows: Json }; Returns: number }
       admin_grant_pro: {
         Args: { _days?: number; _user_id: string }
         Returns: boolean
+      }
+      admin_list_pro_chameleon_claims: {
+        Args: never
+        Returns: {
+          claimed_at: string
+          display_name: string
+          email: string
+          is_pro: boolean
+          link_label: string
+          user_id: string
+          username: string
+        }[]
       }
       admin_list_pro_users: {
         Args: never
@@ -1466,6 +2253,24 @@ export type Database = {
         Args: { _emails: string[]; _school_id: string }
         Returns: number
       }
+      cefr_cumulative_target: { Args: { _level: string }; Returns: number }
+      cefr_level_progress: {
+        Args: { _language: string }
+        Returns: {
+          can_advance: boolean
+          known_words: number
+          level: string
+          next_level: string
+          total_words: number
+        }[]
+      }
+      check_achievements: { Args: { p_language?: string }; Returns: Json }
+      claim_free_pet: { Args: { p_pet_id: string }; Returns: Json }
+      claim_gift_link: { Args: { p_token: string }; Returns: Json }
+      claim_pet_milestones: { Args: never; Returns: string[] }
+      claim_pro_chameleon_link: { Args: { _token: string }; Returns: Json }
+      claim_pro_gift_link: { Args: { _token: string }; Returns: Json }
+      claim_return_gift: { Args: never; Returns: Json }
       create_daily_linguascript: {
         Args: {
           p_gap_options: Json
@@ -1480,6 +2285,10 @@ export type Database = {
         }
         Returns: string
       }
+      create_gift_link: {
+        Args: { p_accessories?: string[]; p_pet_id: string }
+        Returns: Json
+      }
       create_linguascript_from_saved_word: {
         Args: {
           p_context: string
@@ -1493,15 +2302,52 @@ export type Database = {
         }
         Returns: string
       }
+      create_pro_chameleon_link: { Args: { _label?: string }; Returns: Json }
+      create_pro_gift_link: {
+        Args: { _days?: number; _note?: string }
+        Returns: Json
+      }
       create_school: { Args: { _name: string; _slug: string }; Returns: string }
       delete_email: {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
       }
+      downgrade_seeded_vocabulary: {
+        Args: { _language: string; _level: string; _mode?: string }
+        Returns: number
+      }
       email_queue_dispatch: { Args: never; Returns: undefined }
       enqueue_email: {
         Args: { payload: Json; queue_name: string }
         Returns: number
+      }
+      experiment_results: {
+        Args: { _dimension?: string; _key: string }
+        Returns: {
+          ctas: number
+          segment_value: string
+          signups: number
+          variant: string
+          views: number
+        }[]
+      }
+      expire_lapsed_pro: { Args: never; Returns: number }
+      frequency_coverage: {
+        Args: { _language: string }
+        Returns: {
+          assumed_words: number
+          band: number
+          known_words: number
+          pct: number
+          total_words: number
+        }[]
+      }
+      frequency_reviewing: {
+        Args: { _language: string }
+        Returns: {
+          band: number
+          reviewing_words: number
+        }[]
       }
       gen_friend_code: { Args: never; Returns: string }
       get_daily_linguascripts: {
@@ -1545,6 +2391,7 @@ export type Database = {
           xp_total: number
         }[]
       }
+      get_gift_link_preview: { Args: { p_token: string }; Returns: Json }
       get_global_leaderboard: {
         Args: never
         Returns: {
@@ -1571,6 +2418,19 @@ export type Database = {
           word: string
         }[]
       }
+      gift_pet: {
+        Args: { p_pet_id: string; p_recipient_username: string }
+        Returns: Json
+      }
+      grant_xp: {
+        Args: {
+          p_action: string
+          p_amount: number
+          p_level: number
+          p_meta?: Json
+        }
+        Returns: Json
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1582,6 +2442,7 @@ export type Database = {
         Args: { _school_id: string; _user_id: string }
         Returns: boolean
       }
+      keep_streak: { Args: never; Returns: Json }
       list_school_students: {
         Args: { _school_id: string }
         Returns: {
@@ -1596,6 +2457,8 @@ export type Database = {
           xp_total: number
         }[]
       }
+      local_midnight: { Args: { _uid: string }; Returns: string }
+      local_today: { Args: { _uid: string }; Returns: string }
       move_to_dlq: {
         Args: {
           dlq_name: string
@@ -1614,6 +2477,8 @@ export type Database = {
           slug: string
         }[]
       }
+      preview_pro_chameleon_link: { Args: { _token: string }; Returns: Json }
+      preview_pro_gift_link: { Args: { _token: string }; Returns: Json }
       read_email_batch: {
         Args: { batch_size: number; queue_name: string; vt: number }
         Returns: {
@@ -1621,6 +2486,20 @@ export type Database = {
           msg_id: number
           read_ct: number
         }[]
+      }
+      record_experiment_event: {
+        Args: {
+          _event: string
+          _key: string
+          _segment: Json
+          _variant: string
+          _visitor: string
+        }
+        Returns: undefined
+      }
+      record_feed_event: {
+        Args: { _interest_id: string; _kind: string; _language: string }
+        Returns: undefined
       }
       record_watch_session: {
         Args: {
@@ -1643,6 +2522,11 @@ export type Database = {
           watch_number: number
         }[]
       }
+      reset_to_absolute_beginner: {
+        Args: { _language: string }
+        Returns: number
+      }
+      reveal_green_word: { Args: { p_word_id: string }; Returns: Json }
       safe_display_name: {
         Args: { _display: string; _user_id: string; _username: string }
         Returns: string
@@ -1651,11 +2535,17 @@ export type Database = {
         Args: { p_linguascript_id: string; p_user_id: string }
         Returns: undefined
       }
-      seed_known_vocabulary: {
-        Args: { _language: string; _level: string }
-        Returns: number
-      }
+      seed_known_vocabulary:
+        | { Args: { _language: string; _level: string }; Returns: number }
+        | {
+            Args: { _language: string; _level: string; _mode?: string }
+            Returns: number
+          }
       set_username: { Args: { _username: string }; Returns: string }
+      touch_gold_word: {
+        Args: { p_decay_at?: number; p_word_id: string }
+        Returns: Json
+      }
       update_email_prefs: { Args: { _prefs: Json }; Returns: Json }
       update_privacy_settings: {
         Args: { _discoverable: boolean; _show_on_leaderboard: boolean }
@@ -1670,18 +2560,31 @@ export type Database = {
         Returns: undefined
       }
       user_learning_rate: { Args: { _language: string }; Returns: number }
-      user_progress_stats: {
-        Args: never
-        Returns: {
-          avg_comprehension: number
-          avg_gain_per_watch: number
-          highest_comprehension: number
-          total_minutes: number
-          videos_in_progress: number
-          videos_mastered: number
-          vocab_learned: number
-        }[]
-      }
+      user_progress_stats:
+        | {
+            Args: never
+            Returns: {
+              avg_comprehension: number
+              avg_gain_per_watch: number
+              highest_comprehension: number
+              total_minutes: number
+              videos_in_progress: number
+              videos_mastered: number
+              vocab_learned: number
+            }[]
+          }
+        | {
+            Args: { _language?: string }
+            Returns: {
+              avg_comprehension: number
+              avg_gain_per_watch: number
+              highest_comprehension: number
+              total_minutes: number
+              videos_in_progress: number
+              videos_mastered: number
+              vocab_learned: number
+            }[]
+          }
     }
     Enums: {
       app_role: "admin" | "user" | "teacher" | "student"
@@ -1701,12 +2604,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1730,11 +2633,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1755,11 +2658,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1780,11 +2683,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1797,11 +2700,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }

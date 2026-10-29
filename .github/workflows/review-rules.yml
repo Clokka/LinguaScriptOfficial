@@ -1,0 +1,23 @@
+# Checks the one review ladder (packages/core/src/review.ts) and that the
+# Chrome extension's copy in extension/background.js still matches it.
+name: Review rules
+on:
+  pull_request:
+    paths:
+      - "packages/core/src/review.ts"
+      - "extension/background.js"
+      - "scripts/check-review-rules.ts"
+  push:
+    branches: [main]
+    paths:
+      - "packages/core/src/review.ts"
+      - "extension/background.js"
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npx -y tsx scripts/check-review-rules.ts

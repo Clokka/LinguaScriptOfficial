@@ -14,6 +14,8 @@ export default defineConfig(({ mode }) => ({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      // Shared rules for the website, the phone app and future apps (packages/core).
+      "@linguascript/core": path.resolve(__dirname, "./packages/core/src"),
     },
   },
 }));

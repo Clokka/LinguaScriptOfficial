@@ -4,10 +4,22 @@
 // orange = learning, green = known). Subtitles colour words by matching the
 // rendered token against the user's saved_words map. Words that aren't saved
 // render in the default subtitle colour ("unassessed").
+//
+// The rules (review ladder, gold, colours, token matching) live in ONE place:
+// packages/core/src/review.ts, shared with the phone app. This file adds the
+// website's database reads/writes on top.
 import { supabase } from "@/integrations/supabase/client";
 import { getGuestWords } from "@/lib/guestWords";
+import { coerceDeckState, normalizeToken, maxState, isBehind, type DeckState } from "@linguascript/core/review";
 
-export type DeckState = "red" | "orange" | "green";
+export {
+  coerceDeckState, normalizeToken, maxState,
+  REVIEW_LADDER_DAYS, REVIEW_GROWTH, FIRST_REVIEW_MINUTES,
+  nextReviewInterval, todayLocal, dateInDays,
+  reviewDueAt, isReviewDue, isDueGold, displayState, applySrsReview,
+  DECK_COLOURS,
+} from "@linguascript/core/review";
+export type { DeckState, DisplayState, ReviewFields, SrsInput, SrsResult } from "@linguascript/core/review";
 
 export interface SavedWordLite {
   id: string;
@@ -70,18 +82,6 @@ export const STATE_META: Record<DeckState, {
     border: "border-[#34C759]/60",
   },
 };
-
-/** Coerce a stored state string into a valid DeckState (defaults to red). */
-export const coerceDeckState = (raw: string | null | undefined): DeckState =>
-  raw === "green" ? "green" : raw === "orange" ? "orange" : "red";
-
-/** Normalise a token to its match key (lowercase, strip punctuation). */
-export function normalizeToken(raw: string): string {
-  return raw
-    .toLowerCase()
-    .replace(/[.,!?;:"'`«»()\[\]…，。、！？；：「」『』（）《》〈〉“”‘’]/g, "")
-    .trim();
-}
 
 /**
  * Columns every deck read needs. If one of these is missing the app is broken
@@ -197,13 +197,6 @@ export function nextState(
   return "green";
 }
 
-const STATE_RANK: Record<DeckState, number> = { red: 0, orange: 1, green: 2 };
-
-/** The higher of two states, forward-only style — never demotes. */
-export function maxState(a: DeckState, b: DeckState): DeckState {
-  return STATE_RANK[a] >= STATE_RANK[b] ? a : b;
-}
-
 /**
  * Propagate a deck-state promotion across every saved word sharing the same
  * lemma. "manges", "mangeons" and "mangerons" are all the verb "manger" —
@@ -244,11 +237,11 @@ export async function syncLemmaState(
   }
 
   const updatedIds = data
-    .filter((row) => STATE_RANK[coerceDeckState(row.state)] < STATE_RANK[target])
+    .filter((row) => isBehind(coerceDeckState(row.state), target))
     .map((row) => row.id);
   // Include the just-reviewed row itself if the group's target ended up
   // higher than what its own review would have produced alone.
-  if (STATE_RANK[reviewedNewState] < STATE_RANK[target]) updatedIds.push(reviewedId);
+  if (isBehind(reviewedNewState, target)) updatedIds.push(reviewedId);
   if (updatedIds.length === 0) return { target, updatedIds: [] };
 
   const { error: updateError } = await supabase
@@ -282,131 +275,4 @@ export async function bestStateForLemma(
     .ilike("lemma", lemma);
   if (error || !data || data.length === 0) return null;
   return data.reduce<DeckState>((acc, row) => maxState(acc, coerceDeckState(row.state)), "red");
-}
-
-/**
- * The LinguaScript review ladder — the ONE schedule for every surface (web
- * flashcards, the player's gold words, the mobile app via packages/core, and
- * deckState() in extension/background.js).
- *
- *   red → orange → GREEN → (5 minutes) → GOLD = first review due
- *   reviewed → green → 1, 3, 7, 14, 30 days → then ×1.5 forever (45, 68, 102 …)
- *
- * interval_days = 0 on a green word means "just turned green, first review is
- * 5 minutes after state_changed_at". next_review is a date column, so it can't
- * hold minutes — that's why the first step uses state_changed_at.
- *
- * Tapping a gold word in a video turns it green on screen (green_revealed_at)
- * but does NOT count as a review: it stays due in flashcards until reviewed.
- *
- * Keep identical to packages/core/src/vocab.ts and extension/background.js.
- */
-export const REVIEW_LADDER_DAYS = [1, 3, 7, 14, 30] as const;
-export const REVIEW_GROWTH = 1.5;
-/** First review after a word turns green. */
-export const FIRST_REVIEW_MINUTES = 5;
-
-/**
- * Days until the next review (0 = the 5-minute first step).
- *  - Missed it, or still red/orange: tomorrow.
- *  - Just turned green: 0 → gold 5 minutes later.
- *  - Green and remembered again: the next rung, then ×1.5 forever.
- */
-export function nextReviewInterval(prevIntervalDays: number | null | undefined, correct: boolean, wasGreen: boolean, isGreen: boolean): number {
-  if (!correct || !isGreen) return 1;
-  if (!wasGreen) return 0;
-  const prev = Math.max(0, prevIntervalDays ?? 0);
-  const rung = REVIEW_LADDER_DAYS.find((d) => d > prev);
-  if (rung !== undefined) return rung;
-  return Math.max(prev + 1, Math.round(prev * REVIEW_GROWTH));
-}
-
-/** Today's date as YYYY-MM-DD in the learner's own timezone. */
-export function todayLocal(d = new Date()): string {
-  return d.toLocaleDateString("en-CA");
-}
-
-/** YYYY-MM-DD, `days` from today in the learner's own timezone. */
-export function dateInDays(days: number, from = new Date()): string {
-  const d = new Date(from);
-  d.setDate(d.getDate() + days);
-  return todayLocal(d);
-}
-
-export interface ReviewFields {
-  state?: string | null;
-  next_review?: string | null;
-  interval_days?: number | null;
-  state_changed_at?: string | null;
-  green_revealed_at?: string | null;
-}
-
-/** When this green word's review falls due (ms), or null if it isn't green. */
-export function reviewDueAt(w: ReviewFields | null | undefined): number | null {
-  if (!w || w.state !== "green") return null;
-  if ((w.interval_days ?? 1) === 0 && w.state_changed_at) {
-    return Date.parse(w.state_changed_at) + FIRST_REVIEW_MINUTES * 60_000;
-  }
-  if (!w.next_review) return null;
-  const [y, m, d] = String(w.next_review).slice(0, 10).split("-").map(Number);
-  return new Date(y, (m || 1) - 1, d || 1).getTime(); // local midnight
-}
-
-/** The review is due (counts in flashcards) — whether or not it was tapped in a video. */
-export function isReviewDue(w: ReviewFields | null | undefined, now = Date.now()): boolean {
-  const at = reviewDueAt(w);
-  return at !== null && at <= now;
-}
-
-/**
- * Shows GOLD: the review is due and the learner hasn't tapped it in a video
- * since it fell due. Same rule as deckState() in extension/background.js.
- */
-export function isDueGold(w: ReviewFields | null | undefined, now = Date.now()): boolean {
-  const at = reviewDueAt(w);
-  if (at === null || at > now) return false;
-  const tapped = w?.green_revealed_at ? Date.parse(w.green_revealed_at) : 0;
-  return !(tapped >= at);
-}
-
-/** The saved_words columns a real review cycle needs to read and rewrite. */
-export interface SrsInput {
-  ease_factor?: number | null;
-  interval_days?: number | null;
-  review_count?: number | null;
-}
-
-export interface SrsResult {
-  ease_factor: number;
-  interval_days: number;
-  review_count: number;
-  /** `saved_words.next_review` is a `date` column (YYYY-MM-DD). */
-  next_review: string;
-  last_reviewed_at: string;
-  last_correct_at?: string;
-}
-
-/**
- * Schedule the next review on the LinguaScript ladder (see
- * `nextReviewInterval`). `wasGreen` / `isGreen` are the deck state before and
- * after this answer — the ladder only climbs while a word stays green.
- *
- * Deliberately does not touch `state` (red/orange/green) — see `nextState`.
- * ease_factor is kept (passed through) for older rows; the ladder ignores it.
- */
-export function applySrsReview(
-  current: SrsInput,
-  correct: boolean,
-  states: { wasGreen: boolean; isGreen: boolean } = { wasGreen: false, isGreen: false },
-): SrsResult {
-  const nowIso = new Date().toISOString();
-  const intervalDays = nextReviewInterval(current.interval_days, correct, states.wasGreen, states.isGreen);
-  return {
-    ease_factor: current.ease_factor ?? 2.5,
-    interval_days: intervalDays,
-    review_count: correct ? (current.review_count ?? 0) + 1 : 0,
-    next_review: dateInDays(intervalDays),
-    last_reviewed_at: nowIso,
-    ...(correct ? { last_correct_at: nowIso } : {}),
-  };
 }

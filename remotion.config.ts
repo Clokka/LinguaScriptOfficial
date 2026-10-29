@@ -29,6 +29,7 @@ Config.overrideWebpackConfig((current) => ({
     alias: {
       ...(current.resolve?.alias ?? {}),
       "@": path.join(process.cwd(), "src"),
+      "@linguascript/core": path.join(process.cwd(), "packages/core/src"),
     },
   },
 }));
