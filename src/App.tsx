@@ -44,6 +44,8 @@ import {
 import { FunnelTracker } from "./components/FunnelTracker";
 import { AppInbox } from "./components/AppInbox";
 import { OverlayPermissionPrompt } from "./components/OverlayPermissionPrompt";
+import { CookieConsent } from "./components/CookieConsent";
+import Cookies from "./pages/Cookies";
 const Landing = lazy(() => import("./pages/Landing"));
 const Write = lazy(() => import("./pages/Write"));
 const Speak = lazy(() => import("./pages/Speak"));
@@ -112,6 +114,7 @@ const App = () => (
               <FunnelTracker />
               <AppInbox />
               <OverlayPermissionPrompt />
+              <CookieConsent />
               <Suspense fallback={<RouteFallback />}>
               <Routes>
                 <Route path="/" element={<Index />} />
@@ -147,6 +150,7 @@ const App = () => (
                 <Route path="/privacy" element={<Privacy />} />
                 <Route path="/privacy-extension" element={<PrivacyExtension />} />
                 <Route path="/terms" element={<Terms />} />
+                <Route path="/cookies" element={<Cookies />} />
                 <Route path="/teacher" element={<Teacher />} />
                 <Route path="/progress" element={<Progress />} />
                 <Route path="/gift" element={<GiftClaim />} />
