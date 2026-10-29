@@ -206,7 +206,7 @@ export default function AppScreen() {
             if (msg.type === 'inbox-saved' && Array.isArray(msg.ats)) { removeFromInbox(msg.ats); return; }
             // The 🦎 bubble (plugins/withWordBubble.js): its copy of the deck, and on/off.
             if (msg.type === 'deck' && msg.words) {
-              FileSystem.writeAsStringAsync(DECK, JSON.stringify({ language: msg.language, native: msg.native, words: msg.words })).catch(() => {});
+              FileSystem.writeAsStringAsync(DECK, JSON.stringify({ language: msg.language, native: msg.native, words: msg.words, common: msg.common || [] })).catch(() => {});
               return;
             }
             if (msg.type === 'bubble' && Platform.OS === 'android') {

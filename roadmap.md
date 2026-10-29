@@ -12,4 +12,4 @@
 - [ ] Influencer plan + blog cluster
 - [ ] PostHog conversion read-back — needs PostHog personal API key
 
-- [ ] Android bubble: third word style "Colour + common words" (keep Colour and Rings)
+- [x] Android bubble: third word style "Colour + common words" (keep Colour and Rings)
