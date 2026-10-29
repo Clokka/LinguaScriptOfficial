@@ -46,7 +46,8 @@ export function PhoneBubbleSetting() {
           onCheckedChange={(v) => { save({ on: v, style }); track(v ? "phone_colour_enabled" : "phone_colour_disabled", { style }); }}
         />
       </div>
-      {on && (
+      <p className="text-sm text-muted-foreground">Word style: colour the words red, orange, green and gold, or draw rings around them.</p>
+      {(
         <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Word style">
           {(["text", "ring"] as const).map((s) => (
             <button
