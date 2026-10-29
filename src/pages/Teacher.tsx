@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Card } from "@/components/ui/card";
 import { Loader2, Copy, GraduationCap, Plus, Users, Download } from "lucide-react";
-import PageLoading from "@/components/PageLoading";
+import { PageLoading } from "@/components/PageLoading";
 
 interface School { school_id: string; name: string; slug: string; member_role: string; }
 interface Student {
