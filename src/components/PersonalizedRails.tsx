@@ -9,7 +9,6 @@ import { customTopicQueries, customTopicRailId, fetchCustomFeedTopics, type Cust
 import { recordFeedEvent } from "@/lib/feedSignals";
 import { TIER_CLASS, TIER_LABEL, coverageBadge, coverageTier, isRecommended } from "@/lib/coverage";
 import { rankByComprehension } from "@/lib/videoRecommendation";
-import { cefrSearchModifier } from "@/lib/cefrQueryModifiers";
 import { getLanguageProfile } from "@/lib/languageProfiles";
 import type { LearningZone } from "@/lib/understanding";
 import { popularityScore } from "@/lib/videoPopularity";
@@ -288,8 +287,8 @@ export const PersonalizedRails = ({
         setLoading(false);
       }
 
-      // Background: score captions against the learner's words, then
-      // re-sort (never filter) and attach the understanding badge.
+      // Background: score real transcripts; only verified 95%+ matches
+      // enter the Recommended rail. Hobby candidates are separate.
       const nativeLang = nativeLanguage || "en";
       const ranked = await Promise.all(
         interestRailDefs.map((i) =>
@@ -299,9 +298,6 @@ export const PersonalizedRails = ({
       if (cancelled) return;
       const scored: Record<string, YTItem[]> = {};
       interestRailDefs.forEach((i, idx) => {
-        const byId = new Map<string, { comprehensionPct: number; zone: LearningZone }>(
-          (ranked[idx] as any[]).map((r) => [r.item.videoId, r] as [string, { comprehensionPct: number; zone: LearningZone }]),
-        );
         scored[i.id] = sortFeed(
           (ranked[idx] || []).map((r) => ({ ...r.item, comprehensionPct: r.comprehensionPct, zone: r.zone })),
         );
@@ -320,7 +316,7 @@ export const PersonalizedRails = ({
     };
     void load().catch(() => { if (!cancelled) { setSearchFailed(true); setLoading(false); setScoring(false); } });
     return () => { cancelled = true; };
-  }, [user?.id, learningLanguage, nativeLanguage, langLabel, interestRailDefs, cefrLevel, feedKey]);
+  }, [user?.id, learningLanguage, nativeLanguage, langLabel, interestRailDefs, feedKey]);
 
   const pick = async (it: YTItem, sourceInterestId?: string) => {
     if (importing || pendingId) return;

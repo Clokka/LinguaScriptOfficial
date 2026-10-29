@@ -18,3 +18,4 @@
 - PostHog and Clarity load only after the visitor accepts analytics in the cookie banner (src/lib/consent.ts); add any new tracker behind the same consent. Why: UK GDPR/PECR require consent before non-essential cookies.
 - Hobby search candidates rank by verified audience statistics before transcript coverage scoring; never append CEFR teaching keywords to hobby searches. Why: authentic interests determine content, vocabulary coverage determines suitability.
 - Route and auth initialization render PageLoading instead of null or spinner-only screens. Why: slow networks must retain a visible application shell.
+- Store prefilled YouTube hobby candidates in public.hobby_video_catalog, separate from caption-ready films; populate with scripts/seed-hobby-catalog.ts using server credentials only. Why: real metadata is not proof of available subtitles or learner suitability.

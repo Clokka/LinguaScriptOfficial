@@ -42,7 +42,9 @@ for (const language of ["fr", "en"]) {
   for (const hobby of INTERESTS) {
     if (quotaExhausted) { report.push({ language, hobby: hobby.id, stored: 0, reason: "quota" }); continue; }
     try {
-      const q = language === "fr" ? fr[hobby.id] : `${hobby.query} -learn -lesson -tutorial language`;
+      const { data: existing } = await db.from("hobby_video_catalog").select("*").eq("language", language).eq("hobby", hobby.id);
+      if ((existing?.length ?? 0) >= 10) { report.push({ language, hobby: hobby.id, stored: 10 }); continue; }
+      const q = language === "fr" ? fr[hobby.id] : hobby.id === "entrepreneurship" ? "entrepreneur business success story" : hobby.query;
       const search = await youtube("search", { part: "snippet", q, type: "video", maxResults: "50", order: "viewCount", relevanceLanguage: language, videoEmbeddable: "true", videoDuration: "medium" });
       const ids = search.items.map((v: any) => v.id.videoId).filter(Boolean).join(",");
       if (!ids) { report.push({ language, hobby: hobby.id, stored: 0, reason: "no_candidates" }); continue; }
@@ -58,7 +60,9 @@ for (const language of ["fr", "en"]) {
         allowed: v.status.embeddable !== false && !v.status.madeForKids,
       })).filter((v: any) => v.allowed && v.duration_seconds > 0 && v.duration_seconds <= 1200 && v.audio_language.split("-")[0] === language && v.view_count >= 1000);
       candidates.sort((a: any, b: any) => popularityScore({ viewCount: b.view_count, likeCount: b.like_count }) - popularityScore({ viewCount: a.view_count, likeCount: a.like_count }));
-      const rows = candidates.slice(0, 10).map(({ allowed, ...row }: any) => row);
+      const combined = new Map<string, any>((existing ?? []).map((row) => [row.video_id, row]));
+      for (const { allowed, ...row } of candidates) combined.set(row.video_id, row);
+      const rows = [...combined.values()].sort((a, b) => popularityScore({ viewCount: b.view_count, likeCount: b.like_count }) - popularityScore({ viewCount: a.view_count, likeCount: a.like_count })).slice(0, 10);
       if (rows.length) {
         const { error } = await db.from("hobby_video_catalog").upsert(rows, { onConflict: "language,hobby,video_id" });
         if (error) throw new Error("catalog_write_failed");
