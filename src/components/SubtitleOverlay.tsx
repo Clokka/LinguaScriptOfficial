@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { translateWord } from "@/lib/browserTranslate";
+import { preloadGlossary } from "@/lib/instantGloss";
 import { cn } from "@/lib/utils";
 import { WordPopup } from "./WordPopup";
 import { supabase } from "@/integrations/supabase/client";
@@ -102,6 +103,11 @@ export const SubtitleOverlay = ({
   // prop from the player; only fall back to languageContext when the
   // caller hasn't tagged the content yet.
   const effectiveLang = contentLanguage || languageContext;
+  // Load the common-word dictionary as soon as the player opens, so the
+  // first tapped word is already instant.
+  useEffect(() => {
+    if (effectiveLang) preloadGlossary(effectiveLang, nativeLanguage || "en");
+  }, [effectiveLang, nativeLanguage]);
   const { user } = useAuth();
   const { award } = useXp();
   const [deck, setDeck] = useState<Map<string, SavedWordLite>>(new Map());
@@ -366,12 +372,6 @@ export const SubtitleOverlay = ({
     }
   };
 
-  // Per-line green % using the weighted understanding model.
-  const greenScore = useMemo(
-    () => greenScoreForLine(primaryText, effectiveLang, deck),
-    [primaryText, effectiveLang, deck],
-  );
-
   const [reaction, setReaction] = useState<ReactionMode | null>(null);
 
   // Is every word in the line green EXCEPT the given one, which is in `expect`?
@@ -483,11 +483,6 @@ export const SubtitleOverlay = ({
       >
         {reaction && (
           <ChameleonReaction mode={reaction} onDone={() => setReaction(null)} />
-        )}
-        {greenScore.totalCount > 0 && (
-          <div className="pointer-events-auto absolute -top-3 right-4 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 backdrop-blur">
-            {greenScore.pct}% green
-          </div>
         )}
         {onSavePhrase && primaryText.trim() && (
           <button

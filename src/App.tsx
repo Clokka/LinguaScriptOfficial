@@ -24,6 +24,7 @@ import { Loader2 } from "lucide-react";
 // lazy-loading named exports out of a barrel file.
 import {
   ChameleonMethodPage,
+  HowItWorksPage,
   DualSubtitlesPage,
   NetflixSubtitlesPage,
   YouTubeSubtitlesPage,
@@ -153,6 +154,7 @@ const App = () => (
                 <Route path="/blog" element={<Blog />} />
                 <Route path="/blog/:slug" element={<BlogPostPage />} />
                 <Route path="/the-chameleon-method" element={<ChameleonMethodPage />} />
+                <Route path="/how-it-works" element={<HowItWorksPage />} />
                 <Route path="/dual-subtitles" element={<DualSubtitlesPage />} />
                 <Route path="/dual-subtitles/netflix" element={<NetflixSubtitlesPage />} />
                 <Route path="/dual-subtitles/youtube" element={<YouTubeSubtitlesPage />} />

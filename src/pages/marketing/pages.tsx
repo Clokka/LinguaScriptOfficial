@@ -597,3 +597,132 @@ export const LearningSciencePage = make({
     </>
   ),
 });
+
+export const HowItWorksPage = make({
+  path: "/how-it-works",
+  title: "How LinguaScript works — learn a language from what you already watch",
+  description:
+    "LinguaScript turns films, series and YouTube into language lessons: dual subtitles, words that change colour from red to green as you learn them, and Kató Lomb's three pillars of reading, speaking and writing.",
+  eyebrow: "How it works",
+  heading: "How LinguaScript works",
+  intro: (
+    <>
+      Watch what you love in the language you're learning. Tap the words you don't know. Watch
+      them turn green. That's it — LinguaScript turns the hours you already spend on films, series
+      and YouTube into a language you actually understand.
+    </>
+  ),
+  jsonLd: softwareJsonLd,
+  body: (
+    <>
+      <H2>1. Watch what you enjoy</H2>
+      <p>
+        The best lesson is one you'd watch anyway. Pick films, series, anime or YouTube in your
+        target language — on YouTube or Netflix with the LinguaScript Chrome extension, or inside the
+        LinguaScript player.
+      </p>
+      <p>
+        No streaming account? <a href="https://www.tv5mondeplus.com" target="_blank" rel="noreferrer" className="text-primary underline">TV5MONDEplus</a>{" "}
+        has hundreds of French films and series for free. Support for TV5MONDEplus and for Planet
+        eStream, the video platform many schools already use, is on the way.
+      </p>
+
+      <H2>2. Read two languages at once</H2>
+      <p>
+        <Link to="/dual-subtitles" className="text-primary underline">Dual subtitles</Link> show the
+        line in the language you're learning, with your own language underneath. You always know
+        what's being said, so you never get lost — and you never stop the film to look things up.
+      </p>
+
+      <H2>3. Tap a word, watch it change colour</H2>
+      <p>Every word you save gets a colour that shows how well you know it:</p>
+      <ul className="list-disc space-y-2 pl-6">
+        <li><strong className="text-foreground">Red</strong> — new. You've just met it.</li>
+        <li><strong className="text-foreground">Orange</strong> — learning. It comes back for quick reviews.</li>
+        <li><strong className="text-foreground">Green</strong> — known. You've remembered it over days, not minutes.</li>
+        <li><strong className="text-foreground">Gold</strong> — time to review. A word glows gold when it's due, so you refresh it before you forget it.</li>
+      </ul>
+      <p>
+        Reviews come back on a schedule that spreads out as you remember more: minutes, then days,
+        then weeks. Nobody learns a word on the first try — you need to meet it again and again.
+        LinguaScript makes sure you do, in flashcards and in the next thing you watch. As green
+        spreads across a subtitle, it stops being a translation exercise and starts being a story.
+        Read more about <Link to="/the-chameleon-method" className="text-primary underline">the Chameleon Method</Link>.
+      </p>
+
+      <H2>4. The three pillars of language learning</H2>
+      <p>
+        LinguaScript follows the polyglot Kató Lomb, who learned to work in sixteen languages. She
+        believed interest beats talent, and that you learn by using a language for yourself in
+        three ways:
+      </p>
+      <ul className="list-disc space-y-2 pl-6">
+        <li>
+          <strong className="text-foreground">Autolexia — reading for yourself.</strong> Watching
+          with subtitles is reading: thousands of real sentences, about things you care about.
+        </li>
+        <li>
+          <strong className="text-foreground">Autologia — speaking to yourself.</strong> Repeat the
+          line straight after the actor says it (this is called shadowing). Your accent and rhythm
+          start to sound like the film.
+        </li>
+        <li>
+          <strong className="text-foreground">Autographia — writing for yourself.</strong> Write your
+          new words down and build your own sentences with them. Words you write, you keep.
+        </li>
+      </ul>
+
+      <H2>5. The interest loop</H2>
+      <p>
+        Enjoy a video → understand a little more → want to watch the next one → understand even more.
+        Most learners quit because studying feels like work. LinguaScript runs on curiosity instead,
+        so the learning keeps going on its own.
+      </p>
+
+      <H2>For teachers and schools</H2>
+      <p>LinguaScript makes language teaching easier, not longer.</p>
+      <ul className="list-disc space-y-2 pl-6">
+        <li>
+          <strong className="text-foreground">Bigger vocabularies, livelier lessons.</strong> GCSE and
+          A-Level students need a wide vocabulary. LinguaScript builds it in the time they already
+          spend watching things — so it doesn't take time away from their other subjects.
+        </li>
+        <li>
+          <strong className="text-foreground">Easy homework.</strong> Set a video, and students learn
+          its key words before they come to class.
+        </li>
+        <li>
+          <strong className="text-foreground">See private study.</strong> The{" "}
+          <Link to="/for-schools" className="text-primary underline">teacher dashboard</Link> shows
+          each student's progress, so you know who is keeping up.
+        </li>
+        <li>
+          <strong className="text-foreground">Better pronunciation.</strong> Shadowing real speakers
+          trains the ear and the mouth together.
+        </li>
+        <li>
+          <strong className="text-foreground">Real interest in the language.</strong> Students pick
+          what they watch, so the language becomes part of their own life, not just a subject.
+        </li>
+        <li>
+          <strong className="text-foreground">Works with your classroom tools.</strong> Export to
+          Quizlet, Anki and Kahoot is coming soon.
+        </li>
+      </ul>
+
+      <H2>Your viewing stays private</H2>
+      <p>
+        Any video you import is yours alone. It's never shown to other learners or used in anyone
+        else's recommendations.
+      </p>
+
+      <H2>Free to start</H2>
+      <p>
+        LinguaScript is free, with{" "}
+        <Link to="/pricing" className="text-primary underline">LinguaScript Pro</Link> for learners
+        who want to go faster.{" "}
+        <Link to="/auth" className="text-primary underline">Start watching</Link>.
+      </p>
+    </>
+  ),
+});
