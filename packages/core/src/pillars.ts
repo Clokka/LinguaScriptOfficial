@@ -4,15 +4,16 @@
  * browser-only bits); both call the same `linguascript-write` function.
  */
 import type { LinguaScriptSupabaseClient } from './supabase';
-import { coerceDeckState, isDueGold, nextReviewInterval, dateInDays, nextState, normalizeToken, type DeckState } from './vocab';
+import { DECK_COLOURS, coerceDeckState, isDueGold, nextReviewInterval, dateInDays, normalizeToken, type DeckState } from './review';
+import { nextState } from './vocab';
 
 export type WordColour = DeckState | 'gold';
 
 export const COLOUR_HEX: Record<WordColour, string> = {
-  red: '#FF3B30',
-  orange: '#FF8A00',
-  green: '#34C759',
-  gold: '#FFD54A',
+  red: DECK_COLOURS.red.hex,
+  orange: DECK_COLOURS.orange.hex,
+  green: DECK_COLOURS.green.hex,
+  gold: DECK_COLOURS.gold.hex,
 };
 
 export interface PillarWord {

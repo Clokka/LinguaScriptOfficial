@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Switch } from "@/components/ui/switch";
 import { track } from "@/lib/analytics";
+import type { SiteToAppMessage } from "@linguascript/core/bridge";
 
 /**
  * "🦎 Colour words on my phone" — the Android bubble (mobile/plugins/withWordBubble.js).
@@ -8,7 +9,7 @@ import { track } from "@/lib/analytics";
  * website only remembers the choice for this switch.
  */
 const KEY = "ls.phoneBubble";
-const toApp = (msg: unknown) => {
+const toApp = (msg: SiteToAppMessage) => {
   try { (window as any).ReactNativeWebView?.postMessage(JSON.stringify(msg)); } catch { /* not in the app */ }
 };
 

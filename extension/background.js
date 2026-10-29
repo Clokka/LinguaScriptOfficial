@@ -129,7 +129,7 @@ function coerceState(raw) {
 }
 
 // Gold = a green word whose review is due — same rule as isDueGold() in
-// src/lib/vocab.ts and packages/core/src/vocab.ts:
+// packages/core/src/review.ts (npm run test:review checks they match):
 //   • just turned green (interval_days 0): due 5 minutes after state_changed_at
 //   • otherwise: due on next_review (a YYYY-MM-DD date, local midnight)
 //   • tapped in a video since it fell due (green_revealed_at) → shows green,

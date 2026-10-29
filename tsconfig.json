@@ -7,6 +7,9 @@
     "paths": {
       "@/*": [
         "./src/*"
+      ],
+      "@linguascript/core/*": [
+        "./packages/core/src/*"
       ]
     },
     "skipLibCheck": true,
