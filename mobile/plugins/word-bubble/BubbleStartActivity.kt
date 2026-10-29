@@ -34,7 +34,7 @@ class BubbleStartActivity : Activity() {
     if (intent.action == ACTION_CAPTURE) { askCapture(); return }
 
     val uri: Uri? = intent.data
-    val style = uri?.getQueryParameter("style")?.takeIf { it == "text" || it == "ring" }
+    val style = uri?.getQueryParameter("style")?.takeIf { it == "text" || it == "ring" || it == "common" }
     if (style != null) {
       prefs.edit().putString("style", style).apply()
       BubbleService.instance?.setStyle(style)
