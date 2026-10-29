@@ -198,7 +198,12 @@ const Flashcards = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  useEffect(() => { fetchCards(); }, [fetchCards]);
+  useEffect(() => {
+    void fetchCards();
+    const refresh = () => { void fetchCards(false); };
+    window.addEventListener("ls:words-saved", refresh);
+    return () => window.removeEventListener("ls:words-saved", refresh);
+  }, [fetchCards]);
 
   // Realtime: re-fetch when the extension (or any other client) inserts a new
   // word OR changes a word's state (red → orange → green). Listening to both

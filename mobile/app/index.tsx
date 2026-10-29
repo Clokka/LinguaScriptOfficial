@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { View, ActivityIndicator, StyleSheet, BackHandler, Platform, AppState } from 'react-native';
+import { View, Text, StyleSheet, BackHandler, Platform, AppState } from 'react-native';
 import * as FileSystem from 'expo-file-system';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView, type WebViewNavigation } from 'react-native-webview';
@@ -110,7 +110,7 @@ export default function AppScreen() {
   }, [flushInbox]);
 
   useEffect(() => {
-    Linking.getInitialURL().then((url) => setStartUrl(siteUrlFromLink(url) ?? APP_URL));
+    Linking.getInitialURL().then((url) => setStartUrl(siteUrlFromLink(url) ?? APP_URL)).catch(() => setStartUrl(APP_URL));
     const sub = Linking.addEventListener('url', ({ url }) => {
       // While the app is open, signInWithGoogle handles the sign-in redirect.
       if (authCallbackParams(url) !== null) return;
@@ -180,7 +180,7 @@ export default function AppScreen() {
   }, [signInWithGoogle]);
 
   if (!startUrl) {
-    return <View style={styles.loading}><ActivityIndicator color="#22c55e" size="large" /></View>;
+    return <View style={styles.loading}><Text style={styles.brand}>🦎 LinguaScript</Text></View>;
   }
 
   return (
@@ -228,7 +228,7 @@ export default function AppScreen() {
           } catch (_) {}
         }}
         renderLoading={() => (
-          <View style={styles.loading}><ActivityIndicator color="#22c55e" size="large" /></View>
+          <View style={styles.loading}><Text style={styles.brand}>🦎 LinguaScript</Text></View>
         )}
         startInLoadingState
         // User agent hint so the site knows it's inside the app
@@ -242,4 +242,5 @@ const styles = StyleSheet.create({
   root:    { flex: 1, backgroundColor: '#0b1215' },
   webview: { flex: 1, backgroundColor: '#0b1215' },
   loading: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', backgroundColor: '#0b1215' },
+  brand: { color: '#34C759', fontSize: 26, fontWeight: '600' },
 });
