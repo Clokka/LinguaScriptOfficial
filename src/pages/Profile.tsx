@@ -239,7 +239,7 @@ const Profile = () => {
   };
 
   const toggleInterest = (id: string) => {
-    setInterests((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+    setInterests([id]);
   };
 
   const handleSave = async () => {
@@ -370,17 +370,19 @@ const Profile = () => {
           {/* Hobbies — drives the "Because you like X" rails and interest-matched
               YouTube channel subscriptions, so changing these reshapes the feed. */}
           <div className="pt-4 border-t border-border/50">
-            <p className="text-sm font-medium text-foreground mb-1">Your hobbies</p>
+            <p className="text-sm font-medium text-foreground mb-1">Your favourite hobby</p>
             <p className="text-xs text-muted-foreground mb-3">
-              Powers your personalized video recommendations. Pick what you actually enjoy watching.
+              Choose one hobby.
             </p>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {INTERESTS.map((interest) => {
                 const active = interests.includes(interest.id);
                 return (
-                  <button
+                  <Button
                     key={interest.id}
                     type="button"
+                    variant="outline"
+                    aria-pressed={active}
                     onClick={() => toggleInterest(interest.id)}
                     className={cn(
                       "relative rounded-xl border px-3 py-2.5 flex items-center gap-2 text-sm transition-colors text-left",
@@ -392,12 +394,12 @@ const Profile = () => {
                     <span>{interest.emoji}</span>
                     <span className="truncate">{interest.label}</span>
                     {active && <Check className="w-3.5 h-3.5 text-primary ml-auto shrink-0" />}
-                  </button>
+                  </Button>
                 );
               })}
             </div>
             <p className="mt-2 text-xs text-muted-foreground">
-              {interests.length === 0 ? "Pick at least one." : `${interests.length} selected — saved with the button below.`}
+              {interests.length === 0 ? "Choose one." : "Saved with the button below."}
             </p>
           </div>
 
