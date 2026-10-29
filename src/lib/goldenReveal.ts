@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import { applySrsReview, isDueGold, todayLocal } from "@/lib/vocab";
+import { isDueGold } from "@/lib/vocab";
 
 /**
  * GOLD — a green word whose review is due.
@@ -7,15 +7,16 @@ import { applySrsReview, isDueGold, todayLocal } from "@/lib/vocab";
  *   red     never met it
  *   orange  learning
  *   green   known
- *   GOLD    known, and due for its next review (1, 3, 7, 14, 30 days, then ×1.5)
+ *   GOLD    known, and due for its next review (5 min after turning green,
+ *           then 1, 3, 7, 14, 30 days, then ×1.5)
  *
- * Reviewing it — in flashcards, or by tapping it when it glows in a video —
- * sends it back to green until the next rung of the ladder. This module is the
+ * Tapping it in a video turns it green on screen, but only a flashcard review
+ * moves it up the ladder. This module is the
  * single source of truth for "is this word gold" on the website, matching
  * `deckState()` in extension/background.js.
  */
 
-/** XP for reviewing a gold word by tapping it in a video. */
+/** XP for spotting a gold word in a video. */
 export const GOLD_CLAIM_XP = 5;
 
 /** Kept for older imports. Gold no longer decays by itself — only a review clears it. */
@@ -46,34 +47,29 @@ export function isPendingGreen(word: GoldCandidate | undefined | null): boolean 
 }
 
 /**
- * Review a gold word straight from the video: the learner recognised it, so it
- * climbs one rung and goes back to green. Returns whether this call did the
- * review — false means it was already reviewed (no double XP on a double tap).
+ * Tap a gold word in a video: it turns green on screen (we remember the tap in
+ * green_revealed_at), but it is NOT a review — it stays due in flashcards until
+ * it's actually reviewed. Returns false when it wasn't gold (no double XP).
  */
 export async function revealGreenWord(
   wordId: string,
 ): Promise<{ revealed: boolean; awardedXp: number }> {
   const { data: row, error: readError } = await supabase
     .from("saved_words")
-    .select("id, state, next_review, interval_days, review_count, ease_factor")
+    .select("id, state, next_review, interval_days, state_changed_at, green_revealed_at")
     .eq("id", wordId)
     .maybeSingle();
   if (readError || !row || !isDueGold(row as GoldCandidate)) return { revealed: false, awardedXp: 0 };
 
-  const srs = applySrsReview(row as any, true, { wasGreen: true, isGreen: true });
-  const { data, error } = await supabase
+  const { error } = await supabase
     .from("saved_words")
-    .update({ ...srs, green_revealed_at: new Date().toISOString() } as any)
-    .eq("id", wordId)
-    .lte("next_review", todayLocal())
-    .select("id")
-    .maybeSingle();
-
+    .update({ green_revealed_at: new Date().toISOString() } as any)
+    .eq("id", wordId);
   if (error) {
-    console.error("[goldenReveal] review failed", error);
+    console.error("[goldenReveal] tap failed", error);
     return { revealed: false, awardedXp: 0 };
   }
-  return { revealed: !!data, awardedXp: data ? GOLD_CLAIM_XP : 0 };
+  return { revealed: true, awardedXp: GOLD_CLAIM_XP };
 }
 
 /** No-op: gold no longer burns off by itself. Kept so older callers compile. */

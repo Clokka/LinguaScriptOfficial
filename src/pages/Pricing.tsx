@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { track } from "@/lib/analytics";
 import { useNavigate } from "react-router-dom";
 import { Check, ArrowLeft, CreditCard, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -44,6 +45,7 @@ const ORANGE = "#FF8A00";
 // real paywall and corrected three bugs where a payment could succeed and
 // the buyer still got nothing. This pass only changes how it looks.
 export default function Pricing() {
+  useEffect(() => { track("paywall_viewed", { where: "pricing" }); }, []);
   const navigate = useNavigate();
   const { user } = useAuth();
   const { isPro, source, loading: subLoading, expiresAt, hasBillingAccount } = useSubscription();

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { setPerson, trackOnce } from "@/lib/analytics";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -79,7 +80,12 @@ export function ExtensionAccountSync() {
       if (e.source !== window || e.origin !== window.location.origin) return;
       const data = e.data;
       if (!data || data.source !== "ls-extension") return;
-      if (data.type === "ready") post("hello");
+      if (data.type === "ready") {
+        post("hello");
+        // The extension is installed in this browser.
+        trackOnce("extension_connected");
+        setPerson({ has_extension: true });
+      }
       else if (data.type === "account") {
         extUserRef.current = data.user ?? null;
         decide();

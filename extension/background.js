@@ -128,11 +128,26 @@ function coerceState(raw) {
   return raw === 'green' ? 'green' : raw === 'orange' ? 'orange' : 'red';
 }
 
-// Gold = a green word whose review is due (next_review is a YYYY-MM-DD date),
-// the same rule as wordColour() in mobile/lib/deck-colors.ts.
-function deckState(row, today = new Date().toLocaleDateString('en-CA')) {
+// Gold = a green word whose review is due — same rule as isDueGold() in
+// src/lib/vocab.ts and packages/core/src/vocab.ts:
+//   • just turned green (interval_days 0): due 5 minutes after state_changed_at
+//   • otherwise: due on next_review (a YYYY-MM-DD date, local midnight)
+//   • tapped in a video since it fell due (green_revealed_at) → shows green,
+//     but it still needs a flashcard review.
+const FIRST_REVIEW_MS = 5 * 60 * 1000;
+function reviewDueAt(row) {
+  if (coerceState(row.state) !== 'green') return null;
+  if ((row.interval_days ?? 1) === 0 && row.state_changed_at) return Date.parse(row.state_changed_at) + FIRST_REVIEW_MS;
+  if (!row.next_review) return null;
+  const [y, m, d] = String(row.next_review).slice(0, 10).split('-').map(Number);
+  return new Date(y, (m || 1) - 1, d || 1).getTime();
+}
+function deckState(row, now = Date.now()) {
   const state = coerceState(row.state);
-  return state === 'green' && row.next_review && String(row.next_review).slice(0, 10) <= today ? 'gold' : state;
+  const at = reviewDueAt(row);
+  if (at === null || at > now) return state;
+  const tapped = row.green_revealed_at ? Date.parse(row.green_revealed_at) : 0;
+  return tapped >= at ? state : 'gold';
 }
 
 // If a word has more than one row, the more advanced deck wins so a green
@@ -159,16 +174,24 @@ async function fetchAllSavedWords(query, accessToken) {
 }
 
 // The learner's deck for one language: normalizeToken(word) → state.
+// green_revealed_at comes from a migration; if a database doesn't have it the
+// whole query would fail and every word would lose its colour, so fall back.
+let _hasRevealedCol = true;
 async function loadDeckIndex(userId, language, accessToken) {
-  const rows = await fetchAllSavedWords(
-    `saved_words?user_id=eq.${userId}&language=eq.${encodeURIComponent(language)}&select=word,state,next_review`,
-    accessToken
-  );
-  const today = new Date().toLocaleDateString('en-CA');
+  const base = `saved_words?user_id=eq.${userId}&language=eq.${encodeURIComponent(language)}&select=word,state,next_review,interval_days,state_changed_at`;
+  let rows;
+  try {
+    rows = await fetchAllSavedWords(_hasRevealedCol ? `${base},green_revealed_at` : base, accessToken);
+  } catch (e) {
+    if (!_hasRevealedCol || !/\(400\)/.test(e?.message || '')) throw e;
+    _hasRevealedCol = false;
+    rows = await fetchAllSavedWords(base, accessToken);
+  }
+  const now = Date.now();
   const m = new Map();
   for (const row of rows) {
     const key = normalizeToken(row.word);
-    m.set(key, higherState(m.get(key), deckState(row, today)));
+    m.set(key, higherState(m.get(key), deckState(row, now)));
   }
   return m;
 }
@@ -606,9 +629,6 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     case 'SAVE_WORD':
       return reply(saveWord(msg), sendResponse);
 
-    // Pop-up "Read this page" button (activeTab is granted by opening the pop-up).
-    case 'READER_TOGGLE_TAB':
-      return reply(toggleReader(msg.tabId), sendResponse);
 
     // linguascript.co.uk asks to sign in as the extension's account. Only the
     // site's own bridge may ask, never a script on YouTube or Netflix.
@@ -642,7 +662,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 });
 
 // ─── Reader: pillar 1 on ANY website ────────────────────────────────────────────
-// Injected only when the learner asks (pop-up button, right-click, Alt+L), using
+// Injected only when the learner presses Alt+L, using
 // activeTab — no "read all your data on all websites" permission.
 const READER_FILES = ['ls-core.js', 'adapters/reader.js'];
 const CAN_INJECT = (url) => /^https?:/.test(url || '') && !/^https:\/\/(chrome\.google\.com\/webstore|chromewebstore\.google\.com)/.test(url || '');
@@ -655,29 +675,7 @@ async function toggleReader(tabId) {
   return { ok: true };
 }
 
-async function saveSelectionIn(tabId, text) {
-  const tab = await chrome.tabs.get(tabId).catch(() => null);
-  if (!tab || !CAN_INJECT(tab.url)) return;
-  await chrome.scripting.executeScript({ target: { tabId }, func: () => { window.__lsReaderSaveOnly = true; } });
-  await chrome.scripting.executeScript({ target: { tabId }, files: READER_FILES });
-  chrome.tabs.sendMessage(tabId, { type: 'READER_SAVE_SELECTION', text }).catch?.(() => {});
-}
-
-function setupMenus() {
-  chrome.contextMenus.removeAll(() => {
-    chrome.contextMenus.create({ id: 'ls-save', title: 'Save “%s” to LinguaScript', contexts: ['selection'] });
-    chrome.contextMenus.create({ id: 'ls-read', title: 'Read this page with LinguaScript', contexts: ['page'] });
-  });
-}
-chrome.runtime.onInstalled.addListener(setupMenus);
-chrome.runtime.onStartup?.addListener(setupMenus);
-
-chrome.contextMenus.onClicked.addListener((info, tab) => {
-  if (!tab?.id) return;
-  if (info.menuItemId === 'ls-save' && info.selectionText) saveSelectionIn(tab.id, info.selectionText).catch(() => {});
-  if (info.menuItemId === 'ls-read') toggleReader(tab.id).catch(() => {});
-});
-
+// Reading on any site is switched on with Alt+L only for now (no menus, no pop-up button).
 chrome.commands?.onCommand.addListener((command, tab) => {
   if (command === 'toggle-reader' && tab?.id) toggleReader(tab.id).catch(() => {});
 });

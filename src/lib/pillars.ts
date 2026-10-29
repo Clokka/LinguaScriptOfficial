@@ -26,6 +26,7 @@ export interface PillarWord {
   review_count: number | null;
   ease_factor: number | null;
   times_correct: number | null;
+  state_changed_at?: string | null;
   created_at: string | null;
 }
 
@@ -42,7 +43,7 @@ export interface PillarDeck {
   greenSample: string[];
 }
 
-const COLS = "id, word, translation, state, next_review, interval_days, review_count, ease_factor, times_correct, created_at";
+const COLS = "id, word, translation, state, next_review, interval_days, review_count, ease_factor, times_correct, state_changed_at, created_at";
 
 export async function loadPillarDeck(userId: string, language: string): Promise<PillarDeck> {
   const colours = new Map<string, WordColour>();

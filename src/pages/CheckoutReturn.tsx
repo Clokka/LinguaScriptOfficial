@@ -3,12 +3,27 @@ import { Link, useSearchParams } from "react-router-dom";
 import { Check, Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useSubscription } from "@/hooks/useSubscription";
+import { track, setPerson } from "@/lib/analytics";
+import { trackAll } from "@/lib/experiments";
 
 export default function CheckoutReturn() {
   const [params] = useSearchParams();
   const sessionId = params.get("session_id");
   const { isPro, refresh, loading } = useSubscription();
   const [tries, setTries] = useState(0);
+
+  // Revenue event — once per checkout session.
+  useEffect(() => {
+    if (!isPro) return;
+    try {
+      const key = `ls.upgraded.${sessionId || "x"}`;
+      if (localStorage.getItem(key)) return;
+      localStorage.setItem(key, "1");
+    } catch { /* ignore */ }
+    track("upgrade_completed", { session_id: sessionId || "" });
+    setPerson({ is_pro: true });
+    trackAll("upgrade");
+  }, [isPro, sessionId]);
 
   useEffect(() => {
     if (isPro || tries >= 6) return;

@@ -11,6 +11,7 @@ export interface SavedWordLite {
   review_count: number;
   next_review?: string | null;
   interval_days?: number | null;
+  state_changed_at?: string | null;
 }
 
 export const coerceDeckState = (raw: string | null | undefined): DeckState =>
@@ -78,7 +79,7 @@ export async function loadDueCards(
   const nowIso = new Date().toISOString();
   const { data, error } = await client
     .from('saved_words')
-    .select('id, word, language, state, times_correct, review_count, next_review, interval_days, translation')
+    .select('id, word, language, state, times_correct, review_count, next_review, interval_days, state_changed_at, translation')
     .eq('user_id', userId)
     .eq('language', language)
     .or(`next_review.lte.${nowIso},next_review.is.null`)
@@ -96,14 +97,18 @@ export async function loadDueCards(
 
 /**
  * The LinguaScript review ladder — identical to src/lib/vocab.ts.
- * Green words come back after 1, 3, 7, 14, 30 days, then ×1.5 forever.
- * A green word that's due shows GOLD; reviewing it sends it back to green.
+ * Turns green → gold 5 minutes later (first review) → then 1, 3, 7, 14, 30
+ * days → then ×1.5 forever. interval_days = 0 on a green word means the
+ * 5-minute first step (timed from state_changed_at). Tapping gold in a video
+ * only turns it green on screen; a flashcard review moves it up the ladder.
  */
 export const REVIEW_LADDER_DAYS = [1, 3, 7, 14, 30] as const;
 export const REVIEW_GROWTH = 1.5;
+export const FIRST_REVIEW_MINUTES = 5;
 
 export function nextReviewInterval(prevIntervalDays: number | null | undefined, correct: boolean, wasGreen: boolean, isGreen: boolean): number {
-  if (!correct || !isGreen || !wasGreen) return 1;
+  if (!correct || !isGreen) return 1;
+  if (!wasGreen) return 0;
   const prev = Math.max(0, prevIntervalDays ?? 0);
   const rung = REVIEW_LADDER_DAYS.find((d) => d > prev);
   if (rung !== undefined) return rung;
@@ -124,14 +129,39 @@ export function dateInDays(days: number): string {
   return ymd(d);
 }
 
-/** GOLD = green + review due. */
-export function isDueGold(word: { state?: string | null; next_review?: string | null } | null | undefined): boolean {
-  if (!word || word.state !== 'green' || !word.next_review) return false;
-  return String(word.next_review).slice(0, 10) <= todayLocal();
+export interface ReviewFields {
+  state?: string | null;
+  next_review?: string | null;
+  interval_days?: number | null;
+  state_changed_at?: string | null;
+  green_revealed_at?: string | null;
+}
+
+export function reviewDueAt(w: ReviewFields | null | undefined): number | null {
+  if (!w || w.state !== 'green') return null;
+  if ((w.interval_days ?? 1) === 0 && w.state_changed_at) {
+    return Date.parse(w.state_changed_at) + FIRST_REVIEW_MINUTES * 60_000;
+  }
+  if (!w.next_review) return null;
+  const [y, m, d] = String(w.next_review).slice(0, 10).split('-').map(Number);
+  return new Date(y, (m || 1) - 1, d || 1).getTime();
+}
+
+export function isReviewDue(w: ReviewFields | null | undefined, now = Date.now()): boolean {
+  const at = reviewDueAt(w);
+  return at !== null && at <= now;
+}
+
+/** GOLD = review due and not tapped in a video since it fell due. */
+export function isDueGold(w: ReviewFields | null | undefined, now = Date.now()): boolean {
+  const at = reviewDueAt(w);
+  if (at === null || at > now) return false;
+  const tapped = w?.green_revealed_at ? Date.parse(w.green_revealed_at) : 0;
+  return !(tapped >= at);
 }
 
 /** red / orange / green / gold — what colour a word shows right now. */
-export function displayState(word: { state?: string | null; next_review?: string | null }): DeckState | 'gold' {
+export function displayState(word: ReviewFields): DeckState | 'gold' {
   return isDueGold(word) ? 'gold' : coerceDeckState(word.state);
 }
 

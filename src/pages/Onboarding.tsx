@@ -1,4 +1,5 @@
 import { trackAll } from "@/lib/experiments";
+import { track, setPerson } from "@/lib/analytics";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useT } from "@/i18n";
 import { UiLanguageSwitcher } from "@/components/UiLanguageSwitcher";
@@ -170,6 +171,7 @@ const Onboarding = () => {
       const storedLevel = isTotalBeginner ? "a1" : (level as string);
       setLearningLanguage(target);
       const snapshot = { native, target, school, wordGoal, mode, level };
+      track("onboarding_step_completed", { step });
       setStep((s) => s + 1);
       void (async () => {
         const { error } = await supabase.from("profiles").update({
@@ -199,6 +201,7 @@ const Onboarding = () => {
       void supabase.from("profiles").update({ interests } as any).eq("user_id", user.id);
     }
     if (step < totalSteps - 1) {
+      track("onboarding_step_completed", { step });
       setStep((s) => s + 1);
     } else {
       setSaving(true);
@@ -209,8 +212,11 @@ const Onboarding = () => {
           interests,
         } as any).eq("user_id", user.id);
         trackAll("signup", { interest: String(interests?.[0] ?? "none"), goal: String(goal || "none") });
+        track("onboarding_completed", { interest: String(interests?.[0] ?? "none"), interests_count: interests?.length ?? 0, goal: String(goal || "none") });
+        setPerson({ interest: String(interests?.[0] ?? "none"), goal: String(goal || "none") });
       } else {
         rememberGuest();
+        track("onboarding_completed", { guest: true, interest: String(interests?.[0] ?? "none"), goal: String(goal || "none") });
       }
       try { localStorage.removeItem(ONBOARDING_KEY); } catch { /* ignore */ }
       playDing("success");

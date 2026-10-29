@@ -50,6 +50,8 @@ import { WatchGoalGate } from "@/components/WatchGoalGate";
 import { WatchWordCounter } from "@/components/WatchWordCounter";
 import { VideoBlockedScreen, type VideoBlockKind } from "@/components/VideoBlockedScreen";
 import { checkPetMilestones } from "@/lib/pets";
+import { track, trackOnce } from "@/lib/analytics";
+import { trackAll } from "@/lib/experiments";
 import { browserTranslateLines, isPlaceholderMeaning, translateWord } from "@/lib/browserTranslate";
 
 interface FilmData {
@@ -670,7 +672,10 @@ const Watch = () => {
   useEffect(() => {
     if (!id) return;
     supabase.from("films").select("*").eq("id", id).single().then(({ data }) => {
-      if (data) setFilm(data);
+      if (data) {
+        setFilm(data);
+        track("video_started", { film_id: String(id), language: String((data as any).language || "") });
+      }
       setLoading(false);
     });
   }, [id]);
@@ -1114,6 +1119,9 @@ const Watch = () => {
       return;
     }
     award("add_word");
+    track("word_saved", { language: langCode, film_id: film.id, source: "player", state: initialState, saved_today: savedTodayRef.current + 1 });
+    trackOnce("first_word_saved", { language: langCode, film_id: film.id });
+    trackAll("first_word");
     triggerReaction("happy", 2000);
     savedTodayRef.current += 1;
     onWordSaved(savedTodayRef.current);

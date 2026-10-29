@@ -1,17 +1,16 @@
 {
   "manifest_version": 3,
-  "name": "LinguaScript: Learn Languages with YouTube, Netflix & Any Website",
+  "name": "LinguaScript: Learn Languages with YouTube & Netflix",
   "short_name": "LinguaScript",
   "version": "1.5.0",
-  "description": "Learn languages on YouTube, Netflix and any website. Dual subtitles, tap any word for its meaning, and save it to your LinguaScript flashcards.",
+  "description": "Learn languages on YouTube and Netflix. Dual subtitles, tap any word for its meaning, and save it to your LinguaScript flashcards.",
   "homepage_url": "https://linguascript.co.uk",
   "minimum_chrome_version": "111",
   "permissions": [
     "storage",
     "identity",
     "activeTab",
-    "scripting",
-    "contextMenus"
+    "scripting"
   ],
   "host_permissions": [
     "https://www.youtube.com/*",

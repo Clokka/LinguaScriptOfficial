@@ -9,6 +9,7 @@ import { ChameleonMascot, type ChameleonTier } from "@/components/ChameleonMasco
 import { Button } from "@/components/ui/button";
 import { Seo } from "@/components/Seo";
 import { playDing } from "@/lib/sound";
+import { track } from "@/lib/analytics";
 import { normalizeToken } from "@/lib/vocab";
 import {
   COLOUR_HEX,
@@ -29,6 +30,28 @@ const LANG_MAP: Record<string, string> = {
 };
 const getSR = (): any =>
   typeof window === "undefined" ? null : (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition || null;
+
+const squash = (t: string) => t.toLowerCase().replace(/\s+/g, " ").trim();
+
+/** Drop finals that a later final already repeats (Android sends cumulative text). */
+function dedupeFinals(finals: string[]): string {
+  const out: string[] = [];
+  for (const f of finals) {
+    const prev = out[out.length - 1];
+    if (prev && squash(f).startsWith(squash(prev))) out[out.length - 1] = f; // f contains prev
+    else if (prev && squash(prev).startsWith(squash(f))) continue; // f is already inside prev
+    else out.push(f);
+  }
+  return out.join(" ");
+}
+
+/** Interim text often starts with what was already finalised — show only the new part. */
+function stripRepeat(mid: string, said: string): string {
+  const m = squash(mid);
+  const s = squash(said);
+  if (s && m.startsWith(s)) return mid.trim().slice(said.trim().length).trim();
+  return mid.trim();
+}
 
 const OPTIONS = [1, 2, 3] as const;
 const TARGET_MIN = 3;
@@ -57,6 +80,10 @@ export default function Speak() {
   const [micError, setMicError] = useState<string | null>(null);
 
   const recRef = useRef<any>(null);
+  /** Text from earlier recognition sessions (Chrome restarts after pauses). */
+  const baseRef = useRef("");
+  /** Text from the current session. */
+  const sessionRef = useRef("");
   const liveRef = useRef(false);
   const startedAt = useRef(0);
   const tickRef = useRef<number | null>(null);
@@ -116,6 +143,7 @@ export default function Speak() {
     const words = tokenize(finalText).filter((p) => p.word).length;
     const redUsed = Array.from(used);
     saveSpeakRun(lang, { seconds, target: minutes * 60, words, redUsed, at: new Date().toISOString() });
+    track("speak_finished", { seconds, target_minutes: minutes, words, red_used: redUsed.length, red_shown: targets.length, language: lang });
     setRuns(getSpeakRuns(lang));
     if (seconds >= 60) award("review_card", { correct: true });
     if (seconds >= TARGET_MIN * 60) playDing("success");
@@ -139,6 +167,8 @@ export default function Speak() {
     if (!SR) return;
     setMicError(null);
     setFinalText("");
+    baseRef.current = "";
+    sessionRef.current = "";
     setInterim("");
     setUsed(new Set());
     setPromoted({});
@@ -153,20 +183,25 @@ export default function Speak() {
       rec.continuous = true;
       rec.interimResults = true;
       rec.maxAlternatives = 1;
+      // Rebuild this session's text from ALL results every time. Android
+      // Chrome re-sends earlier finals (each one repeats the ones before it),
+      // so appending made everything you said show up two or three times.
       rec.onresult = (e: any) => {
-        let fin = "";
+        const finals: string[] = [];
         let mid = "";
-        for (let i = e.resultIndex; i < e.results.length; i++) {
-          const t = e.results[i][0].transcript;
-          if (e.results[i].isFinal) fin += t + " ";
-          else mid += t;
+        for (let i = 0; i < e.results.length; i++) {
+          const t = String(e.results[i][0].transcript || "").trim();
+          if (!t) continue;
+          if (e.results[i].isFinal) finals.push(t);
+          else mid += (mid ? " " : "") + t;
         }
-        if (fin) {
-          setFinalText((prev) => prev + fin);
-          scan(fin);
-        }
-        setInterim(mid);
-        if (mid) scan(mid);
+        const session = dedupeFinals(finals);
+        sessionRef.current = session;
+        const said = baseRef.current + session;
+        setFinalText(said);
+        const midClean = stripRepeat(mid, session);
+        setInterim(midClean ? (said ? " " : "") + midClean : "");
+        scan(said + " " + midClean);
       };
       rec.onerror = (e: any) => {
         if (e.error === "not-allowed" || e.error === "service-not-allowed") {
@@ -176,7 +211,12 @@ export default function Speak() {
         }
       };
       // Chrome ends a session after a pause — keep listening until time's up.
-      rec.onend = () => { if (liveRef.current) { try { open(); } catch { /* retry next tick */ } } };
+      rec.onend = () => {
+        // Keep what this session heard, then start a fresh one.
+        if (sessionRef.current) baseRef.current += sessionRef.current + " ";
+        sessionRef.current = "";
+        if (liveRef.current) { try { open(); } catch { /* retry next tick */ } }
+      };
       recRef.current = rec;
       rec.start();
     };

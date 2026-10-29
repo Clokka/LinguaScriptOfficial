@@ -1,3 +1,5 @@
+import { useEffect } from "react";
+import { track } from "@/lib/analytics";
 import { Lock, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -36,6 +38,7 @@ export const UpgradeLockDialog = ({
   const targetFlag = contentLanguage ? getLanguageFlag(contentLanguage) : "";
   const activeLabel = getLanguageLabel(activeLanguage);
 
+  useEffect(() => { if (open) track("paywall_viewed", { where: "language_lock" }); }, [open]);
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
