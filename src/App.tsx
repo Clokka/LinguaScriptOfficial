@@ -43,6 +43,7 @@ import {
 // each route into its own lazy chunk means a page only pays for its own code.
 import { FunnelTracker } from "./components/FunnelTracker";
 import { AppInbox } from "./components/AppInbox";
+import { OverlayPermissionPrompt } from "./components/OverlayPermissionPrompt";
 const Landing = lazy(() => import("./pages/Landing"));
 const Write = lazy(() => import("./pages/Write"));
 const Speak = lazy(() => import("./pages/Speak"));
@@ -110,6 +111,7 @@ const App = () => (
             <I18nProvider><TourProvider>
               <FunnelTracker />
               <AppInbox />
+              <OverlayPermissionPrompt />
               <Suspense fallback={<RouteFallback />}>
               <Routes>
                 <Route path="/" element={<Index />} />
