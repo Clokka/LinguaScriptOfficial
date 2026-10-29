@@ -210,7 +210,7 @@ export default function AppScreen() {
               return;
             }
             if (msg.type === 'bubble' && Platform.OS === 'android') {
-              const style = msg.style === 'ring' ? 'ring' : 'text';
+              const style = msg.style === 'ring' || msg.style === 'common' ? msg.style : 'text';
               Linking.openURL(`linguascriptbubble://${msg.on ? 'start' : 'stop'}?style=${style}`).catch(() => {});
               return;
             }

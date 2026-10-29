@@ -16,19 +16,19 @@ const toApp = (msg: SiteToAppMessage) => {
 export function PhoneBubbleSetting() {
   const inAndroidApp = typeof window !== "undefined" && !!(window as any).ReactNativeWebView && /Android/i.test(navigator.userAgent);
   const [on, setOn] = useState(false);
-  const [style, setStyle] = useState<"text" | "ring">("text");
+  const [style, setStyle] = useState<"text" | "ring" | "common">("text");
 
   useEffect(() => {
     try {
       const saved = JSON.parse(localStorage.getItem(KEY) || "{}");
       setOn(!!saved.on);
-      if (saved.style === "ring") setStyle("ring");
+      if (saved.style === "ring" || saved.style === "common") setStyle(saved.style);
     } catch { /* ignore */ }
   }, []);
 
   if (!inAndroidApp) return null;
 
-  const save = (next: { on: boolean; style: "text" | "ring" }) => {
+  const save = (next: { on: boolean; style: "text" | "ring" | "common" }) => {
     setOn(next.on);
     setStyle(next.style);
     try { localStorage.setItem(KEY, JSON.stringify(next)); } catch { /* ignore */ }
@@ -46,10 +46,10 @@ export function PhoneBubbleSetting() {
           onCheckedChange={(v) => { save({ on: v, style }); track(v ? "phone_colour_enabled" : "phone_colour_disabled", { style }); }}
         />
       </div>
-      <p className="text-sm text-muted-foreground">Word style: colour the words red, orange, green and gold, or draw rings around them.</p>
+      <p className="text-sm text-muted-foreground">Word style: colour the words red, orange, green and gold, draw rings around them, or colour them and ring the common words you haven't saved yet.</p>
       {(
-        <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Word style">
-          {(["text", "ring"] as const).map((s) => (
+        <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Word style">
+          {(["text", "ring", "common"] as const).map((s) => (
             <button
               key={s}
               type="button"
@@ -58,12 +58,14 @@ export function PhoneBubbleSetting() {
               onClick={() => { save({ on, style: s }); track("phone_colour_style", { style: s }); }}
               className={`h-11 rounded-xl border text-sm font-semibold flex items-center justify-center gap-2 ${style === s ? "border-primary bg-primary/10" : "border-border"}`}
             >
-              {s === "text" ? (
+              {s === "common" ? (
+                <span><b style={{ color: "#34C759" }}>A</b><b className="inline-block rounded-full border-2 px-0.5 leading-none" style={{ borderColor: "#FFD54A" }}>a</b></span>
+              ) : s === "text" ? (
                 <span><b style={{ color: "#FF3B30" }}>A</b><b style={{ color: "#FF8A00" }}>a</b><b style={{ color: "#34C759" }}>a</b><b style={{ color: "#FFD54A" }}>a</b></span>
               ) : (
                 <span className="flex gap-0.5">{["#FF3B30", "#FF8A00", "#34C759", "#FFD54A"].map((c) => <i key={c} className="block w-2.5 h-2.5 rounded-full border-2" style={{ borderColor: c }} />)}</span>
               )}
-              {s === "text" ? "Colour" : "Rings"}
+              {s === "text" ? "Colour" : s === "ring" ? "Rings" : "Common words"}
             </button>
           ))}
         </div>

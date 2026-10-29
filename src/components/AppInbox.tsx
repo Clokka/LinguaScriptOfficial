@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useXp } from "@/contexts/XpContext";
+import { focusRingWords } from "@/lib/focusDeck";
 import { loadDeckIndex, normalizeToken, reviewDueAt } from "@/lib/vocab";
 import { track } from "@/lib/analytics";
 import type { BubbleDeckWords, InboxItem, SiteToAppMessage } from "@linguascript/core/bridge";
@@ -105,7 +106,9 @@ export function AppInbox() {
         const tapped = (w as any).green_revealed_at ? Date.parse((w as any).green_revealed_at) : 0;
         words[key] = [w.state, due, tapped];
       });
-      toApp({ type: "deck", language: learning, native, words });
+      // Unlearned words from the current Top-N block, ringed in "Common words" style.
+      const common = (await focusRingWords(userId!, learning).catch(() => [] as string[])).filter((w) => !words[w]);
+      toApp({ type: "deck", language: learning, native, words, common });
     };
 
     languagesOf()
