@@ -372,12 +372,6 @@ export const SubtitleOverlay = ({
     }
   };
 
-  // Per-line green % using the weighted understanding model.
-  const greenScore = useMemo(
-    () => greenScoreForLine(primaryText, effectiveLang, deck),
-    [primaryText, effectiveLang, deck],
-  );
-
   const [reaction, setReaction] = useState<ReactionMode | null>(null);
 
   // Is every word in the line green EXCEPT the given one, which is in `expect`?
@@ -489,11 +483,6 @@ export const SubtitleOverlay = ({
       >
         {reaction && (
           <ChameleonReaction mode={reaction} onDone={() => setReaction(null)} />
-        )}
-        {greenScore.totalCount > 0 && (
-          <div className="pointer-events-auto absolute -top-3 right-4 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 backdrop-blur">
-            {greenScore.pct}% green
-          </div>
         )}
         {onSavePhrase && primaryText.trim() && (
           <button
