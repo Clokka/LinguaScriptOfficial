@@ -44,6 +44,9 @@ export type AnalyticsEvent =
   | "phone_colour_enabled"
   | "phone_colour_disabled"
   | "phone_colour_style"
+  | "overlay_prompt_shown"
+  | "overlay_prompt_allowed"
+  | "overlay_prompt_dismissed"
   | "page_scan_started"
   | "page_scanned";
 
