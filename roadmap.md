@@ -10,4 +10,5 @@
 - [x] Watch page: 'Words saved X/goal' bar under video with Review in Flashcards button (no forced stop)
 - [ ] Wake up the paused backend (user must press Wake up; resume is blocked for me)
 - [ ] Level downgrade (e.g. C1→B1): decide what happens to stored words (waiting on user)
-- [ ] RevenueCat for website + iOS + Android (requested Oct 29): accounts created; connect RevenueCat, verify project/catalog and link the existing Stripe account before changing Pro access; preserve working Stripe checkout and admin grants.
+- [x] Connect RevenueCat and audit project/catalog: verified LinguaScript, Pro entitlement, and Monthly/Yearly/Lifetime products in Test Store only.
+- [ ] RevenueCat website + iOS + Android: waiting for Rowan to authorize the RevenueCat Stripe App and select the connected Stripe account in a Stripe web configuration; Apple/Google store configurations also absent. Then implement shared Pro access while preserving Stripe checkout and admin grants.
