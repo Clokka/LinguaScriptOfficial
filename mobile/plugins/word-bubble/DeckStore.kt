@@ -5,7 +5,7 @@ package __PACKAGE__
 // → app/index.tsx). Each word: [state, dueAtMs or 0, tappedAtMs or 0].
 // Gold uses the SAME rule as isDueGold() in packages/core/src/vocab.ts:
 // green + due + not tapped in a video since it fell due.
-// "common": most-common words not yet in a deck (ringed in "ring" style).
+// "common": most-common words not yet in a deck (ringed in "common" style).
 
 import android.content.Context
 import org.json.JSONObject
@@ -16,7 +16,7 @@ object DeckStore {
   const val ORANGE = "orange"
   const val GREEN = "green"
   const val GOLD = "gold"
-  /** Not in a deck, but one of the most common words — ringed in "ring" style. */
+  /** Not in a deck, but one of the most common words — ringed in "common" style. */
   const val COMMON = "common"
 
   private class Entry(val state: String, val dueAt: Long, val tappedAt: Long)
