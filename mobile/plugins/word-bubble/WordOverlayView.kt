@@ -4,7 +4,8 @@ package __PACKAGE__
 //   "text" — the word is covered with its own background and drawn again in
 //            its deck colour, system font, same size and weight; gold glimmers.
 //            Busy backgrounds (photos, gradients) fall back to a ring.
-//   "ring" — a circle in the deck colour around the word; gold pulses.
+//   "ring" — deck words coloured as above, PLUS a gold ring around common
+//            words not yet in a deck (same idea as the onboarding rings).
 // Tap a word → its card (meaning + Save). Tap anywhere else → close.
 
 import android.animation.ValueAnimator
@@ -54,7 +55,9 @@ class WordOverlayView(
 
   /** 0..1, drives the gold glimmer and the gold ring's pulse. */
   private var phase = 0f
-  private val coloured = hits.filter { it.colour != null }
+  // "text": deck words recoloured. "ring": deck words recoloured too, plus a
+  // gold ring around common words not yet in a deck (worth tapping to save).
+  private val coloured = hits.filter { it.colour != null && (style == "ring" || it.colour != DeckStore.COMMON) }
   private val hasGold = coloured.any { it.colour == DeckStore.GOLD }
   private val animator = ValueAnimator.ofFloat(0f, 1f).apply {
     duration = 2200
@@ -75,13 +78,13 @@ class WordOverlayView(
 
   override fun onDraw(canvas: Canvas) {
     for (h in coloured) {
-      if (style == "ring" || h.busy) drawRing(canvas, h) else drawText(canvas, h)
+      if (h.colour == DeckStore.COMMON || h.busy) drawRing(canvas, h) else drawText(canvas, h)
     }
     drawPill(canvas)
   }
 
   private fun colourFor(h: WordHit): Int {
-    val c = h.colour ?: DeckStore.RED
+    val c = if (h.colour == DeckStore.COMMON) DeckStore.GOLD else h.colour ?: DeckStore.RED
     return (if (h.light) deep[c] else brand[c]) ?: Color.RED
   }
 
@@ -124,7 +127,7 @@ class WordOverlayView(
   private fun drawRing(canvas: Canvas, h: WordHit) {
     val box = RectF(h.rect).apply { inset(-dp(4f), -dp(3f)) }
     val radius = dp(10f)
-    stroke.color = if (h.busy) brand[h.colour] ?: Color.RED else colourFor(h)
+    stroke.color = if (h.colour == DeckStore.COMMON) brand[DeckStore.GOLD]!! else if (h.busy) brand[h.colour] ?: Color.RED else colourFor(h)
     if (h.colour == DeckStore.GOLD) {
       stroke.setShadowLayer(dp(4f) + dp(8f) * pulse(), 0f, 0f, Color.argb(170, 255, 200, 60))
     } else {
