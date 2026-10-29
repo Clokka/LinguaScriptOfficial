@@ -238,7 +238,15 @@ export const PersonalizedRails = ({
       // ("for beginners easy slow") and would drag a phrase like "ceramica al
       // tornio" towards English videos. The phrase is in the cache key so
       // admin edits show up.
-      const interestSearches = interestRailDefs.map((i, idx) => {
+      const interestSearches = interestRailDefs.map(async (i, idx) => {
+        // The shared, prefilled candidate catalog costs no search quota and
+        // opens before per-learner caption scoring.
+        const { data: catalog } = await supabase.from("hobby_video_catalog")
+          .select("*").eq("language", lang).eq("hobby", i.id).limit(10);
+        if (catalog?.length) return {
+          items: catalog.map((row) => ({ videoId: row.video_id, title: row.title, channel: row.channel, thumbnail: row.thumbnail_url ?? undefined, durationSeconds: row.duration_seconds, viewCount: row.view_count, likeCount: row.like_count ?? undefined })),
+          failed: false,
+        };
         const qs = i.custom
           ? customTopicQueries(i.custom, lang, langLabel)
           : interestQueries(i, lang, langLabel).slice(0, 1);
