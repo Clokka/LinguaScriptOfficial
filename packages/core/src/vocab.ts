@@ -1,5 +1,5 @@
 import type { LinguaScriptSupabaseClient } from './supabase';
-import { coerceDeckState, promote, dateInDays, nextReviewInterval, normalizeToken, type DeckState } from './review';
+import { coerceDeckState, promote, dateInDays, isBehind, maxState, nextReviewInterval, normalizeToken, type DeckState } from './review';
 
 // Database helpers for the deck. The rules themselves (ladder, gold, colours)
 // live in ./review.ts, shared with the website.
@@ -113,4 +113,74 @@ export async function submitReview(
   const { error } = await client.from('saved_words').update(patch as any).eq('id', card.id);
   if (error) console.error('submitReview', error);
   return newState;
+}
+
+/** A word found by the scan-page function (photo of a page with circled/highlighted words). */
+export interface ScannedWord {
+  word: string;
+  lemma?: string;
+  translation?: string;
+  context?: string;
+  mark?: 'circle' | 'underline' | 'highlight';
+  colour?: string;
+  /** circle/underline → red; highlighter red → red, orange/yellow → orange, green → green. */
+  deck: DeckState;
+}
+
+/**
+ * Save words from a page scan into the decks. New words go in their deck
+ * (green ones come back gold 5 minutes later). Words already saved only ever
+ * move forward — a green highlight can promote a red word, never the reverse.
+ */
+export async function saveScannedWords(
+  client: LinguaScriptSupabaseClient,
+  userId: string,
+  language: string,
+  words: ScannedWord[],
+  onAdded?: (w: ScannedWord) => void,
+): Promise<{ added: number; moved: number }> {
+  const now = new Date().toISOString();
+  let added = 0;
+  let moved = 0;
+  for (const w of words) {
+    const word = normalizeToken(w.word).slice(0, 120);
+    if (!word) continue;
+    const { data: existing } = await client
+      .from('saved_words').select('id, state').eq('user_id', userId).eq('language', language).eq('word', word).limit(1);
+    const row = (existing as any[] | null)?.[0];
+    if (row) {
+      const current = coerceDeckState(row.state);
+      if (isBehind(current, w.deck)) {
+        await client.from('saved_words').update({
+          state: maxState(current, w.deck),
+          state_changed_at: now,
+          ...(w.deck === 'green' ? { interval_days: 0 } : {}),
+        } as any).eq('id', row.id);
+        moved++;
+      }
+      continue;
+    }
+    const { error } = await client.from('saved_words').insert({
+      user_id: userId,
+      word,
+      language,
+      lemma: w.lemma ? normalizeToken(w.lemma).slice(0, 120) : null,
+      translation: (w.translation || '').slice(0, 300),
+      context: (w.context || '').slice(0, 500),
+      ipa: '',
+      pronunciation: '',
+      state: w.deck,
+      state_changed_at: now,
+      // red/orange: due now. green: first review (gold) 5 minutes after state_changed_at.
+      next_review: dateInDays(w.deck === 'green' ? 0 : -1),
+      interval_days: w.deck === 'orange' ? 1 : 0,
+      review_count: 0,
+      ease_factor: 2.5,
+      is_phrase: /\s/.test(word),
+    } as any);
+    if (error) { console.error('saveScannedWords', error); continue; }
+    added++;
+    onAdded?.(w);
+  }
+  return { added, moved };
 }

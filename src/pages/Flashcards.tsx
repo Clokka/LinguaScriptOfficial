@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { FlashcardReview } from "@/components/FlashcardReview";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { ScanPageButton } from "@/components/ScanPageButton";
 import { getGuestWords } from "@/lib/guestWords";
 import { DeckState } from "@/lib/vocab";
 import { cn } from "@/lib/utils";
@@ -343,8 +344,9 @@ const Flashcards = () => {
                 <div className="text-5xl">🧩</div>
                 <h2 className="text-xl font-bold">No saved words yet</h2>
                 <p className="text-muted-foreground max-w-md mx-auto">
-                  Save words on Netflix using the LinguaScript Chrome extension to add flashcards here.
+                  Save words on Netflix using the LinguaScript Chrome extension to add flashcards here, or photograph a book page where you circled words.
                 </p>
+                <ScanPageButton onSaved={() => fetchCards(false)} />
                 <Button asChild variant="default" size="lg">
                   <a
                     href="https://chromewebstore.google.com/search/linguascript"
@@ -358,8 +360,9 @@ const Flashcards = () => {
             )}
             {/* 3 deck cards */}
             <section>
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
                 <h2 className="text-2xl font-bold">Your Decks</h2>
+                <ScanPageButton onSaved={() => fetchCards(false)} className="ml-auto mr-3" />
                 {phraseCount > 0 && (
                   <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold bg-purple-500/15 text-purple-300 border border-purple-400/40">
                     💜 {phraseCount} phrase{phraseCount === 1 ? "" : "s"} saved
