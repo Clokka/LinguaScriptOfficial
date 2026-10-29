@@ -39,6 +39,9 @@
     .langs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
     .lang-btn { padding: 8px 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface-2); color: var(--fg); font: 600 13px var(--font); cursor: pointer; }
     .lang-btn:hover, .lang-btn.on { border-color: var(--green); }
+    .btn-read { background: var(--surface); color: var(--fg); border: 1px solid var(--green); display: flex; align-items: center; justify-content: center; gap: 8px; }
+    .btn-read kbd { font: 600 10px var(--font); color: var(--muted); border: 1px solid var(--line); border-radius: 6px; padding: 1px 5px; }
+    #read-error:empty { display: none; }
   </style>
 </head>
 <body>
@@ -85,6 +88,8 @@
       <span class="streak">🔥 <b id="streak">0</b> day streak</span>
       <span class="lang lang-row"><span id="lang-label"></span><button class="link-btn hidden" id="lang-change" type="button">change</button></span>
     </div>
+    <button class="btn btn-read" id="read-btn" type="button">📖 Read this page <kbd>Alt L</kbd></button>
+    <div class="error" id="read-error" role="alert"></div>
     <div class="row">
       <a class="btn btn-primary" style="flex:1" href="https://www.youtube.com" target="_blank" rel="noopener noreferrer">YouTube</a>
       <a class="btn btn-primary" style="flex:1" href="https://www.netflix.com" target="_blank" rel="noopener noreferrer">Netflix</a>

@@ -178,6 +178,7 @@ export const FlashcardReview = ({ cards: initialCards, onClose, onCardReviewed, 
     const srs = applySrsReview(
       { ease_factor: card.ease_factor, interval_days: card.interval_days, review_count: card.review_count },
       wasCorrect,
+      { wasGreen: prevState === "green", isGreen: newState === "green" },
     );
 
     // Optimistic local update — React is only a temporary UI cache.

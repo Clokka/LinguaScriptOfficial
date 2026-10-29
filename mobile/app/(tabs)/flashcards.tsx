@@ -22,6 +22,7 @@ import {
   logXpEvent,
   logActivity,
   XP_REWARDS,
+  displayState,
   type SavedWordLite,
 } from '@linguascript/core';
 import { supabase } from '@/lib/supabase';
@@ -38,10 +39,11 @@ const { width } = Dimensions.get('window');
 const CARD_W = Math.min(360, width - 32);
 
 // Exact colours from web app
-const STATE_COLOR = { red: '#ef4444', orange: '#f59e0b', green: '#22c55e' } as const;
-const STATE_BG    = { red: '#450a0a', orange: '#431407', green: '#14532d' } as const;
-const STATE_LABEL = { red: 'Unknown', orange: 'Learning', green: 'Recognised' } as const;
-const STATE_NEXT  = { red: 'orange', orange: 'green', green: 'green' } as const;
+// Brand deck colours (src/lib/deck-colors.ts). Gold = a green word that's due.
+const STATE_COLOR = { red: '#FF3B30', orange: '#FF8A00', green: '#34C759', gold: '#FFD54A' } as const;
+const STATE_BG    = { red: '#3a0d0a', orange: '#3a2000', green: '#0d3318', gold: '#3a3000' } as const;
+const STATE_LABEL = { red: 'Unknown', orange: 'Learning', green: 'Recognised', gold: 'Due · review' } as const;
+const STATE_NEXT  = { red: 'orange', orange: 'green', green: 'green', gold: 'green' } as const;
 
 type CardFull = SavedWordLite & {
   translation: string | null;
@@ -183,10 +185,11 @@ export default function FlashcardsScreen() {
     );
   }
 
-  const color = STATE_COLOR[card.state];
-  const bg    = STATE_BG[card.state];
-  const label = STATE_LABEL[card.state];
-  const next  = STATE_NEXT[card.state];
+  const shown = displayState(card);
+  const color = STATE_COLOR[shown];
+  const bg    = STATE_BG[shown];
+  const label = STATE_LABEL[shown];
+  const next  = STATE_NEXT[shown];
 
   return (
     <SafeAreaView style={s.root} edges={['top']}>

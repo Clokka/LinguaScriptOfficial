@@ -10,6 +10,7 @@ export interface SavedWordLite {
   times_correct: number;
   review_count: number;
   next_review?: string | null;
+  interval_days?: number | null;
 }
 
 export const coerceDeckState = (raw: string | null | undefined): DeckState =>
@@ -18,7 +19,7 @@ export const coerceDeckState = (raw: string | null | undefined): DeckState =>
 export function normalizeToken(raw: string): string {
   return raw
     .toLowerCase()
-    .replace(/[.,!?;:"'`«»()\[\]…]/g, '')
+    .replace(/[.,!?;:"'`«»()\[\]…，。、！？；：「」『』（）《》〈〉“”‘’]/g, '')
     .trim();
 }
 
@@ -77,7 +78,7 @@ export async function loadDueCards(
   const nowIso = new Date().toISOString();
   const { data, error } = await client
     .from('saved_words')
-    .select('id, word, language, state, times_correct, review_count, next_review, translation')
+    .select('id, word, language, state, times_correct, review_count, next_review, interval_days, translation')
     .eq('user_id', userId)
     .eq('language', language)
     .or(`next_review.lte.${nowIso},next_review.is.null`)
@@ -93,33 +94,64 @@ export async function loadDueCards(
   })) as SavedWordLite[];
 }
 
-const SRS_INTERVAL_MINUTES: Record<DeckState, number> = {
-  red: 60 * 4,
-  orange: 60 * 24,
-  green: 60 * 24 * 5,
-};
+/**
+ * The LinguaScript review ladder — identical to src/lib/vocab.ts.
+ * Green words come back after 1, 3, 7, 14, 30 days, then ×1.5 forever.
+ * A green word that's due shows GOLD; reviewing it sends it back to green.
+ */
+export const REVIEW_LADDER_DAYS = [1, 3, 7, 14, 30] as const;
+export const REVIEW_GROWTH = 1.5;
 
-export function computeNextReview(state: DeckState, correct: boolean): string {
-  const base = SRS_INTERVAL_MINUTES[state];
-  const factor = correct ? 1 : 0.25;
-  const minutes = Math.max(30, Math.round(base * factor));
-  return new Date(Date.now() + minutes * 60 * 1000).toISOString();
+export function nextReviewInterval(prevIntervalDays: number | null | undefined, correct: boolean, wasGreen: boolean, isGreen: boolean): number {
+  if (!correct || !isGreen || !wasGreen) return 1;
+  const prev = Math.max(0, prevIntervalDays ?? 0);
+  const rung = REVIEW_LADDER_DAYS.find((d) => d > prev);
+  if (rung !== undefined) return rung;
+  return Math.max(prev + 1, Math.round(prev * REVIEW_GROWTH));
 }
 
-/** Record a review + advance SRS state + schedule next review. */
+const ymd = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+/** Today's date (YYYY-MM-DD) in the learner's timezone. */
+export function todayLocal(): string {
+  return ymd(new Date());
+}
+
+export function dateInDays(days: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return ymd(d);
+}
+
+/** GOLD = green + review due. */
+export function isDueGold(word: { state?: string | null; next_review?: string | null } | null | undefined): boolean {
+  if (!word || word.state !== 'green' || !word.next_review) return false;
+  return String(word.next_review).slice(0, 10) <= todayLocal();
+}
+
+/** red / orange / green / gold — what colour a word shows right now. */
+export function displayState(word: { state?: string | null; next_review?: string | null }): DeckState | 'gold' {
+  return isDueGold(word) ? 'gold' : coerceDeckState(word.state);
+}
+
+/** Record a review + advance deck state + schedule the next review on the ladder. */
 export async function submitReview(
   client: LinguaScriptSupabaseClient,
   card: SavedWordLite,
   correct: boolean,
 ): Promise<DeckState> {
   const newState = nextState(card.state, correct);
-  const next_review = computeNextReview(newState, correct);
+  const interval_days = nextReviewInterval(card.interval_days, correct, card.state === 'green', newState === 'green');
+  const next_review = dateInDays(interval_days);
   const times_correct = card.times_correct + (correct ? 1 : 0);
   const review_count = card.review_count + 1;
-  const { error } = await client
-    .from('saved_words')
-    .update({ state: newState, next_review, times_correct, review_count })
-    .eq('id', card.id);
+  const patch: Record<string, unknown> = {
+    state: newState, next_review, interval_days, times_correct, review_count,
+    last_reviewed_at: new Date().toISOString(),
+  };
+  if (newState !== card.state) patch.state_changed_at = new Date().toISOString();
+  const { error } = await client.from('saved_words').update(patch as any).eq('id', card.id);
   if (error) console.error('submitReview', error);
   return newState;
 }

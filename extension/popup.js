@@ -61,6 +61,15 @@ async function loadLanguages() {
   $('lang-picker').classList.toggle('hidden', !info.needsChoice);
 }
 
+// Pillar 1 — reading: switch LinguaScript on for the page in this tab.
+$('read-btn').addEventListener('click', async () => {
+  $('read-error').textContent = '';
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  const res = await send({ type: 'READER_TOGGLE_TAB', tabId: tab?.id });
+  if (!res?.ok) { $('read-error').textContent = res?.error || 'Couldn’t read this page.'; return; }
+  window.close();
+});
+
 $('lang-change').addEventListener('click', () => $('lang-picker').classList.toggle('hidden'));
 
 async function init() {

@@ -6,3 +6,4 @@ export * from './profile';
 export * from './content';
 export * from './notifications';
 export * from './xp';
+export * from './pillars';

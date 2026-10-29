@@ -1,14 +1,17 @@
 {
   "manifest_version": 3,
-  "name": "LinguaScript: Learn Languages with YouTube & Netflix",
+  "name": "LinguaScript: Learn Languages with YouTube, Netflix & Any Website",
   "short_name": "LinguaScript",
-  "version": "1.4.1",
-  "description": "Learn languages on YouTube and Netflix. Dual subtitles, tap any word for its meaning, and save it to your LinguaScript flashcards.",
+  "version": "1.5.0",
+  "description": "Learn languages on YouTube, Netflix and any website. Dual subtitles, tap any word for its meaning, and save it to your LinguaScript flashcards.",
   "homepage_url": "https://linguascript.co.uk",
   "minimum_chrome_version": "111",
   "permissions": [
     "storage",
-    "identity"
+    "identity",
+    "activeTab",
+    "scripting",
+    "contextMenus"
   ],
   "host_permissions": [
     "https://www.youtube.com/*",
@@ -68,8 +71,7 @@
         "fonts/*.woff2"
       ],
       "matches": [
-        "https://www.youtube.com/*",
-        "https://www.netflix.com/*"
+        "<all_urls>"
       ]
     }
   ],
@@ -88,5 +90,13 @@
     "32": "icons/icon32.png",
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
+  },
+  "commands": {
+    "toggle-reader": {
+      "suggested_key": {
+        "default": "Alt+L"
+      },
+      "description": "Read this page with LinguaScript"
+    }
   }
 }

@@ -2,7 +2,7 @@
   "expo": {
     "name": "LinguaScript",
     "slug": "linguascript-chameleon",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "linguascript",
@@ -21,7 +21,8 @@
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSUserNotificationUsageDescription": "LinguaScript sends daily study reminders and flashcard due notifications.",
-        "NSMicrophoneUsageDescription": "LinguaScript uses the microphone for pronunciation practice."
+        "NSMicrophoneUsageDescription": "LinguaScript listens while you do the 3-minute speaking challenge.",
+        "NSSpeechRecognitionUsageDescription": "LinguaScript turns your speech into words so it can colour them red, orange and green."
       }
     },
     "android": {
@@ -35,7 +36,8 @@
         "RECEIVE_BOOT_COMPLETED",
         "POST_NOTIFICATIONS",
         "VIBRATE",
-        "INTERNET"
+        "INTERNET",
+        "RECORD_AUDIO"
       ],
       "blockedPermissions": [
         "com.google.android.gms.permission.AD_ID"
@@ -123,6 +125,16 @@
             "compileSdkVersion": 34,
             "targetSdkVersion": 36
           }
+        }
+      ],
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "LinguaScript listens while you do the 3-minute speaking challenge.",
+          "speechRecognitionPermission": "LinguaScript turns your speech into words so it can colour them red, orange and green.",
+          "androidSpeechServicePackages": [
+            "com.google.android.googlequicksearchbox"
+          ]
         }
       ]
     ],

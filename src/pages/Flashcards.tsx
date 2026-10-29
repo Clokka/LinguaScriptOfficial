@@ -6,7 +6,7 @@ import { FlashcardReview } from "@/components/FlashcardReview";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { getGuestWords } from "@/lib/guestWords";
-import { DeckState } from "@/lib/vocab";
+import { DeckState, isDueGold } from "@/lib/vocab";
 import { cn } from "@/lib/utils";
 import { useTour } from "@/contexts/TourContext";
 import { useXp } from "@/contexts/XpContext";
@@ -75,13 +75,18 @@ interface StarterDeck {
   card_count: number;
 }
 
-type DeckKey = "red" | "orange" | "green";
+type DeckKey = "red" | "orange" | "green" | "gold";
 
 const DECK_CONFIG: Record<DeckKey, { label: string; subtitle: string; color: string; emoji: string; cta: string }> = {
   red:    { label: "UNKNOWN",  subtitle: "Newly saved words",   color: "#FF3B30", emoji: "🔴", cta: "Review" },
   orange: { label: "LEARNING", subtitle: "Strengthening words", color: "#FF8A00", emoji: "🟠", cta: "Review" },
   green:  { label: "KNOWN",    subtitle: "Acquired words",      color: "#34C759", emoji: "🟢", cta: "Browse" },
+  // Gold = a green word whose review is due (1, 3, 7, 14, 30 days, then ×1.5).
+  gold:   { label: "DUE",      subtitle: "Known · time to review", color: "#FFD54A", emoji: "🟡", cta: "Review" },
 };
+
+const inDeck = (c: { state?: string | null; next_review?: string | null }, deck: DeckKey) =>
+  deck === "gold" ? isDueGold(c) : (c.state ?? "red") === deck;
 
 const Flashcards = () => {
   const navigate = useNavigate();
@@ -242,6 +247,7 @@ const Flashcards = () => {
     red: allCards.filter((c) => (c.state ?? "red") === "red").length,
     orange: allCards.filter((c) => c.state === "orange").length,
     green: allCards.filter((c) => c.state === "green").length,
+    gold: allCards.filter((c) => isDueGold(c)).length,
   };
 
   // During the guided tour we deliberately scope each deck to a single card
@@ -249,11 +255,11 @@ const Flashcards = () => {
   // state_changed_at desc order) so the user can always reach the
   // "review-close" step regardless of how big their real deck is.
   const openDeck = (deck: DeckKey) => {
-    const cards = allCards.filter((c) => (c.state ?? "red") === deck);
+    const cards = allCards.filter((c) => inDeck(c, deck));
     // A word that just moved up (red → orange, orange → green) goes to the
     // front of its new deck, so it's practised while it's fresh instead of
     // waiting behind older cards. Red keeps its due-date order.
-    if (deck !== "red") {
+    if (deck === "orange" || deck === "green") {
       const movedAt = (c: SavedWord) => (c.state_changed_at ? Date.parse(c.state_changed_at) : 0);
       cards.sort((a, b) => movedAt(b) - movedAt(a));
     }
@@ -366,7 +372,7 @@ const Flashcards = () => {
                   </span>
                 )}
               </div>
-              <div className="grid gap-5 sm:grid-cols-3">
+              <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
                 {(Object.keys(DECK_CONFIG) as DeckKey[]).map((key) => {
                   const cfg = DECK_CONFIG[key];
                   const n = counts[key];
@@ -378,7 +384,8 @@ const Flashcards = () => {
                       disabled={disabled}
                       onClick={() => openDeck(key)}
                       className={cn(
-                        "rounded-3xl p-8 text-left text-white shadow-xl transition-transform",
+                        "rounded-3xl p-8 text-left shadow-xl transition-transform",
+                        key === "gold" ? "text-[#08080B]" : "text-white",
                         "flex flex-col gap-3 min-h-[200px]",
                         disabled ? "opacity-50 cursor-not-allowed" : "hover:scale-[1.02] active:scale-[0.99]",
                       )}
