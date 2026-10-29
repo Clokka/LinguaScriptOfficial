@@ -46,6 +46,8 @@ import { AppInbox } from "./components/AppInbox";
 import { OverlayPermissionPrompt } from "./components/OverlayPermissionPrompt";
 import { CookieConsent } from "./components/CookieConsent";
 import Cookies from "./pages/Cookies";
+import Explain from "./pages/Explain";
+import Manual from "./pages/Manual";
 const Landing = lazy(() => import("./pages/Landing"));
 const Write = lazy(() => import("./pages/Write"));
 const Speak = lazy(() => import("./pages/Speak"));
@@ -147,6 +149,9 @@ const App = () => (
                 <Route path="/privacy-extension" element={<PrivacyExtension />} />
                 <Route path="/terms" element={<Terms />} />
                 <Route path="/cookies" element={<Cookies />} />
+                <Route path="/explain" element={<Explain />} />
+                <Route path="/manual" element={<Manual />} />
+                <Route path="/landingpage5" element={<Landing5 />} />
                 <Route path="/teacher" element={<Teacher />} />
                 <Route path="/progress" element={<Progress />} />
                 <Route path="/gift" element={<GiftClaim />} />
