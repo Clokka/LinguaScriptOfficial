@@ -1,6 +1,6 @@
 // Expo config plugin: adds LinguaScript to Android's "select text" menu.
 //
-// Highlight text in any app → ⋮ → "LinguaScript" → a small card with the
+// Highlight text in any app → "Save to LinguaScript" (sometimes under ⋮) → a small card with the
 // translation and a Save button (plugins/process-text/ProcessTextActivity.kt).
 // Uses Android's PROCESS_TEXT intent, which needs no permission at all.
 const fs = require('fs');
@@ -16,7 +16,8 @@ function withManifest(config) {
     app.activity.push({
       $: {
         'android:name': ACTIVITY,
-        'android:label': 'LinguaScript',
+        // What shows in the copy / paste menu.
+        'android:label': 'Save to LinguaScript',
         'android:exported': 'true',
         'android:theme': '@android:style/Theme.Translucent.NoTitleBar',
         'android:excludeFromRecents': 'true',

@@ -2,8 +2,9 @@ package __PACKAGE__
 
 // The 🦎 bubble. Floats over every app. Tap it → Android asks to capture the
 // screen (once per tap) → one screenshot → the words are found on the phone →
-// your deck words light up over that screen (Colour or Rings style). Tap a
-// word for its meaning and Save; tap anywhere else to close. Drag to move,
+// your deck words light up over that screen (Colour or Rings style). Tap ANY
+// word (deck or not — e.g. YouTube subtitles) for its meaning and Save; tap
+// anywhere else to close. Drag to move,
 // long-press to open LinguaScript.
 //
 // Turned on and off from the app (BubbleStartActivity). Started by
@@ -267,13 +268,22 @@ class BubbleService : Service() {
       goForeground(capturing = false)
       bubble?.visibility = View.VISIBLE
       if (bitmap == null) { captureFailed(); return }
+      // Netflix, Disney+, banking apps… mark their screen "secure", so the
+      // screenshot comes back black and there's nothing to read.
+      val blocked = looksBlack(bitmap)
       WordFinder.find(bitmap) { found ->
         main.post {
           busy = false
           hits = found
-          if (found.none { it.colour != null && it.colour != DeckStore.COMMON }) {
-            Toast.makeText(this, "No LinguaScript words on this screen", Toast.LENGTH_SHORT).show()
-          } else showOverlay()
+          when {
+            found.isEmpty() && blocked ->
+              Toast.makeText(this, "This app hides its screen (Netflix does this) — LinguaScript can't read it here", Toast.LENGTH_LONG).show()
+            found.isEmpty() ->
+              Toast.makeText(this, "No words on this screen — try with subtitles on", Toast.LENGTH_SHORT).show()
+            // Any word is tappable (meaning + Save), even before it's in a deck —
+            // so YouTube subtitles work from the very first video.
+            else -> showOverlay()
+          }
         }
       }
     }
@@ -302,6 +312,26 @@ class BubbleService : Service() {
       if (display == null) finish(null)
     }, 250)
     main.postDelayed({ finish(null) }, 4000) // never hang
+  }
+
+  /** True when (almost) every sampled pixel is black — a protected screen. */
+  private fun looksBlack(b: Bitmap): Boolean {
+    var dark = 0
+    var total = 0
+    val stepX = (b.width / 24).coerceAtLeast(1)
+    val stepY = (b.height / 48).coerceAtLeast(1)
+    var y = stepY / 2
+    while (y < b.height) {
+      var x = stepX / 2
+      while (x < b.width) {
+        val c = b.getPixel(x, y)
+        if (Color.red(c) + Color.green(c) + Color.blue(c) < 24) dark++
+        total++
+        x += stepX
+      }
+      y += stepY
+    }
+    return total > 0 && dark >= total * 0.97
   }
 
   private fun captureFailed() {

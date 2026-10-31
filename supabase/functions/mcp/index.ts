@@ -61,7 +61,8 @@ var get_progress_default = defineTool2({
     const sb = client2(ctx);
     const uid = ctx.getUserId();
     const [{ data: profile }, { data: words }] = await Promise.all([
-      sb.from("profiles").select("*").eq("id", uid).maybeSingle(),
+      // profiles.user_id is the auth user (profiles.id is the row's own id).
+      sb.from("profiles").select("display_name,learning_language,native_language,learning_goal,interests,cef_level,xp_total,xp_level,streak_count,last_streak_date,daily_word_goal,is_pro").eq("user_id", uid).maybeSingle(),
       sb.from("saved_words").select("state").eq("user_id", uid)
     ]);
     const counts = { red: 0, orange: 0, green: 0, total: words?.length ?? 0 };
@@ -171,18 +172,216 @@ var list_films_default = defineTool4({
   }
 });
 
+// src/lib/mcp/tools/get-frequent-words.ts
+import { createClient as createClient5 } from "npm:@supabase/supabase-js@^2.100.1";
+import { defineTool as defineTool5 } from "npm:@lovable.dev/mcp-js@0.24.0";
+import { z as z4 } from "npm:zod@^4.4.3";
+function client5(ctx) {
+  return createClient5(process.env.SUPABASE_URL, process.env.SUPABASE_PUBLISHABLE_KEY, {
+    global: { headers: { Authorization: `Bearer ${ctx.getToken()}` } },
+    auth: { persistSession: false, autoRefreshToken: false }
+  });
+}
+var get_frequent_words_default = defineTool5({
+  name: "get_frequent_words",
+  title: "Next most-frequent words to learn",
+  description: "Return the most frequent words in a language that the signed-in user has NOT saved yet, in frequency order, with translations. Use this to choose what to teach next \u2014 the top words cover most of everyday speech.",
+  inputSchema: {
+    language: z4.string().min(2).describe("ISO language code, e.g. 'fr'. Use get_progress to find the learner's language."),
+    limit: z4.number().int().min(1).max(50).optional().describe("How many words (default 10).")
+  },
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  handler: async ({ language, limit }, ctx) => {
+    if (!ctx.isAuthenticated())
+      return { content: [{ type: "text", text: "Not authenticated" }], isError: true };
+    const sb = client5(ctx);
+    const want = limit ?? 10;
+    const [{ data: vocab, error }, { data: saved }] = await Promise.all([
+      sb.from("core_vocabulary").select("word,lemma,translation,rank,pos,cefr_level,example_en").eq("language", language).order("rank", { ascending: true }).limit(1e3),
+      sb.from("saved_words").select("word,lemma").eq("user_id", ctx.getUserId()).eq("language", language).limit(1e4)
+    ]);
+    if (error) return { content: [{ type: "text", text: error.message }], isError: true };
+    const known = /* @__PURE__ */ new Set();
+    for (const w of saved ?? []) {
+      if (w.word) known.add(String(w.word).toLowerCase());
+      if (w.lemma) known.add(String(w.lemma).toLowerCase());
+    }
+    const words = (vocab ?? []).filter((v) => !known.has(String(v.word).toLowerCase()) && !known.has(String(v.lemma).toLowerCase())).slice(0, want);
+    return {
+      content: [{ type: "text", text: JSON.stringify(words, null, 2) }],
+      structuredContent: { words, count: words.length }
+    };
+  }
+});
+
+// src/lib/mcp/tools/get-due-reviews.ts
+import { createClient as createClient6 } from "npm:@supabase/supabase-js@^2.100.1";
+import { defineTool as defineTool6 } from "npm:@lovable.dev/mcp-js@0.24.0";
+import { z as z5 } from "npm:zod@^4.4.3";
+
+// packages/core/src/review.ts
+var coerceDeckState = (raw) => raw === "green" ? "green" : raw === "orange" ? "orange" : "red";
+function promote(current, correct) {
+  if (!correct) return current;
+  if (current === "red") return "orange";
+  return "green";
+}
+var REVIEW_LADDER_DAYS = [1, 3, 7, 14, 30];
+var REVIEW_GROWTH = 1.5;
+var FIRST_REVIEW_MINUTES = 5;
+function nextReviewInterval(prevIntervalDays, correct, wasGreen, isGreen) {
+  if (!correct || !isGreen) return 1;
+  if (!wasGreen) return 0;
+  const prev = Math.max(0, prevIntervalDays ?? 0);
+  const rung = REVIEW_LADDER_DAYS.find((d) => d > prev);
+  if (rung !== void 0) return rung;
+  return Math.max(prev + 1, Math.round(prev * REVIEW_GROWTH));
+}
+var ymd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+function dateInDays(days, from = /* @__PURE__ */ new Date()) {
+  const d = new Date(from);
+  d.setDate(d.getDate() + days);
+  return ymd(d);
+}
+function reviewDueAt(w) {
+  if (!w || w.state !== "green") return null;
+  if ((w.interval_days ?? 1) === 0 && w.state_changed_at) {
+    return Date.parse(w.state_changed_at) + FIRST_REVIEW_MINUTES * 6e4;
+  }
+  if (!w.next_review) return null;
+  const [y, m, d] = String(w.next_review).slice(0, 10).split("-").map(Number);
+  return new Date(y, (m || 1) - 1, d || 1).getTime();
+}
+function isReviewDue(w, now = Date.now()) {
+  const at = reviewDueAt(w);
+  return at !== null && at <= now;
+}
+function isDueGold(w, now = Date.now()) {
+  const at = reviewDueAt(w);
+  if (at === null || at > now) return false;
+  const tapped = w?.green_revealed_at ? Date.parse(w.green_revealed_at) : 0;
+  return !(tapped >= at);
+}
+function displayState(w, now = Date.now()) {
+  return isDueGold(w, now) ? "gold" : coerceDeckState(w.state);
+}
+function applySrsReview(current, correct, states = { wasGreen: false, isGreen: false }) {
+  const nowIso = (/* @__PURE__ */ new Date()).toISOString();
+  const intervalDays = nextReviewInterval(current.interval_days, correct, states.wasGreen, states.isGreen);
+  return {
+    ease_factor: current.ease_factor ?? 2.5,
+    interval_days: intervalDays,
+    review_count: correct ? (current.review_count ?? 0) + 1 : 0,
+    next_review: dateInDays(intervalDays),
+    last_reviewed_at: nowIso,
+    ...correct ? { last_correct_at: nowIso } : {}
+  };
+}
+
+// src/lib/mcp/tools/get-due-reviews.ts
+function client6(ctx) {
+  return createClient6(process.env.SUPABASE_URL, process.env.SUPABASE_PUBLISHABLE_KEY, {
+    global: { headers: { Authorization: `Bearer ${ctx.getToken()}` } },
+    auth: { persistSession: false, autoRefreshToken: false }
+  });
+}
+var get_due_reviews_default = defineTool6({
+  name: "get_due_reviews",
+  title: "Words to review now",
+  description: "Return the signed-in user's flashcards that need practice now: due reviews (gold) first, then words still being learned (red = new, orange = learning). Quiz the learner on these, then call record_review with each answer.",
+  inputSchema: {
+    language: z5.string().optional().describe("ISO language code, e.g. 'fr'."),
+    limit: z5.number().int().min(1).max(50).optional().describe("Max words (default 15).")
+  },
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  handler: async ({ language, limit }, ctx) => {
+    if (!ctx.isAuthenticated())
+      return { content: [{ type: "text", text: "Not authenticated" }], isError: true };
+    let q = client6(ctx).from("saved_words").select("word,translation,language,state,context,next_review,interval_days,state_changed_at,green_revealed_at").eq("user_id", ctx.getUserId()).order("created_at", { ascending: false }).limit(2e3);
+    if (language) q = q.eq("language", language);
+    const { data, error } = await q;
+    if (error) return { content: [{ type: "text", text: error.message }], isError: true };
+    const now = Date.now();
+    const due = (data ?? []).filter((w) => isReviewDue(w, now));
+    const learning = (data ?? []).filter((w) => w.state === "red" || w.state === "orange");
+    const words = [...due, ...learning].slice(0, limit ?? 15).map((w) => ({
+      word: w.word,
+      translation: w.translation,
+      language: w.language,
+      colour: displayState(w, now),
+      context: w.context
+    }));
+    return {
+      content: [{ type: "text", text: JSON.stringify(words, null, 2) }],
+      structuredContent: { words, count: words.length }
+    };
+  }
+});
+
+// src/lib/mcp/tools/record-review.ts
+import { createClient as createClient7 } from "npm:@supabase/supabase-js@^2.100.1";
+import { defineTool as defineTool7 } from "npm:@lovable.dev/mcp-js@0.24.0";
+import { z as z6 } from "npm:zod@^4.4.3";
+function client7(ctx) {
+  return createClient7(process.env.SUPABASE_URL, process.env.SUPABASE_PUBLISHABLE_KEY, {
+    global: { headers: { Authorization: `Bearer ${ctx.getToken()}` } },
+    auth: { persistSession: false, autoRefreshToken: false }
+  });
+}
+var record_review_default = defineTool7({
+  name: "record_review",
+  title: "Record a review answer",
+  description: "Record whether the learner got a saved word right (in a quiz, or by using it correctly in their own sentence). Correct answers move the word red \u2192 orange \u2192 green and schedule its next review; wrong answers keep it where it is.",
+  inputSchema: {
+    word: z6.string().min(1).describe("The saved word, exactly as listed by get_due_reviews or list_saved_words."),
+    language: z6.string().min(2).describe("ISO language code of the word, e.g. 'fr'."),
+    correct: z6.boolean().describe("True if the learner knew it / used it correctly.")
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+  handler: async ({ word, language, correct }, ctx) => {
+    if (!ctx.isAuthenticated())
+      return { content: [{ type: "text", text: "Not authenticated" }], isError: true };
+    const sb = client7(ctx);
+    const uid = ctx.getUserId();
+    const { data: row, error } = await sb.from("saved_words").select("id,state,times_correct,ease_factor,interval_days,review_count").eq("user_id", uid).eq("language", language).ilike("word", word.trim().replace(/[%_\\]/g, "\\$&")).limit(1).maybeSingle();
+    if (error) return { content: [{ type: "text", text: error.message }], isError: true };
+    if (!row) return { content: [{ type: "text", text: `"${word}" isn't in the flashcards yet \u2014 use save_word first.` }], isError: true };
+    const prev = coerceDeckState(row.state);
+    const next = promote(prev, correct);
+    const patch = {
+      state: next,
+      times_correct: (row.times_correct ?? 0) + (correct ? 1 : 0),
+      ...applySrsReview(row, correct, { wasGreen: prev === "green", isGreen: next === "green" })
+    };
+    if (next !== prev) patch.state_changed_at = (/* @__PURE__ */ new Date()).toISOString();
+    const { error: upErr } = await sb.from("saved_words").update(patch).eq("id", row.id).eq("user_id", uid);
+    if (upErr) return { content: [{ type: "text", text: upErr.message }], isError: true };
+    const result = { word, from: prev, to: next, next_review: patch.next_review };
+    return {
+      content: [{ type: "text", text: next !== prev ? `${word}: ${prev} \u2192 ${next}` : `${word}: stays ${next}` }],
+      structuredContent: result
+    };
+  }
+});
+
 // src/lib/mcp/index.ts
 var projectRef = "ffephracinqeylfhqkiz";
 var mcp_default = defineMcp({
   name: "linguascript-mcp",
   title: "LinguaScript",
-  version: "0.1.0",
-  instructions: "Tools for LinguaScript, a YouTube-based language learning app. Use `get_progress` to see the signed-in user's learning language, XP, streak, and flashcard deck sizes. Use `list_saved_words` to inspect their vocabulary, `save_word` to add a word or phrase to their flashcards, and `list_films` to browse the shared lesson catalog.",
+  version: "0.2.0",
+  instructions: [
+    "LinguaScript is the learner's own vocabulary: every word they save is a flashcard coloured red (new), orange (learning), green (known) or gold (green, review due).",
+    "Teach the Chameleon Method way: start with `get_progress` (learning + native language). Teach the most frequent words first \u2014 `get_frequent_words` lists the next ones they don't know yet.",
+    "Use words in short, comprehensible sentences about the learner's interests; mostly known words with 1\u20132 new ones. When they want to keep a word, `save_word` it (with a translation and the example sentence as context).",
+    "To practise, `get_due_reviews` and quiz them one word at a time; after each answer call `record_review` (correct = true/false). Using a red word correctly in their own sentence also counts as correct.",
+    "`list_saved_words` shows their whole deck; `list_films` lists videos to watch at linguascript.co.uk."
+  ].join(" "),
   auth: auth.oauth.issuer({
     issuer: `https://${projectRef}.supabase.co/auth/v1`,
     acceptedAudiences: "authenticated"
   }),
-  tools: [list_saved_words_default, get_progress_default, save_word_default, list_films_default]
+  tools: [get_progress_default, get_frequent_words_default, get_due_reviews_default, record_review_default, save_word_default, list_saved_words_default, list_films_default]
 });
 
 // lovable-mcp-supabase-entry.ts
