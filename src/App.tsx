@@ -100,6 +100,24 @@ const RouteFallback = () => (
   </div>
 );
 
+// Once the first page is up, fetch the everyday pages in the background so
+// moving between them doesn't sit on the loading spinner while they download.
+if (typeof window !== "undefined") {
+  const warm = () => {
+    void import("./pages/Index");
+    void import("./pages/Browse");
+    void import("./pages/Watch");
+    void import("./pages/Flashcards");
+    void import("./pages/Vocabulary");
+    void import("./pages/Profile");
+    void import("./pages/Progress");
+  };
+  window.addEventListener("load", () => {
+    const idle = (window as Window & { requestIdleCallback?: (cb: () => void) => void }).requestIdleCallback;
+    if (idle) idle(warm); else window.setTimeout(warm, 2000);
+  }, { once: true });
+}
+
 const App = () => (
   <HelmetProvider>
   <QueryClientProvider client={queryClient}>

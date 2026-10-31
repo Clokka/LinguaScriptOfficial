@@ -1,5 +1,6 @@
 // model-viewer web component wrapper for GLB pet models
 import { useEffect, useRef } from "react";
+import { ensureModelViewer } from "@/lib/modelViewer";
 
 // Declare model-viewer as a valid JSX element
 declare global {
@@ -54,6 +55,8 @@ export function PetViewer({
   className = "",
 }: PetViewerProps) {
   const ref = useRef<HTMLElement>(null);
+
+  useEffect(ensureModelViewer, []);
 
   // Update animation when prop changes
   useEffect(() => {

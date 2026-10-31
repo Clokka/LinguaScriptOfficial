@@ -18,7 +18,7 @@
  * Event names are snake_case, past tense. Never put emails or free text in
  * properties. Tracking must never break the app, so everything is try/catch.
  */
-import posthog from "posthog-js";
+import { posthogStarted, withPosthog } from "@/lib/posthog";
 import { captureAttribution, segment } from "@/lib/experiments";
 
 export type AnalyticsEvent =
@@ -57,17 +57,17 @@ let registered = false;
 
 /** Attach first-touch attribution to every event (call once at startup). */
 export function initAnalytics() {
-  if (registered) return;
+  if (registered || !posthogStarted()) return;
   registered = true;
   try {
     const attr = captureAttribution(); // first touch, saved per visitor
     const seg = segment();
-    posthog.register_once({
+    withPosthog((posthog) => posthog.register_once({
       first_source: attr.source,
       first_campaign: attr.campaign,
       first_motivation: attr.motivation,
-    });
-    posthog.register({ device: seg.device, browser_language: seg.browser_language, region: seg.region });
+    }));
+    withPosthog((posthog) => posthog.register({ device: seg.device, browser_language: seg.browser_language, region: seg.region }));
   } catch { /* never break the app */ }
 }
 
@@ -77,7 +77,7 @@ const debug = () => { try { return localStorage.getItem("ls.debugAnalytics") ===
 export function track(event: AnalyticsEvent, props: Props = {}) {
   try {
     if (debug()) console.info("[analytics]", event, props);
-    posthog.capture(event, props);
+    withPosthog((posthog) => posthog.capture(event, props));
   } catch { /* never break the app */ }
 }
 
@@ -94,6 +94,6 @@ export function trackOnce(event: AnalyticsEvent, props: Props = {}) {
 /** Person properties shown on the user's PostHog profile (for cohorts). */
 export function setPerson(props: Props) {
   try {
-    posthog.setPersonProperties(props);
+    withPosthog((posthog) => posthog.setPersonProperties(props));
   } catch { /* never break the app */ }
 }
