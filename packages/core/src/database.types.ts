@@ -367,16 +367,19 @@ export type Database = {
           created_at: string
           email: string
           id: string
+          source: string | null
         }
         Insert: {
           created_at?: string
           email: string
           id?: string
+          source?: string | null
         }
         Update: {
           created_at?: string
           email?: string
           id?: string
+          source?: string | null
         }
         Relationships: []
       }
@@ -610,6 +613,48 @@ export type Database = {
           status?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      hobby_video_catalog: {
+        Row: {
+          audio_language: string
+          channel: string
+          duration_seconds: number
+          hobby: string
+          language: string
+          like_count: number | null
+          stats_checked_at: string
+          thumbnail_url: string | null
+          title: string
+          video_id: string
+          view_count: number
+        }
+        Insert: {
+          audio_language: string
+          channel?: string
+          duration_seconds: number
+          hobby: string
+          language: string
+          like_count?: number | null
+          stats_checked_at?: string
+          thumbnail_url?: string | null
+          title: string
+          video_id: string
+          view_count?: number
+        }
+        Update: {
+          audio_language?: string
+          channel?: string
+          duration_seconds?: number
+          hobby?: string
+          language?: string
+          like_count?: number | null
+          stats_checked_at?: string
+          thumbnail_url?: string | null
+          title?: string
+          video_id?: string
+          view_count?: number
         }
         Relationships: []
       }
@@ -2317,6 +2362,7 @@ export type Database = {
         Returns: number
       }
       email_queue_dispatch: { Args: never; Returns: undefined }
+      email_signup_count: { Args: never; Returns: number }
       enqueue_email: {
         Args: { payload: Json; queue_name: string }
         Returns: number

@@ -18,7 +18,7 @@ import { XpToast } from "@/components/XpToast";
 import { InterestsPromptModal } from "@/components/InterestsPromptModal";
 import { PetProvider } from "@/contexts/PetContext";
 import { PetCompanion } from "@/components/pets/PetCompanion";
-import { Loader2 } from "lucide-react";
+import { PageLoading } from "@/components/PageLoading";
 // Marketing pages stay statically imported (unlike everything below) —
 // they're a small shared chunk and not worth the added indirection of
 // lazy-loading named exports out of a barrel file.
@@ -46,6 +46,8 @@ import { AppInbox } from "./components/AppInbox";
 import { OverlayPermissionPrompt } from "./components/OverlayPermissionPrompt";
 import { CookieConsent } from "./components/CookieConsent";
 import Cookies from "./pages/Cookies";
+import Explain from "./pages/Explain";
+import Manual from "./pages/Manual";
 const Landing = lazy(() => import("./pages/Landing"));
 const Write = lazy(() => import("./pages/Write"));
 const Speak = lazy(() => import("./pages/Speak"));
@@ -94,11 +96,7 @@ const BlogPostPage = lazy(() => import("./pages/BlogPost"));
 
 const queryClient = new QueryClient();
 
-const RouteFallback = () => (
-  <div className="min-h-screen flex items-center justify-center bg-background">
-    <Loader2 className="w-8 h-8 animate-spin text-primary" />
-  </div>
-);
+const RouteFallback = PageLoading;
 
 // Once the first page is up, fetch the everyday pages in the background so
 // moving between them doesn't sit on the loading spinner while they download.
@@ -171,6 +169,9 @@ const App = () => (
                 <Route path="/privacy-extension" element={<PrivacyExtension />} />
                 <Route path="/terms" element={<Terms />} />
                 <Route path="/cookies" element={<Cookies />} />
+                <Route path="/explain" element={<Explain />} />
+                <Route path="/manual" element={<Manual />} />
+                <Route path="/landingpage5" element={<Landing5 />} />
                 <Route path="/teacher" element={<Teacher />} />
                 <Route path="/progress" element={<Progress />} />
                 <Route path="/gift" element={<GiftClaim />} />

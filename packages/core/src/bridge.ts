@@ -32,9 +32,9 @@ export type SiteToAppMessage =
   /** The learner's languages (the select-text card uses them). */
   | { type: "langs"; learning: string; native: string }
   /** The deck for the 🦎 bubble. */
-  | { type: "deck"; language: string; native: string; words: BubbleDeckWords }
+  | { type: "deck"; language: string; native: string; words: BubbleDeckWords; common?: string[] }
   /** Turn the 🦎 bubble on/off (Android). */
-  | { type: "bubble"; on: boolean; style: "text" | "ring" }
+  | { type: "bubble"; on: boolean; style: "text" | "ring" | "common" }
   /** Sent by the app's injected script with the site's login, so the app can register for push. */
   | { type: "session"; userId: string; accessToken: string };
 

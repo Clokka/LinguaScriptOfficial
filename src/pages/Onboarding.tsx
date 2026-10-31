@@ -75,7 +75,7 @@ const Onboarding = () => {
   const [goalSaved, setGoalSaved] = useState<boolean>(initialPersisted?.goalSaved ?? false);
   const [showOnLeaderboard, setShowOnLeaderboard] = useState<boolean>(initialPersisted?.showOnLeaderboard ?? true);
   const [dualClicked, setDualClicked] = useState<boolean>(initialPersisted?.dualClicked ?? false);
-  const [interests, setInterests] = useState<string[]>(initialPersisted?.interests ?? []);
+  const [interests, setInterests] = useState<string[]>((initialPersisted?.interests ?? []).slice(0, 1));
 
   // Save snapshot whenever anything changes so a refresh resumes exactly here.
   useEffect(() => {
@@ -111,7 +111,7 @@ const Onboarding = () => {
           setWordGoal(wordGoalForVideos((data as any).daily_video_goal));
         }
         if (Array.isArray((data as any).interests) && (data as any).interests.length) {
-          setInterests((data as any).interests);
+          setInterests((data as any).interests.slice(0, 1));
         }
       }
     });
@@ -146,17 +146,14 @@ const Onboarding = () => {
 
   const canContinue = useMemo(() => {
     if (step === 0) return !!native && !!target && native !== target && !!level;
-    if (step === 1) return interests.length >= 1;
+    if (step === 1) return interests.length === 1;
     if (step === 2) return goalSaved;
     if (step === 3) return dualClicked;
     return true;
   }, [step, native, target, level, goalSaved, dualClicked, interests]);
 
   const toggleInterest = (id: string) => {
-    setInterests((curr) => {
-      if (curr.includes(id)) return curr.filter((x) => x !== id);
-      return [...curr, id];
-    });
+    setInterests([id]);
   };
 
   // Saving runs in the background so the screen never sits frozen on a slow
@@ -368,17 +365,18 @@ const Onboarding = () => {
               <Card>
                 <Title>What do you enjoy watching?</Title>
                 <Sub>
-                  Select all that apply. We'll mix these with your learning language to surface
-                  YouTube videos you'll actually want to watch.
+                  Choose your favourite hobby.
                 </Sub>
 
                 <div className="mt-8 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                   {INTERESTS.map((interest) => {
                     const active = interests.includes(interest.id);
                     return (
-                      <button
+                      <Button
                         key={interest.id}
                         type="button"
+                        variant="outline"
+                        aria-pressed={active}
                         onClick={() => toggleInterest(interest.id)}
                         className={`relative rounded-2xl border p-4 flex flex-col items-center justify-center gap-2 transition text-center min-h-[104px] ${
                           active
@@ -393,15 +391,15 @@ const Onboarding = () => {
                         )}
                         <span className="text-3xl leading-none">{interest.emoji}</span>
                         <span className="text-sm font-medium">{interest.label}</span>
-                      </button>
+                      </Button>
                     );
                   })}
                 </div>
 
                 <p className="mt-6 text-xs text-white/50">
                   {interests.length === 0
-                    ? "Pick at least one to continue."
-                    : `${interests.length} selected.`}
+                    ? "Choose one to continue."
+                    : "1 hobby selected."}
                 </p>
               </Card>
             )}

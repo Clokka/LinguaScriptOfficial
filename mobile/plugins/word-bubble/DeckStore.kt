@@ -5,6 +5,7 @@ package __PACKAGE__
 // → app/index.tsx). Each word: [state, dueAtMs or 0, tappedAtMs or 0].
 // Gold uses the SAME rule as isDueGold() in packages/core/src/vocab.ts:
 // green + due + not tapped in a video since it fell due.
+// "common": most-common words not yet in a deck (ringed in "common" style).
 
 import android.content.Context
 import org.json.JSONObject
@@ -15,10 +16,13 @@ object DeckStore {
   const val ORANGE = "orange"
   const val GREEN = "green"
   const val GOLD = "gold"
+  /** Not in a deck, but one of the most common words — ringed in "common" style. */
+  const val COMMON = "common"
 
   private class Entry(val state: String, val dueAt: Long, val tappedAt: Long)
 
   private var words = HashMap<String, Entry>()
+  private var common = HashSet<String>()
   private var loadedAt = 0L
   var language = ""
     private set
@@ -49,6 +53,13 @@ object DeckStore {
         if (k.length > max) max = k.length
       }
       words = map
+      val cs = HashSet<String>()
+      val ca = json.optJSONArray("common")
+      if (ca != null) for (i in 0 until ca.length()) {
+        val k = key(ca.optString(i, ""))
+        if (k.isNotEmpty()) { cs.add(k); if (k.length > max) max = k.length }
+      }
+      common = cs
       longest = minOf(max, 8)
       loadedAt = file.lastModified()
     } catch (_: Exception) { }
@@ -56,7 +67,8 @@ object DeckStore {
 
   /** red / orange / green / gold, or null when the word isn't in a deck. */
   fun colourOf(raw: String, now: Long = System.currentTimeMillis()): String? {
-    val e = words[key(raw)] ?: return null
+    val k = key(raw)
+    val e = words[k] ?: return if (common.contains(k)) COMMON else null
     if (e.state == GREEN && e.dueAt in 1..now && e.tappedAt < e.dueAt) return GOLD
     return e.state
   }

@@ -7,11 +7,12 @@ import { getLanguageLabel } from "@/lib/languages";
 import { INTERESTS, interestById, interestQueries, type Interest } from "@/lib/interests";
 import { customTopicQueries, customTopicRailId, fetchCustomFeedTopics, type CustomFeedTopic } from "@/lib/customFeedTopics";
 import { recordFeedEvent } from "@/lib/feedSignals";
-import { TIER_CLASS, TIER_LABEL, coverageBadge, rankScore, isShowable } from "@/lib/coverage";
+import { TIER_CLASS, TIER_LABEL, coverageBadge, coverageTier, isRecommended } from "@/lib/coverage";
 import { rankByComprehension } from "@/lib/videoRecommendation";
-import { cefrSearchModifier } from "@/lib/cefrQueryModifiers";
 import { getLanguageProfile } from "@/lib/languageProfiles";
 import type { LearningZone } from "@/lib/understanding";
+import { popularityScore } from "@/lib/videoPopularity";
+import { Button } from "@/components/ui/button";
 
 interface YTItem {
   videoId: string;
@@ -21,6 +22,8 @@ interface YTItem {
   publishedAt?: string;
   durationSeconds?: number;
   difficulty?: "beginner" | "intermediate" | "advanced";
+  viewCount?: number;
+  likeCount?: number;
   /** Set once a candidate has been scored against the learner's real deck. */
   comprehensionPct?: number;
   zone?: LearningZone;
@@ -94,19 +97,10 @@ function dedupe(items: YTItem[]): YTItem[] {
 }
 
 /** Snackable first: short clips up, ideal-understanding up, very hard down. */
-function feedScore(it: YTItem): number {
-  let s = 0;
-  const d = it.durationSeconds || 0;
-  if (d > 0 && d <= 360) s += 3;
-  else if (d > 0 && d <= 720) s += 1;
-  if (typeof it.comprehensionPct === "number") {
-    // Coverage dominates: 98% first, then 95–98, then challenging.
-    s += 10 - Math.min(10, rankScore(it.comprehensionPct) / 30);
-  }
-  return s;
-}
+function feedScore(it: YTItem): number { return popularityScore(it); }
 function sortFeed(items: YTItem[]): YTItem[] {
-  return items.map((it, i) => ({ it, i })).sort((a, b) => feedScore(b.it) - feedScore(a.it) || a.i - b.i).map((x) => x.it);
+  const bucket = (it: YTItem) => it.comprehensionPct === undefined ? 2 : coverageTier(it.comprehensionPct) === "ideal" ? 0 : isRecommended(it.comprehensionPct) ? 1 : 3;
+  return items.map((it, i) => ({ it, i })).sort((a, b) => bucket(a.it) - bucket(b.it) || feedScore(b.it) - feedScore(a.it) || a.i - b.i).map((x) => x.it);
 }
 /** An onboarding interest, or an admin-curated topic carrying its own search phrases. */
 type RailDef = Interest & { custom?: CustomFeedTopic };
@@ -158,8 +152,8 @@ export const PersonalizedRails = ({
   // Resolve selected interests into ordered Interest objects (deterministic).
   const selectedInterests = useMemo(() => {
     const ids = (interests && interests.length > 0)
-      ? interests
-      : INTERESTS.slice(0, 3).map((i) => i.id);
+      ? interests.slice(0, 1)
+      : [];
     return ids.map((id) => interestById(id)).filter(Boolean) as typeof INTERESTS;
   }, [interests]);
 
@@ -171,17 +165,21 @@ export const PersonalizedRails = ({
       .map((t) => ({ id: customTopicRailId(t), label: t.label, emoji: t.emoji, query: t.fallback_query || t.label, custom: t }));
     const onboarding = [...selectedInterests]
       .sort((a, b) => (interestWeights[b.id] || 0) - (interestWeights[a.id] || 0));
-    return [...custom, ...onboarding].slice(0, Math.max(5, custom.length));
+    return onboarding.length ? onboarding.slice(0, 1) : custom.slice(0, 1);
   }, [customTopics, selectedInterests, interestWeights]);
 
   const [interestRails, setInterestRails] = useState<Record<string, YTItem[]>>({});
 
   // Show the last feed straight away; the load below refreshes it quietly.
-  const feedKey = feedCacheKey(user?.id, learningLanguage);
+  const feedKey = `${feedCacheKey(user?.id, learningLanguage)}:hobby-v3:${selectedInterests.map((i) => i.id).join(",")}:${nativeLanguage}`;
   const shownCachedRef = useRef<string | null>(null);
   useEffect(() => {
     const cached = readFeed(feedKey);
-    if (!cached) { shownCachedRef.current = null; return; }
+    if (!cached) {
+      shownCachedRef.current = null;
+      setInterestRails({}); setRecommended([]); setTrending([]); setBeginner([]);
+      return;
+    }
     shownCachedRef.current = feedKey;
     setInterestRails(cached.interestRails || {});
     setRecommended(cached.recommended || []);
@@ -231,8 +229,6 @@ export const PersonalizedRails = ({
         setLoading(true);
         setScoring(true);
       }
-      const cefrMod = cefrSearchModifier(cefrLevel);
-      const cefrKey = cefrLevel || "any";
       const lang = learningLanguage;
 
       // Favourite interest gets 2 search phrases, others 1 — keeps quota sane.
@@ -241,15 +237,23 @@ export const PersonalizedRails = ({
       // ("for beginners easy slow") and would drag a phrase like "ceramica al
       // tornio" towards English videos. The phrase is in the cache key so
       // admin edits show up.
-      const interestSearches = interestRailDefs.map((i, idx) => {
+      const interestSearches = interestRailDefs.map(async (i, idx) => {
+        // The shared, prefilled candidate catalog costs no search quota and
+        // opens before per-learner caption scoring.
+        const { data: catalog } = await supabase.from("hobby_video_catalog")
+          .select("*").eq("language", lang).eq("hobby", i.id);
+        if (catalog?.length) return {
+          items: catalog.map((row) => ({ videoId: row.video_id, title: row.title, channel: row.channel, thumbnail: row.thumbnail_url ?? undefined, durationSeconds: row.duration_seconds, viewCount: row.view_count, likeCount: row.like_count ?? undefined })),
+          failed: false,
+        };
         const qs = i.custom
           ? customTopicQueries(i.custom, lang, langLabel)
-          : interestQueries(i, lang, langLabel).slice(0, idx === 0 ? 2 : 1);
+          : interestQueries(i, lang, langLabel).slice(0, 1);
         return Promise.all(
           qs.map((q, qi) =>
             cachedSearch(
-              i.custom ? `rails:c:${lang}:${i.id}:${q}` : `rails:i2:${lang}:${i.id}:${qi}:${cefrKey}`,
-              i.custom ? q : `${q}${cefrMod ? ` ${cefrMod}` : ""}`,
+              `rails:hobby-v3:${lang}:${i.id}:${q}`,
+              q,
               lang,
             ),
           ),
@@ -259,13 +263,9 @@ export const PersonalizedRails = ({
         }));
       });
 
-      const [trR, bgR, ...perInterestR] = await Promise.all([
-        cachedSearch(`rails:trending:${lang}`, `${langLabel} trending 2026`, lang),
-        cachedSearch(`rails:beginner:${lang}`, `${langLabel} for beginners slow easy`, lang),
-        ...interestSearches,
-      ]);
+      const perInterestR = await Promise.all(interestSearches);
       if (cancelled) return;
-      const allFailed = trR.failed && bgR.failed && perInterestR.every((r) => r.failed);
+      const allFailed = perInterestR.some((r) => r.failed);
       // YouTube unreachable: keep the remembered feed rather than blanking it.
       if (allFailed && showingCached) return;
       setSearchFailed(allFailed);
@@ -273,23 +273,22 @@ export const PersonalizedRails = ({
       // Show everything immediately (short clips first); scores fill in later.
       const perMap: Record<string, YTItem[]> = {};
       interestRailDefs.forEach((i, idx) => {
-        perMap[i.id] = sortFeed(perInterestR[idx]?.items || []).slice(0, 12);
+        perMap[i.id] = sortFeed(perInterestR[idx]?.items || []).slice(0, 10);
       });
-      const trendingItems = trR.items.slice(0, 12);
-      const bgEasy = bgR.items.filter((x) => x.difficulty === "beginner");
-      const beginnerItems = (bgEasy.length ? bgEasy : bgR.items).slice(0, 12);
+      const trendingItems: YTItem[] = [];
+      const beginnerItems: YTItem[] = [];
       // Unscored results only replace an empty page; a remembered feed waits
       // for the scored one so badges don't vanish and reappear.
       if (!showingCached) {
         setInterestRails(perMap);
-        setRecommended(roundRobin(interestRailDefs.map((i) => perMap[i.id] || [])).slice(0, 12));
+        setRecommended([]);
         setTrending(trendingItems);
         setBeginner(beginnerItems);
         setLoading(false);
       }
 
-      // Background: score captions against the learner's words, then
-      // re-sort (never filter) and attach the understanding badge.
+      // Background: score real transcripts; only verified 95%+ matches
+      // enter the Recommended rail. Hobby candidates are separate.
       const nativeLang = nativeLanguage || "en";
       const ranked = await Promise.all(
         interestRailDefs.map((i) =>
@@ -299,28 +298,25 @@ export const PersonalizedRails = ({
       if (cancelled) return;
       const scored: Record<string, YTItem[]> = {};
       interestRailDefs.forEach((i, idx) => {
-        const byId = new Map<string, { comprehensionPct: number; zone: LearningZone }>(
-          (ranked[idx] as any[]).map((r) => [r.item.videoId, r] as [string, { comprehensionPct: number; zone: LearningZone }]),
-        );
         scored[i.id] = sortFeed(
-          (perMap[i.id] || []).map((it) => {
-            const r = byId.get(it.videoId);
-            return r ? { ...it, comprehensionPct: r.comprehensionPct, zone: r.zone } : it;
-          }).filter((it) => typeof it.comprehensionPct !== "number" || isShowable(it.comprehensionPct)),
+          (ranked[idx] || []).map((r) => ({ ...r.item, comprehensionPct: r.comprehensionPct, zone: r.zone })),
         );
       });
-      const recommendedItems = roundRobin(interestRailDefs.map((i) => scored[i.id] || [])).slice(0, 12);
-      setInterestRails(scored);
+      const recommendedItems = sortFeed(roundRobin(interestRailDefs.map((i) => scored[i.id] || []))).filter((it) => it.comprehensionPct !== undefined && isRecommended(it.comprehensionPct)).slice(0, 10);
+      // Authentic hobby picks stay available without pretending unscored
+      // or stretch content is a standard learning recommendation.
+      const displayRails = Object.fromEntries(interestRailDefs.map((i) => [i.id, sortFeed((perMap[i.id] || []).map((it) => scored[i.id]?.find((s) => s.videoId === it.videoId) ?? it))]));
+      setInterestRails(displayRails);
       setRecommended(recommendedItems);
       setTrending(trendingItems);
       setBeginner(beginnerItems);
       setLoading(false);
       setScoring(false);
-      writeFeed(feedKey, { interestRails: scored, recommended: recommendedItems, trending: trendingItems, beginner: beginnerItems });
+      writeFeed(feedKey, { interestRails: displayRails, recommended: [], trending: trendingItems, beginner: beginnerItems });
     };
-    void load();
+    void load().catch(() => { if (!cancelled) { setSearchFailed(true); setLoading(false); setScoring(false); } });
     return () => { cancelled = true; };
-  }, [user?.id, learningLanguage, nativeLanguage, langLabel, interestRailDefs, cefrLevel, feedKey]);
+  }, [user?.id, learningLanguage, nativeLanguage, langLabel, interestRailDefs, feedKey]);
 
   const pick = async (it: YTItem, sourceInterestId?: string) => {
     if (importing || pendingId) return;
@@ -345,7 +341,7 @@ export const PersonalizedRails = ({
       <Rail
         key={i.id}
         title={first ? `${i.emoji} ${i.label} in ${langLabel}` : i.custom ? `${i.emoji} ${i.label}, picked for you` : `${i.emoji} Because you like ${i.label}`}
-        subtitle={first ? "Short clips first — tap one and start saving words." : undefined}
+        subtitle={undefined}
       >
         {items.map((it) => (
           <YTCard key={it.videoId} it={it} onPick={(x) => pick(x, i.id)} loading={pendingId === it.videoId} />
@@ -372,10 +368,9 @@ export const PersonalizedRails = ({
 
       {topInterest && renderInterestRail(topInterest, true)}
 
-      {otherInterests.length > 0 && recommended.length > 0 && (
+      {recommended.length > 0 && (
         <Rail
-          title={`🎯 Mixed for you in ${langLabel}`}
-          subtitle={scoring ? "Checking how much of each you'll understand…" : "Sorted by how much you'll understand."}
+          title={`Recommended for you in ${langLabel}`}
         >
           {recommended.map((it) => (
             <YTCard key={it.videoId} it={it} onPick={pick} loading={pendingId === it.videoId} />
@@ -423,14 +418,15 @@ const YTCard = ({
   onPick: (it: YTItem) => void;
   loading: boolean;
 }) => (
-  <button
+  <Button
+    variant="ghost"
     onClick={() => onPick(it)}
     disabled={loading}
-    className="group w-56 shrink-0 text-left snap-start disabled:opacity-60"
+    className="group h-auto w-56 shrink-0 block p-0 text-left whitespace-normal snap-start disabled:opacity-60 hover:bg-transparent"
   >
     <div className="relative aspect-video rounded-xl overflow-hidden bg-secondary border border-border group-hover:border-primary/50 transition">
       {it.thumbnail ? (
-        <img src={it.thumbnail} alt={it.title} className="w-full h-full object-cover" />
+        <img src={it.thumbnail} alt={it.title} loading="lazy" decoding="async" className="w-full h-full object-cover" />
       ) : (
         <div className="w-full h-full flex items-center justify-center"><Play className="w-8 h-8 text-muted-foreground" /></div>
       )}
@@ -443,10 +439,6 @@ const YTCard = ({
         <span className={`absolute top-2 left-2 text-[10px] px-1.5 py-0.5 rounded border ${ZONE_BADGE[it.zone]}`}>
           {typeof it.comprehensionPct === "number" ? coverageBadge(it.comprehensionPct) : TIER_LABEL[it.zone]}
         </span>
-      ) : it.difficulty ? (
-        <span className={`absolute top-2 left-2 text-[10px] px-1.5 py-0.5 rounded border ${DIFF_BADGE[it.difficulty]}`}>
-          {it.difficulty}
-        </span>
       ) : null}
       {loading && (
         <div className="absolute inset-0 grid place-items-center bg-black/50">
@@ -456,5 +448,6 @@ const YTCard = ({
     </div>
     <p className="text-sm mt-2 line-clamp-2 text-foreground">{it.title}</p>
     {it.channel && <p className="text-xs text-muted-foreground line-clamp-1">{it.channel}</p>}
-  </button>
+    {(it.viewCount ?? 0) > 0 && <p className="text-xs text-muted-foreground mt-1">{new Intl.NumberFormat(undefined, { notation: "compact" }).format(it.viewCount ?? 0)} views{it.likeCount !== undefined ? ` · ${(100 * it.likeCount / (it.viewCount ?? 1)).toFixed(1)}% likes / views` : ""}</p>}
+  </Button>
 );

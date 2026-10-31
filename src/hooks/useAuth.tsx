@@ -59,7 +59,7 @@ function start() {
     if (session?.user) {
       identifyUser(session.user.id, session.user.email);
     }
-  });
+  }).catch(() => publish(state.session));
 }
 
 const subscribe = (l: () => void) => {

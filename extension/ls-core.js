@@ -1283,6 +1283,53 @@
     document.head.appendChild(s);
   }
 
+
+  // ── Highlight → "Add to LinguaScript" ───────────────────────────────────────
+  // Works wherever ls-core runs (YouTube, Netflix, TV5MONDE, Crunchyroll, the
+  // Alt+L reader, and the right-click menu), with or without our subtitle overlay.
+  let selBtn = null, langsReady = null;
+  function selectionInfo() {
+    const sel = window.getSelection();
+    const text = sel ? sel.toString().replace(/\s+/g, ' ').trim() : '';
+    if (!text || text.length > 80 || !sel.rangeCount) return null;
+    const rect = sel.getRangeAt(0).getBoundingClientRect();
+    if (!rect.width && !rect.height) return null;
+    const node = sel.anchorNode && (sel.anchorNode.nodeType === 1 ? sel.anchorNode : sel.anchorNode.parentElement);
+    if (node && node.closest && node.closest('#ls-card, #ls-sel-btn, input, textarea')) return null;
+    const ctx = (node?.closest('p, li, div')?.textContent || text).replace(/\s+/g, ' ').trim().slice(0, 300);
+    return { text, rect, ctx };
+  }
+  async function openSelectionCard(info) {
+    info = info || selectionInfo();
+    if (!info) return false;
+    if (!document.getElementById('ls-styles')) injectStyles();
+    langsReady = langsReady || loadLangs().catch(() => {});
+    await langsReady;
+    const anchor = document.createElement('span');
+    anchor.style.cssText = `position:fixed;left:${info.rect.left}px;top:${info.rect.top}px;width:${info.rect.width}px;height:${info.rect.height}px;pointer-events:none;`;
+    document.body.appendChild(anchor);
+    openCard({ word: info.text, clean: normalizeToken(info.text), fullLine: info.ctx, anchorEl: anchor });
+    setTimeout(() => anchor.remove(), 0);
+    return true;
+  }
+  function hideSelBtn() { selBtn?.remove(); selBtn = null; }
+  document.addEventListener('mouseup', (e) => {
+    if (e.target?.closest?.('#ls-sel-btn')) return;
+    setTimeout(() => {
+      hideSelBtn();
+      const info = selectionInfo();
+      if (!info) return;
+      selBtn = document.createElement('button');
+      selBtn.id = 'ls-sel-btn'; selBtn.type = 'button'; selBtn.setAttribute('translate', 'no');
+      selBtn.textContent = '🦎 Add to LinguaScript';
+      selBtn.style.cssText = `position:fixed;z-index:2147483647;left:${Math.max(8, info.rect.left)}px;top:${Math.max(8, info.rect.top - 40)}px;background:#34C759;color:#0b1a10;border:0;border-radius:999px;padding:7px 12px;font:600 13px system-ui,sans-serif;box-shadow:0 4px 14px rgba(0,0,0,.35);cursor:pointer;`;
+      selBtn.addEventListener('mousedown', (ev) => ev.preventDefault());
+      selBtn.addEventListener('click', (ev) => { ev.stopPropagation(); hideSelBtn(); openSelectionCard(info); });
+      document.body.appendChild(selBtn);
+    }, 10);
+  }, true);
+  document.addEventListener('scroll', hideSelBtn, true);
+
   window.LSCore = {
     keepAlive, getStorage, normalizeToken,
     setLangs, setDebug, loadLangs, get learningLang() { return learningLang; }, get nativeLang() { return nativeLang; },
@@ -1295,6 +1342,6 @@
     stopWordsRefresh: () => Deck.stopAutoRefresh(),
     Rings, showToast, openCard, closeCard, makeWordSpan, makeWordSpansFor, splitWords, playDing, escapeHtml,
     SubtitleShield, LiveCaptions, SpeedKeeper, watchLayout, requestCaptions, setStatus, buildOverlay, layerHost, buildPanelShell, togglePanel, buildControls, attachKeyboardShortcuts,
-    injectStyles,
+    injectStyles, openSelectionCard,
   };
 })();
