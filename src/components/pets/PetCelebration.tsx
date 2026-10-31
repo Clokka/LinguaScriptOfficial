@@ -223,20 +223,9 @@ function runStage(opts: {
   };
 }
 
-export const WORD_SAVED_DURATION_MS = 2300;
-
-/** Fixed spawn + exit either side of the per-level hold, in seconds. */
-const LEVEL_UP_FIXED_S = 0.5 + 0.3;
-
-/**
- * How long a level-up takes, in ms — derived from that level's celebration
- * rather than fixed, because the hold grows along the ramp (level 10 runs a
- * full second longer than level 2). A constant here would unmount the
- * takeover mid-animation on the bigger levels.
- */
-export function levelUpDurationMs(level: number): number {
-  return Math.round((celebrationForLevel(level).hold + LEVEL_UP_FIXED_S) * 1000) + 200;
-}
+// Timings live in the light levelCelebrations module so XpToast can read
+// them without pulling three.js into the main bundle.
+export { WORD_SAVED_DURATION_MS, levelUpDurationMs } from "@/lib/levelCelebrations";
 
 interface WordSavedCelebrationProps {
   petId: string;

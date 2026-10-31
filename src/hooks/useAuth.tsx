@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { User, Session } from "@supabase/supabase-js";
-import posthog from "posthog-js";
+import { identifyUser, resetUser } from "@/lib/posthog";
 import { supabase } from "@/integrations/supabase/client";
 import { migrateGuestWords } from "@/lib/guestWords";
 import { syncTimezone } from "@/lib/syncTimezone";
@@ -23,44 +23,57 @@ function maybeTrackSignup(user: User) {
   } catch { /* never break auth */ }
 }
 
+interface AuthState { user: User | null; session: Session | null; loading: boolean }
+
+// One shared sign-in state for the whole app. Each of the ~50 components that
+// call useAuth used to start its own check (all "loading" again on every new
+// page) and its own listener, so sign-in side jobs ran once per component.
+let state: AuthState = { user: null, session: null, loading: true };
+const listeners = new Set<() => void>();
+let started = false;
+
+function publish(session: Session | null) {
+  state = { session, user: session?.user ?? null, loading: false };
+  listeners.forEach((l) => l());
+}
+
+function start() {
+  if (started) return;
+  started = true;
+  supabase.auth.onAuthStateChange((event, session) => {
+    publish(session);
+    // Flush any guest-mode flashcards into the freshly signed-in account.
+    if (event === "SIGNED_IN" && session?.user) {
+      void migrateGuestWords(session.user.id);
+      identifyUser(session.user.id, session.user.email);
+      maybeTrackSignup(session.user);
+    }
+    if (event === "SIGNED_OUT") {
+      resetUser();
+    }
+    if (session?.user) void syncTimezone(session.user.id);
+  });
+
+  supabase.auth.getSession().then(({ data: { session } }) => {
+    publish(session);
+    if (session?.user) {
+      identifyUser(session.user.id, session.user.email);
+    }
+  }).catch(() => publish(state.session));
+}
+
+const subscribe = (l: () => void) => {
+  listeners.add(l);
+  return () => { listeners.delete(l); };
+};
+const snapshot = () => state;
+
 export function useAuth() {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        setLoading(false);
-        // Flush any guest-mode flashcards into the freshly signed-in account.
-        if (event === "SIGNED_IN" && session?.user) {
-          void migrateGuestWords(session.user.id);
-          posthog.identify(session.user.id, { email: session.user.email });
-          maybeTrackSignup(session.user);
-        }
-        if (event === "SIGNED_OUT") {
-          posthog.reset();
-        }
-        if (session?.user) void syncTimezone(session.user.id);
-      }
-    );
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-      if (session?.user) {
-        posthog.identify(session.user.id, { email: session.user.email });
-      }
-    }).catch(() => setLoading(false));
-
-    return () => subscription.unsubscribe();
-  }, []);
+  start();
+  const { user, session, loading } = useSyncExternalStore(subscribe, snapshot);
 
   const signOut = async () => {
-    posthog.reset();
+    resetUser();
     await supabase.auth.signOut();
   };
 

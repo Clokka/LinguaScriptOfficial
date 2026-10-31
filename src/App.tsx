@@ -51,6 +51,7 @@ import Manual from "./pages/Manual";
 const Landing = lazy(() => import("./pages/Landing"));
 const Write = lazy(() => import("./pages/Write"));
 const Speak = lazy(() => import("./pages/Speak"));
+const Studio = lazy(() => import("./pages/Studio"));
 const LandingPage2 = lazy(() => import("./pages/LandingPage2"));
 const LandingPage3 = lazy(() => import("./pages/LandingPage3"));
 const LandingPage4 = lazy(() => import("./pages/LandingPage4"));
@@ -97,6 +98,24 @@ const queryClient = new QueryClient();
 
 const RouteFallback = PageLoading;
 
+// Once the first page is up, fetch the everyday pages in the background so
+// moving between them doesn't sit on the loading spinner while they download.
+if (typeof window !== "undefined") {
+  const warm = () => {
+    void import("./pages/Index");
+    void import("./pages/Browse");
+    void import("./pages/Watch");
+    void import("./pages/Flashcards");
+    void import("./pages/Vocabulary");
+    void import("./pages/Profile");
+    void import("./pages/Progress");
+  };
+  window.addEventListener("load", () => {
+    const idle = (window as Window & { requestIdleCallback?: (cb: () => void) => void }).requestIdleCallback;
+    if (idle) idle(warm); else window.setTimeout(warm, 2000);
+  }, { once: true });
+}
+
 const App = () => (
   <HelmetProvider>
   <QueryClientProvider client={queryClient}>
@@ -137,6 +156,7 @@ const App = () => (
                 <Route path="/vocabulary" element={<Vocabulary />} />
                 <Route path="/write" element={<Write />} />
                 <Route path="/speak" element={<Speak />} />
+                <Route path="/studio" element={<Studio />} />
                 <Route path="/admin" element={<Admin />} />
                 <Route path="/story" element={<Story />} />
                 <Route path="/friends" element={<Friends />} />

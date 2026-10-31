@@ -2,8 +2,9 @@
  * Analytics consent (UK GDPR + PECR): PostHog and Clarity only run after the
  * visitor taps "Accept". Essential storage (sign-in, settings) needs no consent.
  */
-import posthog from "posthog-js";
 import { initIntegrations } from "./integrations";
+import { initAnalytics } from "./analytics";
+import { loadPosthog, withPosthog } from "./posthog";
 
 const KEY = "ls.consent.analytics";
 export type Consent = "granted" | "denied" | null;
@@ -18,11 +19,12 @@ export function getConsent(): Consent {
 export function setConsent(v: "granted" | "denied") {
   try { localStorage.setItem(KEY, v); } catch { /* ignore */ }
   if (v === "granted") {
-    posthog.set_config({ persistence: "localStorage+cookie" });
-    posthog.opt_in_capturing();
+    loadPosthog();
+    withPosthog((posthog) => posthog.opt_in_capturing());
+    initAnalytics();
     initIntegrations();
   } else {
-    posthog.opt_out_capturing();
+    withPosthog((posthog) => posthog.opt_out_capturing());
   }
   window.dispatchEvent(new Event("ls-consent"));
 }

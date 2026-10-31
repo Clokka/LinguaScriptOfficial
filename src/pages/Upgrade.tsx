@@ -9,6 +9,7 @@ import { StripeEmbeddedCheckout } from '@/components/StripeEmbeddedCheckout';
 import { Button } from '@/components/ui/button';
 import { useSubscription } from '@/hooks/useSubscription';
 import { ManageBillingButton } from '@/components/ManageBillingButton';
+import { ensureModelViewer } from '@/lib/modelViewer';
 
 // model-viewer types are declared globally elsewhere in the project.
 
@@ -146,6 +147,7 @@ export default function Upgrade() {
   const mvRef = useRef<ModelViewerEl | null>(null);
   const idleTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const isHovering = useRef(false);
+  useEffect(ensureModelViewer, []);
 
   const { isPro, source, expiresAt, cancelAtPeriodEnd, hasBillingAccount, isLifetime } = useSubscription();
 

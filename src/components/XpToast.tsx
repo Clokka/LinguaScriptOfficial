@@ -14,7 +14,7 @@ import { checkPetMilestones } from "@/lib/pets";
 import {
   WORD_SAVED_DURATION_MS,
   levelUpDurationMs,
-} from "@/components/pets/PetCelebration";
+} from "@/lib/levelCelebrations";
 
 const WordSavedCelebration = lazy(() =>
   import("@/components/pets/PetCelebration").then((m) => ({
@@ -90,12 +90,26 @@ export const XpToast = () => {
   const petCelebrations = activePet != null && !prefersReducedMotion();
 
   // Warm up the celebration chunk + active pet model so the first
-  // spawn is instant instead of stuttering on network fetches.
+  // spawn is instant instead of stuttering on network fetches. Waits until
+  // the browser is idle after the page has loaded — three.js + the model are
+  // ~800 kB and used to compete with the page the learner was opening.
   useEffect(() => {
     if (!petCelebrations) return;
-    void import("@/components/pets/PetCelebration").then((m) =>
-      m.preloadPetModel(activePet),
-    );
+    let cancelled = false;
+    const warm = () => {
+      if (cancelled) return;
+      void import("@/components/pets/PetCelebration").then((m) =>
+        m.preloadPetModel(activePet),
+      );
+    };
+    const w = window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number };
+    const later = () => (w.requestIdleCallback ? w.requestIdleCallback(warm, { timeout: 8000 }) : window.setTimeout(warm, 4000));
+    if (document.readyState === "complete") later();
+    else window.addEventListener("load", later, { once: true });
+    return () => {
+      cancelled = true;
+      window.removeEventListener("load", later);
+    };
   }, [activePet, petCelebrations]);
 
   useEffect(() => {
