@@ -12,46 +12,10 @@
   "mcp": {
     "server": {
       "name": "linguascript-mcp",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "title": "LinguaScript"
     },
     "tools": [
-      {
-        "name": "list_saved_words",
-        "title": "List saved words",
-        "description": "List the signed-in user's saved LinguaScript flashcards (words and phrases), optionally filtered by language or SRS state.",
-        "annotations": {
-          "readOnlyHint": true,
-          "idempotentHint": true,
-          "openWorldHint": false
-        },
-        "inputSchema": {
-          "$schema": "http://json-schema.org/draft-07/schema#",
-          "type": "object",
-          "properties": {
-            "language": {
-              "description": "ISO language code, e.g. 'fr', 'es'.",
-              "type": "string"
-            },
-            "state": {
-              "description": "SRS deck state filter.",
-              "type": "string",
-              "enum": [
-                "red",
-                "orange",
-                "green"
-              ]
-            },
-            "limit": {
-              "description": "Max rows (default 50).",
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 200
-            }
-          }
-        },
-        "outputSchema": null
-      },
       {
         "name": "get_progress",
         "title": "Get learning progress",
@@ -65,6 +29,101 @@
           "$schema": "http://json-schema.org/draft-07/schema#",
           "type": "object",
           "properties": {}
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "get_frequent_words",
+        "title": "Next most-frequent words to learn",
+        "description": "Return the most frequent words in a language that the signed-in user has NOT saved yet, in frequency order, with translations. Use this to choose what to teach next — the top words cover most of everyday speech.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "language": {
+              "type": "string",
+              "minLength": 2,
+              "description": "ISO language code, e.g. 'fr'. Use get_progress to find the learner's language."
+            },
+            "limit": {
+              "description": "How many words (default 10).",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            }
+          },
+          "required": [
+            "language"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "get_due_reviews",
+        "title": "Words to review now",
+        "description": "Return the signed-in user's flashcards that need practice now: due reviews (gold) first, then words still being learned (red = new, orange = learning). Quiz the learner on these, then call record_review with each answer.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "language": {
+              "description": "ISO language code, e.g. 'fr'.",
+              "type": "string"
+            },
+            "limit": {
+              "description": "Max words (default 15).",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            }
+          }
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "record_review",
+        "title": "Record a review answer",
+        "description": "Record whether the learner got a saved word right (in a quiz, or by using it correctly in their own sentence). Correct answers move the word red → orange → green and schedule its next review; wrong answers keep it where it is.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "word": {
+              "type": "string",
+              "minLength": 1,
+              "description": "The saved word, exactly as listed by get_due_reviews or list_saved_words."
+            },
+            "language": {
+              "type": "string",
+              "minLength": 2,
+              "description": "ISO language code of the word, e.g. 'fr'."
+            },
+            "correct": {
+              "type": "boolean",
+              "description": "True if the learner knew it / used it correctly."
+            }
+          },
+          "required": [
+            "word",
+            "language",
+            "correct"
+          ]
         },
         "outputSchema": null
       },
@@ -109,6 +168,42 @@
             "word",
             "language"
           ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_saved_words",
+        "title": "List saved words",
+        "description": "List the signed-in user's saved LinguaScript flashcards (words and phrases), optionally filtered by language or SRS state.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "language": {
+              "description": "ISO language code, e.g. 'fr', 'es'.",
+              "type": "string"
+            },
+            "state": {
+              "description": "SRS deck state filter.",
+              "type": "string",
+              "enum": [
+                "red",
+                "orange",
+                "green"
+              ]
+            },
+            "limit": {
+              "description": "Max rows (default 50).",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            }
+          }
         },
         "outputSchema": null
       },
