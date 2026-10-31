@@ -19,7 +19,8 @@
     "video:launch:ja": "remotion render src/remotion/index.ts LaunchReel-Japanese out/launch-reel-ja.mp4",
     "voiceover": "bunx tsx scripts/generate-voiceover.ts",
     "predev": "bunx tsx scripts/generate-sitemap.ts",
-    "prebuild": "bunx tsx scripts/generate-sitemap.ts"
+    "prebuild": "bunx tsx scripts/generate-sitemap.ts",
+    "video:promo": "remotion render src/remotion/index.ts Promo-all-midnight-vertical-en-fr out/linguascript-all-midnight-vertical-en-fr.mp4"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
