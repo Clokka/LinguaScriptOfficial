@@ -42,6 +42,7 @@ export type AnalyticsEvent =
   | "write_checked"
   | "speak_finished"
   | "studio_video_made"
+  | "mcp_connect_clicked"
   | "phone_colour_enabled"
   | "phone_colour_disabled"
   | "phone_colour_style"

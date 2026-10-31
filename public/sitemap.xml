@@ -41,6 +41,16 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://linguascript.co.uk/overlay</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://linguascript.co.uk/ai</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://linguascript.co.uk/language-learning-psychology</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>

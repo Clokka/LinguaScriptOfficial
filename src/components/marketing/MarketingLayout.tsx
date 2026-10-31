@@ -83,6 +83,8 @@ export function MarketingLayout({
               <li><Link to="/dual-subtitles/netflix" className="hover:text-foreground">Netflix dual subtitles</Link></li>
               <li><Link to="/dual-subtitles/youtube" className="hover:text-foreground">YouTube dual subtitles</Link></li>
               <li><Link to="/chrome-extension" className="hover:text-foreground">Chrome extension</Link></li>
+              <li><Link to="/overlay" className="hover:text-foreground">Android overlay</Link></li>
+              <li><Link to="/ai" className="hover:text-foreground">ChatGPT &amp; Claude</Link></li>
               <li><Link to="/vs/language-reactor" className="hover:text-foreground">vs Language Reactor</Link></li>
             </ul>
           </div>
