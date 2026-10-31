@@ -50,6 +50,7 @@ class BubbleService : Service() {
     const val ACTION_STOP = "ls.bubble.STOP"
     const val ACTION_CAPTURE = "ls.bubble.CAPTURE"
     const val EXTRA_STYLE = "style"
+    const val EXTRA_READ_NOW = "readNow"
     const val EXTRA_RESULT_CODE = "resultCode"
     const val EXTRA_RESULT_DATA = "resultData"
     private const val CHANNEL = "ls-bubble"
@@ -89,6 +90,7 @@ class BubbleService : Service() {
       ACTION_STOP -> { stopSelf(); return START_NOT_STICKY }
       ACTION_START -> {
         intent.getStringExtra(EXTRA_STYLE)?.let { style = it }
+        if (intent.getBooleanExtra(EXTRA_READ_NOW, false)) readScreenSoon()
       }
       ACTION_CAPTURE -> {
         val code = intent.getIntExtra(EXTRA_RESULT_CODE, 0)
@@ -201,11 +203,17 @@ class BubbleService : Service() {
     bubbleParams = params
   }
 
+  /** Quick-settings tile: wait for the panel to slide away, then read the screen. */
+  fun readScreenSoon() {
+    main.postDelayed({ if (overlay == null) onBubbleTap() }, 450)
+  }
+
   private fun onBubbleTap() {
     if (overlay != null) { closeOverlay(); return }
     if (busy) return
     DeckStore.load(this)
-    if (!DeckStore.hasWords()) {
+    // Any word can be tapped now, so all we need is the learner's language.
+    if (DeckStore.language.isEmpty()) {
       Toast.makeText(this, "Open LinguaScript once so the bubble knows your words", Toast.LENGTH_LONG).show()
       return
     }

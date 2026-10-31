@@ -62,6 +62,9 @@ function siteUrlFromLink(url: string | null): string | null {
   if (!url) return null;
   const auth = authCallbackParams(url);
   if (auth) return `${APP_URL}/${auth}`;
+  // linguascript://open/flashcards — the home-screen widget and the gold-word card.
+  const open = url.match(/^linguascript:\/\/\/?open\/?(.*)$/);
+  if (open) return `${APP_URL}/${open[1]}`;
   return url.startsWith(APP_URL) ? url : null;
 }
 
@@ -206,12 +209,21 @@ export default function AppScreen() {
             if (msg.type === 'inbox-saved' && Array.isArray(msg.ats)) { removeFromInbox(msg.ats); return; }
             // The 🦎 bubble (plugins/withWordBubble.js): its copy of the deck, and on/off.
             if (msg.type === 'deck' && msg.words) {
-              FileSystem.writeAsStringAsync(DECK, JSON.stringify({ language: msg.language, native: msg.native, words: msg.words, common: msg.common || [] })).catch(() => {});
+              FileSystem.writeAsStringAsync(DECK, JSON.stringify({ language: msg.language, native: msg.native, words: msg.words, common: msg.common || [], meanings: msg.meanings || {} })).catch(() => {});
               return;
             }
             if (msg.type === 'bubble' && Platform.OS === 'android') {
               const style = msg.style === 'ring' || msg.style === 'common' ? msg.style : 'text';
               Linking.openURL(`linguascriptbubble://${msg.on ? 'start' : 'stop'}?style=${style}`).catch(() => {});
+              return;
+            }
+            // Gold word on the lock screen, and "add the widget" (plugins/word-bubble/GoldWords.kt, DeckWidget.kt).
+            if (msg.type === 'gold' && Platform.OS === 'android') {
+              Linking.openURL(`linguascriptbubble://gold?on=${msg.on ? 1 : 0}`).catch(() => {});
+              return;
+            }
+            if (msg.type === 'widget' && Platform.OS === 'android') {
+              Linking.openURL('linguascriptbubble://widget').catch(() => {});
               return;
             }
             if (msg.type === 'langs') {
