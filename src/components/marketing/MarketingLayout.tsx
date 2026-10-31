@@ -72,6 +72,7 @@ export function MarketingLayout({
             <p className="mb-3 font-semibold text-foreground">Learn</p>
             <ul className="space-y-2">
               <li><Link to="/the-chameleon-method" className="hover:text-foreground">The Chameleon Method</Link></li>
+              <li><Link to="/frequent-words" className="hover:text-foreground">Frequent words first</Link></li>
               <li><Link to="/dual-subtitles" className="hover:text-foreground">Dual subtitles</Link></li>
               <li><Link to="/anki-alternative" className="hover:text-foreground">Spaced repetition built in</Link></li>
               <li><Link to="/blog" className="hover:text-foreground">Blog</Link></li>
@@ -83,6 +84,8 @@ export function MarketingLayout({
               <li><Link to="/dual-subtitles/netflix" className="hover:text-foreground">Netflix dual subtitles</Link></li>
               <li><Link to="/dual-subtitles/youtube" className="hover:text-foreground">YouTube dual subtitles</Link></li>
               <li><Link to="/chrome-extension" className="hover:text-foreground">Chrome extension</Link></li>
+              <li><Link to="/overlay" className="hover:text-foreground">Android overlay</Link></li>
+              <li><Link to="/ai" className="hover:text-foreground">ChatGPT &amp; Claude</Link></li>
               <li><Link to="/vs/language-reactor" className="hover:text-foreground">vs Language Reactor</Link></li>
             </ul>
           </div>

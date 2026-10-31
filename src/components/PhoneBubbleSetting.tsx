@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
+import { Link, useLocation } from "react-router-dom";
 import { Switch } from "@/components/ui/switch";
+import { Button } from "@/components/ui/button";
 import { track } from "@/lib/analytics";
 import type { SiteToAppMessage } from "@linguascript/core/bridge";
 
@@ -14,24 +16,43 @@ const toApp = (msg: SiteToAppMessage) => {
 };
 
 export function PhoneBubbleSetting() {
+  const { pathname } = useLocation();
   const inAndroidApp = typeof window !== "undefined" && !!(window as any).ReactNativeWebView && /Android/i.test(navigator.userAgent);
   const [on, setOn] = useState(false);
   const [style, setStyle] = useState<"text" | "ring" | "common">("text");
+  const [gold, setGold] = useState(false);
 
   useEffect(() => {
     try {
       const saved = JSON.parse(localStorage.getItem(KEY) || "{}");
       setOn(!!saved.on);
       if (saved.style === "ring" || saved.style === "common") setStyle(saved.style);
+      setGold(!!saved.gold);
     } catch { /* ignore */ }
   }, []);
 
-  if (!inAndroidApp) return null;
+  // On the website the switch can't reach the phone — say where it lives.
+  if (!inAndroidApp) {
+    return (
+      <section className="rounded-2xl border border-border bg-card p-4 space-y-1">
+        <div className="flex items-center gap-3">
+          <span className="text-2xl" aria-hidden>🦎</span>
+          <p className="flex-1 font-semibold">Colour words on my phone</p>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Tap any word on YouTube or other apps for its meaning. Turn it on here inside the LinguaScript Android app.
+          {pathname !== "/overlay" && (
+            <> <Link to="/overlay" className="text-primary underline">How it works</Link></>
+          )}
+        </p>
+      </section>
+    );
+  }
 
   const save = (next: { on: boolean; style: "text" | "ring" | "common" }) => {
     setOn(next.on);
     setStyle(next.style);
-    try { localStorage.setItem(KEY, JSON.stringify(next)); } catch { /* ignore */ }
+    try { localStorage.setItem(KEY, JSON.stringify({ ...next, gold })); } catch { /* ignore */ }
     toApp({ type: "bubble", on: next.on, style: next.style });
   };
 
@@ -70,6 +91,38 @@ export function PhoneBubbleSetting() {
           ))}
         </div>
       )}
+
+      {/* ✨ Lock screen: only GOLD words — reviews of words you already know (GoldWords.kt). */}
+      <div className="flex items-center gap-3 border-t border-border pt-3">
+        <span className="text-2xl" aria-hidden>✨</span>
+        <label htmlFor="phone-gold" className="flex-1">
+          <span className="block font-semibold">Gold word on my lock screen</span>
+          <span className="block text-sm text-muted-foreground">One word you already know that's due for review. Tap “Show meaning” — “I knew it!”</span>
+        </label>
+        <Switch
+          id="phone-gold"
+          checked={gold}
+          onCheckedChange={(v) => {
+            setGold(v);
+            try { localStorage.setItem(KEY, JSON.stringify({ on, style, gold: v })); } catch { /* ignore */ }
+            toApp({ type: "gold", on: v });
+            track(v ? "phone_gold_enabled" : "phone_gold_disabled");
+          }}
+        />
+      </div>
+
+      {/* 🦎 Home screen widget: red / orange / green counts + a hint of gold (DeckWidget.kt). */}
+      <div className="flex items-center gap-3 border-t border-border pt-3">
+        <span className="text-2xl" aria-hidden>🟥</span>
+        <p className="flex-1">
+          <span className="block font-semibold">Home screen widget</span>
+          <span className="block text-sm text-muted-foreground">Your red, orange and green decks at a glance. Tap it to open your flashcards.</span>
+        </p>
+        <Button size="sm" variant="outline" onClick={() => { toApp({ type: "widget" }); track("phone_widget_requested"); }}>Add</Button>
+      </div>
+      <p className="text-xs text-muted-foreground border-t border-border pt-3">
+        Tip: swipe down from the top of your phone, tap ✏️ (edit) and drag the <b>LinguaScript</b> tile next to the torch — then one tap reads any screen.
+      </p>
     </section>
   );
 }

@@ -7,7 +7,7 @@ package __PACKAGE__
 //   "ring" — a circle in the deck colour around the word; gold pulses.
 //   "common" — deck words coloured as in "text", PLUS a gold ring around
 //            common words not yet in a deck (same idea as the onboarding rings).
-// Tap a word → its card (meaning + Save). Tap anywhere else → close.
+// Tap any word found on screen → its card (meaning + Save). Tap anywhere else → close.
 
 import android.animation.ValueAnimator
 import android.annotation.SuppressLint
@@ -142,7 +142,8 @@ class WordOverlayView(
 
   // "● ● ● ●  8 words · tap one" at the top.
   private fun drawPill(canvas: Canvas) {
-    val label = "${coloured.size} word${if (coloured.size == 1) "" else "s"} · tap one"
+    val label = if (coloured.isEmpty()) "Tap any word to translate"
+      else "${coloured.size} word${if (coloured.size == 1) "" else "s"} · tap any word"
     pillPaint.textSize = dp(13f)
     pillPaint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
     val tw = pillPaint.measureText(label)

@@ -108,7 +108,21 @@ export function AppInbox() {
       });
       // Unlearned words from the current Top-N block, ringed in "Common words" style.
       const common = (await focusRingWords(userId!, learning).catch(() => [] as string[])).filter((w) => !words[w]);
-      toApp({ type: "deck", language: learning, native, words, common });
+      // Meanings for orange + green words: the lock-screen gold word and the
+      // home-screen widget show them without going online.
+      const meanings: Record<string, string> = {};
+      const { data: rows } = await supabase
+        .from("saved_words")
+        .select("word, translation")
+        .eq("user_id", userId!)
+        .eq("language", learning)
+        .in("state", ["orange", "green"])
+        .limit(3000);
+      for (const r of rows || []) {
+        const key = normalizeToken(r.word);
+        if (key && r.translation) meanings[key] = r.translation;
+      }
+      toApp({ type: "deck", language: learning, native, words, common, meanings });
     };
 
     languagesOf()

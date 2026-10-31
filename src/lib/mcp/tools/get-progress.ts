@@ -22,7 +22,11 @@ export default defineTool({
     const sb = client(ctx);
     const uid = ctx.getUserId()!;
     const [{ data: profile }, { data: words }] = await Promise.all([
-      sb.from("profiles").select("*").eq("id", uid).maybeSingle(),
+      // profiles.user_id is the auth user (profiles.id is the row's own id).
+      sb.from("profiles")
+        .select("display_name,learning_language,native_language,learning_goal,interests,cef_level,xp_total,xp_level,streak_count,last_streak_date,daily_word_goal,is_pro")
+        .eq("user_id", uid)
+        .maybeSingle(),
       sb.from("saved_words").select("state").eq("user_id", uid),
     ]);
     const counts = { red: 0, orange: 0, green: 0, total: words?.length ?? 0 };

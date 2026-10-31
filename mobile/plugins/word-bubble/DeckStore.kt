@@ -6,6 +6,8 @@ package __PACKAGE__
 // Gold uses the SAME rule as isDueGold() in packages/core/src/vocab.ts:
 // green + due + not tapped in a video since it fell due.
 // "common": most-common words not yet in a deck (ringed in "common" style).
+// "meanings": translations of orange + green words, for the home-screen
+// widget and the lock-screen gold word (DeckWidget.kt, GoldWords.kt).
 
 import android.content.Context
 import org.json.JSONObject
@@ -23,6 +25,7 @@ object DeckStore {
 
   private var words = HashMap<String, Entry>()
   private var common = HashSet<String>()
+  private var meanings = HashMap<String, String>()
   private var loadedAt = 0L
   var language = ""
     private set
@@ -60,6 +63,10 @@ object DeckStore {
         if (k.isNotEmpty()) { cs.add(k); if (k.length > max) max = k.length }
       }
       common = cs
+      val mm = HashMap<String, String>()
+      val mj = json.optJSONObject("meanings")
+      if (mj != null) for (k in mj.keys()) mj.optString(k, "").takeIf { it.isNotBlank() }?.let { mm[k] = it }
+      meanings = mm
       longest = minOf(max, 8)
       loadedAt = file.lastModified()
     } catch (_: Exception) { }
@@ -74,6 +81,20 @@ object DeckStore {
   }
 
   fun hasWords() = words.isNotEmpty()
+
+  /** How many words show red / orange / green / gold right now. */
+  fun counts(now: Long = System.currentTimeMillis()): Map<String, Int> {
+    val out = hashMapOf(RED to 0, ORANGE to 0, GREEN to 0, GOLD to 0)
+    for (k in words.keys) {
+      val c = colourOf(k, now) ?: continue
+      out[c] = (out[c] ?: 0) + 1
+    }
+    return out
+  }
+
+  /** Words in this colour that have a meaning, as (word, meaning). */
+  fun withMeaning(colour: String, now: Long = System.currentTimeMillis()): List<Pair<String, String>> =
+    words.keys.filter { colourOf(it, now) == colour }.mapNotNull { k -> meanings[k]?.let { k to it } }.sortedBy { it.first }
 
   /** A word saved from the bubble shows red straight away (the app saves it later). */
   fun markSaved(raw: String) {
