@@ -41,6 +41,7 @@ export type AnalyticsEvent =
   | "extension_connected"
   | "write_checked"
   | "speak_finished"
+  | "studio_video_made"
   | "phone_colour_enabled"
   | "phone_colour_disabled"
   | "phone_colour_style"

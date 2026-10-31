@@ -49,6 +49,7 @@ import Cookies from "./pages/Cookies";
 const Landing = lazy(() => import("./pages/Landing"));
 const Write = lazy(() => import("./pages/Write"));
 const Speak = lazy(() => import("./pages/Speak"));
+const Studio = lazy(() => import("./pages/Studio"));
 const LandingPage2 = lazy(() => import("./pages/LandingPage2"));
 const LandingPage3 = lazy(() => import("./pages/LandingPage3"));
 const LandingPage4 = lazy(() => import("./pages/LandingPage4"));
@@ -139,6 +140,7 @@ const App = () => (
                 <Route path="/vocabulary" element={<Vocabulary />} />
                 <Route path="/write" element={<Write />} />
                 <Route path="/speak" element={<Speak />} />
+                <Route path="/studio" element={<Studio />} />
                 <Route path="/admin" element={<Admin />} />
                 <Route path="/story" element={<Story />} />
                 <Route path="/friends" element={<Friends />} />
