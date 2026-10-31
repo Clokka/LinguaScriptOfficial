@@ -37,3 +37,24 @@ then quiz me on my due LinguaScript reviews."*
 Source: `src/lib/mcp/` (one file per tool). `npx vite build` regenerates
 `supabase/functions/mcp/index.ts` — don't edit that file by hand. Deploy the
 `mcp` edge function after changing tools.
+
+## Getting listed (so users skip the "custom connector" screen)
+
+Custom connectors show Claude's / ChatGPT's technical sign-in settings; we
+can't change that screen. Listed apps just show **Connect** → LinguaScript
+sign-in. To apply:
+
+- **Claude Connectors Directory:** claude.ai → your organization's admin
+  settings → connector submission portal (remote MCP servers only). Docs:
+  https://claude.com/docs/connectors/building/submission
+- **ChatGPT app directory:** test in Developer mode, then submit from the
+  OpenAI Platform dashboard (project must NOT use EU data residency). Docs:
+  https://developers.openai.com/apps-sdk/deploy/submission
+
+Checklist:
+- [x] Public HTTPS server URL (above)
+- [x] Every tool has a title + readOnlyHint / destructiveHint
+- [x] OAuth sign-in with the learner's LinguaScript account
+- [x] Privacy policy: https://linguascript.co.uk/privacy (add a line about the AI connector)
+- [ ] A test LinguaScript account with some saved words, for the reviewers
+- [ ] Support email, short description, logo (public/logo.svg) and 3 example prompts (see /ai)

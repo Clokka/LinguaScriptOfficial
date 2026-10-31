@@ -16,9 +16,9 @@ const APPS = {
     name: "Claude",
     settings: "https://claude.ai/settings/connectors",
     steps: [
-      "Tap “Add custom connector”.",
-      "Name: LinguaScript — paste the link into “Remote MCP server URL”.",
-      "Tap Add, then Connect, and sign in with your LinguaScript account.",
+      "Tap “Add custom connector”. Name: LinguaScript — paste the link.",
+      "Claude then shows sign-in settings. Don't change anything — it has already picked the right ones. Scroll down and tap Add.",
+      "Tap Connect and sign in with your normal LinguaScript email and password. Done!",
     ],
   },
   chatgpt: {
@@ -27,7 +27,7 @@ const APPS = {
     steps: [
       "Open “Advanced” and switch on Developer mode (needed for custom connectors).",
       "Tap “Create”. Name: LinguaScript — paste the link as the server URL, Authentication: OAuth.",
-      "Tick “I trust this application”, tap Create, and sign in with your LinguaScript account.",
+      "Leave any other settings as they are. Tick “I trust this application”, tap Create, and sign in with your normal LinguaScript email and password.",
     ],
   },
 } as const;
@@ -150,6 +150,12 @@ export default function ConnectAI() {
             </li>
           </ol>
         </div>
+
+        <p>
+          <strong>Why does Claude or ChatGPT show technical settings?</strong> That screen is part of
+          their app, for any connector that isn't in their directory yet. It's safe: you always sign in
+          on LinguaScript's own page with your usual account, and the AI never sees your password.
+        </p>
 
         <H2>Or copy the link yourself</H2>
         <div className="not-prose flex items-center gap-2 rounded-xl border border-border bg-card p-3">
