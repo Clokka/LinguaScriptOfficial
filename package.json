@@ -14,6 +14,7 @@
     "migrate:linguascripts": "node scripts/apply-linguascripts-migration.js",
     "video": "remotion studio src/remotion/index.ts",
     "video:render": "remotion render src/remotion/index.ts GreenTransition out/green-transition.mp4",
+    "video:brand": "remotion render src/remotion/index.ts BrandReel out/brand-reel.mp4",
     "video:hedgehog": "remotion render src/remotion/index.ts HedgehogGiveaway out/hedgehog-giveaway.mp4",
     "video:launch:fr": "remotion render src/remotion/index.ts LaunchReel-French out/launch-reel-fr.mp4",
     "video:launch:es": "remotion render src/remotion/index.ts LaunchReel-Spanish out/launch-reel-es.mp4",

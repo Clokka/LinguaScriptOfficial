@@ -2,6 +2,7 @@ import { Composition } from "remotion";
 import { GreenTransition } from "./GreenTransition";
 import { HedgehogGiveaway } from "./HedgehogGiveaway";
 import { LaunchReel, LAUNCH_REEL_DURATION } from "./LaunchReel";
+import { BrandReel, BRAND_REEL_DURATION } from "./BrandReel";
 
 /**
  * Remotion composition registry.
@@ -11,6 +12,8 @@ import { LaunchReel, LAUNCH_REEL_DURATION } from "./LaunchReel";
  */
 export const RemotionRoot = () => (
   <>
+    {/* Dark / glass / gold-to-black brand reel, 9:16 (TikTok, Reels, Shorts). */}
+    <Composition id="BrandReel" component={BrandReel} durationInFrames={BRAND_REEL_DURATION} fps={30} width={1080} height={1920} />
     <Composition
       id="GreenTransition"
       component={GreenTransition}
