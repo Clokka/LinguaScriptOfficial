@@ -235,6 +235,10 @@ export default function AppScreen() {
               Linking.openURL(`linguascriptbubble://gold?on=${msg.on ? 1 : 0}`).catch(() => {});
               return;
             }
+            if (msg.type === 'tile' && Platform.OS === 'android') {
+              Linking.openURL('linguascriptbubble://tile').catch(() => {});
+              return;
+            }
             if (msg.type === 'widget' && Platform.OS === 'android') {
               Linking.openURL('linguascriptbubble://widget').catch(() => {});
               return;
