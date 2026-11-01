@@ -9,6 +9,7 @@
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "test:review": "npx -y tsx scripts/check-review-rules.ts",
+    "test:cognates": "npx -y tsx scripts/check-cognates.ts",
     "preview": "vite preview",
     "migrate:linguascripts": "node scripts/apply-linguascripts-migration.js",
     "video": "remotion studio src/remotion/index.ts",
