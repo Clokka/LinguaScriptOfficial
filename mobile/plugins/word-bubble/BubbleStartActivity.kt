@@ -56,8 +56,10 @@ class BubbleStartActivity : Activity() {
       }
       "gold" -> gold(uri?.getQueryParameter("on") == "1")
       "widget" -> {
-        if (!DeckWidget.requestPin(this)) {
-          Toast.makeText(this, "Long-press your home screen → Widgets → LinguaScript", Toast.LENGTH_LONG).show()
+        val goldKind = uri?.getQueryParameter("kind") == "gold"
+        val pinned = if (goldKind) GoldWidget.requestPin(this) else DeckWidget.requestPin(this)
+        if (!pinned) {
+          Toast.makeText(this, "Long-press your home screen → Widgets → ${if (goldKind) "LinguaScript Gold" else "LinguaScript"}", Toast.LENGTH_LONG).show()
         }
         finish()
       }

@@ -26,7 +26,8 @@ import android.os.Build
 import android.os.SystemClock
 
 object GoldWords {
-  private const val CHANNEL = "ls-gold"
+  private const val CHANNEL = "ls-gold-lock"
+  private const val OLD_CHANNEL = "ls-gold"
   private const val NOTIFICATION_ID = 7301
   const val ACTION_TICK = "ls.gold.TICK"
   const val ACTION_SHOW = "ls.gold.SHOW"
@@ -82,9 +83,17 @@ object GoldWords {
     val (word, meaning) = gold[index]
 
     if (Build.VERSION.SDK_INT >= 26) {
-      nm.createNotificationChannel(NotificationChannel(CHANNEL, "Gold word on lock screen", NotificationManager.IMPORTANCE_LOW).apply {
+      // IMPORTANCE_LOW counts as a "silent" notification, and Samsung (and most
+      // phones) hide silent notifications from the lock screen. So: a DEFAULT
+      // channel with the sound and buzz switched off — still quiet, but shown.
+      // Channel importance can't change once made, hence the new id.
+      nm.deleteNotificationChannel(OLD_CHANNEL)
+      nm.createNotificationChannel(NotificationChannel(CHANNEL, "Gold word on lock screen", NotificationManager.IMPORTANCE_DEFAULT).apply {
         description = "One review word you already know, on your lock screen"
         setShowBadge(false)
+        setSound(null, null)
+        enableVibration(false)
+        enableLights(false)
         lockscreenVisibility = Notification.VISIBILITY_PUBLIC
       })
     }
@@ -118,10 +127,12 @@ class GoldWordReceiver : BroadcastReceiver() {
       GoldWords.ACTION_TICK -> {
         GoldWords.show(c, reveal = false, advance = true)
         DeckWidget.refreshAll(c)
+        GoldWidget.refreshAll(c)
       }
       Intent.ACTION_BOOT_COMPLETED, Intent.ACTION_MY_PACKAGE_REPLACED -> {
         if (GoldWords.isOn(c)) GoldWords.setOn(c, true)
         DeckWidget.refreshAll(c)
+        GoldWidget.refreshAll(c)
       }
     }
   }

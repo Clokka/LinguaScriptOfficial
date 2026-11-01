@@ -37,8 +37,8 @@ export type SiteToAppMessage =
   | { type: "bubble"; on: boolean; style: "text" | "ring" | "common" }
   /** Gold review word on the lock screen on/off (Android). */
   | { type: "gold"; on: boolean }
-  /** Ask Android to pin the LinguaScript widget to the home screen. */
-  | { type: "widget" }
+  /** Ask Android to pin a LinguaScript widget: the deck widget, or kind "gold" = the ✨ gold-word widget. */
+  | { type: "widget"; kind?: "deck" | "gold" }
   /** Sent by the app's injected script with the site's login, so the app can register for push. */
   | { type: "session"; userId: string; accessToken: string };
 

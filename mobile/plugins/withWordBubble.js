@@ -6,20 +6,21 @@
 // sources in plugins/word-bubble/. Needs plugins/withProcessText.js too (the
 // word card). Also: the "LinguaScript" quick-settings tile (LinguaTileService),
 // the home-screen widget (DeckWidget + res/), and the lock-screen gold word
-// (GoldWords: GoldWordReceiver).
+// (GoldWords: GoldWordReceiver) + the ✨ gold widget (GoldWidget).
 const fs = require('fs');
 const path = require('path');
 const { withAndroidManifest, withAppBuildGradle, withDangerousMod, AndroidConfig } = require('expo/config-plugins');
 
 const SOURCES = [
   'DeckStore.kt', 'WordFinder.kt', 'WordOverlayView.kt', 'BubbleService.kt', 'BubbleStartActivity.kt',
-  'LinguaTileService.kt', 'DeckWidget.kt', 'GoldWords.kt',
+  'LinguaTileService.kt', 'DeckWidget.kt', 'GoldWidget.kt', 'GoldWords.kt',
 ];
 
 // Android resources for the widget and tile, copied into app/src/main/res.
 const RESOURCES = [
   'drawable/ls_widget_bg.xml', 'drawable/ls_sq_red.xml', 'drawable/ls_sq_orange.xml', 'drawable/ls_sq_green.xml',
   'drawable/ls_gold_bar.xml', 'drawable/ls_tile.xml', 'layout/ls_widget_deck.xml', 'xml/ls_widget_deck_info.xml',
+  'drawable/ls_widget_gold_bg.xml', 'layout/ls_widget_gold.xml', 'xml/ls_widget_gold_info.xml',
 ];
 
 const PERMISSIONS = [
@@ -82,11 +83,17 @@ function withManifest(config) {
     });
 
     // Home-screen widget + the gold-word alarm / buttons / restart.
-    app.receiver = (app.receiver || []).filter((r) => !['.DeckWidget', '.GoldWordReceiver'].includes(r.$['android:name']));
+    app.receiver = (app.receiver || []).filter((r) => !['.DeckWidget', '.GoldWidget', '.GoldWordReceiver'].includes(r.$['android:name']));
     app.receiver.push({
       $: { 'android:name': '.DeckWidget', 'android:exported': 'true', 'android:label': 'LinguaScript' },
       'intent-filter': [{ action: [{ $: { 'android:name': 'android.appwidget.action.APPWIDGET_UPDATE' } }] }],
       'meta-data': [{ $: { 'android:name': 'android.appwidget.provider', 'android:resource': '@xml/ls_widget_deck_info' } }],
+    });
+    // ✨ Gold widget: one gold word (home screen, and lock screen where the phone allows it).
+    app.receiver.push({
+      $: { 'android:name': '.GoldWidget', 'android:exported': 'true', 'android:label': 'LinguaScript Gold' },
+      'intent-filter': [{ action: [{ $: { 'android:name': 'android.appwidget.action.APPWIDGET_UPDATE' } }] }],
+      'meta-data': [{ $: { 'android:name': 'android.appwidget.provider', 'android:resource': '@xml/ls_widget_gold_info' } }],
     });
     app.receiver.push({
       $: { 'android:name': '.GoldWordReceiver', 'android:exported': 'false' },
