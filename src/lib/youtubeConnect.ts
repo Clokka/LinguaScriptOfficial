@@ -8,6 +8,18 @@
 import { supabase } from "@/integrations/supabase/client";
 
 const YOUTUBE_SCOPE = "https://www.googleapis.com/auth/youtube.force-ssl";
+
+/**
+ * Hidden until Google verifies the app for the YouTube scope — before that,
+ * Google blocks everyone except listed test users ("Access blocked … has not
+ * completed the Google verification process"). Test users switch it on in the
+ * browser console: localStorage.setItem("ls.youtubeConnect", "1"). Turn it on
+ * for everyone with VITE_YOUTUBE_CONNECT=1 once verification is done.
+ */
+export function youtubeConnectEnabled(): boolean {
+  if (import.meta.env.VITE_YOUTUBE_CONNECT === "1") return true;
+  try { return localStorage.getItem("ls.youtubeConnect") === "1"; } catch { return false; }
+}
 export const YT_CONNECT_RETURN_PARAM = "yt";
 export const YT_CONNECT_RETURN_VALUE = "connect";
 

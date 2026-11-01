@@ -6,6 +6,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { LANGUAGES, getLanguageLabel } from "@/lib/languages";
 import {
   startYouTubeConnect,
+  youtubeConnectEnabled,
   captureYouTubeConnection,
   getYouTubeConnectionStatus,
   subscribeToLanguageChannels,
@@ -530,7 +531,7 @@ const Profile = () => {
             )}
           </div>
 
-          {user && (
+          {user && (ytStatus.connected || youtubeConnectEnabled()) && (
             <div className="pt-4 border-t border-border/50">
               <p className="text-sm font-medium text-foreground mb-1">YouTube</p>
               <p className="text-xs text-muted-foreground mb-3">

@@ -20,7 +20,7 @@ const Privacy = () => (
     </header>
     <main className="max-w-3xl mx-auto px-6 py-10">
       <h1 className="text-3xl font-bold mb-2">Privacy Policy</h1>
-      <p className="text-sm text-muted-foreground mb-8">Last updated: 30 October 2026</p>
+      <p className="text-sm text-muted-foreground mb-8">Last updated: 1 November 2026</p>
 
       <Section title="1. Who we are">
         <p>
@@ -69,14 +69,29 @@ const Privacy = () => (
           recognition: audio is processed by your browser/operating system and is not sent to or
           stored by us.
         </p>
+        <p>
+          <strong>Video Studio (optional).</strong> If you use Video Studio to add subtitles to your
+          own video, the video stays on your device. When you tap “Make subtitles for me”, short
+          clips of its sound (about 30 seconds each) are sent through our server to an AI
+          transcription service (Google Gemini) to write the subtitles and translations. We do not
+          store the audio or the video.
+        </p>
       </Section>
 
       <Section title="3. Signing in with Google">
         <p>
-          You can create an account or sign in using Google. We request only the standard sign-in
-          scopes: <code>openid</code>, <code>email</code> and <code>profile</code>. We request no
-          other Google API scopes and have no access to your Gmail, Drive, Calendar, contacts or
-          any other Google service.
+          You can create an account or sign in using Google. Signing in requests only the standard
+          scopes: <code>openid</code>, <code>email</code> and <code>profile</code>. We have no access
+          to your Gmail, Drive, Calendar, contacts or any other Google service.
+        </p>
+        <p>
+          <strong>Connect YouTube (optional, separate).</strong> Only if you choose “Connect YouTube”
+          in your profile, we also ask Google for the YouTube scope{" "}
+          <code>https://www.googleapis.com/auth/youtube.force-ssl</code>. We use it only to subscribe
+          your YouTube account to channels in the language you are learning. We store the access
+          token Google gives us for this (in our database, linked to your account) and do not read,
+          post, edit or delete anything else on your YouTube account. You can remove this access at
+          any time in your Google Account → Security → Third-party connections.
         </p>
         <p>From Google we receive, and store against your account:</p>
         <ul className="list-disc pl-5 space-y-1 mt-2">
