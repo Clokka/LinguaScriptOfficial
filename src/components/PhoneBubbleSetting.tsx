@@ -21,6 +21,7 @@ export function PhoneBubbleSetting() {
   const [on, setOn] = useState(false);
   const [style, setStyle] = useState<"text" | "ring" | "common">("text");
   const [gold, setGold] = useState(false);
+  const [subtitles, setSubtitles] = useState(false);
 
   useEffect(() => {
     try {
@@ -28,6 +29,7 @@ export function PhoneBubbleSetting() {
       setOn(!!saved.on);
       if (saved.style === "ring" || saved.style === "common") setStyle(saved.style);
       setGold(!!saved.gold);
+      setSubtitles(!!saved.subtitles);
     } catch { /* ignore */ }
   }, []);
 
@@ -40,7 +42,7 @@ export function PhoneBubbleSetting() {
           <p className="flex-1 font-semibold">Colour words on my phone</p>
         </div>
         <p className="text-sm text-muted-foreground">
-          Tap any word on YouTube or other apps for its meaning. Turn it on here inside the LinguaScript Android app.
+          Tap any subtitle word in the YouTube app for its meaning. No button, just tap the word. Turn it on here inside the LinguaScript Android app.
           {pathname !== "/overlay" && (
             <> <Link to="/overlay" className="text-primary underline">How it works</Link></>
           )}
@@ -52,13 +54,35 @@ export function PhoneBubbleSetting() {
   const save = (next: { on: boolean; style: "text" | "ring" | "common" }) => {
     setOn(next.on);
     setStyle(next.style);
-    try { localStorage.setItem(KEY, JSON.stringify({ ...next, gold })); } catch { /* ignore */ }
+    try { localStorage.setItem(KEY, JSON.stringify({ ...next, gold, subtitles })); } catch { /* ignore */ }
     toApp({ type: "bubble", on: next.on, style: next.style });
   };
 
   return (
     <section className="rounded-2xl border border-border bg-card p-4 space-y-3">
+      {/* 🎬 Tap a subtitle word in the YouTube app — no bubble (SubtitleTapService.kt). */}
       <div className="flex items-center gap-3">
+        <span className="text-2xl" aria-hidden>🎬</span>
+        <label htmlFor="phone-subtitles" className="flex-1">
+          <span className="block font-semibold">Tap YouTube subtitles</span>
+          <span className="block text-sm text-muted-foreground">
+            Turn subtitles on in YouTube and tap any word for its meaning. The video pauses and plays again after.
+            Android asks once to “share your screen”. Say yes: we only read the subtitles, on your phone.
+          </span>
+        </label>
+        <Switch
+          id="phone-subtitles"
+          checked={subtitles}
+          onCheckedChange={(v) => {
+            setSubtitles(v);
+            try { localStorage.setItem(KEY, JSON.stringify({ on, style, gold, subtitles: v })); } catch { /* ignore */ }
+            toApp({ type: "subtitles", on: v });
+            track(v ? "phone_subtitles_enabled" : "phone_subtitles_disabled");
+          }}
+        />
+      </div>
+
+      <div className="flex items-center gap-3 border-t border-border pt-3">
         <span className="text-2xl" aria-hidden>🦎</span>
         <label htmlFor="phone-bubble" className="flex-1 font-semibold">Colour words on my phone</label>
         <Switch
@@ -104,7 +128,7 @@ export function PhoneBubbleSetting() {
           checked={gold}
           onCheckedChange={(v) => {
             setGold(v);
-            try { localStorage.setItem(KEY, JSON.stringify({ on, style, gold: v })); } catch { /* ignore */ }
+            try { localStorage.setItem(KEY, JSON.stringify({ on, style, gold: v, subtitles })); } catch { /* ignore */ }
             toApp({ type: "gold", on: v });
             track(v ? "phone_gold_enabled" : "phone_gold_disabled");
           }}

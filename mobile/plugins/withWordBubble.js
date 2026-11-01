@@ -6,14 +6,15 @@
 // sources in plugins/word-bubble/. Needs plugins/withProcessText.js too (the
 // word card). Also: the "LinguaScript" quick-settings tile (LinguaTileService),
 // the home-screen widget (DeckWidget + res/), and the lock-screen gold word
-// (GoldWords: GoldWordReceiver).
+// (GoldWords: GoldWordReceiver). And SubtitleTapService: tap a subtitle word
+// in the YouTube app with no bubble.
 const fs = require('fs');
 const path = require('path');
 const { withAndroidManifest, withAppBuildGradle, withDangerousMod, AndroidConfig } = require('expo/config-plugins');
 
 const SOURCES = [
   'DeckStore.kt', 'WordFinder.kt', 'WordOverlayView.kt', 'BubbleService.kt', 'BubbleStartActivity.kt',
-  'LinguaTileService.kt', 'DeckWidget.kt', 'GoldWords.kt',
+  'LinguaTileService.kt', 'DeckWidget.kt', 'GoldWords.kt', 'SubtitleTapService.kt',
 ];
 
 // Android resources for the widget and tile, copied into app/src/main/res.
@@ -62,6 +63,22 @@ function withManifest(config) {
         $: {
           'android:name': 'android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE',
           'android:value': 'Floating language-learning bubble: on tap, colours the learner\'s vocabulary words on the current screen',
+        },
+      }],
+    });
+
+    // Tap subtitle words in YouTube (no bubble): SubtitleTapService.
+    app.service = app.service.filter((s) => s.$['android:name'] !== '.SubtitleTapService');
+    app.service.push({
+      $: {
+        'android:name': '.SubtitleTapService',
+        'android:exported': 'false',
+        'android:foregroundServiceType': 'specialUse|mediaProjection',
+      },
+      property: [{
+        $: {
+          'android:name': 'android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE',
+          'android:value': 'Language learning: lets the learner tap a word in the subtitles of a video playing in another app to see its meaning and save it as a flashcard',
         },
       }],
     });

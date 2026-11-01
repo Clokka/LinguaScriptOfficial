@@ -2,6 +2,14 @@
 
 _Audit, plan and build prompts. November 2026._
 
+> **Update — built (YouTube, first version):** the learner's feedback was "no 🦎 to tap and no pop-up on
+> every tap — just tap the subtitle". That is now `mobile/plugins/word-bubble/SubtitleTapService.kt`
+> (switch **Tap YouTube subtitles** in Profile). It replaces steps Y1–Y3 below: no bubble, the
+> screen-share yes is asked **once** (when a video first plays) and kept alive, the subtitle lines get an
+> invisible tap area, and a tap pauses → card → plays. Android has no way to read another app's screen
+> with zero questions except the Accessibility permission, which we don't use. Needs an EAS build and a
+> real-phone test.
+
 **Goal:** while someone watches in the real **YouTube app** or **Netflix app** on an
 Android phone, they can tap a word in the subtitles and get its meaning + Save
 (red deck). We want clickable subtitles here, not dual subtitles.

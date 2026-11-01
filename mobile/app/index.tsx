@@ -225,6 +225,11 @@ export default function AppScreen() {
               Linking.openURL(`linguascriptbubble://${msg.on ? 'start' : 'stop'}?style=${style}`).catch(() => {});
               return;
             }
+            // Tap subtitle words in YouTube, no bubble (plugins/word-bubble/SubtitleTapService.kt).
+            if (msg.type === 'subtitles' && Platform.OS === 'android') {
+              Linking.openURL(`linguascriptbubble://subtitles?on=${msg.on ? 1 : 0}`).catch(() => {});
+              return;
+            }
             // Gold word on the lock screen, and "add the widget" (plugins/word-bubble/GoldWords.kt, DeckWidget.kt).
             if (msg.type === 'gold' && Platform.OS === 'android') {
               Linking.openURL(`linguascriptbubble://gold?on=${msg.on ? 1 : 0}`).catch(() => {});

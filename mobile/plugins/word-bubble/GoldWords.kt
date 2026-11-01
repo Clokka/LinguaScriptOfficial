@@ -122,6 +122,11 @@ class GoldWordReceiver : BroadcastReceiver() {
       Intent.ACTION_BOOT_COMPLETED, Intent.ACTION_MY_PACKAGE_REPLACED -> {
         if (GoldWords.isOn(c)) GoldWords.setOn(c, true)
         DeckWidget.refreshAll(c)
+        // Subtitle taps: back on after a restart (it asks to share the screen when a video plays).
+        if (SubtitleTapService.isOn(c) && !SubtitleTapService.isRunning()) runCatching {
+          val i = Intent(c, SubtitleTapService::class.java).setAction(SubtitleTapService.ACTION_START)
+          if (android.os.Build.VERSION.SDK_INT >= 26) c.startForegroundService(i) else c.startService(i)
+        }
       }
     }
   }
