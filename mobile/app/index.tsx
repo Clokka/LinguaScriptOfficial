@@ -231,7 +231,7 @@ export default function AppScreen() {
               return;
             }
             if (msg.type === 'widget' && Platform.OS === 'android') {
-              Linking.openURL('linguascriptbubble://widget').catch(() => {});
+              Linking.openURL(`linguascriptbubble://widget${msg.kind === 'gold' ? '?kind=gold' : ''}`).catch(() => {});
               return;
             }
             if (msg.type === 'langs') {

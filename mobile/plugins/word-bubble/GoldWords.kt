@@ -127,10 +127,12 @@ class GoldWordReceiver : BroadcastReceiver() {
       GoldWords.ACTION_TICK -> {
         GoldWords.show(c, reveal = false, advance = true)
         DeckWidget.refreshAll(c)
+        GoldWidget.refreshAll(c)
       }
       Intent.ACTION_BOOT_COMPLETED, Intent.ACTION_MY_PACKAGE_REPLACED -> {
         if (GoldWords.isOn(c)) GoldWords.setOn(c, true)
         DeckWidget.refreshAll(c)
+        GoldWidget.refreshAll(c)
       }
     }
   }

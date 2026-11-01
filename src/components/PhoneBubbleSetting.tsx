@@ -120,6 +120,15 @@ export function PhoneBubbleSetting() {
         </p>
         <Button size="sm" variant="outline" onClick={() => { toApp({ type: "widget" }); track("phone_widget_requested"); }}>Add</Button>
       </div>
+      {/* ✨ Gold widget: one gold word, Show meaning → Next (GoldWidget.kt). */}
+      <div className="flex items-center gap-3 border-t border-border pt-3">
+        <span className="text-2xl" aria-hidden>✨</span>
+        <p className="flex-1">
+          <span className="block font-semibold">Gold word widget</span>
+          <span className="block text-sm text-muted-foreground">One gold word at a time. Tap “Show meaning”, then “Next”. If your phone allows lock-screen widgets, you can put it there too.</span>
+        </p>
+        <Button size="sm" variant="outline" onClick={() => { toApp({ type: "widget", kind: "gold" }); track("phone_widget_requested", { kind: "gold" }); }}>Add</Button>
+      </div>
       <p className="text-xs text-muted-foreground border-t border-border pt-3">
         Tip: swipe down from the top of your phone, tap ✏️ (edit) and drag the <b>LinguaScript</b> tile next to the torch — one tap turns the 🦎 bubble on or off. To hide the bubble, drag it onto the ✕ at the bottom.
         <br />Highlight a word in any app → <b>Save to LinguaScript</b>. On Samsung, tap <b>Manage apps</b> in that menu once and switch LinguaScript on.
