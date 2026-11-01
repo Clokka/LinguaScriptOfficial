@@ -4,8 +4,8 @@ package __PACKAGE__
 // screen (once per tap) → one screenshot → the words are found on the phone →
 // your deck words light up over that screen (Colour or Rings style). Tap ANY
 // word (deck or not — e.g. YouTube subtitles) for its meaning and Save; tap
-// anywhere else to close. Drag to move,
-// long-press to open LinguaScript.
+// anywhere else to close. Drag to move (drop it on the ✕ at the bottom to turn
+// it off), long-press to open LinguaScript.
 //
 // Turned on and off from the app (BubbleStartActivity). Started by
 // plugins/withWordBubble.js.
@@ -40,6 +40,7 @@ import android.view.View
 import android.view.WindowManager
 import android.widget.FrameLayout
 import android.widget.ImageView
+import android.widget.TextView
 import android.widget.Toast
 import kotlin.math.abs
 
@@ -83,6 +84,7 @@ class BubbleService : Service() {
     style = getSharedPreferences("ls-bubble", MODE_PRIVATE).getString("style", "text") ?: "text"
     goForeground(capturing = false)
     showBubble()
+    LinguaTileService.refresh(this)
   }
 
   override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -103,10 +105,12 @@ class BubbleService : Service() {
   }
 
   override fun onDestroy() {
+    hideCloseTarget()
     closeOverlay()
     bubble?.let { runCatching { wm.removeView(it) } }
     bubble = null
     instance = null
+    LinguaTileService.refresh(this)
     super.onDestroy()
   }
 
@@ -171,6 +175,7 @@ class BubbleService : Service() {
     }
 
     // Drag to move (snaps to the nearest edge), tap to colour, long-press to open the app.
+    // While dragging, a ✕ shows at the bottom: drop the bubble on it to turn it off.
     var downX = 0f; var downY = 0f; var startX = 0; var startY = 0; var downAt = 0L; var moved = false
     view.setOnTouchListener { _, e ->
       when (e.action) {
@@ -180,11 +185,20 @@ class BubbleService : Service() {
         }
         MotionEvent.ACTION_MOVE -> {
           val dx = e.rawX - downX; val dy = e.rawY - downY
-          if (abs(dx) > dp(6) || abs(dy) > dp(6)) moved = true
-          if (moved) { params.x = startX + dx.toInt(); params.y = startY + dy.toInt(); runCatching { wm.updateViewLayout(view, params) } }
-        }
-        MotionEvent.ACTION_UP -> {
+          if (!moved && (abs(dx) > dp(6) || abs(dy) > dp(6))) { moved = true; showCloseTarget() }
           if (moved) {
+            params.x = startX + dx.toInt(); params.y = startY + dy.toInt()
+            runCatching { wm.updateViewLayout(view, params) }
+            highlightCloseTarget(overCloseTarget(e.rawX, e.rawY))
+          }
+        }
+        MotionEvent.ACTION_CANCEL -> hideCloseTarget()
+        MotionEvent.ACTION_UP -> {
+          val dismiss = moved && overCloseTarget(e.rawX, e.rawY)
+          hideCloseTarget()
+          if (dismiss) {
+            turnOff()
+          } else if (moved) {
             val w = resources.displayMetrics.widthPixels
             params.x = if (params.x + size / 2 < w / 2) dp(4) else w - size - dp(4)
             runCatching { wm.updateViewLayout(view, params) }
@@ -206,6 +220,62 @@ class BubbleService : Service() {
   /** Quick-settings tile: wait for the panel to slide away, then read the screen. */
   fun readScreenSoon() {
     main.postDelayed({ if (overlay == null) onBubbleTap() }, 450)
+  }
+
+  // ── Drag to ✕ to turn the bubble off ──────────────────────────────────────
+
+  private var closeTarget: TextView? = null
+
+  private fun showCloseTarget() {
+    if (closeTarget != null) return
+    val size = dp(64)
+    val t = TextView(this).apply {
+      text = "✕"
+      textSize = 26f
+      setTextColor(Color.WHITE)
+      gravity = Gravity.CENTER
+      background = GradientDrawable().apply {
+        setColor(Color.parseColor("#CC08080B"))
+        cornerRadius = size / 2f
+        setStroke(dp(2), Color.parseColor("#88FFFFFF"))
+      }
+    }
+    val p = WindowManager.LayoutParams(
+      size, size, overlayType(),
+      WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE,
+      PixelFormat.TRANSLUCENT,
+    ).apply {
+      gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
+      y = dp(56)
+    }
+    runCatching { wm.addView(t, p); closeTarget = t }
+    // Keep the bubble above the ✕ while it's dragged over it.
+    bubble?.let { b -> bubbleParams?.let { bp -> runCatching { wm.removeView(b); wm.addView(b, bp) } } }
+  }
+
+  private fun hideCloseTarget() {
+    closeTarget?.let { runCatching { wm.removeView(it) } }
+    closeTarget = null
+  }
+
+  /** Is the finger near the ✕ (bottom centre of the screen)? */
+  private fun overCloseTarget(rawX: Float, rawY: Float): Boolean {
+    val m = resources.displayMetrics
+    return rawY > m.heightPixels - dp(170) && abs(rawX - m.widthPixels / 2f) < dp(110)
+  }
+
+  private fun highlightCloseTarget(over: Boolean) {
+    val t = closeTarget ?: return
+    t.scaleX = if (over) 1.25f else 1f
+    t.scaleY = t.scaleX
+    (t.background as? GradientDrawable)?.setColor(Color.parseColor(if (over) "#E6FF3B30" else "#CC08080B"))
+  }
+
+  /** Dropped on the ✕: bubble off until the tile or the Profile switch turns it on again. */
+  private fun turnOff() {
+    getSharedPreferences("ls-bubble", MODE_PRIVATE).edit().putBoolean("on", false).apply()
+    Toast.makeText(this, "🦎 LinguaScript bubble off — turn it on from the quick settings tile", Toast.LENGTH_LONG).show()
+    stopSelf()
   }
 
   private fun onBubbleTap() {

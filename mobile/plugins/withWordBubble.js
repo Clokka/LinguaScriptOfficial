@@ -77,6 +77,8 @@ function withManifest(config) {
         'android:permission': 'android.permission.BIND_QUICK_SETTINGS_TILE',
       },
       'intent-filter': [{ action: [{ $: { 'android:name': 'android.service.quicksettings.action.QS_TILE' } }] }],
+      // An on/off tile (shown and read out as a switch).
+      'meta-data': [{ $: { 'android:name': 'android.service.quicksettings.TOGGLEABLE_TILE', 'android:value': 'true' } }],
     });
 
     // Home-screen widget + the gold-word alarm / buttons / restart.
