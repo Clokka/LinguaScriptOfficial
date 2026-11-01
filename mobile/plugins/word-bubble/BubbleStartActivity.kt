@@ -9,6 +9,11 @@ package __PACKAGE__
 //                                                 starts the bubble first if it's off
 //   linguascriptbubble://gold?on=1|0            → gold word on the lock screen (GoldWords.kt)
 //   linguascriptbubble://widget                 → "add the widget to your home screen?"
+//   linguascriptbubble://subtitles?on=1|0       → tap subtitle words in YouTube (SubtitleTapService);
+//                                                 asks for "display over other apps", then the
+//                                                 one-time "share your screen?" yes
+//   ACTION_SUBTITLE_CAPTURE (from the service)  → that yes again, when a video starts and
+//                                                 Android has stopped the old one
 //   ACTION_CAPTURE (from the bubble)            → Android's "start recording?"
 //                                                 consent, then hands it to the bubble
 // The website's switch opens these links through the app (app/index.tsx).
@@ -29,7 +34,9 @@ class BubbleStartActivity : Activity() {
 
   companion object {
     const val ACTION_CAPTURE = "ls.bubble.ASK_CAPTURE"
+    const val ACTION_SUBTITLE_CAPTURE = "ls.subtitles.ASK_CAPTURE"
     private const val REQ_CAPTURE = 7001
+    private const val REQ_SUB_CAPTURE = 7004
     private const val REQ_OVERLAY = 7002
     private const val REQ_NOTIFY = 7003
   }
@@ -37,10 +44,13 @@ class BubbleStartActivity : Activity() {
   private val prefs get() = getSharedPreferences("ls-bubble", MODE_PRIVATE)
   /** Read the screen as soon as the bubble is up (quick-settings tile). */
   private var readNow = false
+  /** Waiting for "display over other apps" to turn on subtitle taps. */
+  private var forSubtitles = false
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
     if (intent.action == ACTION_CAPTURE) { askCapture(); return }
+    if (intent.action == ACTION_SUBTITLE_CAPTURE) { askCapture(REQ_SUB_CAPTURE); return }
 
     val uri: Uri? = intent.data
     val style = uri?.getQueryParameter("style")?.takeIf { it == "text" || it == "ring" || it == "common" }
@@ -61,12 +71,32 @@ class BubbleStartActivity : Activity() {
         }
         finish()
       }
+      "subtitles" -> if (uri?.getQueryParameter("on") == "1") startSubtitles() else {
+        prefs.edit().putBoolean("subtitles_on", false).apply()
+        stopService(Intent(this, SubtitleTapService::class.java))
+        finish()
+      }
       "stop" -> { stopService(Intent(this, BubbleService::class.java)); prefs.edit().putBoolean("on", false).apply(); finish() }
       else -> finish()
     }
   }
 
   private fun canDraw() = Build.VERSION.SDK_INT < 23 || Settings.canDrawOverlays(this)
+
+  /** Tap subtitle words in YouTube: overlay permission → service → the one-time screen-share yes. */
+  private fun startSubtitles() {
+    if (!canDraw()) {
+      forSubtitles = true
+      Toast.makeText(this, "Allow LinguaScript to show over other apps, so you can tap subtitles", Toast.LENGTH_LONG).show()
+      @Suppress("DEPRECATION")
+      startActivityForResult(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")), REQ_OVERLAY)
+      return
+    }
+    prefs.edit().putBoolean("subtitles_on", true).apply()
+    val i = Intent(this, SubtitleTapService::class.java).setAction(SubtitleTapService.ACTION_START)
+    if (Build.VERSION.SDK_INT >= 26) startForegroundService(i) else startService(i)
+    askCapture(REQ_SUB_CAPTURE)
+  }
 
   private fun start() {
     if (!canDraw()) {
@@ -102,13 +132,13 @@ class BubbleStartActivity : Activity() {
     }
   }
 
-  private fun askCapture() {
+  private fun askCapture(request: Int = REQ_CAPTURE) {
     val mpm = getSystemService(MediaProjectionManager::class.java)
     // Android 14+: offer the whole screen, not "one app".
     val ask = if (Build.VERSION.SDK_INT >= 34) mpm.createScreenCaptureIntent(MediaProjectionConfig.createConfigForDefaultDisplay())
               else mpm.createScreenCaptureIntent()
     @Suppress("DEPRECATION")
-    startActivityForResult(ask, REQ_CAPTURE)
+    startActivityForResult(ask, request)
   }
 
   @Deprecated("Deprecated in Java")
@@ -116,7 +146,24 @@ class BubbleStartActivity : Activity() {
     @Suppress("DEPRECATION")
     super.onActivityResult(requestCode, resultCode, data)
     when (requestCode) {
-      REQ_OVERLAY -> { if (canDraw()) start() else finish() }
+      REQ_OVERLAY -> {
+        if (!canDraw()) finish()
+        else if (forSubtitles) startSubtitles()
+        else start()
+      }
+      REQ_SUB_CAPTURE -> {
+        if (resultCode == RESULT_OK && data != null) {
+          startService(Intent(this, SubtitleTapService::class.java)
+            .setAction(SubtitleTapService.ACTION_CAPTURE)
+            .putExtra(SubtitleTapService.EXTRA_RESULT_CODE, resultCode)
+            .putExtra(SubtitleTapService.EXTRA_RESULT_DATA, data))
+        } else {
+          SubtitleTapService.instance?.captureCancelled()
+        }
+        finish()
+        @Suppress("DEPRECATION")
+        overridePendingTransition(0, 0)
+      }
       REQ_CAPTURE -> {
         if (resultCode == RESULT_OK && data != null) {
           startService(Intent(this, BubbleService::class.java)

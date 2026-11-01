@@ -35,6 +35,8 @@ export type SiteToAppMessage =
   | { type: "deck"; language: string; native: string; words: BubbleDeckWords; common?: string[]; meanings?: Record<string, string> }
   /** Turn the 🦎 bubble on/off (Android). */
   | { type: "bubble"; on: boolean; style: "text" | "ring" | "common" }
+  /** Tap subtitle words in YouTube (and other video apps) on/off — no bubble (Android, SubtitleTapService). */
+  | { type: "subtitles"; on: boolean }
   /** Gold review word on the lock screen on/off (Android). */
   | { type: "gold"; on: boolean }
   /** Ask Android to pin the LinguaScript widget to the home screen. */
