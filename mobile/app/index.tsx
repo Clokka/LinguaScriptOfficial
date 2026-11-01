@@ -6,6 +6,7 @@ import { WebView, type WebViewNavigation } from 'react-native-webview';
 import * as Notifications from 'expo-notifications';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
+import { onPendingLink, takePendingLink } from '@/lib/pendingLink';
 import { createClient } from '@supabase/supabase-js';
 import { ensurePermissions, registerForPushAsync } from '@/native/notifications';
 
@@ -113,14 +114,25 @@ export default function AppScreen() {
   }, [flushInbox]);
 
   useEffect(() => {
-    Linking.getInitialURL().then((url) => setStartUrl(siteUrlFromLink(url) ?? APP_URL)).catch(() => setStartUrl(APP_URL));
-    const sub = Linking.addEventListener('url', ({ url }) => {
+    // A widget tap that started the app: app/+native-intent.tsx kept us on this
+    // screen and stored the link; otherwise ask Android which link opened us.
+    const first = takePendingLink();
+    if (first) setStartUrl(siteUrlFromLink(first) ?? APP_URL);
+    else Linking.getInitialURL().then((url) => setStartUrl(siteUrlFromLink(url) ?? APP_URL)).catch(() => setStartUrl(APP_URL));
+    let last = '';
+    const open = (url: string) => {
       // While the app is open, signInWithGoogle handles the sign-in redirect.
       if (authCallbackParams(url) !== null) return;
       const site = siteUrlFromLink(url);
-      if (site) goTo(site);
-    });
-    return () => sub.remove();
+      if (!site || (url === last)) return;
+      last = url;
+      setTimeout(() => { if (last === url) last = ''; }, 1500);
+      goTo(site);
+    };
+    const sub = Linking.addEventListener('url', ({ url }) => open(url));
+    // Widget tap while the app is already running.
+    const off = onPendingLink((url) => { takePendingLink(); open(url); });
+    return () => { sub.remove(); off(); };
   }, [goTo]);
 
   // Ask for notification permission on first open, like most apps, rather
