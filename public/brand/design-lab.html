@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="robots" content="noindex,nofollow"><title>LinguaScript Design Lab</title>
+</head><body style="margin:0">
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Instrument+Serif:ital@0;1&family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: a dark studio shell (single deliberate dark world) — header, picks, colour theory, then a filterable wall of 120 live 16:9 "frames" (1200×675 scaled to fit). Each frame carries one theme class (t-*) and one layout (L*). */
+:root{color-scheme:dark;--ink:#050607;--panel:#0C0F0E;--line:rgba(255,255,255,.09);--fg:#F3F6F4;--mut:rgba(243,246,244,.6);--green:#34C759;--gold:#FFD54A;
+--sans:"Inter","Segoe UI",system-ui,sans-serif;--serif:"Instrument Serif",Georgia,serif;--grot:"Space Grotesk","Inter",sans-serif;--mono:"JetBrains Mono",ui-monospace,monospace}
+*{box-sizing:border-box}
+body{background:var(--ink);color:var(--fg);font:15px/1.55 var(--sans);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 80px}
+main{max-width:1320px;margin:0 auto;display:grid;gap:48px}
+h1,h2,h3{margin:0;line-height:1.05;text-wrap:balance}
+.shell-h1{font:800 clamp(2.4rem,6vw,4.6rem)/0.98 var(--sans);letter-spacing:-.045em}
+.shell-h1 em{font:italic 400 1.04em var(--serif);letter-spacing:-.01em;background:linear-gradient(90deg,#FFE9A1,#FFD54A 40%,#B07A00);-webkit-background-clip:text;background-clip:text;color:transparent}
+.shell-h2{font:800 1.9rem/1.1 var(--sans);letter-spacing:-.03em}
+p{margin:0;max-width:72ch}
+.mut{color:var(--mut)}
+.eyebrow-s{font:600 11px var(--mono);letter-spacing:.18em;text-transform:uppercase;color:var(--gold)}
+section{display:grid;gap:18px;min-width:0}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+/* filters */
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:4px 0 8px}
+.bar .grp{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);background:#0E1211;border-radius:999px;padding:6px 12px;font:600 12.5px var(--sans);color:var(--mut)}
+.chip[aria-pressed="true"]{background:var(--fg);color:#050607;border-color:var(--fg)}
+.count{font:500 12px var(--mono);color:var(--mut);margin-left:auto}
+/* wall */
+.wall{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,380px),1fr));gap:18px}
+.tile{display:grid;gap:8px;min-width:0}
+.view{position:relative;aspect-ratio:16/9;border-radius:16px;overflow:hidden;border:1px solid var(--line);background:#000;cursor:zoom-in}
+.view:hover{border-color:rgba(255,255,255,.3)}
+.meta{display:flex;align-items:center;gap:8px;font:500 12.5px var(--sans);color:var(--mut)}
+.meta b{color:var(--fg);font-weight:700}
+.meta .no{font:500 11px var(--mono);color:var(--gold)}
+.fav{margin-left:auto;border:0;background:transparent;font-size:18px;line-height:1;color:var(--mut);padding:2px 4px}
+.fav[aria-pressed="true"]{color:#FF3B30}
+/* modal */
+dialog{border:0;padding:0;margin:0;position:fixed;inset:0;background:transparent;max-width:none;max-height:none;width:100%;height:100%;color:var(--fg);overflow:hidden}
+dialog::backdrop{background:rgba(0,0,0,.86);backdrop-filter:blur(8px)}
+[hidden]{display:none!important}
+.mwrap{position:absolute;inset:0;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) auto;gap:10px;padding:calc(14px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) calc(14px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.mtop{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.mstage{position:relative;display:grid;place-items:center;min-height:0}
+.mstage .view{width:min(100%,calc((100vh - 230px)*16/9));cursor:default}
+.mchips{display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
+.x{margin-left:auto;border:1px solid var(--line);background:#111;border-radius:999px;width:38px;height:38px;font-size:18px}
+/* picks + theory */
+.picks{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,420px),1fr));gap:18px}
+.pick{display:grid;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:12px;min-width:0}
+.pick h3{font:800 18px var(--sans);letter-spacing:-.02em}
+.pick p{font-size:13.5px;color:var(--mut)}
+.swatches{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,250px),1fr));gap:12px}
+.sw{border:1px solid var(--line);border-radius:16px;overflow:hidden;background:var(--panel)}
+.sw .c{height:84px;display:flex;align-items:flex-end;padding:10px;font:700 13px var(--mono)}
+.sw .d{padding:12px;display:grid;gap:4px;font-size:13.5px}
+.sw .d b{font:800 15px var(--sans)}
+.combos{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:12px}
+.combo{border-radius:16px;padding:18px;min-height:150px;display:grid;align-content:space-between;border:1px solid var(--line)}
+.combo b{font:800 20px var(--sans);letter-spacing:-.02em}
+.combo span{font-size:13px;opacity:.85}
+.note{font-size:13.5px;color:var(--mut)}
+
+/* ========================= FRAME (1200×675) ========================= */
+.frame{position:absolute;left:0;top:0;width:1200px;height:675px;transform-origin:0 0;overflow:hidden;
+  background:var(--bg);color:var(--fg2);font-family:var(--fb);isolation:isolate}
+.frame *{box-sizing:border-box}
+.frame .glow{position:absolute;inset:0;z-index:-1;background:var(--glow);pointer-events:none}
+.frame .logo{position:absolute;left:56px;top:40px;display:flex;align-items:center;gap:10px;font:700 18px var(--fb);letter-spacing:-.01em;z-index:3}
+.frame .logo svg{width:62px;height:31px}
+.frame .nav{position:absolute;right:56px;top:42px;display:flex;gap:26px;font:500 14px var(--fb);color:var(--mut2);z-index:3;align-items:center}
+.frame .nav .cta{background:var(--btn);color:var(--btnfg);padding:9px 16px;border-radius:999px;font-weight:700}
+.frame .eyebrow{font:600 13px var(--fmono);letter-spacing:.22em;text-transform:uppercase;color:var(--acc)}
+.frame .h1{font:var(--hw) 74px/0.98 var(--fd);letter-spacing:var(--hls);margin:0}
+.frame .h1 em{font-style:var(--emstyle);font-family:var(--fem);font-weight:400;color:var(--emc);background:var(--emb);-webkit-background-clip:text;background-clip:text}
+.frame .sub{font:400 21px/1.45 var(--fb);color:var(--mut2);max-width:520px;margin:0}
+.frame .btn{display:inline-flex;align-items:center;gap:10px;background:var(--btn);color:var(--btnfg);font:700 17px var(--fb);padding:16px 26px;border-radius:var(--r);box-shadow:var(--btnsh)}
+.frame .btn2{display:inline-flex;align-items:center;gap:10px;border:1px solid var(--cb);color:var(--fg2);font:600 17px var(--fb);padding:15px 24px;border-radius:var(--r)}
+.frame .card{background:var(--card);border:1px solid var(--cb);border-radius:var(--rc);box-shadow:var(--csh);backdrop-filter:var(--bf);-webkit-backdrop-filter:var(--bf)}
+.frame .r{color:var(--dr)}.frame .o{color:var(--do)}.frame .g{color:var(--dg)}.frame .au{color:var(--da)}
+.frame .goldtxt{background:linear-gradient(100deg,var(--da) 0%,#FFF3C4 45%,var(--da) 60%);background-size:220% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:shine 3.2s linear infinite}
+.frame .pill{display:inline-block;padding:2px 14px;border-radius:999px}
+
+/* -------- THEMES -------- */
+.t-obsidian{--bg:#050607;--glow:radial-gradient(60% 50% at 80% 30%,rgba(52,199,89,.13),transparent 70%);--fg2:#F4F6F5;--mut2:rgba(244,246,245,.6);--acc:#34C759;--card:#0D1011;--cb:rgba(255,255,255,.08);--csh:0 30px 60px rgba(0,0,0,.5);--bf:none;--btn:#F4F6F5;--btnfg:#050607;--btnsh:none;--r:999px;--rc:22px;
+  --fd:"Inter",sans-serif;--fb:"Inter",sans-serif;--fmono:"JetBrains Mono",monospace;--hw:800;--hls:-.045em;--fem:"Instrument Serif",serif;--emstyle:italic;--emc:transparent;--emb:linear-gradient(90deg,#34C759,#B8EFC8);
+  --dr:#FF3B30;--do:#FF8A00;--dg:#34C759;--da:#FFD54A}
+.t-glassdark{--bg:#06070C;--glow:radial-gradient(35% 45% at 15% 25%,rgba(52,199,89,.55),transparent 70%),radial-gradient(35% 45% at 85% 70%,rgba(123,97,255,.5),transparent 70%),radial-gradient(30% 35% at 60% 10%,rgba(255,138,0,.35),transparent 70%);
+  --fg2:#fff;--mut2:rgba(255,255,255,.72);--acc:#B8EFC8;--card:linear-gradient(135deg,rgba(255,255,255,.18),rgba(255,255,255,.05));--cb:rgba(255,255,255,.35);--csh:inset 0 1px 0 rgba(255,255,255,.7),0 20px 50px rgba(0,0,0,.4);--bf:blur(18px) saturate(180%);
+  --btn:rgba(255,255,255,.9);--btnfg:#06070C;--btnsh:inset 0 1px 0 #fff,0 10px 30px rgba(0,0,0,.35);--r:999px;--rc:28px;--fd:"Inter",sans-serif;--fb:"Inter",sans-serif;--fmono:"JetBrains Mono",monospace;--hw:800;--hls:-.045em;--fem:"Instrument Serif",serif;--emstyle:italic;--emc:#fff;--emb:none;
+  --dr:#FF6B61;--do:#FFA94D;--dg:#5BE584;--da:#FFD54A}
+.t-glasslight{--bg:#EEF2F0;--glow:radial-gradient(35% 45% at 18% 30%,rgba(52,199,89,.45),transparent 70%),radial-gradient(35% 45% at 85% 65%,rgba(58,160,255,.38),transparent 70%),radial-gradient(28% 32% at 55% 95%,rgba(255,213,74,.5),transparent 70%);
+  --fg2:#0A0F0C;--mut2:rgba(10,15,12,.62);--acc:#1F8F46;--card:linear-gradient(135deg,rgba(255,255,255,.75),rgba(255,255,255,.35));--cb:rgba(255,255,255,.9);--csh:inset 0 1px 0 #fff,0 20px 50px rgba(20,40,30,.15);--bf:blur(20px) saturate(160%);
+  --btn:#0A0F0C;--btnfg:#fff;--btnsh:0 10px 24px rgba(0,0,0,.18);--r:999px;--rc:28px;--fd:"Inter",sans-serif;--fb:"Inter",sans-serif;--fmono:"JetBrains Mono",monospace;--hw:800;--hls:-.045em;--fem:"Instrument Serif",serif;--emstyle:italic;--emc:#1F8F46;--emb:none;
+  --dr:#D92B21;--do:#C05F00;--dg:#1F8F46;--da:#B07A00}
+.t-split{--bg:linear-gradient(90deg,#000 0 50%,#fff 50% 100%);--glow:none;--fg2:#fff;--mut2:#8a8a8a;--acc:#34C759;--card:#fff;--cb:#000;--csh:8px 8px 0 #000;--bf:none;--btn:#34C759;--btnfg:#000;--btnsh:none;--r:0px;--rc:0px;
+  --fd:"Inter",sans-serif;--fb:"Inter",sans-serif;--fmono:"JetBrains Mono",monospace;--hw:900;--hls:-.05em;--fem:"Instrument Serif",serif;--emstyle:italic;--emc:#fff;--emb:none;--dr:#FF3B30;--do:#FF8A00;--dg:#22A04A;--da:#C9A227}
+.t-split .copy,.t-split .splitw,.t-split .kin,.t-split .mqcopy,.t-split .vtitle,.t-split .lenshead{z-index:auto}
+.t-split .h1,.t-split .bigblend,.t-split .para{mix-blend-mode:difference;color:#fff}
+.t-split .eyebrow{mix-blend-mode:difference;color:#34C759}
+.t-split .card{color:#000}
+.t-split .sub{mix-blend-mode:difference;color:#9a9a9a}
+.t-gold{--bg:#050505;--glow:radial-gradient(70% 55% at 50% 115%,rgba(255,213,74,.42),rgba(176,122,0,.18) 40%,transparent 72%),radial-gradient(40% 30% at 85% 0%,rgba(255,213,74,.10),transparent 70%);
+  --fg2:#F7F3E8;--mut2:rgba(247,243,232,.58);--acc:#FFD54A;--card:linear-gradient(180deg,#121110,#0A0A09);--cb:rgba(255,213,74,.22);--csh:0 30px 60px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,213,74,.15);--bf:none;
+  --btn:linear-gradient(180deg,#FFE48A,#E0B12C);--btnfg:#1A1300;--btnsh:0 10px 30px rgba(255,213,74,.25);--r:999px;--rc:22px;--fd:"Inter",sans-serif;--fb:"Inter",sans-serif;--fmono:"JetBrains Mono",monospace;--hw:800;--hls:-.045em;--fem:"Instrument Serif",serif;--emstyle:italic;--emc:transparent;--emb:linear-gradient(90deg,#FFE9A1,#FFD54A 45%,#B07A00);
+  --dr:#FF5A4F;--do:#FF9A2E;--dg:#4CD37A;--da:#FFD54A}
+.t-aurora{--bg:#03050A;--glow:conic-gradient(from 200deg at 50% 120%,#34C759,#00C2FF,#7B61FF,#FF5FA2,#FF8A00,#34C759);--fg2:#fff;--mut2:rgba(255,255,255,.7);--acc:#9CF0B6;--card:rgba(5,8,14,.55);--cb:rgba(255,255,255,.18);--csh:0 20px 50px rgba(0,0,0,.45);--bf:blur(14px);
+  --btn:#fff;--btnfg:#03050A;--btnsh:none;--r:999px;--rc:24px;--fd:"Inter",sans-serif;--fb:"Inter",sans-serif;--fmono:"JetBrains Mono",monospace;--hw:800;--hls:-.045em;--fem:"Instrument Serif",serif;--emstyle:italic;--emc:#fff;--emb:none;--dr:#FF6B61;--do:#FFA94D;--dg:#7CF0A0;--da:#FFE07A}
+.t-aurora .glow{filter:blur(80px);opacity:.55;inset:-20%;animation:spin 24s linear infinite}
+.t-paper{--bg:#FAFAF7;--glow:none;--fg2:#111;--mut2:#5c5c57;--acc:#1F8F46;--card:#fff;--cb:#E4E2DC;--csh:0 1px 0 #E4E2DC,0 20px 40px rgba(0,0,0,.06);--bf:none;--btn:#111;--btnfg:#fff;--btnsh:none;--r:6px;--rc:10px;
+  --fd:"Instrument Serif",serif;--fb:"Inter",sans-serif;--fmono:"JetBrains Mono",monospace;--hw:400;--hls:-.02em;--fem:"Instrument Serif",serif;--emstyle:italic;--emc:#1F8F46;--emb:none;--dr:#D92B21;--do:#C05F00;--dg:#1F8F46;--da:#B07A00}
+.t-paper .h1{font-size:88px}
+.t-neon{--bg:#000;--glow:linear-gradient(rgba(52,199,89,.06) 1px,transparent 1px) 0 0/100% 32px,linear-gradient(90deg,rgba(52,199,89,.06) 1px,transparent 1px) 0 0/32px 100%;--fg2:#D9FFE5;--mut2:rgba(217,255,229,.55);--acc:#34C759;--card:#020403;--cb:rgba(52,199,89,.6);--csh:0 0 24px rgba(52,199,89,.35),inset 0 0 16px rgba(52,199,89,.15);--bf:none;
+  --btn:#34C759;--btnfg:#000;--btnsh:0 0 24px rgba(52,199,89,.6);--r:4px;--rc:6px;--fd:"Space Grotesk",sans-serif;--fb:"JetBrains Mono",monospace;--fmono:"JetBrains Mono",monospace;--hw:700;--hls:-.03em;--fem:"Space Grotesk",sans-serif;--emstyle:normal;--emc:#34C759;--emb:none;--dr:#FF4D6D;--do:#FFB020;--dg:#34C759;--da:#FFE35A}
+.t-neon .h1{text-shadow:0 0 22px rgba(52,199,89,.45)}
+.t-midnight{--bg:#07080F;--glow:radial-gradient(40% 55% at 12% 15%,rgba(76,64,220,.55),transparent 70%),radial-gradient(30% 40% at 92% 92%,rgba(255,138,0,.28),transparent 70%);--fg2:#fff;--mut2:rgba(255,255,255,.62);--acc:#FF8A00;--card:#0E0F18;--cb:rgba(255,255,255,.08);--csh:0 30px 60px rgba(0,0,0,.55);--bf:none;
+  --btn:#34C759;--btnfg:#04140B;--btnsh:none;--r:14px;--rc:22px;--fd:"Inter",sans-serif;--fb:"Inter",sans-serif;--fmono:"JetBrains Mono",monospace;--hw:800;--hls:-.045em;--fem:"Inter",sans-serif;--emstyle:normal;--emc:#34C759;--emb:none;--dr:#FF3B30;--do:#FF8A00;--dg:#34C759;--da:#FFD54A}
+.t-forest{--bg:#03110A;--glow:radial-gradient(60% 60% at 20% 0%,rgba(52,199,89,.28),transparent 70%),radial-gradient(30% 35% at 90% 100%,rgba(255,213,74,.18),transparent 70%);--fg2:#EAF7EE;--mut2:rgba(234,247,238,.6);--acc:#FFD54A;--card:#06190F;--cb:rgba(184,239,200,.14);--csh:0 30px 60px rgba(0,0,0,.45);--bf:none;
+  --btn:#34C759;--btnfg:#03110A;--btnsh:0 10px 30px rgba(52,199,89,.3);--r:999px;--rc:24px;--fd:"Inter",sans-serif;--fb:"Inter",sans-serif;--fmono:"JetBrains Mono",monospace;--hw:800;--hls:-.045em;--fem:"Instrument Serif",serif;--emstyle:italic;--emc:#FFD54A;--emb:none;--dr:#FF6B61;--do:#FFA94D;--dg:#5BE584;--da:#FFD54A}
+
+/* -------- LAYOUTS -------- */
+.copy{position:absolute;left:56px;top:150px;width:560px;display:grid;gap:22px;z-index:2}
+.ctas{display:flex;gap:12px;margin-top:6px}
+/* L1 deck fan */
+.fan{position:absolute;right:70px;top:150px;width:470px;height:430px}
+.fc{position:absolute;left:120px;top:20px;width:250px;height:340px;padding:24px;display:grid;align-content:start;gap:8px;transform-origin:50% 120%;animation:fanbreathe 5s var(--ease) infinite}
+.fc .k{font:600 12px var(--fmono);letter-spacing:.2em;color:var(--mut2)}
+.fc .big{font:var(--hw) 52px/0.95 var(--fd);letter-spacing:var(--hls)}
+.fc .w{margin-top:auto;position:absolute;left:20px;right:20px;bottom:20px;padding:16px;border-radius:calc(var(--rc) - 6px);background:rgba(127,127,127,.12);font:700 26px var(--fb)}
+.fc .w small{display:block;font:400 15px var(--fb);color:var(--mut2)}
+.fc:nth-child(1){--rot:-24deg;--rot2:-30deg;border-top:3px solid var(--dr)}
+.fc:nth-child(2){--rot:-12deg;--rot2:-15deg;border-top:3px solid var(--do)}
+.fc:nth-child(3){--rot:0deg;--rot2:0deg;border-top:3px solid var(--dg)}
+.fc:nth-child(4){--rot:12deg;--rot2:16deg;border-top:3px solid var(--da)}
+@keyframes fanbreathe{0%,100%{transform:rotate(var(--rot))}50%{transform:rotate(var(--rot2)) translateY(-8px)}}
+/* L2 cinema */
+.screen{position:absolute;right:56px;top:140px;width:620px;height:410px;overflow:hidden;display:grid}
+.screen .film{position:absolute;inset:0;background:radial-gradient(50% 60% at 30% 40%,rgba(52,199,89,.25),transparent 70%),radial-gradient(40% 50% at 75% 60%,rgba(123,97,255,.3),transparent 70%),linear-gradient(#141826,#07080d);animation:filmpan 9s ease-in-out infinite alternate}
+.t-glasslight .screen .film,.t-paper .screen .film,.t-split .screen .film{background:radial-gradient(50% 60% at 30% 40%,rgba(52,199,89,.35),transparent 70%),radial-gradient(40% 50% at 75% 60%,rgba(255,138,0,.3),transparent 70%),linear-gradient(#1b2030,#0b0d14)}
+.screen .lbl{position:absolute;left:22px;top:18px;font:600 11px var(--fmono);letter-spacing:.2em;color:rgba(255,255,255,.6)}
+.screen .subs{position:absolute;left:0;right:0;bottom:56px;text-align:center;display:grid;gap:6px}
+.screen .l1{font:700 30px var(--fb);color:#fff;letter-spacing:-.01em}
+.screen .l1 span{animation:wcol 7s infinite;color:#fff}
+.screen .l2{font:400 17px var(--fb);color:rgba(255,255,255,.7)}
+.screen .prog{position:absolute;left:22px;right:22px;bottom:22px;height:4px;border-radius:4px;background:rgba(255,255,255,.15);overflow:hidden}
+.screen .prog i{display:block;height:100%;width:40%;background:var(--dr);animation:prog 7s linear infinite}
+.saved{position:absolute;left:56px;bottom:70px;width:260px;padding:18px 20px}
+.saved .k{font:600 11px var(--fmono);letter-spacing:.2em;color:var(--mut2)}
+.saved .n{font:800 48px var(--fd);letter-spacing:-.04em}
+@keyframes wcol{0%,8%{color:#fff}18%,100%{color:var(--c)}}
+@keyframes prog{from{width:5%}to{width:100%}}
+@keyframes filmpan{to{transform:scale(1.12) translate(-3%,2%)}}
+/* L3 kinetic */
+.kin{position:absolute;inset:0;display:grid;place-items:center;text-align:center;z-index:2}
+.kin .h1{font-size:118px;line-height:.95}
+.kin .line{display:block;overflow:hidden}
+.kin .line>span{display:inline-block;animation:rise 6s var(--ease) infinite}
+.kin .line:nth-child(2)>span{animation-delay:.12s}.kin .line:nth-child(3)>span{animation-delay:.24s}
+.morph{position:relative;display:inline-grid;vertical-align:bottom;padding:0 26px;border-radius:999px;animation:pillmorph 6s var(--ease) infinite}
+.morph b{grid-area:1/1;font-weight:inherit;opacity:0;animation:stackfade 6s infinite}
+.morph b:nth-child(1){animation-delay:0s}.morph b:nth-child(2){animation-delay:1.5s}.morph b:nth-child(3){animation-delay:3s}.morph b:nth-child(4){animation-delay:4.5s}
+@keyframes stackfade{0%,2%{opacity:0;transform:translateY(30%)}6%,22%{opacity:1;transform:none}26%,100%{opacity:0;transform:translateY(-30%)}}
+@keyframes pillmorph{0%,22%{background:color-mix(in srgb,var(--dr) 22%,transparent);color:var(--dr);border-radius:999px}25%,47%{background:color-mix(in srgb,var(--do) 22%,transparent);color:var(--do);border-radius:28px 70px 28px 70px}50%,72%{background:color-mix(in srgb,var(--dg) 24%,transparent);color:var(--dg);border-radius:22px}75%,97%{background:color-mix(in srgb,var(--da) 26%,transparent);color:var(--da);border-radius:70px 22px 70px 22px}100%{background:color-mix(in srgb,var(--dr) 22%,transparent);color:var(--dr)}}
+@keyframes rise{0%{transform:translateY(105%)}10%,88%{transform:none}100%{transform:translateY(-105%)}}
+.kin .sub{margin:22px auto 0;text-align:center}
+/* L4 orbit */
+.orbit{position:absolute;right:120px;top:110px;width:460px;height:460px}
+.ring{position:absolute;inset:0;border:1px dashed var(--cb);border-radius:50%;animation:spin 30s linear infinite}
+.ring.r2{inset:70px;animation-duration:22s;animation-direction:reverse}
+.ring.r3{inset:140px;border-style:solid;animation:none}
+.ring span{position:absolute;left:50%;top:50%;font:700 20px var(--fb);padding:8px 14px;border-radius:999px;background:var(--card);border:1px solid var(--cb);backdrop-filter:var(--bf);white-space:nowrap}
+.ring span>i{display:block;font-style:normal;animation:spin 30s linear infinite reverse}
+.ring.r2 span>i{animation-duration:22s;animation-direction:normal}
+.core{position:absolute;inset:165px;border-radius:50%;display:grid;place-items:center;background:var(--card);border:1px solid var(--cb);box-shadow:0 0 80px color-mix(in srgb,var(--dg) 30%,transparent)}
+.core svg{width:100px;height:50px}
+/* L5 marquee */
+.mq{position:absolute;left:0;right:0;top:300px;display:grid;gap:16px;transform:rotate(-4deg);z-index:1}
+.mrow{display:flex;gap:14px;width:max-content;animation:mq 24s linear infinite}
+.mrow.rev{animation-direction:reverse;animation-duration:30s}
+.mrow span{font:700 30px var(--fb);padding:12px 24px;border-radius:999px;background:var(--card);border:1px solid var(--cb);white-space:nowrap}
+@keyframes mq{to{transform:translateX(-50%)}}
+.mqcopy{position:absolute;left:56px;top:120px;width:900px;z-index:2;display:grid;gap:14px}
+.mqcopy .h1{font-size:66px}
+.mqcta{position:absolute;left:56px;bottom:46px;z-index:2;display:flex;gap:12px}
+/* L6 bento */
+.bento{position:absolute;right:56px;top:120px;width:620px;height:480px;display:grid;grid-template-columns:1.2fr 1fr;grid-template-rows:1fr 1fr 1fr;gap:14px}
+.bento .card{padding:20px;display:grid;align-content:space-between;overflow:hidden;position:relative}
+.bento .k{font:600 11px var(--fmono);letter-spacing:.18em;color:var(--mut2);text-transform:uppercase}
+.bento .n{font:800 56px/1 var(--fd);letter-spacing:-.04em}
+.bento .a{grid-row:span 2}
+.bento .gold{background:linear-gradient(160deg,#FFE48A,#E0B12C 45%,#2a1d00 140%);border-color:rgba(255,213,74,.6);color:#1A1300}
+.bento .gold .k{color:rgba(26,19,0,.7)}
+.bars{display:flex;align-items:flex-end;gap:8px;height:90px}
+.bars i{flex:1;border-radius:6px 6px 2px 2px;background:var(--dg);transform-origin:bottom;animation:bar 3s var(--ease) infinite alternate}
+.bars i:nth-child(odd){background:color-mix(in srgb,var(--dg) 55%,transparent)}
+@keyframes bar{from{transform:scaleY(.25)}to{transform:scaleY(1)}}
+.streak{font:800 40px var(--fd)}
+/* L7 split */
+.splitw{position:absolute;inset:0;z-index:2}
+.splitw .h1{position:absolute;left:0;right:0;top:150px;text-align:center;font-size:104px}
+.travel{position:absolute;top:360px;left:50%;width:300px;padding:20px 24px;text-align:center;animation:travel 6s var(--ease) infinite;border-radius:var(--rc)}
+.travel b{display:block;font:800 40px var(--fb);animation:travelc 6s var(--ease) infinite}
+.travel small{font:500 16px var(--fb);opacity:.7}
+@keyframes travel{0%,10%{transform:translateX(-120%)}45%,55%{transform:translateX(-50%)}90%,100%{transform:translateX(20%)}}
+@keyframes travelc{0%,30%{color:var(--dr)}50%{color:var(--do)}70%,100%{color:var(--dg)}}
+.splitlab{position:absolute;bottom:50px;font:600 13px var(--fmono);letter-spacing:.2em}
+/* L8 lens */
+.para{position:absolute;left:56px;right:56px;top:250px;font:600 46px/1.35 var(--fb);letter-spacing:-.02em;z-index:1}
+.para span{transition:none}
+.para .t{animation:lit 8s infinite}
+@keyframes lit{0%,6%{color:var(--fg2)}14%,92%{color:var(--c)}100%{color:var(--fg2)}}
+.lens{position:absolute;width:190px;height:190px;border-radius:50%;z-index:3;top:200px;left:40px;background:linear-gradient(135deg,rgba(255,255,255,.22),rgba(255,255,255,.04));border:1px solid rgba(255,255,255,.55);box-shadow:inset 0 2px 0 rgba(255,255,255,.8),inset 0 -10px 30px rgba(255,255,255,.12),0 20px 40px rgba(0,0,0,.35);animation:lensmove 8s ease-in-out infinite}
+@keyframes lensmove{0%{transform:translate(0,0)}25%{transform:translate(420px,40px)}50%{transform:translate(860px,0)}75%{transform:translate(500px,120px)}100%{transform:translate(0,0)}}
+.lenshead{position:absolute;left:56px;top:120px;z-index:2;display:grid;gap:8px}
+.lenshead .h1{font-size:56px}
+/* L9 phone */
+.phone{position:absolute;right:250px;top:80px;width:290px;height:560px;border-radius:46px;padding:12px;background:#0b0b0d;border:1px solid rgba(255,255,255,.18);box-shadow:0 40px 80px rgba(0,0,0,.55);animation:float 6s ease-in-out infinite}
+.phone .scr{position:relative;height:100%;border-radius:36px;overflow:hidden;background:linear-gradient(#141826,#07080d)}
+.phone .scr .vid{height:230px;background:radial-gradient(60% 60% at 40% 40%,rgba(255,138,0,.4),transparent 70%),radial-gradient(50% 60% at 70% 60%,rgba(52,199,89,.35),transparent 70%),#10131e;position:relative}
+.phone .scr .vid p{position:absolute;bottom:14px;left:0;right:0;text-align:center;font:700 16px var(--fb);color:#fff}
+.phone .wc{margin:14px;padding:14px;border-radius:18px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:#fff}
+.phone .wc b{font:800 26px var(--fb)}
+.phone .wc small{display:block;color:rgba(255,255,255,.6);font:400 13px var(--fb)}
+.phone .tb{position:absolute;left:14px;right:14px;bottom:14px;height:56px;border-radius:999px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.3);backdrop-filter:blur(14px);display:flex;justify-content:space-around;align-items:center;color:#fff;font:600 12px var(--fb)}
+.gw{position:absolute;right:56px;top:300px;width:190px;height:190px;padding:18px;display:grid;align-content:space-between;animation:float 6s ease-in-out infinite;animation-delay:-3s}
+.gw .w{font:800 32px var(--fd);color:var(--da);text-shadow:0 0 18px color-mix(in srgb,var(--da) 50%,transparent)}
+.gw .k{font:600 12px var(--fb);color:var(--mut2)}
+.gw .b{justify-self:start;background:var(--da);color:#1A1300;font:700 12px var(--fb);padding:6px 12px;border-radius:999px}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-14px)}}
+/* L10 coverage ring */
+.ringwrap{position:absolute;right:110px;top:110px;width:440px;height:440px;display:grid;place-items:center}
+.ringwrap svg{position:absolute;inset:0;transform:rotate(-90deg)}
+.ringwrap .trk{fill:none;stroke:var(--cb);stroke-width:22}
+.ringwrap .val{fill:none;stroke:url(#rg);stroke-width:22;stroke-linecap:round;stroke-dasharray:1257;animation:ring 5s var(--ease) infinite}
+@keyframes ring{0%{stroke-dashoffset:1257}60%,100%{stroke-dashoffset:163}}
+.ringwrap .mid{text-align:center}
+.ringwrap .pct{font:800 110px/1 var(--fd);letter-spacing:-.05em}
+.ringwrap .lab{font:500 17px var(--fb);color:var(--mut2)}
+.legend{display:flex;gap:16px;font:600 15px var(--fb)}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:4px;margin-right:6px;vertical-align:-1px}
+/* L11 stack */
+.stk{position:absolute;right:150px;top:140px;width:380px;height:300px}
+.stk .card{position:absolute;inset:0;padding:30px;display:grid;align-content:space-between;animation:shuffle 6s var(--ease) infinite}
+.stk .card:nth-child(1){animation-delay:-4s}.stk .card:nth-child(2){animation-delay:-2s}
+.stk .k{font:600 12px var(--fmono);letter-spacing:.2em;color:var(--mut2)}
+.stk .w{font:800 64px var(--fd);letter-spacing:-.04em}
+.stk .m{font:400 22px var(--fb);color:var(--mut2)}
+@keyframes shuffle{0%{transform:translate(0,0) rotate(0);z-index:3;opacity:1}28%{transform:translate(0,0) rotate(0);z-index:3}36%{transform:translate(260px,-40px) rotate(14deg);z-index:3;opacity:.9}44%{transform:translate(36px,36px) rotate(3deg) scale(.94);z-index:1;opacity:.6}66%{transform:translate(18px,18px) rotate(1.5deg) scale(.97);z-index:2;opacity:.8}100%{transform:translate(0,0);z-index:3;opacity:1}}
+/* L12 gold vault */
+.vault{position:absolute;left:0;right:0;bottom:0;height:270px;background:linear-gradient(180deg,transparent,rgba(255,213,74,.08) 20%,rgba(255,213,74,.35) 70%,#FFD54A 140%);border-top:1px solid rgba(255,213,74,.35);display:flex;align-items:center;gap:22px;padding:0 56px;overflow:hidden}
+.t-glasslight .vault,.t-paper .vault,.t-split .vault{background:linear-gradient(180deg,#141209,#000);border-top-color:#FFD54A}
+.vault .gw2{padding:18px 22px;min-width:200px;border-radius:20px;background:rgba(0,0,0,.55);border:1px solid rgba(255,213,74,.45);color:#FFF3C4;animation:float 5s ease-in-out infinite}
+.vault .gw2:nth-child(2){animation-delay:-1.5s}.vault .gw2:nth-child(3){animation-delay:-3s}
+.vault .gw2 b{display:block;font:800 30px var(--fb);color:#FFD54A}
+.vault .gw2 small{font:400 15px var(--fb);opacity:.75}
+.vtitle{position:absolute;left:56px;top:140px;width:760px;display:grid;gap:16px}
+.spark{position:absolute;width:5px;height:5px;border-radius:50%;background:#FFD54A;box-shadow:0 0 10px #FFD54A;animation:sparkle 3s ease-in-out infinite}
+@keyframes sparkle{0%,100%{opacity:0;transform:scale(.4)}50%{opacity:1;transform:scale(1)}}
+@keyframes shine{to{background-position:-220% 0}}
+@keyframes spin{to{transform:rotate(360deg)}}
+:root{--ease:cubic-bezier(.22,1,.36,1)}
+.paused *, .paused *::before, .paused *::after{animation-play-state:paused!important}
+@media (prefers-reduced-motion: reduce){.frame *, .frame *::before, .frame *::after{animation:none!important}}
+</style>
+
+<main>
+<header style="display:grid;gap:16px">
+  <div class="eyebrow-s">LinguaScript · Design Lab</div>
+  <h1 class="shell-h1">120 ways LinguaScript<br>could <em>look and move</em></h1>
+  <p class="mut" style="font-size:1.08rem">10 colour themes × 12 animated layouts, all live, all using the real logo, deck colours and product. Filter, tap any frame to open it full screen and swap themes, and ♥ the ones you like. Your favourites are remembered on this device.</p>
+</header>
+
+<section>
+  <div class="eyebrow-s">My top 6 picks</div>
+  <h2 class="shell-h2">Start here</h2>
+  <div class="picks" id="picks"></div>
+</section>
+
+<section>
+  <div class="eyebrow-s">Colour theory</div>
+  <h2 class="shell-h2">What each colour says</h2>
+  <div class="swatches">
+    <div class="sw"><div class="c" style="background:#050607;color:#fff">Black #050607</div><div class="d"><b>Black: cinema, focus, premium</b><span class="mut">Feels like a dark cinema: your content glows. Luxury brands use it to say "serious and expensive". Our base.</span></div></div>
+    <div class="sw"><div class="c" style="background:#34C759;color:#03110A">Green #34C759</div><div class="d"><b>Green: growth, "I know this"</b><span class="mut">Go, success, progress. Our hero colour: a word turning green is the whole promise. Use it for the main button.</span></div></div>
+    <div class="sw"><div class="c" style="background:linear-gradient(135deg,#FFE48A,#FFD54A 40%,#B07A00);color:#1A1300">Gold #FFD54A</div><div class="d"><b>Gold: reward, mastery, value</b><span class="mut">Trophies and premium. Rare = precious, so keep it to one gold section per page: reviews, Pro, achievements.</span></div></div>
+    <div class="sw"><div class="c" style="background:#FF3B30;color:#fff">Red #FF3B30</div><div class="d"><b>Red: new, attention, energy</b><span class="mut">Grabs the eye fastest. For us it means "new word", not "error". Keep it small: only on words.</span></div></div>
+    <div class="sw"><div class="c" style="background:#FF8A00;color:#1A0E00">Orange #FF8A00</div><div class="d"><b>Orange: warm, in progress</b><span class="mut">Friendly and energetic, sits between new and known. Good for streaks and "keep going" moments.</span></div></div>
+    <div class="sw"><div class="c" style="background:#F4F6F5;color:#050607">Off-white #F4F6F5</div><div class="d"><b>White: clarity, trust</b><span class="mut">Text on dark, and the colour of the cleanest buttons. A split black/white feels editorial and confident.</span></div></div>
+    <div class="sw"><div class="c" style="background:#4C40DC;color:#fff">Violet glow #4C40DC</div><div class="d"><b>Violet: night, creativity, AI</b><span class="mut">Your current site's glow. It reads "AI startup", which is why it feels generic. Use it only as a faint glow, or swap it for green or gold.</span></div></div>
+  </div>
+  <div class="combos">
+    <div class="combo" style="background:radial-gradient(80% 80% at 50% 120%,rgba(255,213,74,.45),transparent 70%),#050505;color:#F7F3E8"><b>Black + gold</b><span>Luxury, achievement. The "gold to black" contrast you like. Best for reviews, Pro and the hero.</span></div>
+    <div class="combo" style="background:radial-gradient(70% 70% at 80% 20%,rgba(52,199,89,.35),transparent 70%),#03110A;color:#EAF7EE"><b>Black + green</b><span>Growth and tech. Calm and confident. Best everyday app look.</span></div>
+    <div class="combo" style="background:linear-gradient(90deg,#000 50%,#fff 50%);color:#fff"><b style="mix-blend-mode:difference">Black + white</b><span style="mix-blend-mode:difference">Editorial, bold, honest. Great for landing pages and ads.</span></div>
+    <div class="combo" style="background:radial-gradient(35% 45% at 15% 25%,rgba(52,199,89,.55),transparent 70%),radial-gradient(35% 45% at 85% 70%,rgba(123,97,255,.5),transparent 70%),#06070C;color:#fff"><b>Glass over colour</b><span>Modern Apple feel. Glass needs colour behind it to look like glass.</span></div>
+    <div class="combo" style="background:#050607;color:#fff"><b><span style="color:#FF3B30">Red</span> <span style="color:#FF8A00">orange</span> <span style="color:#34C759">green</span> <span style="color:#FFD54A">gold</span></b><span>Only on words. The deck colours are meaning, not decoration, so never use them as background colours.</span></div>
+  </div>
+  <p class="note"><b>Rule of thumb (60-30-10):</b> about 60% black, 30% one neutral (cards, text), 10% accent: green for actions, with one small gold moment per screen.</p>
+</section>
+
+<section>
+  <div class="eyebrow-s">All 120</div>
+  <h2 class="shell-h2">The wall</h2>
+  <div class="bar" id="bar">
+    <div class="grp" id="fTheme"></div>
+    <div class="grp" id="fLayout"></div>
+    <button class="chip" id="fFav" aria-pressed="false">♥ Favourites</button>
+    <span class="count" id="count"></span>
+  </div>
+  <div class="wall" id="wall"></div>
+</section>
+
+<section>
+  <div class="eyebrow-s">Honest answer</div>
+  <h2 class="shell-h2">Can AI match a top designer?</h2>
+  <p class="mut">For the visual layer (layouts, motion, colour, glass, animated sections), yes: everything on this page was made with code and runs in a real browser. What a good human designer still adds is <b style="color:var(--fg)">taste over time and consistency across 50 screens</b>. Pick a direction here, then we turn it into a design system (tokens, components, motion rules) so every page matches.</p>
+</section>
+</main>
+
+<dialog id="dlg" aria-label="Template preview">
+  <div class="mwrap">
+    <div class="mtop"><span class="no" id="mno" style="font:500 12px var(--mono);color:var(--gold)"></span><b id="mname"></b><button class="x" id="mx" aria-label="Close">✕</button></div>
+    <div class="mstage"><div class="view" id="mview"></div></div>
+    <div style="display:grid;gap:8px"><div class="mchips" id="mThemes"></div><div class="mchips" id="mLayouts"></div></div>
+  </div>
+</dialog>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><linearGradient id="rg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#34C759"/><stop offset=".7" stop-color="#9CF0B6"/><stop offset="1" stop-color="#FFD54A"/></linearGradient></defs></svg>
+
+<script>
+const LOGO=`<svg viewBox="14 76 372 184" aria-hidden="true"><path d="M20 236 Q200 222 380 240 L380 254 Q200 236 20 250 Z" fill="#5b4332"/><path d="M272 176 C322 168 348 190 344 214 C340 236 316 242 304 230 C295 220 302 206 314 207" fill="none" stroke="#26A047" stroke-width="15" stroke-linecap="round"/><rect x="233" y="196" width="15" height="38" rx="7.5" fill="#26A047"/><path d="M136 196 Q128 118 205 106 Q276 96 285 160 Q290 202 244 208 L164 210 Q140 208 136 196 Z" fill="#34C759"/><path d="M158 130 q7 -14 14 0 q7 -14 14 0 q7 -14 14 0 q7 -14 14 0 q7 -14 14 0 q7 -14 14 0 q7 -14 14 0 l-2 10 q-49 -10 -94 2 Z" fill="#1B7A35"/><path d="M150 196 Q152 168 178 166 Q166 190 190 206 L164 208 Q152 206 150 196 Z" fill="#B8EFC8"/><rect x="182" y="198" width="15" height="40" rx="7.5" fill="#26A047"/><circle cx="189.5" cy="238" r="9" fill="#26A047"/><path d="M162 118 Q160 92 134 88 Q104 84 88 112 Q74 138 84 162 Q94 186 126 188 Q152 189 160 168 Q166 148 162 118 Z" fill="#34C759"/><path d="M82 148 Q104 162 128 154" fill="none" stroke="#3d2b1f" stroke-width="4.5" stroke-linecap="round"/><circle cx="118" cy="126" r="21" fill="#B8EFC8"/><circle cx="118" cy="126" r="11.5" fill="#fffef9"/><circle cx="122.27" cy="124.58" r="5.5" fill="#241a12"/><circle cx="124.77" cy="122.08" r="2" fill="#ffffff" opacity="0.9"/></svg>`;
+const THEMES=[["obsidian","Obsidian"],["glassdark","Glass dark"],["glasslight","Glass light"],["split","Split black & white"],["gold","Black & gold"],["aurora","Aurora"],["paper","Paper"],["neon","Neon terminal"],["midnight","Midnight (current)"],["forest","Forest"]];
+const chrome=()=>`<div class="glow"></div><div class="logo">${LOGO}<span>LinguaScript</span></div><div class="nav"><span>Method</span><span>Films</span><span>Pricing</span><span class="cta">Start free</span></div>`;
+const W=(t,c)=>`<span class="${c}">${t}</span>`;
+const LAYOUTS=[
+ ["fan","Frequency deck fan",()=>`${chrome()}<div class="copy"><div class="eyebrow">Flashcards</div><h2 class="h1">Frequency decks.<br><span class="g">Top 50</span> to <span class="o">Top 3,000</span>.</h2><p class="sub">Learn the words people actually say, first.</p><div class="ctas"><span class="btn">Start free →</span><span class="btn2">See the decks</span></div></div>
+  <div class="fan">${[["Top 50","r","le","the"],["Top 500","o","maison","house"],["Top 1,000","g","fenêtre","window"],["Top 3,000","au","plaît","please"]].map(([a,c,w,m])=>`<div class="fc card"><span class="k">FRENCH · DECK</span><span class="big ${c}">${a}</span><span class="k" style="letter-spacing:.05em;text-transform:none">most common words</span><div class="w">${w}<small>${m}</small></div></div>`).join("")}</div>`],
+ ["cinema","Subtitle cinema",()=>`${chrome()}<div class="copy" style="width:460px"><div class="eyebrow">Dual subtitles</div><h2 class="h1">Tap any word.<br><em>Save it.</em></h2><p class="sub">Every word in the film, coloured by what you already know.</p></div>
+  <div class="saved card"><div class="k">SAVED WORDS</div><div class="n" data-count="127">0</div></div>
+  <div class="screen card"><div class="film"></div><div class="lbl">UN CAFÉ PRÈS DE LA SEINE · 12:04</div><div class="subs"><div class="l1">${[["Je","--dg"],["voudrais","--do"],["un","--dg"],["café","--dg"],["noir,","--dr"],["s'il","--dg"],["vous","--dg"],["plaît","--da"]].map(([w,c],i)=>`<span style="--c:var(${c});animation-delay:${i*0.35}s">${w}</span>`).join(" ")}</div><div class="l2">I would like a black coffee, please</div></div><div class="prog"><i></i></div></div>`],
+ ["kinetic","Kinetic headline",()=>`${chrome()}<div class="kin"><div><h2 class="h1"><span class="line"><span>Watch it.</span></span><span class="line"><span>Tap it.</span></span><span class="line"><span>Turn it <span class="morph"><b>red</b><b>orange</b><b>green</b><b>gold</b></span></span></span></h2><p class="sub">The language app that colours the shows you already love.</p></div></div>`],
+ ["orbit","Word orbit",()=>`${chrome()}<div class="copy" style="top:190px;width:520px"><div class="eyebrow">Your vocabulary</div><h2 class="h1">Every word<br>you know, <em>in orbit.</em></h2><p class="sub">Your decks follow you on YouTube, Netflix and any website.</p><div class="ctas"><span class="btn">Add to Chrome</span></div></div>
+  <div class="orbit"><div class="ring">${[["maison","g",0],["chat","r",90],["merci","g",180],["fenêtre","o",270]].map(([w,c,a])=>`<span class="${c}" style="transform:rotate(${a}deg) translate(230px) rotate(-${a}deg) translate(-50%,-50%)"><i>${w}</i></span>`).join("")}</div><div class="ring r2">${[["plage","au",45],["voudrais","o",165],["café","g",285]].map(([w,c,a])=>`<span class="${c}" style="transform:rotate(${a}deg) translate(160px) rotate(-${a}deg) translate(-50%,-50%)"><i>${w}</i></span>`).join("")}</div><div class="ring r3"></div><div class="core">${LOGO}</div></div>`],
+ ["marquee","Word marquee",()=>{const row=(ws)=>{const s=ws.map(([w,c])=>`<span class="${c}">${w}</span>`).join("");return s+s};return `${chrome()}<div class="mqcopy"><div class="eyebrow">1,204 words and counting</div><h2 class="h1">Every word you see,<br>coloured by <em>what you know.</em></h2></div>
+  <div class="mq"><div class="mrow">${row([["bonjour","g"],["la plage","au"],["voudrais","o"],["chat","r"],["merci","g"],["fenêtre","o"],["maison","g"]])}</div><div class="mrow rev">${row([["regarder","r"],["parfait","g"],["toujours","o"],["demain","g"],["peut-être","r"],["ensemble","au"],["vraiment","g"]])}</div><div class="mrow">${row([["salut","g"],["vite","o"],["heureux","r"],["beaucoup","g"],["ici","g"],["avant","o"],["jamais","au"]])}</div></div>
+  <div class="mqcta"><span class="btn">Start free →</span><span class="btn2">Watch the demo</span></div>`}],
+ ["bento","Progress bento",()=>`${chrome()}<div class="copy" style="width:470px"><div class="eyebrow">Your progress</div><h2 class="h1">Watch your<br>French <em>grow.</em></h2><p class="sub">Every film you watch adds to the green.</p><div class="ctas"><span class="btn">Start free</span></div></div>
+  <div class="bento"><div class="card a"><span class="k">Green words</span><div><div class="n g" data-count="1204">0</div><div class="bars"><i></i><i style="animation-delay:.2s"></i><i style="animation-delay:.4s"></i><i style="animation-delay:.6s"></i><i style="animation-delay:.8s"></i><i style="animation-delay:1s"></i><i style="animation-delay:1.2s"></i></div></div></div>
+  <div class="card"><span class="k">Streak</span><span class="streak">🔥 12 days</span></div><div class="card gold"><span class="k">Ready to review</span><span class="n" data-count="32">0</span></div>
+  <div class="card" style="grid-column:span 2"><span class="k">This film</span><span style="font:700 26px var(--fb)">You understand <span class="g" data-count="87">0</span><span class="g">%</span> of <i>Amélie</i></span></div></div>`],
+ ["split","Split screen",()=>`${chrome()}<div class="splitw"><h2 class="h1 bigblend">Don't know it.<br>Know it.</h2><div class="travel card"><b>maison</b><small>house</small></div><span class="splitlab" style="left:56px;color:var(--dr)">RED · NEW</span><span class="splitlab" style="right:56px;color:var(--dg)">GREEN · KNOWN</span></div>`],
+ ["lens","Glass lens reading",()=>{const ws=[["Ce","dg"],["matin,","dg"],["je","dg"],["voudrais","do"],["un","dg"],["café","dg"],["noir","dr"],["et","dg"],["un","dg"],["croissant","do"],["près","dg"],["de","dg"],["la","dg"],["fenêtre.","da"]];return `${chrome()}<div class="lenshead"><div class="eyebrow">Read any website · Alt+L</div><h2 class="h1">Read the web <em>in colour.</em></h2></div>
+  <p class="para">${ws.map(([w,c],i)=>`<span class="t" style="--c:var(--${c});animation-delay:${(i*0.42).toFixed(2)}s">${w}</span>`).join(" ")}</p><div class="lens"></div>`}],
+ ["phone","Phone + widget",()=>`${chrome()}<div class="copy" style="width:440px"><div class="eyebrow">Android app</div><h2 class="h1">Your words,<br><em>everywhere.</em></h2><p class="sub">Colours on any app, gold words on your lock screen.</p><div class="ctas"><span class="btn">Get the app</span></div></div>
+  <div class="phone"><div class="scr"><div class="vid"><p><span style="color:#5BE584">Je</span> <span style="color:#FFA94D">regarde</span> <span style="color:#FF6B61">la</span> <span style="color:#5BE584">mer</span></p></div><div class="wc"><b style="color:#FF6B61">regarder</b><small>to watch · saved just now</small></div><div class="wc"><b style="color:#5BE584">la mer</b><small>the sea · known</small></div><div class="tb"><span>Watch</span><span>Words</span><span>Review</span></div></div></div>
+  <div class="gw card"><span class="k">✨ Gold word</span><span class="w">partent</span><span class="b">Show meaning</span></div>`],
+ ["ring","Coverage ring",()=>`${chrome()}<div class="copy" style="width:520px"><div class="eyebrow">Comprehensible input</div><h2 class="h1">Know <em>87%</em><br>before you press play.</h2><p class="sub">We measure every film against your decks, so you only watch what you'll understand.</p><div class="legend"><span><i style="background:var(--dg)"></i>known</span><span><i style="background:var(--do)"></i>learning</span><span><i style="background:var(--dr)"></i>new</span></div></div>
+  <div class="ringwrap"><svg viewBox="0 0 440 440"><circle class="trk" cx="220" cy="220" r="200"/><circle class="val" cx="220" cy="220" r="200"/></svg><div class="mid"><div class="pct"><span data-count="87">0</span>%</div><div class="lab">of <i>Amélie</i> you understand</div></div></div>`],
+ ["stack","Flashcard shuffle",()=>`${chrome()}<div class="copy" style="width:480px"><div class="eyebrow">Spaced repetition</div><h2 class="h1">Review in<br><em>two minutes.</em></h2><p class="sub">Words come back right before you'd forget them.</p><div class="ctas"><span class="btn">Review now</span></div></div>
+  <div class="stk">${[["merci","thank you","g"],["fenêtre","window","o"],["la plage","the beach","au"]].map(([w,m,c])=>`<div class="card"><span class="k">FRENCH · REVIEW</span><span class="w ${c}">${w}</span><span class="m">${m}</span></div>`).join("")}</div>`],
+ ["vault","Gold to black",()=>`${chrome()}<div class="vtitle"><div class="eyebrow">Reviews</div><h2 class="h1">Your <span class="goldtxt">gold words</span><br>are ready.</h2><p class="sub">Words you know, due for a quick check. Tap, remember, keep them forever.</p></div>
+  <div class="vault">${[["partent","they leave"],["maison","house"],["toujours","always"],["ensemble","together"]].map(([w,m])=>`<div class="gw2"><b>${w}</b><small>${m}</small></div>`).join("")}</div>${[[880,150],[1010,240],[940,320],[1120,180],[760,90]].map(([x,y],i)=>`<i class="spark" style="left:${x}px;top:${y}px;animation-delay:${i*0.6}s"></i>`).join("")}`],
+];
+const PICKS=[["gold","vault","The gold-to-black look you described. Premium, rewarding, unlike any other language app."],["obsidian","kinetic","One huge sentence with the word that morphs red → orange → green → gold. The product explained in 3 seconds."],["glassdark","cinema","Liquid-glass film frame with live colouring subtitles. Shows the product working, not a promise."],["split","split","Black-and-white split: 'Don't know it / Know it'. Bold, editorial, made for ads and TikTok."],["forest","ring","Deep green with gold accents; the 87% coverage ring makes our science visible."],["glasslight","fan","Light glass version of your deck fan: friendly, clean, good for parents and schools."]];
+
+// ---------- build ----------
+const wall=document.getElementById('wall');
+let favs=new Set();try{favs=new Set(JSON.parse(localStorage.getItem('lsLabFavs')||'[]'))}catch(e){}
+const saveFavs=()=>{try{localStorage.setItem('lsLabFavs',JSON.stringify([...favs]))}catch(e){}};
+function frameHTML(t,l){return `<div class="frame t-${t}" data-l="${l}">${LAYOUTS.find(x=>x[0]===l)[2]()}</div>`}
+function fit(view){const f=view.querySelector('.frame');if(!f)return;f.style.transform=`scale(${view.clientWidth/1200})`}
+const ro=new ResizeObserver(es=>es.forEach(e=>fit(e.target)));
+const io=new IntersectionObserver(es=>es.forEach(e=>{e.target.classList.toggle('paused',!e.isIntersecting);if(e.isIntersecting)startCounts(e.target)}),{rootMargin:'100px'});
+function mount(view,t,l){view.innerHTML=frameHTML(t,l);fit(view);ro.observe(view);io.observe(view)}
+function startCounts(root){root.querySelectorAll('[data-count]').forEach(el=>{if(el._run)return;el._run=1;const to=+el.dataset.count;let t0;const step=ts=>{t0??=ts;const p=Math.min(1,(ts-t0)/1800);el.textContent=Math.round(to*(1-Math.pow(1-p,3))).toLocaleString();if(p<1)requestAnimationFrame(step);else setTimeout(()=>{el._run=0;if(!root.classList.contains('paused')){t0=undefined;el._run=1;requestAnimationFrame(step)}},3500)};requestAnimationFrame(step)})}
+let n=0;const tiles=[];
+THEMES.forEach(([t,tn])=>LAYOUTS.forEach(([l,ln])=>{n++;const id=`${t}-${l}`;const tile=document.createElement('div');tile.className='tile';tile.dataset.t=t;tile.dataset.l=l;tile.dataset.id=id;
+  tile.innerHTML=`<div class="view" role="button" tabindex="0" aria-label="Open ${ln}, ${tn}"></div><div class="meta"><span class="no">#${String(n).padStart(3,'0')}</span><b>${ln}</b><span>· ${tn}</span><button class="fav" aria-pressed="${favs.has(id)}" aria-label="Favourite">♥</button></div>`;
+  wall.appendChild(tile);tiles.push(tile);const v=tile.querySelector('.view');
+  // lazy mount for speed
+  const lazy=new IntersectionObserver(es=>{if(es[0].isIntersecting){mount(v,t,l);lazy.disconnect()}},{rootMargin:'400px'});lazy.observe(v);
+  const open=()=>openModal(t,l,n);v.addEventListener('click',()=>openModal(t,l));v.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openModal(t,l)}});
+  tile.querySelector('.fav').addEventListener('click',e=>{const b=e.currentTarget;favs.has(id)?favs.delete(id):favs.add(id);b.setAttribute('aria-pressed',favs.has(id));saveFavs();apply()});
+}));
+// picks
+const picks=document.getElementById('picks');
+PICKS.forEach(([t,l,why])=>{const d=document.createElement('div');d.className='pick';const ln=LAYOUTS.find(x=>x[0]===l)[1],tn=THEMES.find(x=>x[0]===t)[1];d.innerHTML=`<div class="view" role="button" tabindex="0" aria-label="Open ${ln}, ${tn}"></div><h3>${ln} · ${tn}</h3><p>${why}</p>`;picks.appendChild(d);const v=d.querySelector('.view');mount(v,t,l);v.addEventListener('click',()=>openModal(t,l));v.addEventListener('keydown',e=>{if(e.key==='Enter'){openModal(t,l)}})});
+// filters
+const st={t:'all',l:'all',fav:false};
+const mk=(host,items,key,label)=>{const all=[['all',label],...items];all.forEach(([v,name])=>{const b=document.createElement('button');b.className='chip';b.textContent=name;b.setAttribute('aria-pressed',v==='all');b.addEventListener('click',()=>{st[key]=v;host.querySelectorAll('.chip').forEach(c=>c.setAttribute('aria-pressed',c===b));apply()});host.appendChild(b)})};
+mk(document.getElementById('fTheme'),THEMES,'t','All themes');mk(document.getElementById('fLayout'),LAYOUTS.map(x=>[x[0],x[1]]),'l','All layouts');
+document.getElementById('fFav').addEventListener('click',e=>{st.fav=!st.fav;e.currentTarget.setAttribute('aria-pressed',st.fav);apply()});
+function apply(){let c=0;tiles.forEach(tl=>{const ok=(st.t==='all'||tl.dataset.t===st.t)&&(st.l==='all'||tl.dataset.l===st.l)&&(!st.fav||favs.has(tl.dataset.id));tl.hidden=!ok;if(ok)c++});document.getElementById('count').textContent=`${c} of ${tiles.length}`}
+apply();
+// modal
+const dlg=document.getElementById('dlg'),mview=document.getElementById('mview');let cur={t:'gold',l:'vault'};
+const mT=document.getElementById('mThemes'),mL=document.getElementById('mLayouts');
+THEMES.forEach(([t,tn])=>{const b=document.createElement('button');b.className='chip';b.textContent=tn;b.dataset.v=t;b.addEventListener('click',()=>openModal(t,cur.l));mT.appendChild(b)});
+LAYOUTS.forEach(([l,ln])=>{const b=document.createElement('button');b.className='chip';b.textContent=ln;b.dataset.v=l;b.addEventListener('click',()=>openModal(cur.t,l));mL.appendChild(b)});
+function openModal(t,l){cur={t,l};mount(mview,t,l);const idx=THEMES.findIndex(x=>x[0]===t)*12+LAYOUTS.findIndex(x=>x[0]===l)+1;document.getElementById('mno').textContent='#'+String(idx).padStart(3,'0');document.getElementById('mname').textContent=`${LAYOUTS.find(x=>x[0]===l)[1]} · ${THEMES.find(x=>x[0]===t)[1]}`;
+  mT.querySelectorAll('.chip').forEach(c=>c.setAttribute('aria-pressed',c.dataset.v===t));mL.querySelectorAll('.chip').forEach(c=>c.setAttribute('aria-pressed',c.dataset.v===l));if(!dlg.open)dlg.showModal();requestAnimationFrame(()=>fit(mview))}
+document.getElementById('mx').addEventListener('click',()=>dlg.close());
+dlg.addEventListener('click',e=>{if(e.target===dlg)dlg.close()});
+addEventListener('resize',()=>{if(dlg.open)fit(mview)});
+</script>
+
+</body></html>

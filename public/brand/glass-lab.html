@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="robots" content="noindex,nofollow"><title>LinguaScript Glass Lab</title>
+</head><body style="margin:0">
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: one deliberate dark world (glass needs colour behind it). A living gradient backdrop sits fixed behind a grid of interactive specimens; each specimen is a small glass playground. */
+:root{
+  color-scheme:dark;
+  --bg:#07090C; --fg:#F2F5F3; --muted:rgba(242,245,243,.62); --line:rgba(255,255,255,.14);
+  --red:#FF3B30; --orange:#FF8A00; --green:#34C759; --gold:#FFD54A; --blue:#3AA0FF; --violet:#7B61FF;
+  --glass:rgba(255,255,255,.12); --glass-hi:rgba(255,255,255,.55); --frost:rgba(255,255,255,.08);
+  --display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif; --body:"Inter","Segoe UI",system-ui,sans-serif; --mono:"JetBrains Mono",ui-monospace,monospace;
+  --spring:cubic-bezier(.34,1.56,.64,1); --ease:cubic-bezier(.22,1,.36,1);
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:15px/1.55 var(--body);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:32px 72px;min-height:100%}
+/* living backdrop */
+.sky{position:fixed;inset:0;z-index:-1;overflow:hidden;background:#07090C}
+.sky i{position:absolute;border-radius:50%;filter:blur(70px);opacity:.75;animation:drift 22s ease-in-out infinite alternate}
+.sky i:nth-child(1){width:46vmax;height:46vmax;left:-10vmax;top:-12vmax;background:var(--green)}
+.sky i:nth-child(2){width:40vmax;height:40vmax;right:-12vmax;top:10vmax;background:var(--violet);animation-duration:28s}
+.sky i:nth-child(3){width:34vmax;height:34vmax;left:20vmax;bottom:-14vmax;background:var(--orange);animation-duration:25s}
+.sky i:nth-child(4){width:26vmax;height:26vmax;right:12vmax;bottom:6vmax;background:var(--blue);animation-duration:31s}
+@keyframes drift{to{transform:translate(8vmax,6vmax) scale(1.15)}}
+main{max-width:1180px;margin:0 auto;display:grid;gap:40px}
+h1,h2,h3{font-family:var(--display);margin:0;line-height:1.1;text-wrap:balance}
+h1{font-size:clamp(2.2rem,5vw,3.4rem);font-weight:800;letter-spacing:-.02em}
+h2{font-size:1.5rem;font-weight:800}
+p{margin:0;max-width:70ch}
+.lede{color:var(--muted);font-size:1.05rem}
+section{display:grid;gap:16px;min-width:0}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+.spec{border-radius:22px;overflow:hidden;display:grid;grid-template-rows:240px auto;background:rgba(10,12,16,.55);border:1px solid var(--line);min-width:0;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.stage{position:relative;display:grid;place-items:center;overflow:hidden;padding:18px;isolation:isolate}
+.stage>.scene{z-index:-1}
+.info{padding:12px 16px 16px;display:grid;gap:6px;align-content:start}
+.info h3{font-size:1.05rem}
+.info p{font-size:13.5px;color:var(--muted)}
+.tag{font:500 11px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--green)}
+.kw{display:flex;flex-wrap:wrap;gap:5px}
+.kw button{font:500 11px var(--mono);color:var(--fg);background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:999px;padding:3px 9px;cursor:pointer}
+.kw button:hover,.kw button:focus-visible{border-color:var(--green);outline:none}
+.hint{font:500 11px var(--mono);color:var(--muted);position:absolute;left:12px;bottom:10px;letter-spacing:.04em}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+
+/* scene backgrounds inside stages */
+.scene{position:absolute;inset:0;background:
+  radial-gradient(circle at 18% 28%,#ff6b4a 0 18%,transparent 34%),
+  radial-gradient(circle at 78% 72%,#2f8cff 0 16%,transparent 36%),
+  radial-gradient(circle at 62% 18%,#34C759 0 12%,transparent 30%),
+  linear-gradient(135deg,#141a2e,#2a1240)}
+.scene.film{background:linear-gradient(180deg,rgba(0,0,0,.0),rgba(0,0,0,.55)),
+  radial-gradient(ellipse at 30% 40%,#d9824a,transparent 55%),radial-gradient(ellipse at 75% 30%,#4a6fd9,transparent 55%),linear-gradient(#1c2238,#0d0f17)}
+.scene.stripes{background:repeating-linear-gradient(115deg,#ff3b30 0 26px,#ff8a00 26px 52px,#34C759 52px 78px,#3aa0ff 78px 104px,#7b61ff 104px 130px)}
+.scene.moving{animation:pan 12s linear infinite alternate;background-size:180% 180%}
+@keyframes pan{to{background-position:100% 100%}}
+
+/* ---------- LIQUID GLASS core ---------- */
+.lg{position:relative;background:linear-gradient(135deg,rgba(255,255,255,.26),rgba(255,255,255,.06));
+  backdrop-filter:blur(4px) saturate(190%) brightness(1.06);-webkit-backdrop-filter:blur(4px) saturate(190%) brightness(1.06);
+  border:1px solid rgba(255,255,255,.42);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.85),inset 0 -1px 0 rgba(255,255,255,.18),inset 0 -14px 24px rgba(255,255,255,.08),0 12px 34px rgba(0,0,0,.38)}
+.lg::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;background:linear-gradient(115deg,rgba(255,255,255,.45) 0%,rgba(255,255,255,0) 28%,rgba(255,255,255,0) 72%,rgba(255,255,255,.18) 100%);mix-blend-mode:overlay}
+.refract{filter:url(#lens)}
+/* ---------- GLASSMORPHISM core ---------- */
+.gm{background:rgba(255,255,255,.12);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border:1px solid rgba(255,255,255,.28);box-shadow:0 8px 30px rgba(0,0,0,.25)}
+
+/* 1 tab bar */
+.tabbar{position:relative;display:flex;gap:4px;padding:6px;border-radius:999px}
+.tabbar button{position:relative;z-index:1;border:0;background:transparent;padding:10px 16px;border-radius:999px;font:600 13px var(--body);cursor:pointer;color:rgba(255,255,255,.85)}
+.tabbar .pill{position:absolute;top:6px;bottom:6px;border-radius:999px;background:rgba(255,255,255,.32);box-shadow:inset 0 1px 0 rgba(255,255,255,.8);transition:left .55s var(--spring),width .55s var(--spring)}
+/* 2 word card refraction */
+.wcard{padding:18px 28px;border-radius:30px;text-align:center}
+.wcard b{font:700 30px var(--body);display:block}
+.wcard span{font-size:13px;opacity:.85}
+/* 3 segmented deck control */
+.seg{position:relative;display:grid;grid-template-columns:repeat(4,1fr);padding:5px;border-radius:18px;width:280px}
+.seg button{position:relative;z-index:1;border:0;background:transparent;padding:10px 0;font:600 12.5px var(--body);cursor:pointer}
+.seg .blob{position:absolute;top:5px;bottom:5px;width:calc((100% - 10px)/4);left:5px;border-radius:13px;transition:transform .6s var(--spring),background .4s}
+/* 4 glass toggle */
+.tog{width:96px;height:46px;border-radius:999px;position:relative;cursor:pointer;border:0;padding:0}
+.tog .knob{position:absolute;top:5px;left:5px;width:52px;height:36px;border-radius:999px;background:rgba(255,255,255,.9);box-shadow:0 4px 10px rgba(0,0,0,.3);transition:left .5s var(--spring),width .25s var(--ease)}
+.tog:active .knob{width:64px}
+.tog[aria-checked="true"]{background:linear-gradient(135deg,rgba(52,199,89,.55),rgba(52,199,89,.25))}
+.tog[aria-checked="true"] .knob{left:39px}
+.togrow{display:flex;align-items:center;gap:14px;font:600 14px var(--body)}
+/* 5 subtitle bar */
+.subbar{position:absolute;left:16px;right:16px;bottom:18px;padding:12px 16px;border-radius:20px;text-align:center}
+.subbar .l1{font:600 17px var(--body)} .subbar .l2{font-size:12.5px;opacity:.8}
+.subbar .r{color:#ffb3ad}.subbar .o{color:#ffc68a}.subbar .g{color:#9ff0b6}
+/* 6 lens */
+.lensbox{position:absolute;inset:0;cursor:none}
+.lensbox .text{position:absolute;inset:0;display:grid;place-items:center;font:800 40px var(--display);letter-spacing:-.02em;color:#fff;text-align:center;padding:10px}
+.lens{position:absolute;width:120px;height:120px;border-radius:50%;left:50%;top:50%;transform:translate(-50%,-50%);pointer-events:none;transition:transform .12s ease-out;backdrop-filter:blur(.5px) saturate(200%) contrast(1.15);-webkit-backdrop-filter:blur(.5px) saturate(200%) contrast(1.15)}
+/* 7 widget */
+.widget{width:190px;height:190px;border-radius:34px;padding:18px;display:grid;align-content:space-between}
+.widget .t{font:600 12px var(--body);opacity:.8}
+.widget .w{font:800 30px var(--display);color:var(--gold);text-shadow:0 0 18px rgba(255,213,74,.6)}
+.widget .m{font-size:14px;opacity:0;transform:translateY(6px);transition:all .5s var(--ease)}
+.widget.rev .m{opacity:.95;transform:none}
+.widget button{border:0;border-radius:999px;padding:7px 12px;font:700 12px var(--body);background:rgba(255,213,74,.9);color:#3a2a00;cursor:pointer;justify-self:start}
+/* 8 toast */
+.toast{position:absolute;top:22px;left:50%;padding:10px 18px;border-radius:999px;font:700 15px var(--body);transform:translate(-50%,-90px) scale(.7);transition:transform .7s var(--spring)}
+.toast.show{transform:translate(-50%,0) scale(1)}
+.fire{border:0;border-radius:14px;padding:10px 18px;font:700 14px var(--body);cursor:pointer}
+/* 9 search */
+.search{width:250px;height:50px;border-radius:999px;display:flex;align-items:center;gap:10px;padding:0 18px;transition:width .6s var(--spring)}
+.search:focus-within{width:300px}
+.search input{flex:1;min-width:0;border:0;background:transparent;font:500 15px var(--body);color:#fff;outline:none}
+.search input::placeholder{color:rgba(255,255,255,.7)}
+
+/* glassmorphism */
+.dash{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%;max-width:290px}
+.dash div{border-radius:16px;padding:12px}
+.dash b{display:block;font:800 24px var(--display)} .dash span{font-size:12px;opacity:.8}
+.stack{position:relative;width:220px;height:150px}
+.stack .gm{position:absolute;inset:0;border-radius:20px;padding:16px;transition:transform .6s var(--spring)}
+.stack .gm:nth-child(1){transform:translate(-26px,-22px) rotate(-8deg)}
+.stack .gm:nth-child(2){transform:translate(-12px,-10px) rotate(-3deg)}
+.stack:hover .gm:nth-child(1){transform:translate(-70px,-30px) rotate(-14deg)}
+.stack:hover .gm:nth-child(2){transform:translate(-36px,-14px) rotate(-7deg)}
+.stack .gm:nth-child(3) b{font:800 26px var(--display)}
+.onb{width:250px;border-radius:24px;padding:18px;display:grid;gap:10px;text-align:center}
+.onb .dots{display:flex;gap:6px;justify-content:center}
+.onb .dots i{width:7px;height:7px;border-radius:9px;background:rgba(255,255,255,.4);transition:width .4s var(--spring),background .3s}
+.onb .dots i.on{width:22px;background:#fff}
+.onb button{border:0;border-radius:14px;padding:10px;font:700 14px var(--body);background:var(--green);color:#06210f;cursor:pointer}
+
+/* ---------- MORPH ---------- */
+.mbtn{border:0;cursor:pointer;width:170px;height:52px;border-radius:999px;font:700 15px var(--body);transition:width .6s var(--spring),height .6s var(--spring),border-radius .6s var(--spring);overflow:hidden;display:grid;place-items:center}
+.mbtn .open{display:none;padding:16px;text-align:left;font-weight:500;font-size:14px}
+.mbtn.big{width:260px;height:170px;border-radius:26px}
+.mbtn.big .closed{display:none}.mbtn.big .open{display:block}
+.chip{border:0;cursor:pointer;font:700 26px var(--body);padding:12px 26px;border-radius:999px;transition:border-radius .7s var(--spring),background .5s,color .5s,transform .5s var(--spring)}
+.chip[data-s="0"]{background:rgba(255,59,48,.22);color:#ffb3ad;border-radius:999px}
+.chip[data-s="1"]{background:rgba(255,138,0,.24);color:#ffc68a;border-radius:18px 40px 18px 40px}
+.chip[data-s="2"]{background:rgba(52,199,89,.26);color:#a6f3bb;border-radius:14px}
+.chip[data-s="3"]{background:rgba(255,213,74,.25);color:#ffe9a1;border-radius:40px 14px 40px 14px;transform:scale(1.08);box-shadow:0 0 30px rgba(255,213,74,.4)}
+.goo{filter:url(#goo);position:relative;width:240px;height:120px}
+.goo i{position:absolute;top:35px;width:50px;height:50px;border-radius:50%;background:var(--green);animation:gooey 3.2s ease-in-out infinite}
+.goo i:nth-child(1){left:20px}.goo i:nth-child(2){left:95px;background:#5fe08a;animation-delay:.4s}.goo i:nth-child(3){left:170px;animation-delay:.8s}
+@keyframes gooey{0%,100%{transform:translateX(0)}50%{transform:translateX(38px)}}
+.thumbs{display:flex;gap:10px}
+.thumb{width:90px;height:60px;border-radius:12px;cursor:pointer;border:0;transition:all .6s var(--spring)}
+.player{position:absolute;inset:14px;border-radius:20px;transform:scale(.3);opacity:0;pointer-events:none;transition:transform .6s var(--spring),opacity .3s;display:grid;place-items:end center;padding:14px}
+.player.open{transform:scale(1);opacity:1;pointer-events:auto}
+.player .gm{padding:8px 14px;border-radius:14px;font:600 14px var(--body)}
+.pp{width:72px;height:72px;border-radius:50%;border:0;cursor:pointer;display:grid;place-items:center}
+.pp svg{width:30px;height:30px}
+.pp path{transition:d .45s var(--spring)}
+.liquidtabs{position:relative;display:flex;gap:6px;padding:8px;border-radius:24px;filter:url(#goo2)}
+.liquidtabs .dot{width:46px;height:46px;border-radius:50%;background:rgba(255,255,255,.2);border:0;cursor:pointer}
+.liquidtabs .mover{position:absolute;top:8px;width:46px;height:46px;border-radius:50%;background:var(--green);transition:left .7s var(--spring);pointer-events:none}
+.cards3{position:relative;width:200px;height:130px;cursor:pointer}
+.cards3 .gm{position:absolute;inset:0;border-radius:20px;display:grid;place-items:center;font:800 26px var(--display);transition:transform .7s var(--spring),opacity .5s,z-index 0s .3s}
+.flip{width:210px;height:140px;perspective:900px;cursor:pointer;border:0;background:transparent;padding:0}
+.flip .in{position:relative;width:100%;height:100%;transition:transform .8s var(--spring);transform-style:preserve-3d}
+.flip.on .in{transform:rotateY(180deg)}
+.flip .face{position:absolute;inset:0;border-radius:22px;display:grid;place-items:center;backface-visibility:hidden;-webkit-backface-visibility:hidden;font:800 28px var(--display)}
+.flip .back{transform:rotateY(180deg);font:600 20px var(--body)}
+
+.wrap{overflow-x:auto;border-radius:16px;border:1px solid var(--line);background:rgba(10,12,16,.6)}
+table{border-collapse:collapse;width:100%;min-width:620px;font-size:14px}
+th,td{text-align:left;vertical-align:top;padding:9px 12px;border-bottom:1px solid var(--line)}
+th{font:600 11px var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+tr:last-child td{border-bottom:0}
+a{color:#7fe3a0}
+.note{font-size:13.5px;color:var(--muted)}
+.toastc{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:#fff;color:#000;font:600 13px var(--body);padding:8px 14px;border-radius:999px;opacity:0;transition:opacity .2s;pointer-events:none}
+.toastc.on{opacity:1}
+@media (prefers-reduced-motion: reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <filter id="lens" x="-10%" y="-10%" width="120%" height="120%"><feTurbulence type="fractalNoise" baseFrequency="0.012" numOctaves="2" seed="4" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="10" xChannelSelector="R" yChannelSelector="G"/></filter>
+  <filter id="goo"><feGaussianBlur in="SourceGraphic" stdDeviation="10" result="b"/><feColorMatrix in="b" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 22 -10"/></filter>
+  <filter id="goo2"><feGaussianBlur in="SourceGraphic" stdDeviation="6" result="b"/><feColorMatrix in="b" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -8" result="g"/><feComposite in="SourceGraphic" in2="g" operator="atop"/></filter>
+</svg>
+<div class="sky" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+
+<main>
+<header style="display:grid;gap:12px">
+  <div class="tag">Glass Lab · LinguaScript</div>
+  <h1>LinguaScript Glass Lab</h1>
+  <p class="lede">20 pieces in your favourite styles: Liquid Glass, glassmorphism and morph motion. Every one is built from LinguaScript parts (words, decks, subtitles, XP) and most are interactive, so tap, hover and play. Tap a keyword to copy it.</p>
+</header>
+
+<section>
+  <h2>Liquid Glass</h2>
+  <p class="note">Glass that bends light at its edges, with a bright rim and a slight lens effect. Thinner and clearer than frosted glass.</p>
+  <div class="grid">
+    <article class="spec"><div class="stage"><div class="scene moving"></div><div class="tabbar lg" id="tabbar"><span class="pill"></span><button>Watch</button><button>Words</button><button>Review</button><button>Me</button></div><span class="hint">tap a tab</span></div>
+      <div class="info"><span class="tag">liquid glass · motion</span><h3>Floating tab bar</h3><p>The iOS 26 style bottom bar. The bright pill springs between tabs.</p><div class="kw"><button>liquid glass tab bar</button><button>floating tab bar ios 26</button><button>pill navigation animation</button></div></div></article>
+
+    <article class="spec"><div class="stage"><div class="scene stripes"></div><div class="wcard lg refract"><b>maison</b><span>house · seen 6 times</span></div></div>
+      <div class="info"><span class="tag">liquid glass</span><h3>Refracting word card</h3><p>The stripes behind bend through the glass like a real lens. Best in Chrome and Edge.</p><div class="kw"><button>liquid glass refraction</button><button>glass lens effect css</button><button>svg displacement glass</button></div></div></article>
+
+    <article class="spec"><div class="stage"><div class="scene"></div><div class="seg lg" id="seg"><span class="blob"></span><button>Red</button><button>Orange</button><button>Green</button><button>Gold</button></div><span class="hint">pick a deck</span></div>
+      <div class="info"><span class="tag">liquid glass · morph</span><h3>Deck switcher</h3><p>A glass segmented control. The highlight springs over and takes on the deck's colour.</p><div class="kw"><button>segmented control liquid glass</button><button>animated segmented control</button><button>ios 26 controls</button></div></div></article>
+
+    <article class="spec"><div class="stage"><div class="scene moving"></div><div class="togrow lg" style="padding:14px 18px;border-radius:24px"><span>Colour words</span><button class="tog lg" role="switch" aria-checked="true" aria-label="Colour words" id="tog"><span class="knob"></span></button></div><span class="hint">tap the switch</span></div>
+      <div class="info"><span class="tag">liquid glass · micro</span><h3>Glass toggle</h3><p>The knob stretches while you press, then springs. Like the extension's "Colour | Rings" switch.</p><div class="kw"><button>liquid glass toggle</button><button>ios switch animation</button><button>jelly toggle</button></div></div></article>
+
+    <article class="spec"><div class="stage"><div class="scene film"></div><div class="subbar lg"><div class="l1"><span class="g">Je</span> <span class="o">voudrais</span> <span class="r">réserver</span> <span class="g">une</span> <span class="o">table</span></div><div class="l2">I'd like to book a table</div></div></div>
+      <div class="info"><span class="tag">liquid glass</span><h3>Subtitle bar over video</h3><p>Our dual subtitles on a glass strip, so the film stays visible behind.</p><div class="kw"><button>video player glass controls</button><button>subtitle overlay design</button><button>liquid glass media player</button></div></div></article>
+
+    <article class="spec"><div class="stage" id="lensStage"><div class="scene stripes"></div><div class="lensbox"><div class="text">Regarde<br>et apprends</div><div class="lens lg" id="lens"></div></div><span class="hint">move over it</span></div>
+      <div class="info"><span class="tag">liquid glass · interactive</span><h3>Magnifying lens</h3><p>A glass lens follows your finger or mouse, boosting colours underneath.</p><div class="kw"><button>glass magnifier cursor</button><button>interactive lens effect</button><button>cursor follow animation</button></div></div></article>
+
+    <article class="spec"><div class="stage"><div class="scene"></div><div class="widget lg" id="widget"><span class="t">✨ Gold word</span><div><div class="w">partent</div><div class="m">= they leave</div></div><button>Show meaning</button></div></div>
+      <div class="info"><span class="tag">liquid glass · widget</span><h3>Gold word widget</h3><p>Our lock-screen widget redesigned as Liquid Glass. Tap to reveal the meaning.</p><div class="kw"><button>liquid glass widget</button><button>ios 26 lock screen widget</button><button>glass widget design</button></div></div></article>
+
+    <article class="spec"><div class="stage"><div class="scene moving"></div><div class="toast lg" id="toast">🔴 Saved · +20 XP</div><button class="fire lg" id="fire">Save word</button></div>
+      <div class="info"><span class="tag">liquid glass · motion</span><h3>Dropping toast</h3><p>A glass pill that drops in with a spring when you save a word.</p><div class="kw"><button>dynamic island animation</button><button>toast notification animation</button><button>spring animation ui</button></div></div></article>
+
+    <article class="spec"><div class="stage"><div class="scene stripes"></div><label class="search lg"><span aria-hidden="true">🔎</span><input placeholder="Search a word…" aria-label="Search a word"></label><span class="hint">tap the field</span></div>
+      <div class="info"><span class="tag">liquid glass · morph</span><h3>Growing search bar</h3><p>Stretches wider with a spring when you tap into it.</p><div class="kw"><button>liquid glass search bar</button><button>expanding search animation</button><button>glass input field</button></div></div></article>
+  </div>
+</section>
+
+<section>
+  <h2>Glassmorphism</h2>
+  <p class="note">Frosted glass: softer and blurrier than Liquid Glass. Great for cards over a colourful background.</p>
+  <div class="grid">
+    <article class="spec"><div class="stage"><div class="scene"></div><div class="dash"><div class="gm"><b style="color:#a6f3bb">1,204</b><span>green words</span></div><div class="gm"><b style="color:#ffe9a1">32</b><span>gold to review</span></div><div class="gm"><b>🔥 12</b><span>day streak</span></div><div class="gm"><b style="color:#ffb3ad">58</b><span>new red</span></div></div></div>
+      <div class="info"><span class="tag">glassmorphism</span><h3>Frosted progress dashboard</h3><p>Your stats as frosted tiles. The background stays visible and warm.</p><div class="kw"><button>glassmorphism dashboard</button><button>frosted glass stats</button><button>glass cards dark mode</button></div></div></article>
+
+    <article class="spec"><div class="stage"><div class="scene moving"></div><div class="stack"><div class="gm"></div><div class="gm"></div><div class="gm" style="display:grid;place-items:center;text-align:center"><div><b>bonjour</b><div style="font-size:13px;opacity:.8">hello · green</div></div></div></div><span class="hint">hover to fan out</span></div>
+      <div class="info"><span class="tag">glassmorphism · motion</span><h3>Flashcard stack</h3><p>Layered frosted cards that fan out, showing more cards are waiting.</p><div class="kw"><button>glass card stack</button><button>layered glassmorphism</button><button>card fan animation</button></div></div></article>
+
+    <article class="spec"><div class="stage"><div class="scene"></div><div class="onb gm" id="onb"><div style="font-size:40px">🦎</div><b id="onbT" style="font:800 20px var(--display)">Watch what you love</b><div class="dots"><i class="on"></i><i></i><i></i></div><button>Next</button></div></div>
+      <div class="info"><span class="tag">glassmorphism · onboarding</span><h3>Frosted onboarding</h3><p>Welcome cards on frosted glass. The page dots stretch as you move on.</p><div class="kw"><button>glassmorphism onboarding</button><button>onboarding animation app</button><button>page indicator animation</button></div></div></article>
+  </div>
+</section>
+
+<section>
+  <h2>Morph motion</h2>
+  <p class="note">Shapes that smoothly turn into other shapes. It makes an app feel alive and connected, and it's perfect for words changing colour.</p>
+  <div class="grid">
+    <article class="spec"><div class="stage"><div class="scene moving"></div><button class="mbtn lg" id="mbtn"><span class="closed">See meaning</span><span class="open"><b style="font:800 22px var(--display)">fenêtre</b><br>window · feminine<br><span style="opacity:.8">"Ouvre la fenêtre, s'il te plaît."</span></span></button><span class="hint">tap the button</span></div>
+      <div class="info"><span class="tag">morph</span><h3>Button → card</h3><p>The button grows into a word card. Tap again to shrink it back.</p><div class="kw"><button>button morph animation</button><button>expand to card animation</button><button>container transform</button></div></div></article>
+
+    <article class="spec"><div class="stage"><div class="scene"></div><button class="chip" data-s="0" id="chip">chat</button><span class="hint">tap: red → orange → green → gold</span></div>
+      <div class="info"><span class="tag">morph · LinguaScript</span><h3>Word changes deck</h3><p>Our core moment: the word changes colour AND shape at each step.</p><div class="kw"><button>shape morph animation</button><button>state change animation</button><button>color morph ui</button></div></div></article>
+
+    <article class="spec"><div class="stage"><div class="scene"></div><div class="goo"><i></i><i></i><i></i></div></div>
+      <div class="info"><span class="tag">morph · gooey</span><h3>Liquid blobs</h3><p>Shapes that melt into each other like drops of water. Great for loading.</p><div class="kw"><button>gooey effect css</button><button>metaball animation</button><button>liquid loader</button></div></div></article>
+
+    <article class="spec"><div class="stage" style="padding:0"><div class="scene film"></div><div class="thumbs" id="thumbs"><button class="thumb" style="background:linear-gradient(135deg,#d9824a,#4a6fd9)" aria-label="Open video 1"></button><button class="thumb" style="background:linear-gradient(135deg,#34C759,#2f8cff)" aria-label="Open video 2"></button></div><div class="player" id="player" style="background:linear-gradient(135deg,#d9824a,#4a6fd9)"><div class="gm">Tap to close · <span style="color:#a6f3bb">Je</span> <span style="color:#ffc68a">regarde</span></div></div><span class="hint">tap a thumbnail</span></div>
+      <div class="info"><span class="tag">morph · shared element</span><h3>Thumbnail → player</h3><p>The video thumbnail grows into the full player, so you never lose your place.</p><div class="kw"><button>shared element transition</button><button>hero animation</button><button>view transitions api</button></div></div></article>
+
+    <article class="spec"><div class="stage"><div class="scene moving"></div><button class="pp lg" id="pp" aria-label="Play"><svg viewBox="0 0 24 24"><path id="ppL" fill="#fff" d="M7 5 L13 8.5 L13 15.5 L7 19 Z"/><path id="ppR" fill="#fff" d="M13 8.5 L19 12 L19 12 L13 15.5 Z"/></svg></button><span class="hint">tap play</span></div>
+      <div class="info"><span class="tag">morph · icon</span><h3>Play ↔ pause</h3><p>The icon reshapes instead of swapping. Small, but it feels expensive.</p><div class="kw"><button>icon morph animation</button><button>animated icons</button><button>play pause morph</button></div></div></article>
+
+    <article class="spec"><div class="stage"><div class="scene"></div><div class="liquidtabs gm" id="ltabs"><span class="mover"></span><button class="dot" aria-label="Tab 1"></button><button class="dot" aria-label="Tab 2"></button><button class="dot" aria-label="Tab 3"></button><button class="dot" aria-label="Tab 4"></button></div><span class="hint">tap a dot</span></div>
+      <div class="info"><span class="tag">morph · liquid</span><h3>Liquid tab indicator</h3><p>The highlight stretches like a drop of water between tabs.</p><div class="kw"><button>liquid tab indicator</button><button>gooey navigation</button><button>blob menu animation</button></div></div></article>
+
+    <article class="spec"><div class="stage"><div class="scene moving"></div><div class="cards3" id="cards3"><div class="gm">merci</div><div class="gm">salut</div><div class="gm">bonjour</div></div><span class="hint">tap to shuffle</span></div>
+      <div class="info"><span class="tag">morph · cards</span><h3>Card shuffle</h3><p>The top flashcard flies to the back and the next one rises.</p><div class="kw"><button>card shuffle animation</button><button>swipe cards ui</button><button>tinder cards animation</button></div></div></article>
+
+    <article class="spec"><div class="stage"><div class="scene"></div><button class="flip" id="flip" aria-label="Flip card"><div class="in"><div class="face gm">la plage</div><div class="face back gm">the beach 🏖️</div></div></button><span class="hint">tap to flip</span></div>
+      <div class="info"><span class="tag">morph · 3D</span><h3>Glass flashcard flip</h3><p>A frosted card that flips in 3D with a little bounce.</p><div class="kw"><button>3d card flip animation</button><button>flashcard flip ui</button><button>glass card flip</button></div></div></article>
+  </div>
+</section>
+
+<section>
+  <h2>Where to find more of exactly this</h2>
+  <div class="wrap"><table>
+    <thead><tr><th>Where</th><th>What to search</th></tr></thead>
+    <tbody>
+      <tr><td><b>Figma Community</b></td><td>Apple's official iOS UI Kit (Liquid Glass) · "Glass Effect Playground" · "liquid glass" · "glassmorphism ui kit"</td></tr>
+      <tr><td><b>Dribbble</b></td><td>"liquid glass app" · "glassmorphism mobile" · "morph animation" · "micro interaction"</td></tr>
+      <tr><td><b>Mobbin</b></td><td>iOS 26 apps (real apps that already use Liquid Glass): tab bars, sheets, widgets</td></tr>
+      <tr><td><b>Rive community</b></td><td>"morph", "liquid", "toggle", "tab bar": interactive animations you can use in the app</td></tr>
+      <tr><td><b>LottieFiles</b></td><td>"morphing icons", "liquid loader", "success check"</td></tr>
+      <tr><td><b>Codrops</b></td><td>"gooey", "distortion", "liquid", "shape morph": web demos with code</td></tr>
+      <tr><td><b>Godly · Awwwards</b></td><td>Filter by "glass" or "transitions" to see full websites</td></tr>
+    </tbody>
+  </table></div>
+  <p class="note">How these are built: Liquid Glass = <code>backdrop-filter</code> + bright inner edge + an SVG lens filter; glassmorphism = stronger blur + see-through white; morph = spring easing (things overshoot a little, then settle). The <b>View Transitions API</b> (web) and <b>Framer Motion</b> <code>layoutId</code> (React) make shared-element morphs easy on the LinguaScript website.</p>
+</section>
+</main>
+<div class="toastc" id="copied" role="status" aria-live="polite"></div>
+
+<script>
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
+// copy keywords
+let ct; $$('.kw button').forEach(b=>b.addEventListener('click',()=>{const t=b.textContent,c=$('#copied');const show=m=>{c.textContent=m;c.classList.add('on');clearTimeout(ct);ct=setTimeout(()=>c.classList.remove('on'),1400)};try{navigator.clipboard.writeText(t).then(()=>show('Copied: '+t),()=>show('Select and copy: '+t))}catch(e){show('Select and copy: '+t)}}));
+// 1 tab bar
+(()=>{const bar=$('#tabbar'),pill=$('.pill',bar),btns=$$('button',bar);const go=b=>{pill.style.left=b.offsetLeft+'px';pill.style.width=b.offsetWidth+'px'};btns.forEach(b=>b.addEventListener('click',()=>go(b)));requestAnimationFrame(()=>go(btns[0]));addEventListener('resize',()=>go(btns[0]))})();
+// 3 segmented
+(()=>{const seg=$('#seg'),blob=$('.blob',seg),cols=['rgba(255,59,48,.5)','rgba(255,138,0,.5)','rgba(52,199,89,.5)','rgba(255,213,74,.55)'];$$('button',seg).forEach((b,i)=>b.addEventListener('click',()=>{blob.style.transform=`translateX(${i*100}%)`;blob.style.background=cols[i]}));blob.style.background=cols[0]})();
+// 4 toggle
+$('#tog').addEventListener('click',e=>{const t=e.currentTarget;t.setAttribute('aria-checked',t.getAttribute('aria-checked')==='true'?'false':'true')});
+// 6 lens
+(()=>{const st=$('#lensStage'),l=$('#lens');const mv=(x,y)=>{const r=st.getBoundingClientRect();l.style.left=(x-r.left)+'px';l.style.top=(y-r.top)+'px'};st.addEventListener('pointermove',e=>mv(e.clientX,e.clientY));st.addEventListener('pointerleave',()=>{l.style.left='50%';l.style.top='50%'})})();
+// 7 widget
+(()=>{const w=$('#widget'),b=$('button',w),words=[['partent','= they leave'],['maison','= house'],['fenêtre','= window']];let i=0;b.addEventListener('click',()=>{if(!w.classList.contains('rev')){w.classList.add('rev');b.textContent='Next ✨'}else{i=(i+1)%words.length;w.classList.remove('rev');$('.w',w).textContent=words[i][0];$('.m',w).textContent=words[i][1];b.textContent='Show meaning'}})})();
+// 8 toast
+(()=>{const t=$('#toast');let h;$('#fire').addEventListener('click',()=>{t.classList.add('show');clearTimeout(h);h=setTimeout(()=>t.classList.remove('show'),1800)})})();
+// onboarding
+(()=>{const o=$('#onb'),dots=$$('.dots i',o),t=$('#onbT'),txt=['Watch what you love','Tap any word','Watch it turn green'];let i=0;$('button',o).addEventListener('click',()=>{i=(i+1)%3;dots.forEach((d,k)=>d.classList.toggle('on',k===i));t.textContent=txt[i]})})();
+// morph button
+$('#mbtn').addEventListener('click',e=>e.currentTarget.classList.toggle('big'));
+// chip
+$('#chip').addEventListener('click',e=>{const c=e.currentTarget;c.dataset.s=(+c.dataset.s+1)%4});
+// thumbnail -> player
+(()=>{const p=$('#player');$$('#thumbs .thumb').forEach(t=>t.addEventListener('click',()=>{const r=t.getBoundingClientRect(),s=t.parentElement.parentElement.getBoundingClientRect();p.style.background=t.style.background;p.style.transformOrigin=`${r.left-s.left+r.width/2}px ${r.top-s.top+r.height/2}px`;p.classList.add('open')}));p.addEventListener('click',()=>p.classList.remove('open'))})();
+// play/pause: two halves reshape into two bars
+(()=>{const b=$('#pp'),L=$('#ppL'),R=$('#ppR');let play=false;const P=['M7 5 L13 8.5 L13 15.5 L7 19 Z','M13 8.5 L19 12 L19 12 L13 15.5 Z'],S=['M6 5 L10 5 L10 19 L6 19 Z','M14 5 L18 5 L18 19 L14 19 Z'];const set=a=>{L.style.d=`path("${a[0]}")`;R.style.d=`path("${a[1]}")`;L.setAttribute('d',a[0]);R.setAttribute('d',a[1])};b.addEventListener('click',()=>{play=!play;set(play?S:P);b.setAttribute('aria-label',play?'Pause':'Play')})})();
+// liquid tabs
+(()=>{const w=$('#ltabs'),m=$('.mover',w),d=$$('.dot',w);const go=b=>{m.style.left=b.offsetLeft+'px'};d.forEach(b=>b.addEventListener('click',()=>go(b)));requestAnimationFrame(()=>go(d[0]))})();
+// card shuffle
+(()=>{const c=$('#cards3'),cards=$$('.gm',c);let order=[0,1,2];const lay=()=>order.forEach((idx,pos)=>{const el=cards[idx];el.style.zIndex=pos;el.style.transform=`translate(${(2-pos)*-10}px,${(2-pos)*-10}px) scale(${1-(2-pos)*.05})`;el.style.opacity=pos===2?1:.75});lay();c.addEventListener('click',()=>{const top=cards[order[2]];top.style.transform='translate(160px,-40px) rotate(18deg)';setTimeout(()=>{order=[order[2],order[0],order[1]];lay()},280)})})();
+// flip
+$('#flip').addEventListener('click',e=>e.currentTarget.classList.toggle('on'));
+</script>
+
+</body></html>

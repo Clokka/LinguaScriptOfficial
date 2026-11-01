@@ -1,16 +1,21 @@
 User-agent: Googlebot
 Allow: /
+Disallow: /brand/
 
 User-agent: Bingbot
 Allow: /
+Disallow: /brand/
 
 User-agent: Twitterbot
 Allow: /
+Disallow: /brand/
 
 User-agent: facebookexternalhit
 Allow: /
+Disallow: /brand/
 
 User-agent: *
 Allow: /
+Disallow: /brand/
 
 Sitemap: https://linguascript.co.uk/sitemap.xml

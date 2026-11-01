@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="robots" content="noindex,nofollow"><title>LinguaScript Style Atlas</title>
+</head><body style="margin:0">
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&family=Space+Grotesk:wght@500;700&family=Press+Start+2P&family=Caveat:wght@600&family=Playfair+Display:ital,wght@1,700&display=swap">
+<style>
+/* Layout: page chrome follows the viewer's theme; each style tile is a fixed little world (its own colours on purpose), laid out in a responsive grid of "specimens". */
+:root{--bg:#F6F7F5;--fg:#141A16;--muted:#5B665F;--line:#DCE2DD;--surface:#FFFFFF;--accent:#1F8F46;
+--display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;--body:"IBM Plex Sans","Segoe UI",system-ui,sans-serif;--mono:"IBM Plex Mono",ui-monospace,monospace}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#0E1210;--fg:#E8EEE9;--muted:#9AA79F;--line:#28312C;--surface:#151B18;--accent:#4CD37A;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0E1210;--fg:#E8EEE9;--muted:#9AA79F;--line:#28312C;--surface:#151B18;--accent:#4CD37A;color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font:16px/1.55 var(--body);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:32px 64px}
+main{max-width:1180px;margin:0 auto;display:grid;gap:44px}
+h1,h2,h3{font-family:var(--display);line-height:1.12;text-wrap:balance;margin:0}
+h1{font-size:2.6rem;font-weight:800;letter-spacing:-.02em}
+h2{font-size:1.6rem;font-weight:800}
+p{margin:0;max-width:72ch}
+.lede{color:var(--muted);font-size:1.08rem}
+section{display:grid;gap:16px;min-width:0}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:16px}
+.spec{background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:grid;grid-template-rows:200px auto;min-width:0}
+.stage{position:relative;display:grid;place-items:center;overflow:hidden;padding:16px}
+.info{padding:12px 14px 14px;display:grid;gap:6px;align-content:start}
+.info h3{font-size:1.05rem;font-weight:800}
+.info p{font-size:13.5px;color:var(--muted)}
+.tag{font:500 11px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--accent)}
+.kw{display:flex;flex-wrap:wrap;gap:5px}
+.kw button{font:500 11.5px var(--mono);border:1px solid var(--line);background:transparent;color:var(--fg);border-radius:999px;padding:3px 8px;cursor:pointer}
+.kw button:hover,.kw button:focus-visible{border-color:var(--accent);outline:none}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);font:500 13px var(--body);padding:8px 14px;border-radius:999px;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.on{opacity:1}
+nav{display:flex;flex-wrap:wrap;gap:6px}
+nav a{font-size:13px;color:var(--fg);text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:4px 10px}
+nav a:hover{border-color:var(--accent)}
+.wrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:640px;font-size:14px}
+th,td{text-align:left;vertical-align:top;padding:9px 12px;border-bottom:1px solid var(--line)}
+th{font:600 12px var(--body);text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+tr:last-child td{border-bottom:0}
+a{color:var(--accent)}
+.note{font-size:13.5px;color:var(--muted)}
+
+/* ---------- the shared specimen: a word card ---------- */
+.w{font-weight:700} .r{color:#FF3B30} .o{color:#FF8A00} .g{color:#34C759} .au{color:#FFD54A}
+
+/* 1 Liquid glass */
+.s-liquid{background:radial-gradient(circle at 20% 30%,#ff7a59,transparent 40%),radial-gradient(circle at 80% 70%,#3aa0ff,transparent 45%),radial-gradient(circle at 60% 20%,#34C759,transparent 35%),#1b1f2a}
+.s-liquid .card{padding:16px 22px;border-radius:28px;background:linear-gradient(135deg,rgba(255,255,255,.28),rgba(255,255,255,.06));backdrop-filter:blur(6px) saturate(180%);-webkit-backdrop-filter:blur(6px) saturate(180%);border:1px solid rgba(255,255,255,.45);box-shadow:inset 0 1px 0 rgba(255,255,255,.8),inset 0 -8px 18px rgba(255,255,255,.12),0 10px 30px rgba(0,0,0,.35);color:#fff;font:600 22px var(--body);text-align:center}
+.s-liquid .card small{display:block;font-size:12px;opacity:.85;font-weight:500}
+/* 2 Glassmorphism */
+.s-glass{background:linear-gradient(135deg,#7b2ff7,#f107a3)}
+.s-glass .card{padding:16px 22px;border-radius:16px;background:rgba(255,255,255,.18);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,.35);color:#fff;font:600 22px var(--body);text-align:center}
+/* 3 Aurora */
+.s-aurora{background:#0b1020}
+.s-aurora::before{content:"";position:absolute;inset:-40%;background:conic-gradient(from 0deg,#34C759,#00c2ff,#7b61ff,#ff5fa2,#34C759);filter:blur(50px);opacity:.7;animation:spin 14s linear infinite}
+.s-aurora .card{position:relative;color:#fff;font:800 30px var(--display);text-shadow:0 2px 20px rgba(0,0,0,.4)}
+/* 4 Neumorphism */
+.s-neu{background:#e4e9ef}
+.s-neu .card{padding:18px 26px;border-radius:22px;background:#e4e9ef;box-shadow:9px 9px 18px #c2c8cf,-9px -9px 18px #ffffff;color:#55606d;font:600 22px var(--body)}
+.s-neu .card .g{color:#22a04a}
+/* 5 Claymorphism */
+.s-clay{background:#f3ecff}
+.s-clay .card{padding:18px 26px;border-radius:32px;background:#b9f3c9;box-shadow:inset -8px -8px 16px rgba(0,0,0,.12),inset 8px 8px 16px rgba(255,255,255,.7),12px 16px 24px rgba(90,60,160,.25);color:#14532d;font:800 24px var(--display)}
+/* 6 Neubrutalism */
+.s-brut{background:#ffe600}
+.s-brut .card{padding:14px 20px;background:#fff;border:3px solid #000;box-shadow:6px 6px 0 #000;font:700 22px "Space Grotesk",var(--body);color:#000}
+.s-brut .btn{margin-top:10px;display:inline-block;background:#34C759;border:3px solid #000;box-shadow:4px 4px 0 #000;padding:4px 10px;font:700 13px "Space Grotesk",sans-serif}
+/* 7 Bento */
+.s-bento{background:#f2f2f0;padding:12px}
+.s-bento .b{display:grid;grid-template-columns:1.4fr 1fr;grid-template-rows:1fr 1fr;gap:8px;width:100%;height:100%}
+.s-bento .b div{border-radius:14px;padding:10px;font:600 13px var(--body);color:#141a16;display:flex;align-items:flex-end}
+.s-bento .b div:nth-child(1){grid-row:span 2;background:#141a16;color:#fff;font:800 28px var(--display);align-items:center;justify-content:center}
+.s-bento .b div:nth-child(2){background:#d8f5e0} .s-bento .b div:nth-child(3){background:#ffe7c7}
+/* 8 Flat */
+.s-flat{background:#34C759}
+.s-flat .card{background:#fff;padding:16px 24px;border-radius:6px;font:700 22px var(--body);color:#1d2a22}
+/* 9 Material 3 Expressive */
+.s-mat{background:#fef7ff}
+.s-mat .card{background:#e8def8;padding:16px 24px;border-radius:28px 28px 28px 8px;font:500 22px "Roboto",var(--body);color:#1d192b}
+.s-mat .fab{position:absolute;right:22px;bottom:22px;width:52px;height:52px;border-radius:16px;background:#6750a4;color:#fff;display:grid;place-items:center;font:600 26px var(--body)}
+/* 10 Skeuomorphism */
+.s-skeu{background:repeating-linear-gradient(90deg,#8a5a34 0 18px,#7d5130 18px 36px)}
+.s-skeu .card{background:linear-gradient(#fffdf4,#f1ead2);padding:16px 22px;border-radius:4px;box-shadow:0 2px 0 #d9cfae,0 12px 20px rgba(0,0,0,.45);font:600 22px Georgia,serif;color:#3b2f1e;transform:rotate(-3deg)}
+/* 11 Swiss */
+.s-swiss{background:#fff;place-items:start;padding:18px}
+.s-swiss .t{font:800 48px/0.9 "Helvetica Neue",Arial,sans-serif;letter-spacing:-.04em;color:#000}
+.s-swiss .bar{position:absolute;right:18px;top:0;bottom:0;width:56px;background:#e30613}
+.s-swiss small{font:500 11px Arial,sans-serif;color:#000;display:block;margin-top:8px}
+/* 12 Editorial */
+.s-edit{background:#f4f1ea}
+.s-edit .t{font:italic 700 40px "Playfair Display",Georgia,serif;color:#1b1b1b;text-align:center}
+.s-edit small{display:block;font:500 11px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:#6b6457;margin-top:6px;text-align:center}
+/* 13 Y2K chrome */
+.s-y2k{background:radial-gradient(circle at 50% 120%,#c1e1ff,#7aa7ff 50%,#2b2d8f)}
+.s-y2k .t{font:800 40px var(--display);background:linear-gradient(180deg,#fff 0%,#c9d3df 40%,#5b6a7a 52%,#eaf0f7 70%,#9aa8b7 100%);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 2px 2px rgba(0,0,0,.4))}
+/* 14 Pixel */
+.s-pixel{background:#202040}
+.s-pixel .card{font:12px/1.8 "Press Start 2P",monospace;color:#fff;text-align:center;padding:14px;border:4px solid #fff;box-shadow:4px 4px 0 #34C759}
+/* 15 Synthwave */
+.s-synth{background:linear-gradient(#1a0033 0%,#4b0082 55%,#ff2e88 56%,#1a0033 100%)}
+.s-synth::after{content:"";position:absolute;left:0;right:0;bottom:0;height:44%;background:repeating-linear-gradient(90deg,rgba(255,46,136,.55) 0 2px,transparent 2px 28px),repeating-linear-gradient(0deg,rgba(255,46,136,.55) 0 2px,transparent 2px 18px);transform:perspective(160px) rotateX(55deg);transform-origin:bottom}
+.s-synth .t{position:relative;z-index:1;font:800 34px var(--display);color:#ffe8f5;text-shadow:0 0 8px #ff2e88,0 0 22px #ff2e88;margin-bottom:60px}
+/* 16 Dark neon / cyber */
+.s-neon{background:#05070a}
+.s-neon .card{border:1px solid #34C759;padding:14px 20px;border-radius:8px;box-shadow:0 0 18px rgba(52,199,89,.55),inset 0 0 12px rgba(52,199,89,.25);font:600 20px var(--mono);color:#b9ffd0}
+/* 17 Kinetic typography (motion) */
+.s-kin{background:#0b0d10}
+.s-kin .t{font:800 34px var(--display);color:#fff;display:flex;gap:6px}
+.s-kin .t span{display:inline-block;animation:pop 2.4s ease-in-out infinite}
+.s-kin .t span:nth-child(2){animation-delay:.2s}.s-kin .t span:nth-child(3){animation-delay:.4s}
+/* 18 Playful gamified */
+.s-game{background:#fff}
+.s-game .card{text-align:center;display:grid;gap:10px}
+.s-game .bubble{font:800 26px var(--display);color:#3c3c3c}
+.s-game .btn{background:#58cc02;color:#fff;font:800 15px var(--display);letter-spacing:.04em;text-transform:uppercase;padding:10px 24px;border-radius:14px;box-shadow:0 5px 0 #46a302}
+/* 19 Hand-drawn */
+.s-hand{background:#fffef7}
+.s-hand .card{font:600 32px "Caveat",cursive;color:#222;padding:10px 24px;border:2px solid #222;border-radius:255px 15px 225px 15px/15px 225px 15px 255px}
+/* 20 Grain gradient */
+.s-grain{background:linear-gradient(135deg,#ff9a62,#ff5f6d 45%,#7b61ff)}
+.s-grain::before{content:"";position:absolute;inset:0;opacity:.35;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='.9'/></svg>");mix-blend-mode:overlay}
+.s-grain .t{position:relative;font:800 34px var(--display);color:#fff}
+/* 21 Spatial */
+.s-spatial{background:linear-gradient(#cfd8e3,#9fb0c4)}
+.s-spatial .card{padding:16px 24px;border-radius:24px;background:rgba(255,255,255,.35);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);box-shadow:0 30px 60px rgba(30,40,60,.35);transform:perspective(600px) rotateY(-14deg) rotateX(6deg);font:600 22px var(--body);color:#1d2430}
+/* 22 Isometric */
+.s-iso{background:#eef3ff}
+.s-iso .cube{width:90px;height:90px;transform:rotateX(55deg) rotateZ(45deg);background:#34C759;box-shadow:12px 12px 0 #1f8f46,24px 24px 0 #176c35;border-radius:6px;display:grid;place-items:center}
+.s-iso .cube span{transform:rotateZ(-45deg);font:800 16px var(--display);color:#fff}
+/* 23 Memphis */
+.s-mem{background:#fff6e5}
+.s-mem::before{content:"";position:absolute;inset:0;background:radial-gradient(circle,#ff5fa2 6px,transparent 7px) 0 0/44px 44px,linear-gradient(45deg,transparent 46%,#2b59ff 46% 54%,transparent 54%) 20px 30px/60px 60px}
+.s-mem .card{position:relative;background:#ffd23f;border:3px solid #111;padding:12px 18px;font:800 22px var(--display);transform:rotate(2deg)}
+/* 24 Organic blobs */
+.s-blob{background:#f3fbf5}
+.s-blob .bl{width:150px;height:130px;background:#34C759;border-radius:42% 58% 63% 37%/41% 44% 56% 59%;display:grid;place-items:center;font:800 22px var(--display);color:#fff;animation:morph 8s ease-in-out infinite}
+/* 25 Maximalism / anti-design */
+.s-max{background:#ff3b30}
+.s-max .t{font:800 46px/0.85 var(--display);color:#fffb00;text-transform:uppercase;transform:rotate(-6deg);text-shadow:4px 4px 0 #0033ff}
+.s-max small{position:absolute;bottom:14px;right:14px;font:700 12px var(--mono);background:#000;color:#fff;padding:2px 6px}
+/* 26 Micro-interaction (motion) */
+.s-micro{background:#0b0d10}
+.s-micro .word{font:700 30px var(--body);animation:cycle 4s steps(1) infinite;padding:6px 14px;border-radius:10px}
+/* 27 Scroll storytelling (motion) */
+.s-scroll{background:#0b0d10;place-items:stretch;padding:0}
+.s-scroll .col{display:grid;gap:10px;padding:16px;animation:rise 6s linear infinite}
+.s-scroll .col div{height:48px;border-radius:10px;font:600 14px var(--body);color:#fff;display:flex;align-items:center;padding:0 12px}
+/* 28 Monochrome minimal */
+.s-mono{background:#fafafa}
+.s-mono .card{font:500 26px var(--body);color:#111;letter-spacing:-.01em}
+.s-mono .card span{display:block;font-size:12px;color:#888;margin-top:6px}
+
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pop{0%,100%{transform:translateY(0);color:#fff}40%{transform:translateY(-10px);color:#34C759}}
+@keyframes morph{0%,100%{border-radius:42% 58% 63% 37%/41% 44% 56% 59%}50%{border-radius:63% 37% 38% 62%/55% 61% 39% 45%}}
+@keyframes cycle{0%{color:#FF3B30;background:rgba(255,59,48,.12)}25%{color:#FF8A00;background:rgba(255,138,0,.12)}50%{color:#34C759;background:rgba(52,199,89,.12)}75%{color:#FFD54A;background:rgba(255,213,74,.14)}}
+@keyframes rise{from{transform:translateY(0)}to{transform:translateY(-116px)}}
+@media (prefers-reduced-motion: reduce){*,*::before,*::after{animation:none!important}}
+</style>
+
+<main>
+<header style="display:grid;gap:12px">
+  <h1>LinguaScript Style Atlas</h1>
+  <p class="lede">28 visual styles, each drawn live with a LinguaScript word card so you can compare them. Tap any keyword to copy it, then paste it into Dribbble, Behance, Mobbin, Pinterest or the Figma Community search.</p>
+  <nav><a href="#static">Surface styles</a><a href="#motion">Motion styles</a><a href="#figma">Figma libraries</a><a href="#sites">Where to look</a><a href="#keywords">Keyword formulas</a></nav>
+</header>
+
+<section id="static">
+  <h2>Surface styles</h2>
+  <div class="grid">
+    <article class="spec"><div class="stage s-liquid"><div class="card">maison<small>house · <span class="g">known</span></small></div></div><div class="info"><span class="tag">2025 · Apple</span><h3>Liquid Glass</h3><p>Glass that bends and reflects what's behind it, with bright edges. Apple's look since iOS 26.</p><div class="kw"><button>liquid glass ui</button><button>ios 26 liquid glass</button><button>refraction ui</button><button>apple glass design</button></div></div></article>
+    <article class="spec"><div class="stage s-glass"><div class="card"><span class="w o">parler</span></div></div><div class="info"><span class="tag">2020 →</span><h3>Glassmorphism</h3><p>Frosted, blurred see-through cards over colourful backgrounds.</p><div class="kw"><button>glassmorphism</button><button>frosted glass ui</button><button>glass card dashboard</button></div></div></article>
+    <article class="spec"><div class="stage s-aurora"><div class="card">Turn it green</div></div><div class="info"><span class="tag">2021 →</span><h3>Aurora / mesh gradient</h3><p>Soft, glowing colour clouds, like the northern lights. Pairs well with glass.</p><div class="kw"><button>aurora gradient</button><button>mesh gradient ui</button><button>gradient hero</button></div></div></article>
+    <article class="spec"><div class="stage s-neu"><div class="card">bonjour · <span class="g">✓</span></div></div><div class="info"><span class="tag">2019 →</span><h3>Neumorphism</h3><p>Soft shapes pressed out of the background with light and shadow. Calm, but low contrast.</p><div class="kw"><button>neumorphism</button><button>soft ui</button><button>neumorphic app</button></div></div></article>
+    <article class="spec"><div class="stage s-clay"><div class="card">+20 XP</div></div><div class="info"><span class="tag">2022 →</span><h3>Claymorphism</h3><p>Puffy, rounded, toy-like 3D shapes in pastels. Common for education and onboarding.</p><div class="kw"><button>claymorphism</button><button>clay 3d ui</button><button>pastel 3d icons</button></div></div></article>
+    <article class="spec"><div class="stage s-brut"><div style="text-align:center"><div class="card"><span class="r">chat</span> = cat</div><span class="btn">SAVE WORD</span></div></div><div class="info"><span class="tag">2021 →</span><h3>Neubrutalism</h3><p>Thick black outlines, hard shadows, loud flat colours. Bold and fun.</p><div class="kw"><button>neubrutalism</button><button>neo brutalism ui</button><button>brutalist web design</button></div></div></article>
+    <article class="spec"><div class="stage s-bento"><div class="b"><div>1,204</div><div>🔥 12-day streak</div><div>32 gold words</div></div></div><div class="info"><span class="tag">2023 →</span><h3>Bento grid</h3><p>Boxes of different sizes, like a lunch box. Great for showing features or stats.</p><div class="kw"><button>bento grid</button><button>bento ui</button><button>bento features section</button></div></div></article>
+    <article class="spec"><div class="stage s-flat"><div class="card">merci</div></div><div class="info"><span class="tag">2013 →</span><h3>Flat design</h3><p>Plain shapes, no shadows or textures. Clean and fast.</p><div class="kw"><button>flat design</button><button>flat ui</button><button>flat illustration</button></div></div></article>
+    <article class="spec"><div class="stage s-mat"><div class="card">Review 5 words</div><div class="fab">+</div></div><div class="info"><span class="tag">2021 → · Google</span><h3>Material 3 / Expressive</h3><p>Google's Android style: rounded shapes, colours taken from your wallpaper, springy motion.</p><div class="kw"><button>material 3 expressive</button><button>material you</button><button>android 16 ui</button></div></div></article>
+    <article class="spec"><div class="stage s-skeu"><div class="card">la maison</div></div><div class="info"><span class="tag">2007–2013, returning</span><h3>Skeuomorphism</h3><p>Looks like real objects: paper, wood, leather. Old iPhone style, making a comeback.</p><div class="kw"><button>skeuomorphism</button><button>neo skeuomorphism</button><button>tactile ui</button></div></div></article>
+    <article class="spec"><div class="stage s-swiss"><div class="t">LIN<br>GUA</div><small>Learn by watching</small><div class="bar"></div></div><div class="info"><span class="tag">1950s → timeless</span><h3>Swiss / International</h3><p>Big type, strict grids, few colours. Serious and clear.</p><div class="kw"><button>swiss design</button><button>international typographic style</button><button>grid poster</button></div></div></article>
+    <article class="spec"><div class="stage s-edit"><div><div class="t">Le Chat</div><small>Issue 04 · French</small></div></div><div class="info"><span class="tag">2022 →</span><h3>Editorial minimal</h3><p>Looks like a magazine: elegant serif fonts, lots of white space.</p><div class="kw"><button>editorial web design</button><button>magazine layout ui</button><button>serif minimal</button></div></div></article>
+    <article class="spec"><div class="stage s-y2k"><div class="t">LINGUA</div></div><div class="info"><span class="tag">1999–2004, revived</span><h3>Y2K / chrome</h3><p>Shiny metal letters, bubbly shapes, early-internet nostalgia.</p><div class="kw"><button>y2k aesthetic</button><button>chrome type</button><button>y2k ui</button></div></div></article>
+    <article class="spec"><div class="stage s-pixel"><div class="card">LEVEL UP!<br>+20 XP</div></div><div class="info"><span class="tag">retro games</span><h3>Pixel / 8-bit</h3><p>Old video-game graphics and fonts. Great for XP, levels and rewards.</p><div class="kw"><button>pixel art ui</button><button>8 bit game ui</button><button>retro game interface</button></div></div></article>
+    <article class="spec"><div class="stage s-synth"><div class="t">NIVEAU 2</div></div><div class="info"><span class="tag">80s revival</span><h3>Synthwave / vaporwave</h3><p>Neon pink and purple, sunset grids, 80s arcade feeling.</p><div class="kw"><button>synthwave</button><button>vaporwave aesthetic</button><button>retrowave ui</button></div></div></article>
+    <article class="spec"><div class="stage s-neon"><div class="card">&gt; word.green()</div></div><div class="info"><span class="tag">gaming · tech</span><h3>Dark neon / cyber</h3><p>Black screens with glowing lines. Feels techy and futuristic.</p><div class="kw"><button>cyberpunk ui</button><button>neon dark ui</button><button>hud interface</button></div></div></article>
+    <article class="spec"><div class="stage s-game"><div class="card"><div class="bubble">Tu es prêt ?</div><span class="btn">Continue</span></div></div><div class="info"><span class="tag">Duolingo-style</span><h3>Playful gamified</h3><p>Chunky 3D buttons, bright colours, a mascot, streaks and rewards.</p><div class="kw"><button>gamified app ui</button><button>playful app design</button><button>mascot onboarding</button><button>duolingo style ui</button></div></div></article>
+    <article class="spec"><div class="stage s-hand"><div class="card">j'adore !</div></div><div class="info"><span class="tag">friendly</span><h3>Hand-drawn / doodle</h3><p>Sketchy lines and handwriting. Warm and human.</p><div class="kw"><button>hand drawn ui</button><button>doodle illustration</button><button>sketch style web</button></div></div></article>
+    <article class="spec"><div class="stage s-grain"><div class="t">1,000 mots</div></div><div class="info"><span class="tag">2022 →</span><h3>Grain + gradient</h3><p>Colour gradients with a film-grain texture. Warm, premium, less "digital".</p><div class="kw"><button>grainy gradient</button><button>noise texture ui</button><button>grain background</button></div></div></article>
+    <article class="spec"><div class="stage s-spatial"><div class="card">Window · 3 words</div></div><div class="info"><span class="tag">visionOS</span><h3>Spatial / depth</h3><p>Panels floating in 3D space with depth and soft light. Apple Vision Pro style.</p><div class="kw"><button>spatial ui</button><button>visionos design</button><button>3d floating panels</button></div></div></article>
+    <article class="spec"><div class="stage s-iso"><div class="cube"><span>XP</span></div></div><div class="info"><span class="tag">illustration</span><h3>Isometric 3D</h3><p>Tidy 3D drawings from an angle, like a little model world.</p><div class="kw"><button>isometric illustration</button><button>isometric 3d icons</button><button>isometric ui</button></div></div></article>
+    <article class="spec"><div class="stage s-mem"><div class="card">salut !</div></div><div class="info"><span class="tag">80s Italy, revived</span><h3>Memphis</h3><p>Squiggles, dots, zigzags and clashing bright colours.</p><div class="kw"><button>memphis design</button><button>memphis pattern</button><button>80s geometric</button></div></div></article>
+    <article class="spec"><div class="stage s-blob"><div class="bl">vert</div></div><div class="info"><span class="tag">organic</span><h3>Organic / blob shapes</h3><p>Soft wobbly shapes that slowly change. Calm and natural.</p><div class="kw"><button>blob shapes ui</button><button>organic shapes web</button><button>fluid shapes</button></div></div></article>
+    <article class="spec"><div class="stage s-max"><div class="t">Learn<br>it loud</div><small>NO RULES</small></div><div class="info"><span class="tag">2021 →</span><h3>Maximalism / anti-design</h3><p>Breaks the rules on purpose: clashing colours, giant type, chaos. Gets attention.</p><div class="kw"><button>maximalism web design</button><button>anti design</button><button>bold typography poster</button></div></div></article>
+    <article class="spec"><div class="stage s-mono"><div class="card">la fenêtre<span>window · seen 4 times</span></div></div><div class="info"><span class="tag">timeless</span><h3>Monochrome minimal</h3><p>Black, white and grey, nothing extra. Very calm. Notion and Linear style.</p><div class="kw"><button>minimal ui</button><button>monochrome app</button><button>linear style design</button></div></div></article>
+  </div>
+</section>
+
+<section id="motion">
+  <h2>Motion styles</h2>
+  <p class="note">Motion is a separate choice from the surface style above: any surface can use any of these. The live tiles respect "reduce motion" settings.</p>
+  <div class="grid">
+    <article class="spec"><div class="stage s-kin"><div class="t"><span>Re</span><span>gar</span><span>de</span></div></div><div class="info"><span class="tag">motion</span><h3>Kinetic typography</h3><p>Words that move, bounce and change colour. Perfect for a language app.</p><div class="kw"><button>kinetic typography</button><button>animated text</button><button>type motion</button></div></div></article>
+    <article class="spec"><div class="stage s-micro"><div class="word">chat</div></div><div class="info"><span class="tag">motion</span><h3>Micro-interactions</h3><p>Small reactions to taps: a word turning red → orange → green → gold.</p><div class="kw"><button>micro interactions</button><button>button animation</button><button>ui feedback animation</button></div></div></article>
+    <article class="spec"><div class="stage s-scroll"><div class="col"><div style="background:#FF3B30">Watch</div><div style="background:#FF8A00">Tap</div><div style="background:#34C759">Turn it green</div><div style="background:#9A6B00">Review gold</div><div style="background:#FF3B30">Watch</div><div style="background:#FF8A00">Tap</div></div></div><div class="info"><span class="tag">motion</span><h3>Scroll storytelling</h3><p>The page tells a story as you scroll: things slide, pin and transform.</p><div class="kw"><button>scroll animation</button><button>scrollytelling</button><button>gsap scrolltrigger</button></div></div></article>
+    <article class="spec"><div class="stage s-blob" style="background:#0b0d10"><div class="bl" style="background:#7b61ff">🦎</div></div><div class="info"><span class="tag">motion</span><h3>Character animation</h3><p>A mascot that reacts: blinks, cheers, changes colour. Made with Rive or Lottie.</p><div class="kw"><button>rive character animation</button><button>lottie mascot</button><button>interactive mascot</button></div></div></article>
+    <article class="spec"><div class="stage s-aurora"><div class="card">3D</div></div><div class="info"><span class="tag">motion</span><h3>3D web (Spline / WebGL)</h3><p>Real 3D objects you can spin or that follow the mouse.</p><div class="kw"><button>spline 3d web</button><button>webgl website</button><button>three.js landing page</button></div></div></article>
+    <article class="spec"><div class="stage s-liquid"><div class="card">morph</div></div><div class="info"><span class="tag">motion</span><h3>Morphing &amp; shared transitions</h3><p>One shape smoothly turns into the next screen. Feels like magic.</p><div class="kw"><button>shared element transition</button><button>morphing animation ui</button><button>page transition</button></div></div></article>
+  </div>
+</section>
+
+<section id="figma">
+  <h2>Figma libraries for LinguaScript</h2>
+  <div class="wrap"><table>
+    <thead><tr><th>Library</th><th>Why LinguaScript needs it</th><th>Cost</th></tr></thead>
+    <tbody>
+      <tr><td><b>Apple iOS &amp; iPadOS UI Kit</b> (Figma Community, by Apple)</td><td>The official Liquid Glass components. One report says an iOS 27 kit has replaced the iOS 26 one; check the Community listing</td><td>Free</td></tr>
+      <tr><td><b>Figma Glass Effect Playground</b></td><td>Figma's own glass effect file: practise Liquid Glass on our cards</td><td>Free</td></tr>
+      <tr><td><b>Material 3 Design Kit</b> (Google)</td><td>Our Android app, widgets and lock-screen card follow Android rules</td><td>Free</td></tr>
+      <tr><td><b>shadcn/ui for Figma</b></td><td>Our website is built with shadcn/ui, so designs map straight to the code</td><td>Free and paid versions</td></tr>
+      <tr><td><b>Untitled UI</b></td><td>The most-used free SaaS kit: landing pages, pricing, dashboards</td><td>Free (Pro is paid)</td></tr>
+      <tr><td><b>Lucide icons</b></td><td>The icon set our code already uses</td><td>Free</td></tr>
+      <tr><td><b>Jolingo · Golingo · Elingo</b> (language-learning kits)</td><td>Ready-made gamified screens: streaks, XP, leaderboards, lessons. Use for ideas, not to copy</td><td>Mostly paid (about $5–100); check each licence</td></tr>
+    </tbody>
+  </table></div>
+  <p class="note">For motion: the <b>Rive</b> community (character animations; ideal for the chameleon), <b>LottieFiles</b> (free animations) and the <b>Spline</b> community (3D scenes).</p>
+</section>
+
+<section id="sites">
+  <h2>Where to look for inspiration</h2>
+  <div class="wrap"><table>
+    <thead><tr><th>Site</th><th>Best for</th></tr></thead>
+    <tbody>
+      <tr><td><b>Mobbin</b></td><td>Real screenshots from real apps (Duolingo, Babbel, Speak…), by screen type</td></tr>
+      <tr><td><b>Dribbble</b></td><td>Concepts, mascots, motion shots</td></tr>
+      <tr><td><b>Behance</b></td><td>Full case studies and brand identities</td></tr>
+      <tr><td><b>Godly</b> · <b>Awwwards</b></td><td>The best animated websites</td></tr>
+      <tr><td><b>Land-book</b> · <b>Lapa Ninja</b> · <b>SaaS Landing Page</b></td><td>Landing pages, sorted by type</td></tr>
+      <tr><td><b>Refero</b> · <b>Page Flows</b></td><td>Whole user flows: onboarding, paywalls, sign-up</td></tr>
+      <tr><td><b>Codrops</b></td><td>Creative motion demos with code</td></tr>
+      <tr><td><b>Pinterest</b></td><td>Mood boards: mix styles and save what you like</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="keywords">
+  <h2>Keyword formulas that find good designs</h2>
+  <p>Combine <b>[style] + [product] + [screen]</b>. Tap to copy.</p>
+  <div class="kw">
+    <button>liquid glass language app</button><button>gamified learning app onboarding</button><button>flashcard app ui</button><button>vocabulary app dark mode</button><button>streak screen animation</button><button>xp reward animation</button><button>mascot app onboarding</button><button>video player subtitles ui</button><button>dual subtitles ui</button><button>paywall screen app</button><button>pricing page saas</button><button>chrome extension popup ui</button><button>android widget design</button><button>lock screen widget ios</button><button>progress dashboard bento</button><button>leaderboard ui</button><button>education app landing page</button><button>edtech hero section</button><button>language app case study</button><button>empty state illustration</button><button>success state animation</button><button>dark mode green accent</button><button>chameleon mascot</button><button>color changing text animation</button>
+  </div>
+  <p class="note">Tip for finding your taste: save 30 screens you like without thinking, then group them. The style names above will tell you what you keep choosing.</p>
+</section>
+
+<section>
+  <h2>Sources</h2>
+  <ul class="note" style="display:grid;gap:4px;padding-left:1.2em;margin:0">
+    <li><a href="https://uithings.com/ios-ipados-27-ui-kit-figma">uithings: Apple iOS &amp; iPadOS 27 UI Kit</a> · <a href="https://www.iclarified.com/97928/apple-releases-ios-26-and-ipados-26-ui-kit-for-figma">iClarified: iOS 26 UI Kit</a> · <a href="https://uithings.com/figma-glass-effect">uithings: Figma glass effect</a></li>
+    <li><a href="https://muz.li/blog/best-figma-ui-kits-and-design-systems-for-2026/">Muzli: best Figma UI kits 2026</a> · <a href="https://untitledui.com/blog/figma-ui-kits">Untitled UI blog</a> · <a href="https://vp0.com/blogs/best-free-figma-ui-kits-mobile-apps">VP0: free mobile kits</a></li>
+    <li><a href="https://trends.daisyui.com/ui-design-trends-2026/">daisyUI: 18 UI design trends for 2026</a> · <a href="https://superdesign.dev/styles">Superdesign styles encyclopedia</a> · <a href="https://uxplanet.org/ui-design-styles-explained-670cfabdf430">UX Planet: UI design styles explained</a></li>
+    <li><a href="https://dribbble.com/shots/24206531-Jolingo-Language-Learning-App-UI-Kit">Jolingo</a> · <a href="https://dribbble.com/services/87568-Language-Learning-App-UI-Kit">Golingo / language kits on Dribbble</a> · <a href="https://figmatemplatesstore.gumroad.com/l/languageapp">Elingo (Gumroad)</a></li>
+  </ul>
+</section>
+</main>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script>
+const toast=document.getElementById('toast');let tt;
+document.querySelectorAll('.kw button').forEach(b=>b.addEventListener('click',()=>{
+  const t=b.textContent;const show=m=>{toast.textContent=m;toast.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>toast.classList.remove('on'),1400)};
+  try{navigator.clipboard.writeText(t).then(()=>show('Copied: '+t),()=>show('Select and copy: '+t))}catch(e){show('Select and copy: '+t)}
+}));
+</script>
+
+</body></html>
