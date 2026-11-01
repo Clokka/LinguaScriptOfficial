@@ -55,8 +55,8 @@ export default function PhoneOverlay() {
         <p>
           <strong>Samsung phones:</strong> the first time, tap <strong>Manage apps</strong> in that
           menu and switch <strong>LinguaScript</strong> on — Samsung hides extra apps until you do.
-          Inside the LinguaScript app, select any text and tap the green{" "}
-          <strong>＋ Save to LinguaScript</strong> button that appears under it.
+          Inside the LinguaScript app it's always there — select any text and{" "}
+          <strong>Save to LinguaScript</strong> sits next to Copy and Translate.
         </p>
 
         <H2>Turn it on</H2>

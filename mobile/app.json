@@ -138,7 +138,8 @@
         }
       ],
       "./plugins/withProcessText",
-      "./plugins/withWordBubble"
+      "./plugins/withWordBubble",
+      "./plugins/withWebViewMenu"
     ],
     "experiments": {
       "typedRoutes": true

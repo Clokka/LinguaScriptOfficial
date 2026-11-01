@@ -191,6 +191,14 @@ export default function AppScreen() {
       <WebView
         ref={webRef}
         source={{ uri: startUrl }}
+        // Select text in the app → Copy · Paste · Translate · Save to LinguaScript
+        // (plugins/withWebViewMenu.js keeps Android's menu and adds this item).
+        menuItems={Platform.OS === 'android' ? [{ label: 'Save to LinguaScript', key: 'ls-save' }] : undefined}
+        onCustomMenuSelection={(e) => {
+          const text = String(e.nativeEvent.selectedText || '').trim();
+          if (e.nativeEvent.key !== 'ls-save' || !text) return;
+          webRef.current?.injectJavaScript(`window.__lsSaveText && window.__lsSaveText(${JSON.stringify(text)}); true;`);
+        }}
         style={styles.webview}
         javaScriptEnabled
         domStorageEnabled
