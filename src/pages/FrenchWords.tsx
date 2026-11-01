@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Volume2, Lightbulb, ArrowLeft, Check, X } from "lucide-react";
 import { PillarsNav } from "@/components/PillarsNav";
+import { FastTrackLesson } from "@/components/FastTrackLesson";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { FAST_TRACK, lessonWords, type FtLesson, type FtWord } from "@/lib/cognates/fastTrack";
+import { interestById } from "@/lib/interests";
 import { Button } from "@/components/ui/button";
 import { Seo } from "@/components/Seo";
 import { playDing } from "@/lib/sound";
@@ -21,11 +26,10 @@ import {
  */
 
 const STORE = "ls.cognates.fr";
-const DAY_GOAL = 1000;
 const BATCH = 8;
 const ACCENTS = ["é", "è", "ê", "à", "â", "ç", "î", "ï", "ô", "û", "ù", "ë"];
 
-type Saved = { learned: Record<string, number>; day: string; today: number };
+type Saved = { learned: Record<string, number>; day: string; today: number; lessons?: Record<string, number> };
 const todayKey = () => new Date().toISOString().slice(0, 10);
 
 function load(): Saved {
@@ -62,6 +66,21 @@ export default function FrenchWords() {
   const [studying, setStudying] = useState(false);
 
   const learnedCount = Object.keys(saved.learned).length;
+  const [lesson, setLesson] = useState<FtLesson | null>(null);
+  const [showBank, setShowBank] = useState(false);
+  const hobby = useHobby();
+  const lessonsDone = saved.lessons || {};
+  const nextLesson = FAST_TRACK.find((l) => !lessonsDone[l.id]) || FAST_TRACK[0];
+  const finishLesson = (l: FtLesson, ws: FtWord[]) => {
+    setSaved((s) => {
+      const learned = { ...s.learned };
+      let added = 0;
+      for (const w of ws) if (!learned[w.fr]) { learned[w.fr] = Date.now(); added++; }
+      const next = { ...s, learned, today: s.today + added, day: todayKey(), lessons: { ...(s.lessons || {}), [l.id]: Date.now() } };
+      save(next);
+      return next;
+    });
+  };
   const markLearned = (w: Cognate) => {
     setSaved((s) => {
       if (s.learned[w.fr]) return s;
@@ -77,32 +96,70 @@ export default function FrenchWords() {
   return (
     <div className="min-h-screen bg-background pb-24">
       <Seo
-        title="1,000 French words in a day · LinguaScript"
-        description="English and French share thousands of words. Learn a few ending rules and drill 1,500 French words with gap fills and substitution drills."
+        title="French Fast Track · LinguaScript"
+        description="Short French lessons: one everyday sentence pattern, six words that look like English, quick substitution drills. Plus 1,500 look-alike words by rule."
         path="/french-words"
       />
       <PillarsNav />
       <main className="max-w-2xl mx-auto px-4 pt-6 space-y-6">
-        <header className="space-y-3">
-          <h1 className="text-2xl font-bold">🇬🇧 → 🇫🇷 1,000 French words in a day</h1>
+        {!lesson && <header className="space-y-3">
+          <h1 className="text-2xl font-bold">🇬🇧 → 🇫🇷 French Fast Track</h1>
           <p className="text-muted-foreground text-sm">
-            You already know thousands of French words — English borrowed them from French and Latin.
-            Learn one ending rule, and dozens of words come free: <b translate="no">nation → nation</b>,{" "}
-            <b translate="no">liberty → liberté</b>, <b translate="no">rapidly → rapidement</b>.
+            Short lessons, one everyday sentence at a time. Keep the sentence, swap one word —{" "}
+            <b translate="no">Je suis calme → Je suis patient → Tu es patient ?</b> The words look like English,
+            so they come almost free.
           </p>
           <div className="rounded-2xl border border-border p-4 space-y-2">
             <div className="flex justify-between text-sm font-semibold">
-              <span>Today</span>
-              <span><span className="text-[#34C759]">{saved.today}</span> / {DAY_GOAL.toLocaleString()} words</span>
+              <span>Lessons</span>
+              <span><span className="text-[#34C759]">{FAST_TRACK.filter((l) => lessonsDone[l.id]).length}</span> / {FAST_TRACK.length}</span>
             </div>
             <div className="h-2 rounded-full bg-muted overflow-hidden">
-              <div className="h-full bg-[#34C759] transition-all" style={{ width: `${Math.min(100, (saved.today / DAY_GOAL) * 100)}%` }} />
+              <div className="h-full bg-[#34C759] transition-all" style={{ width: `${(FAST_TRACK.filter((l) => lessonsDone[l.id]).length / FAST_TRACK.length) * 100}%` }} />
             </div>
-            <div className="text-xs text-muted-foreground">{learnedCount.toLocaleString()} of {all.length.toLocaleString()} words learned in total</div>
+            <div className="text-xs text-muted-foreground">{learnedCount.toLocaleString()} French words learned · {saved.today} today</div>
           </div>
-        </header>
+        </header>}
 
-        {rule && studying ? (
+        {lesson ? (
+          <FastTrackLesson
+            key={lesson.id}
+            lesson={lesson}
+            words={lessonWords(lesson, hobby)}
+            number={FAST_TRACK.indexOf(lesson) + 1}
+            onDone={(ws) => finishLesson(lesson, ws)}
+            onExit={() => setLesson(null)}
+          />
+        ) : !showBank ? (
+          <section className="space-y-2">
+            <Button className="w-full h-12 text-base" onClick={() => setLesson(nextLesson)}>
+              ▶ {lessonsDone[nextLesson.id] ? "Practise" : "Start"} lesson {FAST_TRACK.indexOf(nextLesson) + 1}: {nextLesson.title}
+            </Button>
+            {FAST_TRACK.map((l, i) => {
+              const done = !!lessonsDone[l.id];
+              const ws = lessonWords(l, hobby);
+              return (
+                <button
+                  key={l.id}
+                  type="button"
+                  onClick={() => setLesson(l)}
+                  className={`w-full text-left rounded-xl border p-3 transition-colors hover:border-[#34C759] ${l === nextLesson ? "border-[#34C759]" : "border-border"}`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-semibold">{i + 1}. {l.title}{l.hobby && hobby ? ` · ${interestById(hobby)?.emoji ?? ""}` : ""}</span>
+                    <span className="text-sm">{done ? "✅" : ""}</span>
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1" translate="no">
+                    {ws.slice(0, 3).map((w) => l.frames[0].fr.replace("___", w.fr)).join(" · ")}
+                  </div>
+                </button>
+              );
+            })}
+            <button type="button" onClick={() => setShowBank(true)} className="w-full mt-4 rounded-xl border border-dashed border-border p-3 text-sm text-muted-foreground hover:text-foreground">
+              📚 Extra practice: all {all.length.toLocaleString()} look-alike words, by rule
+            </button>
+          </section>
+        ) : rule && studying ? (
           <Drill
             key={rule.id}
             rule={rule}
@@ -120,6 +177,7 @@ export default function FrenchWords() {
           />
         ) : (
           <section className="space-y-2">
+            <button type="button" onClick={() => setShowBank(false)} className="text-sm text-muted-foreground flex items-center gap-1"><ArrowLeft className="w-4 h-4" /> Fast Track lessons</button>
             <Button className="w-full h-12 text-base" onClick={() => setRule(nextRule)}>
               ▶ Continue: {nextRule.title}
             </Button>
@@ -185,6 +243,24 @@ function RuleCard({ rule, words, learned, onStart, onBack }: {
       )}
     </section>
   );
+}
+
+/** The hobby picked in onboarding: profile for signed-in learners, device copy for guests. */
+function useHobby(): string | null {
+  const { user } = useAuth();
+  const [hobby, setHobby] = useState<string | null>(() => {
+    try { return JSON.parse(localStorage.getItem("ls.guestOnboarded.v1") || "{}")?.interests?.[0] ?? null; } catch { return null; }
+  });
+  useEffect(() => {
+    if (!user) return;
+    let alive = true;
+    supabase.from("profiles").select("interests").eq("user_id", user.id).maybeSingle().then(({ data }) => {
+      const first = (data as { interests?: string[] } | null)?.interests?.[0];
+      if (alive && first) setHobby(first);
+    });
+    return () => { alive = false; };
+  }, [user]);
+  return hobby;
 }
 
 const pick = <T,>(xs: T[]) => xs[Math.floor(Math.random() * xs.length)];
