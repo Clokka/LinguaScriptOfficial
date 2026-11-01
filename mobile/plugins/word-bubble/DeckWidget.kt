@@ -2,7 +2,8 @@ package __PACKAGE__
 
 // 🦎 The home-screen widget: the chameleon, three squares (red, orange, green)
 // with how many words are in each deck, one orange/green word with its meaning
-// to glance at, and a gold strip when reviews are due. Tap → your flashcards.
+// to glance at, and a gold strip when reviews are due. Tap a square → that
+// deck; the gold strip → due reviews; anywhere else → flashcards.
 // Layout: res/layout/ls_widget_deck.xml. Refreshed hourly by GoldWordReceiver.
 
 import android.appwidget.AppWidgetManager
@@ -49,7 +50,12 @@ class DeckWidget : AppWidgetProvider() {
           v.setViewVisibility(R.id.ls_glance, View.GONE)
         }
         v.setTextViewText(R.id.ls_gold, if (gold > 0) "✨ $gold gold word${if (gold == 1) "" else "s"} to review" else "✨ No reviews due — nice!")
+        // Each square opens its own deck; the gold strip opens the due reviews.
         v.setOnClickPendingIntent(R.id.ls_widget_root, GoldWords.openPage(c, "flashcards", 10))
+        v.setOnClickPendingIntent(R.id.ls_count_red, GoldWords.openPage(c, "flashcards?deck=red", 11))
+        v.setOnClickPendingIntent(R.id.ls_count_orange, GoldWords.openPage(c, "flashcards?deck=orange", 12))
+        v.setOnClickPendingIntent(R.id.ls_count_green, GoldWords.openPage(c, "flashcards?deck=green", 13))
+        v.setOnClickPendingIntent(R.id.ls_gold, GoldWords.openPage(c, "flashcards?deck=gold", 14))
         mgr.updateAppWidget(id, v)
       }
     }
