@@ -122,6 +122,7 @@ export function PhoneBubbleSetting() {
       </div>
       <p className="text-xs text-muted-foreground border-t border-border pt-3">
         Tip: swipe down from the top of your phone, tap ✏️ (edit) and drag the <b>LinguaScript</b> tile next to the torch — one tap turns the 🦎 bubble on or off. To hide the bubble, drag it onto the ✕ at the bottom.
+        <br />Highlight a word in any app → <b>Save to LinguaScript</b>. On Samsung, tap <b>Manage apps</b> in that menu once and switch LinguaScript on.
       </p>
     </section>
   );
