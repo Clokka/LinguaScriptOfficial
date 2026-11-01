@@ -5,9 +5,11 @@ import LandingPageTest from "@/components/landing/LandingPageTest";
 import { supabase } from "@/integrations/supabase/client";
 import { applyGuestOnboarding } from "@/lib/guestOnboarding";
 import { PageLoading } from "@/components/PageLoading";
+import { AppWelcome, isInApp } from "@/components/AppWelcome";
 
 // Root route: unauthenticated visitors get the landing page A/B test
-// (Landing5 vs LandingClear, see LandingPageTest).
+// (Landing5 vs LandingClear, see LandingPageTest) — or, inside the phone app,
+// the app's own welcome screens (AppWelcome).
 // Authenticated users go to /discover — unless they've never completed
 // onboarding (e.g. brand-new Google sign-ups), in which case they are
 // sent through the onboarding flow first.
@@ -53,7 +55,7 @@ const Index = () => {
   }, [user]);
 
   if (loading) return <PageLoading />;
-  if (!user) return <LandingPageTest />;
+  if (!user) return isInApp() ? <AppWelcome /> : <LandingPageTest />;
   if (onboarded === null) return <PageLoading />;
   return <Navigate to={onboarded ? next ?? "/discover" : "/onboarding"} replace />;
 };
