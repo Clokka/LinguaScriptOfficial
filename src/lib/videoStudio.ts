@@ -296,6 +296,8 @@ async function audioChunks(file: Blob): Promise<{ offset: number; samples: Float
   let decoded: AudioBuffer;
   try {
     decoded = await ctx.decodeAudioData(await file.arrayBuffer());
+  } catch {
+    throw new Error("I couldn't read the sound in this video 😕 Try a shorter video, or open this page in Chrome.");
   } finally {
     void ctx.close();
   }
@@ -358,14 +360,23 @@ export async function transcribeVideo(
   for (let i = 0; i < chunks.length; i++) {
     onProgress?.(i / chunks.length);
     const { offset, samples } = chunks[i];
-    const { data, error } = await supabase.functions.invoke("transcribe-audio", {
-      body: {
-        audio: wavBase64(samples),
-        language: getLanguageLabel(language),
-        nativeLanguage: getLanguageLabel(nativeLanguage),
-      },
-    });
-    if (error) throw new Error("The subtitle helper is busy — try again in a minute.");
+    const body = {
+      audio: wavBase64(samples),
+      language: getLanguageLabel(language),
+      nativeLanguage: getLanguageLabel(nativeLanguage),
+    };
+    // One retry: phones on bus/train wifi drop requests a lot.
+    let { data, error } = await supabase.functions.invoke("transcribe-audio", { body });
+    if (error) {
+      await new Promise((r) => setTimeout(r, 2000));
+      ({ data, error } = await supabase.functions.invoke("transcribe-audio", { body }));
+    }
+    if (error) {
+      let why = "";
+      try { why = (await (error as { context?: Response }).context?.json())?.error || ""; } catch { /* no body */ }
+      console.error("transcribe-audio failed:", why || error.message);
+      throw new Error("The subtitle helper is busy — try again in a minute.");
+    }
     const clipEnd = samples.length / RATE;
     for (const l of (data?.lines || []) as CaptionLine[]) {
       all.push({

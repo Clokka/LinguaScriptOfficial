@@ -76,17 +76,23 @@ export default function Studio() {
     setResult(null);
     setError(null);
     setPhase("edit");
+    // No live words from the camera? Make the subtitles straight away, so
+    // nobody is left looking at an empty "What you said" box.
+    if (!prefilled.length) void autoSubtitle(blob);
   };
 
-  const autoSubtitle = async () => {
-    if (!videoBlob) return;
+  const autoSubtitle = async (blob: Blob | null = videoBlob) => {
+    if (!blob) return;
     setError(null);
     setBusy("Listening to your video…");
     setProgress(0);
     try {
-      const got = await transcribeVideo(videoBlob, lang, native, setProgress);
-      if (!got.length) setError("I couldn't hear any speech in this video 🤔");
-      setLines(got);
+      const got = await transcribeVideo(blob, lang, native, setProgress);
+      if (!got.length) {
+        setError("I couldn't hear any speech in this video 🤔 Try speaking louder, or tap “Add a line here” and type it.");
+      } else {
+        setLines(got);
+      }
     } catch (e) {
       setError((e as Error).message || "Something went wrong — try again.");
     } finally {
@@ -192,11 +198,11 @@ export default function Studio() {
         {phase === "edit" && (
           <div className="space-y-4">
             <div className="flex flex-wrap gap-2 justify-center">
-              <Button variant="outline" onClick={autoSubtitle} disabled={!!busy}>
+              <Button variant="outline" onClick={() => autoSubtitle()} disabled={!!busy}>
                 <Sparkles className="w-4 h-4 mr-2" />
-                {lines.length ? "Make the subtitles again" : "✨ Make subtitles for me"}
+                {lines.some((l) => l.text.trim()) ? "Make the subtitles again" : "✨ Make subtitles for me"}
               </Button>
-              <Button onClick={makeVideo} disabled={!!busy || !lines.length}>
+              <Button onClick={makeVideo} disabled={!!busy || !lines.some((l) => l.text.trim())}>
                 <Video className="w-4 h-4 mr-2" /> Make my video
               </Button>
             </div>
