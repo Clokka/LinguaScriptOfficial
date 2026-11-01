@@ -47,7 +47,7 @@ Landing (1 screen: headline + 5-second tap demo + "Add to Chrome — free")
         ↓
 Sign up (Google one tap)
         ↓
-Onboarding — 3 screens: language → hobby → how it works + Add to Chrome
+Onboarding (current flow)
         ↓
 Extension installed → first YouTube video → first tapped word   ← "aha" moment
         ↓

@@ -68,7 +68,7 @@ export async function applyGuestOnboarding(userId: string): Promise<boolean> {
 
   try {
     localStorage.removeItem(KEY);
-    localStorage.removeItem("ls.onboardingState.v1"); localStorage.removeItem("ls.onboardingState.v2");
+    localStorage.removeItem("ls.onboardingState.v1");
   } catch { /* ignore */ }
   return true;
 }
