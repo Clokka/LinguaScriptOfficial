@@ -1,6 +1,6 @@
 // LinguaScript — Reader (pillar 1: reading on ANY website)
 //
-// Injected on demand (pop-up "Read this page", right-click menu, or Alt+L) via
+// Injected on demand (Alt+L only for now) via
 // chrome.scripting with activeTab, so the extension never asks to "read and
 // change all your data on all websites". Every word on the page becomes a
 // tappable .ls-word span painted by the ONE Deck (red / orange / green / gold);
@@ -142,8 +142,6 @@
     document.body.appendChild(badge);
   }
 
-  // Reading on a white page: deck colours as a tinted highlight + underline, so
-  // text stays readable (bright green text on white is not).
   // Reading on a normal page. Style "Text" (default): the word itself turns
   // red / orange / green, gold glimmers. On a light background the brand hexes
   // are too pale to read, so the chunk gets .ls-light and deeper shades of the
@@ -154,7 +152,7 @@
     .${CHUNK} .ls-word.ls-ring { animation:none; box-shadow:none; }
     .${CHUNK}.ls-light .ls-word.ls-red    { color:#D92B21 !important; }
     .${CHUNK}.ls-light .ls-word.ls-orange { color:#C05F00 !important; }
-    .${CHUNK}.ls-light .ls-word.ls-green  { color:#34C759 !important; }
+    .${CHUNK}.ls-light .ls-word.ls-green  { color:#1E8E3E !important; }
     .${CHUNK} .ls-word.ls-gold { filter:drop-shadow(0 0 5px rgba(255,200,60,0.6)); }
     .${CHUNK}.ls-light .ls-word.ls-gold { color:#B07A00 !important; background-image:linear-gradient(100deg,#B07A00 0%,#B07A00 35%,#FFE27A 50%,#B07A00 65%,#B07A00 100%); filter:drop-shadow(0 0 4px rgba(255,190,40,0.45)); }
     html.ls-style-ring .${CHUNK} .ls-word.ls-red,
