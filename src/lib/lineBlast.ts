@@ -59,7 +59,9 @@ export function goldSweep(line: HTMLElement | null) {
       [
         { color: "#f4f7f5" },
         { color: "#fbbf24", textShadow: "0 0 16px rgba(251,191,36,0.8)", offset: 0.4 },
-        { color: "rgba(52,211,153,0.72)", textShadow: "none" },
+        // End on the ONE deck green (#34C759) — a dimmer teal here stuck to
+        // the words (fill: forwards) and made two greens on screen.
+        { color: "#34C759", textShadow: "none" },
       ],
       { duration: 460, delay: i * 30, easing: "ease-out", fill: "forwards" },
     );

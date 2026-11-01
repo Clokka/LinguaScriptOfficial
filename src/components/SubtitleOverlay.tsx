@@ -249,6 +249,17 @@ export const SubtitleOverlay = ({
   deckRef.current = deck;
   const [floatXp, setFloatXp] = useState<{ text: string; key: number } | null>(null);
 
+  // The gold sweep's colour keeps holding (fill: forwards). Word spans are
+  // keyed by index, so without this the NEXT line's first words stayed
+  // painted by the old sweep instead of their own deck colour.
+  useEffect(() => {
+    const line = lineRef.current;
+    if (!line) return;
+    Array.from(line.children).forEach((span) =>
+      (span as HTMLElement).getAnimations?.().forEach((a) => a.cancel()),
+    );
+  }, [primaryText]);
+
   const maybeBlastLine = () => {
     if (blastedLinesRef.current.has(primaryText)) return;
 
@@ -487,7 +498,7 @@ export const SubtitleOverlay = ({
           <ChameleonReaction mode={reaction} onDone={() => setReaction(null)} />
         )}
         {greenScore.totalCount > 0 && (
-          <div className="pointer-events-auto absolute -top-3 right-4 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 backdrop-blur">
+          <div className="pointer-events-auto absolute -top-3 right-4 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-state-green/15 text-state-green border border-state-green/30 backdrop-blur">
             {greenScore.pct}% green
           </div>
         )}

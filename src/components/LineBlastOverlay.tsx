@@ -125,7 +125,7 @@ export const LineBlastOverlay = ({
           {praise.big}
         </div>
         {praise.sub && (
-          <div className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-emerald-300 [text-shadow:0_0_16px_rgba(52,211,153,0.6)]">
+          <div className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-state-green [text-shadow:0_0_16px_rgba(52,199,89,0.6)]">
             {praise.sub}
           </div>
         )}
@@ -136,7 +136,7 @@ export const LineBlastOverlay = ({
       <div
         key={`lb-xp-${floatXp.key}`}
         className={cn(
-          "pointer-events-none text-base font-extrabold tabular-nums text-emerald-400 opacity-0 [text-shadow:0_0_14px_rgba(52,211,153,0.7)]",
+          "pointer-events-none text-base font-extrabold tabular-nums text-state-green opacity-0 [text-shadow:0_0_14px_rgba(52,199,89,0.7)]",
           XP_POS[placement],
         )}
         style={{ animation: "lb-xp-rise 1.3s ease-out forwards" }}
