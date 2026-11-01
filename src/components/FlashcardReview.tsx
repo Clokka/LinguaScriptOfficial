@@ -14,6 +14,7 @@ import { isPlaceholderMeaning, translateWord } from "@/lib/browserTranslate";
 import { getLanguageLabel } from "@/lib/languages";
 import { toast } from "sonner";
 import { playDing } from "@/lib/sound";
+import { playSfx } from "@/lib/sfx";
 import { Image as ImageIcon, Type } from "lucide-react";
 import { track } from "@/lib/analytics";
 
@@ -278,7 +279,8 @@ export const FlashcardReview = ({ cards: initialCards, onClose, onCardReviewed, 
   };
 
   const handleCorrect = () => {
-    playDing("success");
+    // Orange → green is the big moment; every other right answer gets the lighter sound.
+    playSfx(cards[currentIndex]?.state === "orange" ? "learned" : "correct");
     setCorrect((prev) => prev + 1);
     void logReview();
     award("review_card", { correct: true });
@@ -288,7 +290,7 @@ export const FlashcardReview = ({ cards: initialCards, onClose, onCardReviewed, 
   };
 
   const handleIncorrect = () => {
-    playDing("soft");
+    playSfx("miss");
     setIncorrect((prev) => prev + 1);
     void logReview();
     award("review_card", { correct: false });

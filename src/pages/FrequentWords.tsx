@@ -114,7 +114,8 @@ export default function FrequentWords() {
 
         <p>
           Want to start now? The <Link to="/speed-run" className="text-primary underline">Speed Run</Link> teaches
-          these words in order: 2 words, then 4, 13, 36 and 100.
+          the top words in order, measured in real film and TV subtitles for each language
+          (French: 5 words for 10%, 64 for half).
         </p>
 
         <H2>How LinguaScript teaches you the frequent words</H2>
