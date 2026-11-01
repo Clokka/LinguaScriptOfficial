@@ -124,7 +124,7 @@ const Auth = () => {
           .select("onboarded, cef_level").eq("user_id", u.user?.id ?? "").maybeSingle();
         const done = Boolean((prof as any)?.onboarded || (prof as any)?.cef_level)
           || (!!u.user && await applyGuestOnboarding(u.user.id));
-        if (done) { try { localStorage.removeItem("ls.onboardingState.v1"); } catch { /* ignore */ } }
+        if (done) { try { localStorage.removeItem("ls.onboardingState.v1"); localStorage.removeItem("ls.onboardingState.v2"); } catch { /* ignore */ } }
         navigate(done ? next : "/onboarding", { replace: true });
       }
     } else {

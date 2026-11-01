@@ -5,111 +5,82 @@ import { useT } from "@/i18n";
 import { UiLanguageSwitcher } from "@/components/UiLanguageSwitcher";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowRight, ArrowLeft, Check, Trophy } from "lucide-react";
+import { ArrowRight, ArrowLeft, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectSeparator } from "@/components/ui/select";
-import { LANGUAGES, getLanguageLabel } from "@/lib/languages";
+import { LANGUAGES } from "@/lib/languages";
 import { useAuth } from "@/hooks/useAuth";
 import { BrandMark } from "@/components/BrandMark";
 import { supabase } from "@/integrations/supabase/client";
 import { useLanguage, PENDING_LANGUAGE_KEY } from "@/contexts/LanguageContext";
-import { useTour } from "@/contexts/TourContext";
-import { getTourTrainingId } from "@/lib/tourSteps";
 import { playDing } from "@/lib/sound";
 import { toast } from "sonner";
-import { DailyGoalPicker } from "@/components/DailyGoalPicker";
-import { DEFAULT_WORD_GOAL, videoGoalForWords, wordGoalForVideos } from "@/lib/progressStats";
+import { DEFAULT_WORD_GOAL, videoGoalForWords } from "@/lib/progressStats";
 import { INTERESTS } from "@/lib/interests";
-import { MODE_META, addLanguageProfile, type LearningMode } from "@/lib/languageProfiles";
+import { addLanguageProfile, type LearningMode } from "@/lib/languageProfiles";
 import { rememberGuestOnboarding, applyGuestOnboarding } from "@/lib/guestOnboarding";
 
 // "beginner" is a true zero-knowledge start — not a CEFR level, a signal
 // that nothing should be pre-marked as already known. See addLanguageProfile's
-// totalBeginner path and the seed_priority_words migration comment for why
-// that distinction matters: a beginner's red queue must start at the most
-// frequent words, not skip past them.
-const LEVELS = ["beginner", "A2", "B1", "B2", "C1"] as const;
-type Level = typeof LEVELS[number];
+// totalBeginner path. Learners only ever see two plain choices; "A2" is the
+// "I know a bit" start. Fine-grained CEFR lives in Profile for those who care.
+type Level = "beginner" | "A2";
 
-// Four steps, not eight. The old flow opened with a static "how it works"
-// slide and closed with three more static cards (Catalogue & XP, Flashcards,
-// Learn faster) that were never actually reachable — the one button that
-// cleared the guided-demo step navigated straight to /watch/:id before the
-// "Continue" past it ever unlocked. Nobody ever saw them. What's left is the
-// four steps that either collect something real or teach by doing.
+const CHROME_STORE_URL = "https://chromewebstore.google.com/search/linguascript";
+
+// Three short screens: language → hobby → how it works (+ get the extension).
+// No CEFR grid, daily goal, school, written goal, leaderboard or demo video —
+// each one was a decision a brand-new learner can't make yet. Defaults are
+// sensible and every one of them is still editable in Profile.
 const Onboarding = () => {
   const navigate = useNavigate();
-  const { user, loading: authLoading } = useAuth();
+  const { user } = useAuth();
   const { setLearningLanguage } = useLanguage();
-  const { start: startTour } = useTour();
-  const [enteringDemo, setEnteringDemo] = useState(false);
   const [saving, setSaving] = useState(false);
-  const { t, setLang } = useT();
-  // Intro video for the chosen language. Null when we have nothing in that
-  // language — we show the step without a video rather than playing French.
-  const [introVideoId, setIntroVideoId] = useState<string | null>(null);
+  const { t } = useT();
 
-  // Persist onboarding progress so users can never lose their place if they
-  // refresh, leave, or skip around — they always end up on the final paste-
-  // a-YouTube-link step.
-  const ONBOARDING_KEY = "ls.onboardingState.v1";
+  // Persist progress so a refresh resumes exactly here. (v2: v1 had 4 steps.)
+  const ONBOARDING_KEY = "ls.onboardingState.v2";
   const initialPersisted = (() => {
     try {
       const raw = typeof window !== "undefined" ? localStorage.getItem(ONBOARDING_KEY) : null;
       return raw ? JSON.parse(raw) : null;
     } catch { return null; }
   })();
+  const browserLang = (() => {
+    try {
+      const code = (navigator.language || "en").slice(0, 2).toLowerCase();
+      return LANGUAGES.some((l) => l.code === code) ? code : "en";
+    } catch { return "en"; }
+  })();
 
   const [step, setStep] = useState<number>(initialPersisted?.step ?? 0);
-  const [native, setNative] = useState(initialPersisted?.native ?? "en");
-  const [target, setTarget] = useState(initialPersisted?.target ?? "");
-  // Complete beginner unless the learner picks a level: a level above it
-  // pre-marks hundreds of common words green.
-  const [level, setLevel] = useState<Level | null>(initialPersisted?.level ?? "beginner");
-  const [mode, setMode] = useState<LearningMode>(initialPersisted?.mode ?? "fluency");
-  const [school, setSchool] = useState(initialPersisted?.school ?? "");
-  const [wordGoal, setWordGoal] = useState<number>(initialPersisted?.wordGoal ?? DEFAULT_WORD_GOAL);
-  const [goal, setGoal] = useState(initialPersisted?.goal ?? "");
-  const [goalSaved, setGoalSaved] = useState<boolean>(initialPersisted?.goalSaved ?? false);
-  const [showOnLeaderboard, setShowOnLeaderboard] = useState<boolean>(initialPersisted?.showOnLeaderboard ?? true);
-  const [dualClicked, setDualClicked] = useState<boolean>(initialPersisted?.dualClicked ?? false);
+  const [native, setNative] = useState<string>(initialPersisted?.native ?? browserLang);
+  const [target, setTarget] = useState<string>(initialPersisted?.target ?? "");
+  const [level, setLevel] = useState<Level>(initialPersisted?.level === "A2" ? "A2" : "beginner");
   const [interests, setInterests] = useState<string[]>((initialPersisted?.interests ?? []).slice(0, 1));
+  const mode: LearningMode = "fluency";
+  const wordGoal = DEFAULT_WORD_GOAL;
 
-  // Save snapshot whenever anything changes so a refresh resumes exactly here.
   useEffect(() => {
     try {
-      localStorage.setItem(ONBOARDING_KEY, JSON.stringify({
-        step, native, target, level, mode, school, wordGoal, goal, goalSaved, showOnLeaderboard, dualClicked, interests,
-      }));
+      localStorage.setItem(ONBOARDING_KEY, JSON.stringify({ step, native, target, level, interests }));
     } catch { /* ignore */ }
-  }, [step, native, target, level, mode, school, wordGoal, goal, goalSaved, showOnLeaderboard, dualClicked, interests]);
+  }, [step, native, target, level, interests]);
 
-  // Load existing profile once. Already-onboarded learners skip straight to
-  // the app; a resumed session keeps the choices the user already made.
+  // Already-onboarded learners skip straight to the app.
   const profileLoaded = useRef(false);
   useEffect(() => {
     if (!user || profileLoaded.current) return;
     profileLoaded.current = true;
     supabase.from("profiles").select("*").eq("user_id", user.id).maybeSingle().then(async ({ data }) => {
       if ((data as any)?.onboarded || await applyGuestOnboarding(user.id)) {
-        try { localStorage.removeItem(ONBOARDING_KEY); } catch { /* ignore */ }
+        try { localStorage.removeItem(ONBOARDING_KEY); localStorage.removeItem("ls.onboardingState.v1"); } catch { /* ignore */ }
         navigate("/discover", { replace: true });
         return;
       }
       if (data && !initialPersisted) {
         if (data.native_language) setNative(data.native_language);
-        if ((data as any).cef_level) setLevel((data as any).cef_level as Level);
-        if ((data as any).learning_goal) setGoal((data as any).learning_goal);
-        if ((data as any).school) setSchool((data as any).school);
-        // An existing learner keeps the goal they already have. Only a profile
-        // predating the switch falls back to deriving one from the video count.
-        if ((data as any).daily_word_goal) {
-          setWordGoal((data as any).daily_word_goal);
-        } else if ((data as any).daily_video_goal) {
-          setWordGoal(wordGoalForVideos((data as any).daily_video_goal));
-        }
         if (Array.isArray((data as any).interests) && (data as any).interests.length) {
           setInterests((data as any).interests.slice(0, 1));
         }
@@ -118,81 +89,41 @@ const Onboarding = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  // Resolve the intro video for the selected learning language: a verified
-  // mapping first, then any public film already in the catalogue for that
-  // language, otherwise nothing.
-  useEffect(() => {
-    let cancelled = false;
-    const mapped = getTourTrainingId(target);
-    if (mapped) { setIntroVideoId(mapped); return; }
-    setIntroVideoId(null);
-    supabase
-      .from("films")
-      .select("url")
-      .eq("language", target)
-      .eq("is_public", true)
-      .limit(1)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (cancelled) return;
-        const url: string = (data as any)?.url ?? "";
-        const m = url.match(/(?:v=|youtu\.be\/|embed\/)([A-Za-z0-9_-]{11})/);
-        setIntroVideoId(m?.[1] ?? null);
-      });
-    return () => { cancelled = true; };
-  }, [target]);
-
-  const totalSteps = 4;
+  const totalSteps = 3;
 
   const canContinue = useMemo(() => {
-    if (step === 0) return !!native && !!target && native !== target && !!level;
+    if (step === 0) return !!native && !!target && native !== target;
     if (step === 1) return interests.length === 1;
-    if (step === 2) return goalSaved;
-    if (step === 3) return dualClicked;
     return true;
-  }, [step, native, target, level, goalSaved, dualClicked, interests]);
+  }, [step, native, target, interests]);
 
-  const toggleInterest = (id: string) => {
-    setInterests([id]);
-  };
+  const rememberGuest = () =>
+    rememberGuestOnboarding({ native, target, level, mode, school: "", wordGoal, goal: "", interests, showOnLeaderboard: true });
 
   // Saving runs in the background so the screen never sits frozen on a slow
   // network; `saving` only locks the button against double taps.
   const next = async () => {
     if (saving) return;
-    if (step === 0 && target) {
+    if (step === 0) {
       try { localStorage.setItem(PENDING_LANGUAGE_KEY, target); } catch { /* ignore */ }
-    }
-    if (step === 0 && user) {
-      const isTotalBeginner = level === "beginner";
-      const storedLevel = isTotalBeginner ? "a1" : (level as string);
-      setLearningLanguage(target);
-      const snapshot = { native, target, school, wordGoal, mode, level };
-      track("onboarding_step_completed", { step });
-      setStep((s) => s + 1);
-      void (async () => {
-        const { error } = await supabase.from("profiles").update({
-          native_language: snapshot.native,
-          learning_language: snapshot.target,
-          cef_level: storedLevel,
-          school: snapshot.school.trim() || null,
-          daily_word_goal: snapshot.wordGoal,
-          daily_video_goal: videoGoalForWords(snapshot.wordGoal),
-        } as any).eq("user_id", user.id);
-        if (error) toast.error(t("saveFailed"));
-        if (snapshot.level) {
+      if (user) {
+        const isTotalBeginner = level === "beginner";
+        const storedLevel = isTotalBeginner ? "a1" : level;
+        setLearningLanguage(target);
+        void (async () => {
+          const { error } = await supabase.from("profiles").update({
+            native_language: native,
+            learning_language: target,
+            cef_level: storedLevel,
+            daily_word_goal: wordGoal,
+            daily_video_goal: videoGoalForWords(wordGoal),
+          } as any).eq("user_id", user.id);
+          if (error) toast.error(t("saveFailed"));
           try {
-            await addLanguageProfile({
-              userId: user.id,
-              language: snapshot.target,
-              mode: snapshot.mode,
-              level: storedLevel,
-              totalBeginner: isTotalBeginner,
-            });
+            await addLanguageProfile({ userId: user.id, language: target, mode, level: storedLevel, totalBeginner: isTotalBeginner });
           } catch { /* seeding retried from Profile; never block onboarding */ }
-        }
-      })();
-      return;
+        })();
+      }
     }
     if (step === 1 && user) {
       void supabase.from("profiles").update({ interests } as any).eq("user_id", user.id);
@@ -200,56 +131,42 @@ const Onboarding = () => {
     if (step < totalSteps - 1) {
       track("onboarding_step_completed", { step });
       setStep((s) => s + 1);
-    } else {
-      setSaving(true);
-      if (user) {
-        await supabase.from("profiles").update({
-          onboarded: true,
-          learning_goal: goal || null,
-          interests,
-        } as any).eq("user_id", user.id);
-        trackAll("signup", { interest: String(interests?.[0] ?? "none"), goal: String(goal || "none") });
-        track("onboarding_completed", { interest: String(interests?.[0] ?? "none"), interests_count: interests?.length ?? 0, goal: String(goal || "none") });
-        setPerson({ interest: String(interests?.[0] ?? "none"), goal: String(goal || "none") });
-      } else {
-        rememberGuest();
-        track("onboarding_completed", { guest: true, interest: String(interests?.[0] ?? "none"), goal: String(goal || "none") });
-      }
-      try { localStorage.removeItem(ONBOARDING_KEY); } catch { /* ignore */ }
-      playDing("success");
-      setSaving(false);
-      navigate("/discover");
+      return;
     }
+    await finish();
   };
 
-  // A guest who finishes keeps their answers on the device; they are copied
-  // to the profile at sign-in so they are never onboarded twice.
-  const rememberGuest = () =>
-    rememberGuestOnboarding({ native, target, level, mode, school, wordGoal, goal, interests, showOnLeaderboard });
+  const finish = async (to = "/discover") => {
+    setSaving(true);
+    const interest = String(interests?.[0] ?? "none");
+    if (user) {
+      await supabase.from("profiles").update({ onboarded: true, interests } as any).eq("user_id", user.id);
+      trackAll("signup", { interest, goal: "none" });
+      track("onboarding_completed", { interest, interests_count: interests.length });
+      setPerson({ interest });
+    } else {
+      rememberGuest();
+      track("onboarding_completed", { guest: true, interest });
+    }
+    try { localStorage.removeItem(ONBOARDING_KEY); } catch { /* ignore */ }
+    playDing("success");
+    setSaving(false);
+    navigate(to);
+  };
+
+  const addToChrome = () => {
+    track("extension_install_clicked", { from: "onboarding" });
+    window.open(CHROME_STORE_URL, "_blank", "noopener,noreferrer");
+    void finish();
+  };
 
   const back = () => setStep((s) => Math.max(0, s - 1));
-
-  const saveGoal = async () => {
-    if (!goal.trim()) return;
-    if (user) {
-      await supabase.from("profiles").update({
-        learning_goal: goal.trim(),
-        show_on_global_leaderboard: showOnLeaderboard,
-        discoverable_by_search: showOnLeaderboard,
-      } as any).eq("user_id", user.id);
-    }
-    setGoalSaved(true);
-    playDing("success");
-    toast.success("Goal saved");
-  };
 
   return (
     <div className="min-h-screen bg-[#0b1215] text-white antialiased">
       <header className="sticky top-0 z-50 bg-[#0b1215]/90 backdrop-blur-xl border-b border-white/5">
         <div className="max-w-2xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3"><BrandMark size={28} /><UiLanguageSwitcher /></div>
-          {/* Dot pager, not a segmented bar — same idiom as the app's own
-              mobile intro tour (mobile/app/tour.tsx). */}
           <div className="flex items-center gap-2">
             {Array.from({ length: totalSteps }).map((_, i) => (
               <div
@@ -263,7 +180,7 @@ const Onboarding = () => {
         </div>
       </header>
 
-      <main className="max-w-2xl mx-auto px-6 py-10 sm:py-16">
+      <main className="max-w-2xl mx-auto px-6 pt-10 pb-28 sm:pt-16">
         <AnimatePresence mode="wait">
           <motion.div
             key={step}
@@ -274,88 +191,42 @@ const Onboarding = () => {
           >
             {step === 0 && (
               <Card>
-                <Title>{t("obTitle")}</Title>
-                <Sub>{t("obSub")}</Sub>
+                <Title>What do you want to learn?</Title>
 
                 <div className="mt-8 space-y-6">
-                  {/* Neither list excludes the other language: a French speaker must be
-                      able to pick French as their native tongue even while French is
-                      still the default learning language. Picking the same language on
-                      both sides simply clears the other side. */}
+                  <LearningLanguageSelect
+                    value={target}
+                    onChange={(v) => {
+                      setTarget(v);
+                      if (v === native) setNative("");
+                    }}
+                  />
+
+                  <div className="grid grid-cols-2 gap-2">
+                    {([["beginner", "🌱 Starting from zero"], ["A2", "🌿 I know a bit"]] as const).map(([l, label]) => (
+                      <button
+                        key={l}
+                        type="button"
+                        onClick={() => setLevel(l)}
+                        className={`rounded-xl border px-3 h-11 text-sm font-medium transition ${
+                          level === l
+                            ? "bg-[#34C759]/15 border-[#34C759] text-white"
+                            : "bg-white/[0.02] border-white/10 text-white/75 hover:border-[#34C759]/60"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+
                   <Field label={t("iSpeak")}>
                     <LangSelect
                       value={native}
                       onChange={(v) => {
                         setNative(v);
-                        setLang(v);
                         if (v === target) setTarget("");
                       }}
                     />
-                  </Field>
-                  <Field label={t("iLearn")}>
-                    <LearningLanguageSelect
-                      value={target}
-                      onChange={(v) => {
-                        setTarget(v);
-                        if (v === native) setNative("");
-                      }}
-                    />
-                  </Field>
-
-                  <Field label={t("howLearn")}>
-                    <div className="grid gap-2">
-                      {(Object.keys(MODE_META) as LearningMode[]).map((m) => (
-                        <button
-                          key={m}
-                          type="button"
-                          onClick={() => setMode(m)}
-                          className={`text-left rounded-2xl border p-4 transition ${
-                            mode === m
-                              ? "bg-[#34C759]/10 border-[#34C759]"
-                              : "bg-white/[0.02] border-white/10 hover:border-[#34C759]/60"
-                          }`}
-                        >
-                          <p className="text-sm font-medium text-white">
-                            {MODE_META[m].emoji} {MODE_META[m].label}
-                          </p>
-                          <p className="mt-1 text-xs text-white/60 leading-relaxed">{MODE_META[m].blurb}</p>
-                        </button>
-                      ))}
-                    </div>
-                  </Field>
-
-                  <Field label={t("myLevel")}>
-                    <div className="flex flex-wrap gap-2">
-                      {LEVELS.map((l) => (
-                        <button
-                          key={l}
-                          onClick={() => setLevel(l)}
-                          className={`px-4 py-2 rounded-full text-sm font-medium border transition ${
-                            level === l
-                              ? "bg-[#34C759] border-[#34C759] text-white shadow-[0_6px_18px_-6px_rgba(52,199,89,0.6)]"
-                              : "bg-white/[0.02] border-white/10 text-white/75 hover:border-[#34C759]/60"
-                          }`}
-                        >
-                          {l === "beginner" ? t("totalBeginner") : l}
-                        </button>
-                      ))}
-                    </div>
-                  </Field>
-
-                  <Field label={t("schoolOptional")}>
-                    <Input
-                      value={school}
-                      onChange={(e) => setSchool(e.target.value)}
-                      placeholder="e.g. Truro College"
-                      className="rounded-xl border-white/10 bg-white/[0.02] h-11 focus-visible:ring-[#34C759] text-white"
-                    />
-                    <p className="mt-2 text-xs text-white/50">
-                      Add your school or college so we can connect you with classmates later. Skip if you're learning solo.
-                    </p>
-                  </Field>
-
-                  <Field label="Daily input goal">
-                    <DailyGoalPicker value={wordGoal} onChange={setWordGoal} compact />
                   </Field>
                 </div>
               </Card>
@@ -363,10 +234,8 @@ const Onboarding = () => {
 
             {step === 1 && (
               <Card>
-                <Title>What do you enjoy watching?</Title>
-                <Sub>
-                  Choose your favourite hobby.
-                </Sub>
+                <Title>What do you love watching?</Title>
+                <Sub>We'll find videos about it.</Sub>
 
                 <div className="mt-8 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                   {INTERESTS.map((interest) => {
@@ -377,7 +246,7 @@ const Onboarding = () => {
                         type="button"
                         variant="outline"
                         aria-pressed={active}
-                        onClick={() => toggleInterest(interest.id)}
+                        onClick={() => setInterests([interest.id])}
                         className={`relative rounded-2xl border p-4 flex flex-col items-center justify-center gap-2 transition text-center min-h-[104px] ${
                           active
                             ? "bg-[#34C759] border-[#34C759] text-white shadow-[0_10px_24px_-10px_rgba(52,199,89,0.7)] scale-[1.02]"
@@ -395,173 +264,48 @@ const Onboarding = () => {
                     );
                   })}
                 </div>
-
-                <p className="mt-6 text-xs text-white/50">
-                  {interests.length === 0
-                    ? "Choose one to continue."
-                    : "1 hobby selected."}
-                </p>
               </Card>
             )}
 
             {step === 2 && (
-              <Card>
-                <Title>What's your goal?</Title>
-                <Sub>Learners who write down a clear goal before starting are 95% more likely to reach it.</Sub>
+              <HeroCard emoji="🦎" title="How it works">
+                <ol className="mt-8 space-y-3 text-left max-w-sm mx-auto">
+                  {[
+                    ["🎬", "Watch YouTube or Netflix"],
+                    ["👆", "Tap any word you don't know"],
+                    ["🃏", "It's saved as a flashcard"],
+                  ].map(([emoji, text]) => (
+                    <li key={text} className="flex items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.02] px-5 py-4">
+                      <span className="text-2xl leading-none">{emoji}</span>
+                      <span className="text-[15px] font-medium text-white">{text}</span>
+                    </li>
+                  ))}
+                </ol>
 
-                <div className="mt-6">
-                  <Textarea
-                    value={goal}
-                    onChange={(e) => { setGoal(e.target.value); setGoalSaved(false); }}
-                    placeholder="e.g. Hold a 10-minute conversation in French by summer."
-                    className="min-h-[110px] rounded-2xl border-white/10 focus-visible:ring-[#34C759] bg-white/[0.02] text-white"
-                  />
-                  <div className="mt-3 flex items-center gap-3">
-                    <Button
-                      onClick={saveGoal}
-                      disabled={!goal.trim() || goalSaved}
-                      className="rounded-full bg-[#34C759] hover:bg-[#2CB350] text-white"
-                    >
-                      {goalSaved ? <><Check className="w-4 h-4" /> Saved</> : "Save goal"}
-                    </Button>
-                    {goalSaved && (
-                      <motion.span
-                        initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}
-                        className="text-sm text-[#34C759] font-medium"
-                      >
-                        Nice — let's go ✨
-                      </motion.span>
-                    )}
-                  </div>
+                <div className="mt-8 flex flex-col items-center gap-3">
+                  <Button
+                    onClick={addToChrome}
+                    disabled={saving}
+                    className="h-12 px-8 rounded-full bg-[#34C759] hover:bg-[#2CB350] text-white font-bold shadow-[0_8px_24px_-8px_rgba(52,199,89,0.6)] gap-2"
+                  >
+                    Add to Chrome — free
+                    <ArrowRight className="w-4 h-4" />
+                  </Button>
+                  <button
+                    type="button"
+                    onClick={() => finish()}
+                    disabled={saving}
+                    className="text-sm text-white/60 hover:text-white underline-offset-4 hover:underline"
+                  >
+                    {saving ? t("saving") : "Skip — start on the website"}
+                  </button>
                 </div>
-
-                <div className="mt-8 rounded-2xl border border-white/10 bg-white/[0.02] p-5">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Trophy className="w-4 h-4 text-[#34C759]" />
-                    <span className="text-sm font-semibold text-white">Join the leaderboard</span>
-                  </div>
-                  <label className="flex items-start gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={showOnLeaderboard}
-                      onChange={(e) => setShowOnLeaderboard(e.target.checked)}
-                      className="mt-1 w-4 h-4 accent-[#34C759]"
-                    />
-                    <span className="text-sm text-white/75 leading-relaxed">
-                      Appear on the public LinguaScript leaderboard.<br />
-                      <span className="text-xs text-white/50">Compete, earn XP, build streaks. Change this anytime in Settings.</span>
-                    </span>
-                  </label>
-                </div>
-              </Card>
-            )}
-
-            {step === 3 && (
-              <HeroCard
-                emoji="🦎"
-                title="Now learn by doing."
-                body="Watch a real video, tap any word you don't know, and watch it get saved instantly. That's the whole app — see it for yourself."
-              >
-                {(() => {
-                  const trainingYtId = introVideoId;
-                  const enterDemo = async () => {
-                    if (enteringDemo) return;
-                    setEnteringDemo(true);
-                    let film: { id: string } | null = null;
-                    if (trainingYtId) {
-                      const { data } = await supabase
-                        .from("films")
-                        .select("id")
-                        .or(`url.ilike.%${trainingYtId}%`)
-                        .limit(1)
-                        .maybeSingle();
-                      film = (data as any) ?? null;
-                    }
-                    if (!film?.id) {
-                      const { data: anyFilm } = await supabase
-                        .from("films")
-                        .select("id")
-                        .eq("language", target)
-                        .eq("is_public", true)
-                        .limit(1)
-                        .maybeSingle();
-                      film = anyFilm ?? null;
-                    }
-                    if (!film?.id) {
-                      // Last resort: any public film at all, so the demo never dead-ends.
-                      const { data: anyPublic } = await supabase
-                        .from("films")
-                        .select("id")
-                        .eq("is_public", true)
-                        .limit(1)
-                        .maybeSingle();
-                      film = anyPublic ?? null;
-                    }
-                    if (!film?.id) {
-                      toast.message("The demo couldn't load right now — let's get you started instead.");
-                      if (user) {
-                        await supabase.from("profiles").update({ onboarded: true }).eq("user_id", user.id);
-                      } else {
-                        rememberGuest();
-                      }
-                      setEnteringDemo(false);
-                      navigate("/discover");
-                      return;
-                    }
-                    if (user) {
-                      await supabase.from("profiles").update({ onboarded: true }).eq("user_id", user.id);
-                    } else {
-                      rememberGuest();
-                    }
-                    setDualClicked(true);
-                    startTour({ trainingFilmId: film.id });
-                    navigate(`/watch/${film.id}`);
-                  };
-                  return (
-                    <>
-                      {trainingYtId ? (
-                      <div
-                        role="button"
-                        tabIndex={0}
-                        onClick={enterDemo}
-                        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") enterDemo(); }}
-                        className="mt-8 relative rounded-3xl overflow-hidden border border-white/10 aspect-video bg-neutral-900 shadow-[0_24px_60px_-30px_rgba(52,199,89,0.4)] cursor-pointer group"
-                      >
-                        <iframe
-                          title="Linguascript intro"
-                          src={`https://www.youtube-nocookie.com/embed/${trainingYtId}?autoplay=1&mute=1&playsinline=1&modestbranding=1&rel=0&controls=0&disablekb=1&loop=1&playlist=${trainingYtId}`}
-                          allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
-                          className="w-full h-full pointer-events-none"
-                          frameBorder={0}
-                        />
-                        <div className="absolute inset-0 bg-transparent group-hover:bg-black/10 transition-colors" aria-hidden />
-                      </div>
-                      ) : (
-                        <div className="mt-8 rounded-3xl border border-white/10 bg-white/[0.02] p-8 text-center text-sm text-white/60">
-                          We don't have an intro clip in {getLanguageLabel(target)} yet — jump straight into the guided demo below.
-                        </div>
-                      )}
-
-                      <div className="mt-6 flex flex-col items-center gap-3">
-                        <Button
-                          onClick={enterDemo}
-                          disabled={enteringDemo}
-                          className="h-12 px-8 rounded-full bg-[#34C759] hover:bg-[#2CB350] text-white font-medium shadow-[0_8px_24px_-8px_rgba(52,199,89,0.6)] gap-2"
-                        >
-                          {enteringDemo ? "Loading…" : "Enter the demo"}
-                          <ArrowRight className="w-4 h-4" />
-                        </Button>
-                        <p className="text-xs text-white/50">A guided cursor will walk you through every feature.</p>
-                      </div>
-                    </>
-                  );
-                })()}
               </HeroCard>
             )}
           </motion.div>
         </AnimatePresence>
 
-        {/* Nav controls */}
+        {/* Nav controls — the last screen has its own two buttons. */}
         <div className="mt-10 flex items-center justify-between">
           <Button
             variant="ghost"
@@ -572,14 +316,16 @@ const Onboarding = () => {
             <ArrowLeft className="w-4 h-4" />
             {t("back")}
           </Button>
-          <Button
-            onClick={next}
-            disabled={!canContinue || saving}
-            className="h-12 px-7 rounded-2xl bg-[#34C759] hover:bg-[#2CB350] text-white font-bold shadow-[0_8px_24px_-8px_rgba(52,199,89,0.5)] gap-2 disabled:opacity-40"
-          >
-            {saving ? t("saving") : step === totalSteps - 1 ? t("startLearning") : t("next")}
-            <ArrowRight className="w-4 h-4" />
-          </Button>
+          {step < totalSteps - 1 && (
+            <Button
+              onClick={next}
+              disabled={!canContinue || saving}
+              className="h-12 px-7 rounded-2xl bg-[#34C759] hover:bg-[#2CB350] text-white font-bold shadow-[0_8px_24px_-8px_rgba(52,199,89,0.5)] gap-2 disabled:opacity-40"
+            >
+              {t("next")}
+              <ArrowRight className="w-4 h-4" />
+            </Button>
+          )}
         </div>
       </main>
     </div>
@@ -598,13 +344,13 @@ const Card = ({ children }: { children: React.ReactNode }) => (
 // and keeps the card layout; this is the one step that's pure "look at this."
 const HeroCard = ({
   emoji, title, body, children,
-}: { emoji: string; title: string; body: string; children?: React.ReactNode }) => (
+}: { emoji: string; title: string; body?: string; children?: React.ReactNode }) => (
   <div className="rounded-3xl bg-white/[0.015] border border-white/10 p-8 sm:p-12 text-center">
     <div className="text-7xl sm:text-8xl leading-none mb-6">{emoji}</div>
     <h1 className="text-[28px] sm:text-[36px] font-extrabold tracking-[-0.02em] leading-[1.1] text-white">
       {title}
     </h1>
-    <p className="mt-3 text-[15px] sm:text-base text-white/60 leading-relaxed max-w-md mx-auto">{body}</p>
+    {body && <p className="mt-3 text-[15px] sm:text-base text-white/60 leading-relaxed max-w-md mx-auto">{body}</p>}
     {children}
   </div>
 );

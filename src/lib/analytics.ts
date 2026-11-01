@@ -39,6 +39,7 @@ export type AnalyticsEvent =
   | "checkout_started"
   | "upgrade_completed"
   | "extension_connected"
+  | "extension_install_clicked"
   | "write_checked"
   | "speak_finished"
   | "studio_video_made"

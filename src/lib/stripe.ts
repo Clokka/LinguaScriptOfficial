@@ -1,4 +1,8 @@
-import { loadStripe, Stripe } from "@stripe/stripe-js";
+// "/pure": the plain import injects js.stripe.com on EVERY page as a side
+// effect (this file is pulled in app-wide by useSubscription). Pure loads it
+// only when checkout actually calls getStripe().
+import { loadStripe } from "@stripe/stripe-js/pure";
+import type { Stripe } from "@stripe/stripe-js";
 
 type StripeEnv = "sandbox" | "live";
 

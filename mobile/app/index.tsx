@@ -252,10 +252,10 @@ export default function AppScreen() {
             }
           } catch (_) {}
         }}
-        renderLoading={() => (
-          <View style={styles.loading}><Text style={styles.brand}>🦎 LinguaScript</Text></View>
-        )}
-        startInLoadingState
+        // No native cover screen: it stayed up until EVERY file on the page had
+        // downloaded (the load event), so slow networks saw a frozen
+        // "🦎 LinguaScript" for seconds. The site paints its own logo shell
+        // (index.html) on the dark WebView background as soon as HTML arrives.
         // User agent hint so the site knows it's inside the app
         applicationNameForUserAgent="LinguaScriptApp/1.0"
       />
