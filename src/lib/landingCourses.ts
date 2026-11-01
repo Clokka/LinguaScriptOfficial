@@ -5,13 +5,24 @@ import type { LearnLang } from "@/lib/landingSegment";
  * onboarding when someone picks "absolute beginner", not on the landing page).
  * Every link was checked (Oct 2026). We recommend them; we are not partners,
  * so copy must never say "in partnership with" until a partner agrees.
+ *
+ * Affiliate links: put the tracking link in `affiliateUrl` ONLY after joining
+ * that course's affiliate programme. The UI then uses it and shows "we may earn
+ * a commission" next to it (UK ASA/CAP rules: affiliate links must be
+ * labelled). Only recommend courses we would recommend without the money.
  */
 export interface Course {
   name: string;
   by: string;
   url: string;
   note: string; // level + format, plain
+  /** Tracking link from the course's affiliate programme, once we have one. */
+  affiliateUrl?: string;
 }
+
+/** The link to open: the affiliate link when we have one. */
+export const courseHref = (c: Course) => c.affiliateUrl || c.url;
+export const isAffiliate = (c: Course) => Boolean(c.affiliateUrl);
 
 const COFFEE_BREAK: Course = {
   name: "Coffee Break",

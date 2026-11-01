@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { Seo } from "@/components/Seo";
 import { MarketingLayout, H2 } from "@/components/marketing/MarketingLayout";
 import { COVERAGE } from "@/lib/coverage";
+import { ZIPF_WORDS_FOR } from "@/lib/speedRun";
 
 /**
  * Why LinguaScript teaches the most frequent words first (Zipf's law), with
@@ -9,13 +10,14 @@ import { COVERAGE } from "@/lib/coverage";
  * Oxford English Corpus (top 100 words = 50%); it reproduces the corpus's own
  * measurements (top 10 ≈ 25%, 7,000 ≈ 90%). Films / TV figures are measured
  * (Webb & Rodgers 2009, Nation 2006). Keep the sources list below in sync.
+ * The 10–50% word counts live in src/lib/speedRun.ts (Speed Run uses them too).
  */
 const ROWS: { pct: number; words: string; note: string }[] = [
-  { pct: 10, words: "2", note: "“the” and “be” — about 1 word in every 10 you hear or read" },
-  { pct: 20, words: "4", note: "the, be, to, of" },
-  { pct: 30, words: "13", note: "the top 10 words alone are ~25% of English (measured)" },
-  { pct: 40, words: "36", note: "little words that glue every sentence together" },
-  { pct: 50, words: "100", note: "measured: the top 100 words are half of all English" },
+  { pct: 10, words: String(ZIPF_WORDS_FOR[10]), note: "“the” and “be” — about 1 word in every 10 you hear or read" },
+  { pct: 20, words: String(ZIPF_WORDS_FOR[20]), note: "the, be, to, of" },
+  { pct: 30, words: String(ZIPF_WORDS_FOR[30]), note: "the top 10 words alone are ~25% of English (measured)" },
+  { pct: 40, words: String(ZIPF_WORDS_FOR[40]), note: "little words that glue every sentence together" },
+  { pct: 50, words: String(ZIPF_WORDS_FOR[50]), note: "measured: the top 100 words are half of all English" },
   { pct: 60, words: "~300", note: "everyday verbs and nouns arrive: go, know, time, people" },
   { pct: 70, words: "~800", note: "simple conversations start to make sense" },
   { pct: 80, words: "~1,000–2,300", note: "~1,000 word families in films & TV; ~2,300 words in written text" },
@@ -108,6 +110,11 @@ export default function FrequentWords() {
         <p>
           LinguaScript measures this for every video against <em>your</em> words, and recommends
           videos you'll understand at {COVERAGE.MIN}% or more.
+        </p>
+
+        <p>
+          Want to start now? The <Link to="/speed-run" className="text-primary underline">Speed Run</Link> teaches
+          these words in order: 2 words, then 4, 13, 36 and 100.
         </p>
 
         <H2>How LinguaScript teaches you the frequent words</H2>

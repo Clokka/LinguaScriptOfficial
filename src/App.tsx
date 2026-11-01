@@ -56,6 +56,7 @@ const Studio = lazy(() => import("./pages/Studio"));
 const ConnectAI = lazy(() => import("./pages/ConnectAI"));
 const PhoneOverlay = lazy(() => import("./pages/PhoneOverlay"));
 const FrequentWords = lazy(() => import("./pages/FrequentWords"));
+const SpeedRun = lazy(() => import("./pages/SpeedRun"));
 const LandingPage2 = lazy(() => import("./pages/LandingPage2"));
 const LandingPage3 = lazy(() => import("./pages/LandingPage3"));
 const LandingPage4 = lazy(() => import("./pages/LandingPage4"));
@@ -158,6 +159,7 @@ const App = () => (
                 <Route path="/flashcards" element={<Flashcards />} />
                 <Route path="/flashcards/starter/:slug" element={<StarterDeck />} />
                 <Route path="/flashcards/common" element={<CommonWordsDeck />} />
+                <Route path="/speed-run" element={<SpeedRun />} />
                 <Route path="/vocabulary" element={<Vocabulary />} />
                 <Route path="/write" element={<Write />} />
                 <Route path="/speak" element={<Speak />} />

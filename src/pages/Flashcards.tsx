@@ -427,6 +427,19 @@ const Flashcards = () => {
               </div>
             </section>
 
+            {/* Speed Run: frequency courses, 2 words = 1 in 10 you hear */}
+            <button
+              onClick={() => navigate("/speed-run")}
+              className="w-full glass-panel-strong rounded-2xl p-5 flex items-center gap-4 text-left hover:border-primary/40 transition-colors"
+            >
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/10 text-2xl" aria-hidden>⚡</span>
+              <div className="flex-1">
+                <p className="font-bold text-foreground">Speed Run</p>
+                <p className="text-sm text-muted-foreground">2 words = 1 in every 10 you'll hear. Start here.</p>
+              </div>
+              <ChevronRight className="w-5 h-5 text-muted-foreground" />
+            </button>
+
             {/* Most common words deck */}
             <button
               onClick={() => navigate("/flashcards/common")}
