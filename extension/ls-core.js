@@ -1312,6 +1312,29 @@
     setTimeout(() => anchor.remove(), 0);
     return true;
   }
+  // Right-click → "Add to LinguaScript flashcards": save straight to the red
+  // deck (the background looks up the meaning), with a toast — no card first.
+  async function saveSelectionNow(text) {
+    const info = selectionInfo();
+    const word = String(text || info?.text || '').replace(/\s+/g, ' ').trim().split(' ').slice(0, 6).join(' ');
+    if (!word) return false;
+    if (!document.getElementById('ls-styles')) injectStyles();
+    langsReady = langsReady || loadLangs().catch(() => {});
+    await langsReady;
+    const res = await new Promise((r) => {
+      try { chrome.runtime.sendMessage({ type: 'SAVE_WORD', word, context: info?.ctx || word, language: learningLang }, (x) => r(chrome.runtime.lastError ? null : x)); }
+      catch { r(null); }
+    });
+    if (res?.ok) {
+      Deck.markSaved(word); playDing();
+      showToast(res.already ? '✓ Already in your flashcards' : `🔴 Saved “${word}” to your flashcards`);
+    } else if (res?.error === 'not_your_language' || res?.error === 'wrong_language') {
+      showToast('That isn’t your learning language');
+    } else {
+      showToast(res?.error && /log/i.test(res.error) ? 'Log in to LinguaScript first (click the 🦎 icon)' : 'Couldn’t save — try again');
+    }
+    return !!res?.ok;
+  }
   function hideSelBtn() { selBtn?.remove(); selBtn = null; }
   document.addEventListener('mouseup', (e) => {
     if (e.target?.closest?.('#ls-sel-btn')) return;
@@ -1342,6 +1365,6 @@
     stopWordsRefresh: () => Deck.stopAutoRefresh(),
     Rings, showToast, openCard, closeCard, makeWordSpan, makeWordSpansFor, splitWords, playDing, escapeHtml,
     SubtitleShield, LiveCaptions, SpeedKeeper, watchLayout, requestCaptions, setStatus, buildOverlay, layerHost, buildPanelShell, togglePanel, buildControls, attachKeyboardShortcuts,
-    injectStyles, openSelectionCard,
+    injectStyles, openSelectionCard, saveSelectionNow,
   };
 })();
