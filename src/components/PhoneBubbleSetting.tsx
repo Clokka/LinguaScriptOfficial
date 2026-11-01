@@ -144,8 +144,17 @@ export function PhoneBubbleSetting() {
         </p>
         <Button size="sm" variant="outline" onClick={() => { toApp({ type: "widget" }); track("phone_widget_requested"); }}>Add</Button>
       </div>
+      {/* 🦎 Quick settings tile: swipe down → LinguaScript → the bubble (LinguaTileService.kt). */}
+      <div className="flex items-center gap-3 border-t border-border pt-3">
+        <span className="text-2xl" aria-hidden>⬇️</span>
+        <p className="flex-1">
+          <span className="block font-semibold">LinguaScript in quick settings</span>
+          <span className="block text-sm text-muted-foreground">Swipe down from the top of your phone and tap LinguaScript to show the 🦎 bubble.</span>
+        </p>
+        <Button size="sm" variant="outline" onClick={() => { toApp({ type: "tile" }); track("phone_tile_requested"); }}>Add</Button>
+      </div>
       <p className="text-xs text-muted-foreground border-t border-border pt-3">
-        Tip: swipe down from the top of your phone, tap ✏️ (edit) and drag the <b>LinguaScript</b> tile next to the torch — one tap turns the 🦎 bubble on or off. To hide the bubble, drag it onto the ✕ at the bottom.
+        No Add box? Swipe down twice, tap ✏️ (edit) and drag the <b>LinguaScript</b> tile next to the torch. To hide the bubble, drag it onto the ✕ at the bottom.
         <br />Highlight a word in any app → <b>Save to LinguaScript</b>. On Samsung, tap <b>Manage apps</b> in that menu once and switch LinguaScript on.
       </p>
     </section>

@@ -9,6 +9,9 @@ package __PACKAGE__
 //                                                 starts the bubble first if it's off
 //   linguascriptbubble://gold?on=1|0            → gold word on the lock screen (GoldWords.kt)
 //   linguascriptbubble://widget                 → "add the widget to your home screen?"
+//   linguascriptbubble://tile                   → Android's "Add LinguaScript to quick settings?"
+//                                                 (Android 13+); older phones get a how-to toast.
+//                                                 Also asked once, the first time the bubble starts.
 //   linguascriptbubble://subtitles?on=1|0       → tap subtitle words in YouTube (SubtitleTapService);
 //                                                 asks for "display over other apps", then the
 //                                                 one-time "share your screen?" yes
@@ -20,6 +23,9 @@ package __PACKAGE__
 
 import android.Manifest
 import android.app.Activity
+import android.app.StatusBarManager
+import android.content.ComponentName
+import android.graphics.drawable.Icon
 import android.content.pm.PackageManager
 import android.content.Intent
 import android.media.projection.MediaProjectionConfig
@@ -76,6 +82,7 @@ class BubbleStartActivity : Activity() {
         stopService(Intent(this, SubtitleTapService::class.java))
         finish()
       }
+      "tile" -> askAddTile(always = true)
       "stop" -> { stopService(Intent(this, BubbleService::class.java)); prefs.edit().putBoolean("on", false).apply(); finish() }
       else -> finish()
     }
@@ -110,7 +117,33 @@ class BubbleStartActivity : Activity() {
       .putExtra(BubbleService.EXTRA_READ_NOW, readNow)
     if (Build.VERSION.SDK_INT >= 26) startForegroundService(i) else startService(i)
     prefs.edit().putBoolean("on", true).apply()
-    finish()
+    // First time: offer the LinguaScript tile in the swipe-down panel, so next time it's one tap.
+    if (!prefs.getBoolean("tile_asked", false)) askAddTile(always = false) else finish()
+  }
+
+  /** "Add LinguaScript to quick settings?" — Android's own box (13+). Taps the tile = 🦎 bubble on/off. */
+  private fun askAddTile(always: Boolean) {
+    prefs.edit().putBoolean("tile_asked", true).apply()
+    val howTo = "Swipe down twice → tap ✏️ (edit) → drag LinguaScript into your tiles"
+    if (Build.VERSION.SDK_INT < 33) {
+      if (always) Toast.makeText(this, howTo, Toast.LENGTH_LONG).show()
+      finish(); return
+    }
+    val icon = resources.getIdentifier("ls_tile", "drawable", packageName)
+    val ok = runCatching {
+      getSystemService(StatusBarManager::class.java).requestAddTileService(
+        ComponentName(this, LinguaTileService::class.java),
+        "LinguaScript",
+        Icon.createWithResource(this, if (icon != 0) icon else applicationInfo.icon),
+        mainExecutor,
+      ) { result ->
+        if (result == StatusBarManager.TILE_ADD_REQUEST_RESULT_TILE_ALREADY_ADDED && always) {
+          Toast.makeText(this, "LinguaScript is already in your quick settings — swipe down to find it", Toast.LENGTH_LONG).show()
+        }
+        finish()
+      }
+    }.isSuccess
+    if (!ok) { if (always) Toast.makeText(this, howTo, Toast.LENGTH_LONG).show(); finish() }
   }
 
   private fun gold(on: Boolean) {

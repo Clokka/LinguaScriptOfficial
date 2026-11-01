@@ -39,6 +39,8 @@ export type SiteToAppMessage =
   | { type: "subtitles"; on: boolean }
   /** Gold review word on the lock screen on/off (Android). */
   | { type: "gold"; on: boolean }
+  /** Ask Android to add the LinguaScript tile (🦎 bubble on/off) to the swipe-down quick settings. */
+  | { type: "tile" }
   /** Ask Android to pin the LinguaScript widget to the home screen. */
   | { type: "widget" }
   /** Sent by the app's injected script with the site's login, so the app can register for push. */
