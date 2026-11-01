@@ -43,6 +43,7 @@ import {
 // each route into its own lazy chunk means a page only pays for its own code.
 import { FunnelTracker } from "./components/FunnelTracker";
 import { AppInbox } from "./components/AppInbox";
+import { SelectionSave } from "./components/SelectionSave";
 import { OverlayPermissionPrompt } from "./components/OverlayPermissionPrompt";
 import { CookieConsent } from "./components/CookieConsent";
 import Cookies from "./pages/Cookies";
@@ -133,6 +134,7 @@ const App = () => (
             <I18nProvider><TourProvider>
               <FunnelTracker />
               <AppInbox />
+              <SelectionSave />
               <OverlayPermissionPrompt />
               <CookieConsent />
               <Suspense fallback={<RouteFallback />}>

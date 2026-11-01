@@ -95,7 +95,7 @@ object GoldWords {
       .setVisibility(Notification.VISIBILITY_PUBLIC)
       .setOnlyAlertOnce(true)
       .setShowWhen(false)
-      .setContentIntent(openPage(c, "flashcards", 1))
+      .setContentIntent(openPage(c, "flashcards?deck=gold", 1))
     if (reveal) {
       b.setContentTitle("✨ $word = $meaning")
         .setContentText(if (gold.size > 1) "${gold.size} gold words ready — tap to review them all" else "Tap to review it in LinguaScript")

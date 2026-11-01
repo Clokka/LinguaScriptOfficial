@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Loader2, Sparkles, ChevronRight, RefreshCw } from "lucide-react";
 import { PageLoading } from "@/components/PageLoading";
@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { ScanPageButton } from "@/components/ScanPageButton";
 import { getGuestWords } from "@/lib/guestWords";
-import { DeckState } from "@/lib/vocab";
+import { DeckState, isReviewDue } from "@/lib/vocab";
 import { cn } from "@/lib/utils";
 import { useTour } from "@/contexts/TourContext";
 import { useXp } from "@/contexts/XpContext";
@@ -265,6 +265,31 @@ const Flashcards = () => {
     setReviewCards(tourActive ? cards.slice(0, 1) : cards);
     setActiveDeck(deck);
   };
+
+  // ?deck=red|orange|green opens that deck straight away (the phone widget's
+  // squares); ?deck=gold opens the green words whose review is due (its gold strip).
+  const deckLinkDone = useRef(false);
+  useEffect(() => {
+    if (loading || deckLinkDone.current) return;
+    const params = new URLSearchParams(window.location.search);
+    const deck = params.get("deck");
+    if (!deck) return;
+    deckLinkDone.current = true;
+    params.delete("deck");
+    const rest = params.toString();
+    window.history.replaceState(null, "", window.location.pathname + (rest ? `?${rest}` : ""));
+    if (deck === "red" || deck === "orange" || deck === "green") {
+      if (counts[deck] > 0) openDeck(deck);
+    } else if (deck === "gold") {
+      const due = allCards.filter((c) => isReviewDue(c));
+      if (due.length) {
+        setReviewCards(tourActive ? due.slice(0, 1) : due);
+        setActiveDeck("green");
+      }
+    }
+    // Once, after the cards load; openDeck/counts read the same allCards.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, allCards]);
 
   const phraseCount = allCards.filter((c) => c.is_phrase).length;
 
