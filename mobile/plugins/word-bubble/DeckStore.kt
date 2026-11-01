@@ -94,7 +94,8 @@ object DeckStore {
 
   /** Words in this colour that have a meaning, as (word, meaning). */
   fun withMeaning(colour: String, now: Long = System.currentTimeMillis()): List<Pair<String, String>> =
-    words.keys.filter { colourOf(it, now) == colour }.mapNotNull { k -> meanings[k]?.let { k to it } }.sortedBy { it.first }
+    // Only real words: "95" or "2024" saved by accident never become a card.
+    words.keys.filter { k -> k.any { ch -> ch.isLetter() } && colourOf(k, now) == colour }.mapNotNull { k -> meanings[k]?.let { k to it } }.sortedBy { it.first }
 
   /** A word saved from the bubble shows red straight away (the app saves it later). */
   fun markSaved(raw: String) {
