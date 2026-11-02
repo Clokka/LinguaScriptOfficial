@@ -46,6 +46,8 @@ export type AnalyticsEvent =
   | "phone_gold_enabled"
   | "phone_gold_disabled"
   | "phone_widget_requested"
+  | "phone_subtitles_enabled"
+  | "phone_subtitles_disabled"
   | "phone_colour_enabled"
   | "phone_colour_disabled"
   | "phone_colour_style"
