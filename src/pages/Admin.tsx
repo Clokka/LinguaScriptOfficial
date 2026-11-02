@@ -380,9 +380,10 @@ const Admin = () => {
 
         <h1 className="text-3xl font-bold text-foreground mb-2">Admin Dashboard</h1>
         <p className="text-muted-foreground mb-4">Add films and upload subtitle tracks, or let fetched YouTube captions auto-save here per film.</p>
-        <Button variant="hero" onClick={() => navigate("/partners")} className="mb-8">
-          Partners &amp; Site Studio
-        </Button>
+        <div className="mb-8 flex flex-wrap gap-2">
+          <Button variant="hero" onClick={() => navigate("/hq")}>🏢 LinguaScript HQ: change the website</Button>
+          <Button variant="glass" onClick={() => navigate("/partners")}>Partners</Button>
+        </div>
 
         <AdminBlogEditor />
 

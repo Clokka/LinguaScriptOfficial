@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="robots" content="noindex,nofollow">
+<title>LinguaScript Partner Programme</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: one reading column with a live mock of the partner portal near the top, then audit, roles, plan, data, rules, prompts. Dark brand world. */
+:root{--ink:#08090b;--panel:#111317;--panel2:#181b21;--line:#ffffff17;--fg:#f2f4f3;--mut:#9aa1a8;--green:#34C759;--gold:#FFD60A;--red:#FF453A;--orange:#FF9F0A;--blue:#3fa9ff;
+--sans:'Inter',system-ui,sans-serif;--serif:'Instrument Serif',Georgia,serif;--mono:'JetBrains Mono',ui-monospace,monospace;color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--ink);color:var(--fg);font:15px/1.6 var(--sans);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 70px}
+main{max-width:920px;margin:0 auto;display:grid;gap:34px}
+h1{font-size:clamp(30px,6vw,48px);line-height:1.02;letter-spacing:-.04em;margin:0;text-wrap:balance}
+h1 em,h2 em{font-family:var(--serif);font-weight:400;font-style:italic;color:var(--green)}
+h2{font-size:26px;letter-spacing:-.03em;margin:0;text-wrap:balance}
+h3{font-size:16px;margin:0}
+p,li{color:#cdd2d7;max-width:72ch;margin:0}
+ul,ol{display:grid;gap:6px;padding-left:1.2em;margin:0}
+section{display:grid;gap:14px;min-width:0}
+.eb{font:700 11px var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--gold)}
+.lead{font-size:17px;color:var(--mut)}
+.box{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px 18px;display:grid;gap:10px;min-width:0}
+.verdict{border-left:4px solid var(--green)}
+.warn{border-left:4px solid var(--orange)}
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:12px}
+table{border-collapse:collapse;width:100%;min-width:640px;font-size:13.5px}
+th,td{text-align:left;padding:9px 11px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font:700 10px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--mut);background:var(--panel2)}
+tr:last-child td{border-bottom:0}
+.y{color:var(--green);font-weight:700}.n{color:#5e646b}.p{color:var(--orange);font-weight:700}.bad{color:var(--red);font-weight:700}
+code{font-family:var(--mono);font-size:.88em;color:#e7ffe9}
+.phase{display:grid;grid-template-columns:44px minmax(0,1fr);gap:14px}
+.phase .num{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;font-weight:900;background:var(--panel2);border:1px solid var(--line)}
+pre.prompt{white-space:pre-wrap;background:#06070a;border:1px solid var(--line);border-radius:12px;padding:12px;font:12.5px/1.55 var(--mono);color:#d6dbe0;margin:0;max-height:260px;overflow:auto}
+.btn{border:1px solid var(--line);background:var(--panel2);color:var(--fg);border-radius:10px;padding:6px 12px;font:600 13px var(--sans);cursor:pointer}
+.btn:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+pre.mermaid{background:#fff;border-radius:12px;padding:12px;overflow-x:auto;color:#111;margin:0}
+/* portal mock */
+.mock{border-radius:22px;border:1px solid var(--line);background:#0a0b0e;overflow:hidden}
+.mtop{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.mtop b{font-size:15px}.mtop .who{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:13px;color:var(--mut)}
+.av{width:28px;height:28px;border-radius:50%;background:conic-gradient(#34C759,#FFD60A,#FF9F0A,#34C759);display:grid;place-items:center;font:800 12px var(--sans);color:#000}
+.mnav{display:flex;gap:6px;padding:10px 16px;overflow-x:auto;border-bottom:1px solid var(--line)}
+.mnav span{white-space:nowrap;font-size:12.5px;font-weight:600;padding:6px 11px;border-radius:999px;color:var(--mut);border:1px solid transparent}
+.mnav span.on{background:var(--fg);color:#000}
+.mbody{padding:16px;display:grid;gap:12px}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+@media (max-width:640px){.kpis{grid-template-columns:repeat(2,1fr)}}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px}
+.kpi small{display:block;font:700 9px var(--mono);letter-spacing:.14em;color:var(--mut)}
+.kpi b{font-size:24px;letter-spacing:-.03em}.kpi i{font-style:normal;font-size:12px;color:var(--mut)}
+.funnel{display:grid;gap:6px}
+.fr{display:grid;grid-template-columns:90px minmax(0,1fr) 60px;gap:10px;align-items:center;font-size:13px}
+.fr .bar{height:12px;border-radius:9px;background:#ffffff10;overflow:hidden}.fr .bar i{display:block;height:100%;border-radius:9px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:640px){.two{grid-template-columns:1fr}}
+.src{display:grid;gap:8px}.src div{display:flex;justify-content:space-between;font-size:13px;gap:8px}
+.chip{font:700 10px var(--mono);padding:2px 7px;border-radius:6px;background:#ffffff10}
+.link{display:flex;gap:8px;align-items:center;background:#06070a;border:1px solid var(--line);border-radius:10px;padding:8px 10px;font:12.5px var(--mono);color:#d6dbe0;overflow-x:auto;white-space:nowrap}
+.tag{display:inline-block;font:700 9px var(--mono);letter-spacing:.12em;padding:3px 8px;border-radius:99px;background:#ffd60a22;color:var(--gold)}
+.note{font-size:12.5px;color:var(--mut)}
+</style>
+
+<main>
+<header style="display:grid;gap:12px">
+  <div class="eb">Audit &amp; plan · in-house affiliate programme</div>
+  <h1>LinguaScript Partners: <em>your own affiliate system</em></h1>
+  <p class="lead">Replacing GoAffPro with a partner portal inside LinguaScript: every affiliate and marketer gets a login, sees how their audience converts, and gets paid for the sales they bring. Built from your current code (Stripe checkout, payments webhook, experiments, Admin roles).</p>
+</header>
+
+<section class="box verdict">
+  <h2>My view: yes, do it, with three changes</h2>
+  <ol>
+    <li><b>Give partners a "Partner" login, not an "Admin" login.</b> Same dashboard look, but read-only and limited to <i>their own</i> numbers. An admin account can see learners' emails, payments and settings; one leaked affiliate password must never expose that.</li>
+    <li><b>Show partners totals, never people.</b> "12 sign-ups from TikTok this week", never "Sophie, 14, from Truro". That keeps you inside UK GDPR without a data agreement with every affiliate.</li>
+    <li><b>Start with manual monthly payouts, automate later.</b> Track everything from day one, but pay the first months by bank transfer from a statement. Add Stripe payouts once there are more than a handful of partners.</li>
+  </ol>
+  <p>Done this way it's better than GoAffPro for you: the data stays in your database, partners see the real funnel (not just a click count), and it ties straight into your A/B tests and Site Studio.</p>
+</section>
+
+<!-- ============ MOCK ============ -->
+<section>
+  <div class="eb">What a partner sees · mock-up, sample numbers</div>
+  <div class="mock" aria-label="Partner portal mock-up">
+    <div class="mtop"><svg width="30" viewBox="14 76 372 184" aria-hidden="true"><path d="M136 196 Q128 118 205 106 Q276 96 285 160 Q290 202 244 208 L164 210 Q140 208 136 196 Z" fill="#34C759"/><path d="M162 118 Q160 92 134 88 Q104 84 88 112 Q74 138 84 162 Q94 186 126 188 Q152 189 160 168 Q166 148 162 118 Z" fill="#34C759"/><circle cx="118" cy="126" r="11.5" fill="#fff"/><circle cx="122" cy="125" r="5.5" fill="#241a12"/></svg><b>LinguaScript Partners</b><span class="tag">PARTNER</span><span class="who"><span>@frenchwithmaya</span><span class="av">M</span></span></div>
+    <div class="mnav"><span class="on">Home</span><span>My links</span><span>Audience</span><span>Landing pages</span><span>What's new</span><span>Brand kit</span><span>Payouts</span><span>Rules</span></div>
+    <div class="mbody">
+      <div class="kpis">
+        <div class="kpi"><small>CLICKS · 30 DAYS</small><b>1,840</b><i> from your links</i></div>
+        <div class="kpi"><small>SIGN-UPS</small><b>212</b><i> 11.5% of clicks</i></div>
+        <div class="kpi"><small>PAID</small><b>19</b><i> 9.0% of sign-ups</i></div>
+        <div class="kpi" style="border-color:#ffd60a55"><small>YOU EARNED</small><b style="color:var(--gold)">£57.00</b><i> £21 ready on 1 Dec</i></div>
+      </div>
+      <div class="box" style="background:#0e1013">
+        <h3>Your funnel</h3>
+        <div class="funnel">
+          <div class="fr"><span>Clicked</span><span class="bar"><i style="width:100%;background:var(--blue)"></i></span><b>1,840</b></div>
+          <div class="fr"><span>Signed up</span><span class="bar"><i style="width:11.5%;background:var(--orange)"></i></span><b>212</b></div>
+          <div class="fr"><span>Saved 10 words</span><span class="bar"><i style="width:6.1%;background:#a3e635"></i></span><b>112</b></div>
+          <div class="fr"><span>Paid</span><span class="bar"><i style="width:1.03%;background:var(--green)"></i></span><b>19</b></div>
+        </div>
+      </div>
+      <div class="two">
+        <div class="box" style="background:#0e1013"><h3>Where they came from</h3><div class="src">
+          <div><span><span class="chip">TikTok</span> link in bio</span><b>61%</b></div>
+          <div><span><span class="chip">Instagram</span> story</span><b>24%</b></div>
+          <div><span><span class="chip">YouTube</span> description</span><b>11%</b></div>
+          <div><span><span class="chip">Code</span> MAYA10 at checkout</span><b>4%</b></div>
+          <p class="note">Mostly phones · UK and Europe · evenings. Groups under 5 people are hidden.</p>
+        </div></div>
+        <div class="box" style="background:#0e1013"><h3>Your link</h3>
+          <div class="link">linguascript.co.uk/r/maya?ch=tiktok</div>
+          <p class="note">Pick a channel and the link tags itself, so the Audience tab can tell TikTok from Instagram. Your code <b>MAYA10</b> works where links don't (podcasts, videos).</p>
+          <h3 style="margin-top:6px">Best landing page for your audience</h3>
+          <p class="note">"Subtitle cinema" converts 14% for your TikTok visitors vs 9% for "Kinetic headline".</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p class="note">Every tab has one sentence at the top saying what it's for. Nothing is editable except the partner's own profile, brand and payout details.</p>
+</section>
+
+<!-- ============ AUDIT ============ -->
+<section>
+  <h2>Audit: what you have today</h2>
+  <div class="tbl"><table>
+    <thead><tr><th>Area</th><th>Today</th><th>Problem</th><th>Needed</th></tr></thead>
+    <tbody>
+      <tr><td>GoAffPro script</td><td><code>index.html</code> loads <code>api.goaffpro.com/loader.js</code> on every page</td><td class="bad">Loads for every visitor, before cookie consent, and costs data on every page</td><td>Remove it once your own tracking is live</td></tr>
+      <tr><td>GoAffPro sales</td><td><code>src/lib/goaffpro.ts</code> has <code>trackGoAffProConversion</code></td><td class="bad">Never called anywhere, so GoAffPro can't see any sale today</td><td>Your own sale tracking in the payments webhook</td></tr>
+      <tr><td>Where visitors came from</td><td><code>captureAttribution()</code> saves source + campaign in the browser; analytics events carry it</td><td class="p">Not saved against the account, so a sale can't be traced back to a partner</td><td>Save the partner code on the profile at sign-up</td></tr>
+      <tr><td>Checkout</td><td><code>create-checkout</code> sends only <code>userId</code> to Stripe</td><td class="p">No partner on the payment</td><td>Add <code>partner_id</code> to the session and subscription metadata</td></tr>
+      <tr><td>Payments webhook</td><td>Handles subscription, <code>invoice.paid</code>, failed payments</td><td class="p">No refund handling (<code>charge.refunded</code>)</td><td>Create commissions on <code>invoice.paid</code>; cancel them on refunds</td></tr>
+      <tr><td>Roles</td><td><code>app_role</code>: admin, user, teacher, student; <code>has_role()</code></td><td class="p">No role for marketers or partners</td><td>Add <code>marketer</code> and <code>partner</code></td></tr>
+      <tr><td>Funnel numbers</td><td><code>record_experiment_event</code> (view → cta → signup → first word → upgrade)</td><td class="y">Good base</td><td>Add the partner code to the same events</td></tr>
+      <tr><td>Landing pages</td><td>A/B test + Site Studio (labs)</td><td class="y">Good base</td><td>Read-only gallery for partners, results per partner audience</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- ============ ROLES ============ -->
+<section>
+  <h2>Who sees what</h2>
+  <p>One login screen, one dashboard. What appears depends on the role.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Screen</th><th>Owner (you)</th><th>Marketer (team)</th><th>Partner (affiliate)</th></tr></thead>
+    <tbody>
+      <tr><td>Home: clicks → sign-ups → paid</td><td class="y">All partners</td><td class="y">All partners</td><td class="y">Own only</td></tr>
+      <tr><td>Audience: channel, device, region</td><td class="y">All</td><td class="y">All</td><td class="y">Own, groups of 5+</td></tr>
+      <tr><td>Links &amp; codes</td><td class="y">Create for anyone</td><td class="y">Create for anyone</td><td class="y">Own</td></tr>
+      <tr><td>Landing pages &amp; A/B results</td><td class="y">Edit + publish</td><td class="y">Edit drafts</td><td class="p">View only</td></tr>
+      <tr><td>Site Studio</td><td class="y">Edit</td><td class="y">Edit drafts</td><td class="p">View only</td></tr>
+      <tr><td>What's new (features)</td><td class="y">Write</td><td class="y">Write</td><td class="p">Released + approved "coming soon" only</td></tr>
+      <tr><td>Brand kit (logo, videos, rules)</td><td class="y">Manage</td><td class="y">Manage</td><td class="y">Download</td></tr>
+      <tr><td>Own brand + socials on profile</td><td class="y">Approve</td><td class="y">Approve</td><td class="y">Edit own</td></tr>
+      <tr><td>Commissions &amp; payouts</td><td class="y">Approve + pay</td><td class="n">View totals</td><td class="y">Own statement</td></tr>
+      <tr><td>Learners' names, emails, payments</td><td class="y">Yes</td><td class="n">No</td><td class="n">Never</td></tr>
+      <tr><td>Pro grants, content admin, settings</td><td class="y">Yes</td><td class="n">No</td><td class="n">No</td></tr>
+    </tbody>
+  </table></div>
+  <p class="note">Turn on two-step sign-in for owner and marketer accounts (Supabase supports it).</p>
+</section>
+
+<!-- ============ HOW ============ -->
+<section>
+  <h2>How a sale gets credited</h2>
+<pre class="mermaid">flowchart LR
+  A["Partner link<br/>/r/maya?ch=tiktok"] --> B["Visitor lands<br/>partner code kept 30 days*"]
+  C["Or code MAYA10<br/>at checkout"] --> E
+  B --> D["Signs up<br/>profiles.referred_by = maya"]
+  D --> E["Stripe checkout<br/>metadata.partner_id"]
+  E --> F["invoice.paid<br/>commission: pending"]
+  F -->|"30 days, no refund"| G["approved"]
+  F -->|"refund"| H["reversed"]
+  G --> I["Monthly payout<br/>statement + transfer"]</pre>
+  <p class="note">* Last click wins within 30 days. Keeping the code for 30 days counts as a tracking cookie, so it waits for cookie consent. Without consent, the sale still counts if they sign up in the same visit or use the partner's code.</p>
+</section>
+
+<!-- ============ PLAN ============ -->
+<section>
+  <h2>Plan, in order</h2>
+  <div class="phase"><span class="num">1</span><div class="box"><h3>Tracking core</h3><ul><li>Tables: <code>partners</code>, <code>referral_clicks</code>, <code>referrals</code>, <code>commissions</code>, <code>payouts</code>.</li><li><code>/r/:code</code> link route + <code>?ref=</code>; partner code saved on sign-up; code field at checkout.</li><li>Checkout passes <code>partner_id</code>; webhook writes commissions on <code>invoice.paid</code>, reverses on <code>charge.refunded</code>.</li><li><b>Done when</b> a test purchase through a test link shows up as a pending commission.</li></ul></div></div>
+  <div class="phase"><span class="num">2</span><div class="box"><h3>Roles and safe numbers</h3><ul><li>Add <code>marketer</code> and <code>partner</code> to <code>app_role</code>.</li><li>Partners read only through database functions that return totals for <i>their</i> partner ID and hide groups under 5.</li><li><b>Done when</b> a partner account can't read any other partner's or learner's row (test it).</li></ul></div></div>
+  <div class="phase"><span class="num">3</span><div class="box"><h3>Partner portal <code>/partners</code></h3><ul><li>Tabs: Home, My links, Audience, Landing pages (read-only), What's new, Brand kit, Payouts, Rules. One sentence at the top of each.</li><li>Link builder per channel (TikTok, Instagram, YouTube, other); own brand name, logo and socials (you approve logos before they show anywhere).</li><li>Loaded only after a partner logs in, so visitors never download it.</li></ul></div></div>
+  <div class="phase"><span class="num">4</span><div class="box"><h3>Team workspace</h3><ul><li>Marketers see all partners, A/B results by partner audience, Site Studio drafts, and the content plan.</li><li>Invite flow: you add an email + role; they get a sign-in link.</li></ul></div></div>
+  <div class="phase"><span class="num">5</span><div class="box"><h3>Payouts</h3><ul><li>Month 1–3: monthly statement (CSV) and bank transfer from you, minimum £20.</li><li>Later: Stripe Connect Express. Stripe checks each partner's identity and sends the money; check Stripe's current Connect fees before switching.</li><li>Then remove GoAffPro from <code>index.html</code>.</li></ul></div></div>
+</section>
+
+<!-- ============ MONEY ============ -->
+<section class="box">
+  <h2>Commission: a starting proposal</h2>
+  <ul>
+    <li><b>Partners:</b> a share of each payment from their referrals for the first 12 months (for example 20–30%). Simple to explain, fair for subscriptions, and it ends, so your margin recovers.</li>
+    <li><b>Hold 30 days</b> before a commission can be paid, so refunds and chargebacks don't cost you.</li>
+    <li><b>Partner code discount</b> (e.g. 10% off the first month) helps conversion and lets codes work on videos and podcasts.</li>
+    <li>These numbers are a starting point, not a benchmark. Check your margin after Stripe fees, AI costs and VAT before you publish them.</li>
+  </ul>
+</section>
+
+<!-- ============ RULES ============ -->
+<section class="box warn">
+  <h2>Rules to get right before launch</h2>
+  <ul>
+    <li><b>Adults only.</b> Partners must be 18+ to be paid (Stripe requires it, and a contract with a minor is a problem). Many of your learners are teens, so they can't be partners.</li>
+    <li><b>Ads must say they're ads.</b> UK advertising rules (CAP Code, enforced by the ASA) say affiliate posts must be clearly labelled, e.g. "#ad". Put it in the partner terms and the brand kit.</li>
+    <li><b>Data.</b> Partners see totals only; never names, emails or single people. Update your privacy notice to say referral codes are recorded.</li>
+    <li><b>Cookies.</b> A 30-day referral cookie needs consent; codes and same-visit sign-ups don't.</li>
+    <li><b>Tax.</b> Partners are paid as independent contractors and handle their own tax. Keep the statements. Ask an accountant how VAT applies to the commissions you pay.</li>
+    <li><b>Fraud.</b> No self-referrals, no buying ads on "LinguaScript" searches, no fake accounts. Commissions on refunded payments are reversed.</li>
+    <li><b>Unreleased features.</b> Partners see only what you're happy to make public. Mark anything else confidential in the terms.</li>
+    <li><b>Terms.</b> Get a short partner agreement checked by a solicitor before the first payout.</li>
+  </ul>
+</section>
+
+<!-- ============ PROMPTS ============ -->
+<section>
+  <h2>Prompts to build it</h2>
+  <p>Paste one at a time into Claude Code in the LinguaScript repo.</p>
+  <div id="prompts" style="display:grid;gap:14px"></div>
+</section>
+</main>
+
+<script>
+const P=[
+["1 · Tracking core",`Build an in-house affiliate (partner) system in the LinguaScript repo.
+Migration: tables partners (id, user_id unique, code unique lowercase, display_name, brand_logo_url, socials jsonb, commission_rate numeric default 0.25, commission_months int default 12, discount_code text unique, status 'pending'|'active'|'paused', created_at), referral_clicks (id, partner_id, channel, landing_path, visitor_hash, region, device, created_at; no IP), referrals (user_id pk, partner_id, channel, first_seen_at, signed_up_at), commissions (id, partner_id, user_id, stripe_invoice_id unique, gross_amount, commission_amount, currency, status 'pending'|'approved'|'paid'|'reversed', available_at, created_at), payouts (id, partner_id, period, amount, method, reference, status, created_at). RLS: only admins write; reads via functions in step 2.
+Routes: /r/:code records a click (channel from ?ch=) and redirects to / with ?ref=code&utm_source=channel&utm_medium=partner. captureAttribution() in src/lib/experiments.ts keeps ref; store it in localStorage for 30 days only after cookie consent (src/lib/consent.ts), otherwise sessionStorage. On sign-up write referrals. Checkout (supabase/functions/create-checkout) adds partner_id to session + subscription metadata, from the referral or a partner discount code.
+Webhook (supabase/functions/payments-webhook): on invoice.paid create a pending commission when the subscription has partner_id and the payment is within commission_months; available_at = +30 days. Handle charge.refunded → reverse. Add a nightly job that moves pending → approved after available_at. Write tests for the webhook logic.`],
+["2 · Roles and safe partner data",`Add 'marketer' and 'partner' to public.app_role. Create SECURITY DEFINER functions partner_summary(_from, _to), partner_funnel(_from,_to), partner_sources(_from,_to) that use auth.uid() to find the caller's partner row and return only totals for that partner; hide any breakdown group with fewer than 5 people. Admins and marketers get the same functions for any partner_id plus all_partners_summary(). Never return emails, names or user ids to partners. Add tests proving a partner cannot read another partner's data or any learner row.`],
+["3 · Partner portal",`Create /partners (lazy-loaded, only after login with role partner/marketer/admin, so visitors never download it). Tabs: Home (clicks → sign-ups → saved 10 words → paid, earnings, next payout), My links (link builder per channel TikTok/Instagram/YouTube/other + their code), Audience (channel, device, region totals), Landing pages (read-only gallery of the live A/B arms with conversion for this partner's visitors), What's new (released features from a changelog table), Brand kit (logo SVG, approved videos, '#ad' rules), Payouts (statement, CSV download), Rules (partner terms). One short sentence at the top of each tab, no other help text. Use the premium glass kit (src/components/premium). Partners can edit only their display name, socials, logo (pending admin approval) and payout details.`],
+["4 · Team workspace + invites",`In src/pages/Admin.tsx add: Partners (list, approve, set rate, pause), Commissions (approve, mark paid, CSV export for the month), Team (invite an email with role marketer or partner via Supabase invite link). Marketers see Partners, A/B results, Site Studio drafts and content plan; they never see learners' personal data, Pro grants or payments settings. Enforce with RLS, not only in the UI.`],
+["5 · Payouts and switch-off",`Add Stripe Connect Express onboarding for partners (account link from the Payouts tab), and a monthly admin action that transfers approved commissions ≥ £20 and marks them paid. Keep the manual CSV payout path. When the first month of own tracking matches Stripe, remove the GoAffPro loader from index.html and delete src/lib/goaffpro.ts.`],
+];
+document.getElementById('prompts').innerHTML=P.map(([t,p],i)=>`<div style="display:grid;gap:6px"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b>${t}</b><button class="btn" data-i="${i}">Copy</button></div><pre class="prompt">${p.replace(/</g,'&lt;')}</pre></div>`).join('');
+document.getElementById('prompts').onclick=async e=>{const b=e.target.closest('[data-i]');if(!b)return;try{await navigator.clipboard.writeText(P[+b.dataset.i][1]);b.textContent='Copied'}catch{b.textContent='Select the text to copy'}setTimeout(()=>b.textContent='Copy',1500)};
+</script>
+</html>

@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="robots" content="noindex,nofollow">
+<title>LinguaScript Growth Team Blueprint</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: one reading column (~800px); wide tables and diagrams scroll inside their own boxes. Deck colours = funnel stages; gold = phase/priority. */
+:root{
+  --bg:#FBFBF8; --surface:#FFFFFF; --fg:#16201A; --muted:#5B665F; --line:#DDE3DE;
+  --accent:#1F8F46; --red:#D92B21; --orange:#C05F00; --green:#1F8F46; --gold:#9A6B00;
+  --tint-red:#FDEDEC; --tint-orange:#FFF3E5; --tint-green:#E9F6EE; --tint-gold:#FFF7DD; --tint-grey:#EEF1F5;
+  --display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;
+  --body:"IBM Plex Sans","Segoe UI",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0F1411; --surface:#161D19; --fg:#E8EEE9; --muted:#9AA79F; --line:#2A342E;
+  --accent:#4CD37A; --red:#FF6B61; --orange:#FFA94D; --green:#4CD37A; --gold:#FFD54A;
+  --tint-red:#2A1716; --tint-orange:#2A1F12; --tint-green:#14261B; --tint-gold:#2A2410; --tint-grey:#1C232A; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0F1411; --surface:#161D19; --fg:#E8EEE9; --muted:#9AA79F; --line:#2A342E;
+  --accent:#4CD37A; --red:#FF6B61; --orange:#FFA94D; --green:#4CD37A; --gold:#FFD54A;
+  --tint-red:#2A1716; --tint-orange:#2A1F12; --tint-green:#14261B; --tint-gold:#2A2410; --tint-grey:#1C232A; color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font:16px/1.6 var(--body);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:32px 64px}
+main{max-width:800px;margin:0 auto;display:grid;gap:44px}
+section{display:grid;gap:14px;min-width:0}
+h1,h2,h3{font-family:var(--display);line-height:1.15;text-wrap:balance;margin:0}
+h1{font-size:2.3rem;font-weight:800;letter-spacing:-.02em}
+h2{font-size:1.55rem;font-weight:800;padding-top:8px;border-top:2px solid var(--fg)}
+h3{font-size:1.1rem;font-weight:600}
+p,ul,ol{margin:0;max-width:70ch}
+ul,ol{padding-left:1.2em;display:grid;gap:6px}
+.kicker{font:500 12px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.lede{font-size:1.1rem;color:var(--muted)}
+.wrap{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:680px;font-size:14px}
+th,td{text-align:left;vertical-align:top;padding:9px 12px;border-bottom:1px solid var(--line)}
+th{font:600 12px var(--body);text-transform:uppercase;letter-spacing:.05em;color:var(--muted);background:var(--bg)}
+tr:last-child td{border-bottom:0}
+code{font-family:var(--mono);font-size:.86em}
+.pill{display:inline-block;font:600 11px var(--mono);padding:2px 7px;border-radius:4px;white-space:nowrap}
+.tofu{background:var(--tint-red);color:var(--red)} .mofu{background:var(--tint-orange);color:var(--orange)} .bofu{background:var(--tint-green);color:var(--green)} .ph{background:var(--tint-gold);color:var(--gold)} .ag{background:var(--tint-grey);color:var(--muted)}
+.verdict{border-left:4px solid var(--red);background:var(--surface);padding:16px 18px;display:grid;gap:10px}
+.note{font-size:14px;color:var(--muted)}
+pre.mermaid{background:#FFFFFF;border:1px solid var(--line);border-radius:8px;padding:16px;overflow-x:auto;margin:0;color:#16201A}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px;display:grid;gap:6px;align-content:start;min-width:0}
+.card h3{font-size:1rem}
+.card p,.card li{font-size:14px}
+nav{display:flex;flex-wrap:wrap;gap:6px}
+nav a{font-size:13px;color:var(--fg);text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:4px 10px}
+nav a:hover,nav a:focus-visible{border-color:var(--accent);outline:none}
+a{color:var(--accent)}
+</style>
+
+<main>
+<header style="display:grid;gap:12px">
+  <div class="kicker">Blueprint · 1 Nov 2026 · for the founder and the marketer</div>
+  <h1>LinguaScript Growth Team Blueprint</h1>
+  <p class="lede">The team (humans and AI agents), the Claude skills and plugins they use, every channel with its job, where Google Ads goes, creators, affiliates and partners like Pod101, where to hire, and what to learn. Built on proven frameworks: HubSpot inbound, the buyer's journey, and the Bullseye framework from <i>Traction</i> (Weinberg &amp; Mares).</p>
+  <nav>
+    <a href="#verdict">Is this enough?</a><a href="#competitors">What others do</a><a href="#bullseye">Bullseye</a><a href="#channels">Every channel</a><a href="#ads">Google Ads</a><a href="#hellotalk">HelloTalk</a><a href="#partners">Creators &amp; affiliates</a><a href="#team">The team</a><a href="#agents">AI agents</a><a href="#skills">Skills &amp; plugins</a><a href="#hire">Where to hire</a><a href="#learn">Upskilling</a><a href="#phases">Phases</a>
+  </nav>
+</header>
+
+<section id="verdict">
+  <h2>Is this enough? The honest answer</h2>
+  <div class="verdict">
+    <p><b>Tools and agents are not your bottleneck.</b> You can already make content, emails and reports faster than most startups. What's missing is <b>proof</b> (real learners saying it works), <b>one channel that reliably brings sign-ups</b>, and <b>Google being able to read the site</b>. A big team pointed at an unproven message just spends money faster.</p>
+    <p>"Invading the internet" means one thing in practice: a <b>repeatable content machine</b> (dozens of short videos a week), multiplied by <b>other people's audiences</b> (creators and affiliates). Duolingo's own team says a significant amount of its user growth comes from people seeing it on TikTok, and that the goal there is entertaining, not promoting.</p>
+    <p><b>The order that works:</b> 1) make the site findable, 2) collect 20 real testimonials, 3) test 3 channels for 30 days each and keep the winner, 4) then hire humans to scale the winner. Hire in that order and every hire has a clear job and a number to move.</p>
+  </div>
+</section>
+
+<section id="competitors">
+  <h2>What everyone else is doing</h2>
+  <div class="wrap"><table>
+    <thead><tr><th>Brand</th><th>Main growth engine</th><th>What we copy</th></tr></thead>
+    <tbody>
+      <tr><td><b>Duolingo</b></td><td>A mascot with a personality (Duo the owl) on TikTok; entertainment first. TikTok's case study: one German campaign reached 26.9M users.</td><td>Give the 🦎 chameleon a voice and a weekly series. Characters beat ads.</td></tr>
+      <tr><td><b>Lingopie</b></td><td>Affiliate programme: 30% recurring (reported as 12 months); sponsors YouTube creators (e.g. languagejones).</td><td>Launch our own affiliate programme at a matching rate.</td></tr>
+      <tr><td><b>LingQ</b></td><td>Founder-led YouTube (Steve Kaufmann); 20% referral for as long as the user pays.</td><td>Founder-led content: "I built this with AI" is a story people follow.</td></tr>
+      <tr><td><b>Innovative Language (Pod101)</b></td><td>Huge YouTube channels per language, SEO, 25% affiliate programme (third-party directories; check their page).</td><td>One channel per language eventually; partner rather than compete.</td></tr>
+      <tr><td><b>HelloTalk</b></td><td>Community; ambassador programme for creators; sponsors YouTube creators. No self-serve ads; promotional posts are banned in Moments.</td><td>Be present as a real learner; partner via the ambassador/creator route.</td></tr>
+      <tr><td><b>Language Reactor</b></td><td>Free Chrome extension; word of mouth and Chrome Web Store search.</td><td>Treat our Chrome Web Store listing like a landing page (screens, reviews, keywords).</td></tr>
+    </tbody>
+  </table></div>
+  <p class="note">I couldn't find public details for Migaku's creator or affiliate programme.</p>
+</section>
+
+<section id="bullseye">
+  <h2>How to choose channels: the Bullseye framework</h2>
+  <p>From <i>Traction</i>: list every channel, pick the most promising few, run cheap tests, then put almost all effort into the one that works. You "take every channel into account" in the outer ring, then focus.</p>
+  <pre class="mermaid">
+flowchart LR
+  O["OUTER RING<br/>List every channel<br/>(table below)"] --> M["MIDDLE RING<br/>Pick 3 to test<br/>30 days · small budget each"]
+  M --> I["INNER RING<br/>Keep the 1 that brings<br/>the cheapest active users"]
+  I --> S["SCALE<br/>Hire humans for that channel"]
+  S -->|"every quarter"| O
+  style O fill:#FDEDEC,stroke:#D92B21
+  style M fill:#FFF3E5,stroke:#C05F00
+  style I fill:#E9F6EE,stroke:#1F8F46
+  style S fill:#FFF7DD,stroke:#9A6B00
+  </pre>
+  <p><b>My pick for the first 3 tests:</b> short-form video (TikTok, Reels, Shorts), creator partnerships, and SEO. Google Search Ads runs small alongside as a measuring tool, not as the main engine.</p>
+</section>
+
+<section id="channels">
+  <h2>Every channel, mapped</h2>
+  <p>Stage = which part of the buyer's journey it serves. Phase 1 = now, 2 = after proof (20+ testimonials and steady sign-ups), 3 = scaling.</p>
+  <div class="wrap"><table>
+    <thead><tr><th>Channel</th><th>Stage</th><th>What we do there</th><th>Owner</th><th>Measure</th><th>Phase</th></tr></thead>
+    <tbody>
+      <tr><td><b>TikTok</b></td><td><span class="pill tofu">Awareness</span></td><td>Daily: words turning green on real shows, chameleon character skits, "1 French word you already know"</td><td>Video creator + clip agent</td><td>Profile visits → sign-ups (<code>?ref=tiktok</code>)</td><td><span class="pill ph">1</span></td></tr>
+      <tr><td><b>Instagram Reels</b></td><td><span class="pill tofu">Awareness</span></td><td>Same clips, re-cut; carousels of "10 words you already know"</td><td>Clip agent → you approve</td><td>Saves, link clicks</td><td><span class="pill ph">1</span></td></tr>
+      <tr><td><b>YouTube Shorts</b></td><td><span class="pill tofu">Awareness</span></td><td>Same clips; Shorts are searchable for years</td><td>Clip agent</td><td>Views → channel subs</td><td><span class="pill ph">1</span></td></tr>
+      <tr><td><b>YouTube long-form</b></td><td><span class="pill mofu">Consideration</span></td><td>Founder story, "learn French with Netflix" tutorials, honest comparisons</td><td>You + editor</td><td>Watch time, sign-ups</td><td><span class="pill ph">2</span></td></tr>
+      <tr><td><b>Google Search (SEO)</b></td><td><span class="pill tofu">Awareness</span> <span class="pill mofu">Consideration</span></td><td>2 articles a week answering real questions; comparison pages</td><td>SEO writer agent + human editor</td><td>Clicks, sign-ups per page</td><td><span class="pill ph">1</span></td></tr>
+      <tr><td><b>Google Ads</b></td><td><span class="pill bofu">Decision</span></td><td>High-intent search only at first (see next section)</td><td>Freelance ads specialist + ads agent</td><td>Cost per activated user</td><td><span class="pill ph">1 small</span></td></tr>
+      <tr><td><b>Chrome Web Store</b></td><td><span class="pill bofu">Decision</span></td><td>Listing screenshots, keywords, review requests</td><td>Marketer</td><td>Installs, rating</td><td><span class="pill ph">1</span></td></tr>
+      <tr><td><b>Google Play</b></td><td><span class="pill bofu">Decision</span></td><td>Store listing optimisation; App campaigns later</td><td>Marketer</td><td>Install → sign-up</td><td><span class="pill ph">2</span></td></tr>
+      <tr><td><b>Reddit</b></td><td><span class="pill mofu">Consideration</span></td><td>Helpful answers in r/languagelearning, r/French etc. Link only when asked; follow each sub's rules</td><td>You (human only)</td><td>Referral visits</td><td><span class="pill ph">1</span></td></tr>
+      <tr><td><b>HelloTalk</b></td><td><span class="pill tofu">Awareness</span></td><td>Real participation + creator/ambassador partnerships (see below)</td><td>Community manager</td><td>Sign-ups with <code>?ref=hellotalk</code></td><td><span class="pill ph">2</span></td></tr>
+      <tr><td><b>Creators (YouTube, TikTok)</b></td><td><span class="pill tofu">Awareness</span> <span class="pill mofu">Consideration</span></td><td>Sponsored videos + affiliate codes</td><td>Partnerships manager + scout agent</td><td>Sign-ups per creator</td><td><span class="pill ph">1–2</span></td></tr>
+      <tr><td><b>Affiliates</b></td><td><span class="pill bofu">Decision</span></td><td>Our own programme: teachers, bloggers, polyglots earn a share</td><td>Partnerships manager</td><td>Paid users per affiliate</td><td><span class="pill ph">2</span></td></tr>
+      <tr><td><b>Build in public</b> (X, LinkedIn, Indie Hackers, Product Hunt)</td><td><span class="pill tofu">Awareness</span></td><td>"Built with Claude" journey, numbers, launches; attracts vibe coders and press</td><td>You</td><td>Followers, launch-day sign-ups</td><td><span class="pill ph">1</span></td></tr>
+      <tr><td><b>Email</b></td><td>All stages</td><td>Lead nurture, welcome, retention (see the audit)</td><td>Lifecycle agent + you</td><td>Activation rate</td><td><span class="pill ph">1</span></td></tr>
+      <tr><td><b>AI assistants</b> (ChatGPT, Claude)</td><td><span class="pill mofu">Consideration</span></td><td>Our MCP connector lets learners study in ChatGPT/Claude; list it in connector directories</td><td>You</td><td>Connected users</td><td><span class="pill ph">2</span></td></tr>
+      <tr><td><b>Discord community</b></td><td><span class="pill bofu">Delight</span></td><td>Learner wins, weekly challenges, feedback</td><td>Community manager</td><td>Weekly active members</td><td><span class="pill ph">2</span></td></tr>
+      <tr><td><b>Meta / TikTok ads</b></td><td><span class="pill tofu">Awareness</span></td><td>Boost organic videos that already worked</td><td>Ads specialist</td><td>Cost per sign-up</td><td><span class="pill ph">2</span></td></tr>
+      <tr><td><b>Schools</b></td><td><span class="pill bofu">Decision</span></td><td>Pilots → licences (see audit, chart 11)</td><td>School sales rep</td><td>Pilots started</td><td><span class="pill ph">3</span></td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="ads">
+  <h2>Where the Google Ads go</h2>
+  <p>Start on <b>Search</b>, where people are already looking for exactly what you do. Only spend on broad formats (Display, App campaigns) once you know which users stay. Google's App campaigns optimise best when the app sends about 10+ target events a day, so wait for that volume.</p>
+  <pre class="mermaid">
+flowchart TB
+  B["Daily budget<br/>start small, raise only<br/>when cost per ACTIVE user is known"] --> S1
+  B --> S2
+  B --> S3
+  subgraph S1["1 · Search: high intent (start here)"]
+    k1["Competitor alternatives<br/>'language reactor alternative'"]
+    k2["Problem + tool<br/>'dual subtitles netflix'<br/>'learn french with netflix'"]
+    k3["Brand<br/>'linguascript' (protect your name)"]
+  end
+  subgraph S2["2 · YouTube remarketing (phase 2)"]
+    r1["People who visited<br/>but didn't sign up"]
+  end
+  subgraph S3["3 · App campaign (phase 2–3)"]
+    a1["Android app installs<br/>optimise for 'first word saved'"]
+  end
+  S1 --> LP["Matching landing page<br/>/vs/language-reactor · /dual-subtitles/netflix · home"]
+  S2 --> LP
+  S3 --> PLAY["Google Play listing"]
+  LP --> M["Measure: signed_up → activated → paid"]
+  PLAY --> M
+  style S1 fill:#E9F6EE,stroke:#1F8F46
+  style S2 fill:#FFF3E5,stroke:#C05F00
+  style S3 fill:#FDEDEC,stroke:#D92B21
+  </pre>
+  <ul>
+    <li><b>Don't</b> run Display or Performance Max first: they find cheap clicks, not learners.</li>
+    <li>Every ad group points at the page that answers that exact search. Never at the generic home page, except brand searches.</li>
+    <li>Ads for the Chrome extension link to the Chrome Web Store listing. As far as I know there's no ad slot inside the Web Store itself, so verify that with Google before relying on it.</li>
+    <li>Track conversions only after analytics consent (you already gate PostHog this way).</li>
+  </ul>
+</section>
+
+<section id="hellotalk">
+  <h2>HelloTalk: how to do it properly</h2>
+  <p>HelloTalk's rules list "advertising, marketing, promotional materials, spam" as not allowed in Moments, and posts are scanned by AI moderation. Spamming links will get accounts banned and hurt the brand. HelloTalk does run an <b>ambassador programme</b> for creators and sponsors YouTube creators.</p>
+  <div class="grid2">
+    <div class="card"><h3>Do</h3><ul><li>Real profiles that help other learners and post genuine progress</li><li>Partner with HelloTalk ambassadors who make content, with an affiliate code</li><li>Contact HelloTalk's partnerships team about a co-marketing idea (e.g. "practise words you met on HelloTalk in your favourite show")</li></ul></div>
+    <div class="card"><h3>Don't</h3><ul><li>Post links or promos in Moments</li><li>Mass-message users</li><li>Use bots or fake accounts</li></ul></div>
+  </div>
+</section>
+
+<section id="partners">
+  <h2>Creators, affiliates and partners</h2>
+  <pre class="mermaid">
+flowchart LR
+  subgraph IN["They promote US (we pay a share)"]
+    T["Language teachers<br/>italki · Preply · YouTube"]
+    C["Language creators<br/>TikTok · YouTube"]
+    V["Vibe coders / AI creators<br/>'built with Claude' story"]
+    A["HelloTalk ambassadors"]
+  end
+  subgraph US["LinguaScript"]
+    AF["Affiliate programme<br/>code + link · recurring share"]
+  end
+  subgraph OUT["We promote THEM (we earn)"]
+    P["Pod101 family<br/>JapanesePod101 · ThaiPod101 …<br/>~25% per sale (check terms)"]
+  end
+  T --> AF
+  C --> AF
+  V --> AF
+  A --> AF
+  AF --> L["Learners sign up"]
+  L -->|"'want a full course?'"| P
+  P -.->|"once we send them sales:<br/>pitch co-marketing"| CO["Joint content<br/>their lessons + our colour subtitles"]
+  style IN fill:#FDEDEC,stroke:#D92B21
+  style US fill:#E9F6EE,stroke:#1F8F46
+  style OUT fill:#FFF7DD,stroke:#9A6B00
+  </pre>
+  <div class="grid2">
+    <div class="card"><h3>Our affiliate programme</h3><ul><li>Match the market: Lingopie pays 30% recurring, LingQ 20%</li><li>Run it with Stripe-connected affiliate software (Rewardful or Tapfiliate are common choices)</li><li>Give each creator a code + a landing page with their name</li></ul></div>
+    <div class="card"><h3>Pod101 (Innovative Language)</h3><ul><li><b>Step 1:</b> join their affiliate programme and recommend their courses where it genuinely fits (e.g. after a learner finishes the French Fast Track)</li><li><b>Step 2:</b> once you've sent them sales, pitch co-marketing with your numbers. Big brands answer people who already bring them revenue.</li></ul></div>
+    <div class="card"><h3>Creator outreach</h3><ul><li>Start with small creators (5k–100k followers): cheaper, closer to their audience, and more likely to reply</li><li>Offer: free Pro + affiliate share first; paid sponsorship once a creator converts</li><li>Always disclose: #ad or "sponsored"</li></ul></div>
+    <div class="card"><h3>Vibe coders</h3><ul><li>Your story ("built a full language app with Claude") interests AI and build-in-public audiences</li><li>Collaborate on "how I built it" videos and course modules; they get content, you get reach</li></ul></div>
+  </div>
+</section>
+
+<section id="team">
+  <h2>The team</h2>
+  <p>Humans own taste, relationships and anything that spends money or speaks publicly. Agents draft, research, schedule and report.</p>
+  <pre class="mermaid">
+flowchart TB
+  F["FOUNDER<br/>vision · story · final say"]
+  F --> HG["Head of Growth<br/>(your marketer grows into this)"]
+  HG --> P1["Content & SEO"]
+  HG --> P2["Social & Video"]
+  HG --> P3["Creators & Partnerships"]
+  HG --> P4["Lifecycle & Email"]
+  HG --> P5["Paid Ads"]
+  HG --> P6["Community"]
+  HG --> P7["Analytics"]
+  P1 --- a1["SEO editor (human)<br/>+ Research agent + SEO writer agent"]
+  P2 --- a2["Video creators/editors (humans)<br/>+ Clip agent + Scheduler agent"]
+  P3 --- a3["Partnerships manager (human)<br/>+ Creator scout agent"]
+  P4 --- a4["Lifecycle agent<br/>(you approve)"]
+  P5 --- a5["Freelance ads specialist<br/>+ Ads analyst agent"]
+  P6 --- a6["Community manager (human)<br/>+ Listening agent"]
+  P7 --- a7["Reporting agent<br/>(weekly report)"]
+  style F fill:#16201A,color:#FFFFFF,stroke:#16201A
+  style HG fill:#E9F6EE,stroke:#1F8F46
+  </pre>
+  <div class="wrap"><table>
+    <thead><tr><th>Role</th><th>Type</th><th>Does</th><th>Phase</th></tr></thead>
+    <tbody>
+      <tr><td>Marketer → Head of Growth</td><td>Human</td><td>Runs the weekly rhythm, owns the numbers, manages people and agents</td><td><span class="pill ph">1</span></td></tr>
+      <tr><td>Short-form video creators (2–3, native French/Spanish/Japanese)</td><td>Human, freelance</td><td>Film and edit daily clips; on-camera faces build trust</td><td><span class="pill ph">1</span></td></tr>
+      <tr><td>SEO editor</td><td>Human, part-time</td><td>Edits agent drafts into real articles; fact-checks</td><td><span class="pill ph">1</span></td></tr>
+      <tr><td>Google Ads specialist</td><td>Human, freelance</td><td>Builds and watches Search campaigns</td><td><span class="pill ph">1 (small)</span></td></tr>
+      <tr><td>Creator partnerships manager</td><td>Human</td><td>Recruits creators and affiliates; negotiates; Pod101 relationship</td><td><span class="pill ph">2</span></td></tr>
+      <tr><td>Community manager</td><td>Human</td><td>Discord, Reddit presence, HelloTalk ambassadors, testimonials</td><td><span class="pill ph">2</span></td></tr>
+      <tr><td>Brand designer</td><td>Human, freelance</td><td>Chameleon character, templates, store screenshots</td><td><span class="pill ph">2</span></td></tr>
+      <tr><td>Data analyst</td><td>Human, part-time</td><td>Funnel, cohorts, ad attribution</td><td><span class="pill ph">3</span></td></tr>
+      <tr><td>Language ambassadors (one per language)</td><td>Human, commission</td><td>Native-speaker content and community per language</td><td><span class="pill ph">3</span></td></tr>
+      <tr><td>School sales rep</td><td>Human</td><td>Pilots and licences</td><td><span class="pill ph">3</span></td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="agents">
+  <h2>The AI agents</h2>
+  <p>Each agent is a Claude Code subagent or a Claude scheduled task with the right skills and connectors. <b>Rule: agents draft, humans publish and spend.</b> No agent posts publicly, sends bulk email or changes ad budgets by itself.</p>
+  <pre class="mermaid">
+flowchart LR
+  IN["Inputs<br/>Search Console · PostHog · Stripe<br/>Reddit · comments · competitor ads"] --> AG["Agents draft<br/>articles · clips · captions<br/>emails · reports · outreach"]
+  AG --> HU{"Human checks<br/>true? on-brand? legal?"}
+  HU -->|"yes"| PUB["Publish / send / spend"]
+  HU -->|"no"| AG
+  PUB --> MEA["Reporting agent<br/>Monday numbers"]
+  MEA --> IN
+  style HU fill:#FFF7DD,stroke:#9A6B00
+  </pre>
+  <div class="wrap"><table>
+    <thead><tr><th>Agent</th><th>Job</th><th>Skills / plugins</th><th>Connectors</th><th>Runs</th></tr></thead>
+    <tbody>
+      <tr><td><b>Research</b></td><td>Competitor ads, keywords, trending questions</td><td>Marketing plugin, Adology (competitor ads)</td><td>Semrush (needs units), web search</td><td>Weekly</td></tr>
+      <tr><td><b>SEO writer</b></td><td>Briefs and drafts from real questions</td><td>Marketing plugin + our <code>brand-voice</code> and <code>seo-page</code> skills</td><td>Search Console, Google Drive</td><td>2× a week</td></tr>
+      <tr><td><b>Clip</b></td><td>Scripts, hooks, captions; cuts one long video into 10 clips</td><td>Social Media Skills plugin</td><td>Google Drive</td><td>Daily</td></tr>
+      <tr><td><b>Scheduler</b></td><td>Queues approved posts on all networks</td><td>Ayrshare plugin</td><td>Ayrshare</td><td>Daily</td></tr>
+      <tr><td><b>Creator scout</b></td><td>Finds creators by language + niche; drafts personal emails</td><td>our <code>creator-outreach</code> skill</td><td>Gmail (drafts only), Apollo</td><td>Weekly</td></tr>
+      <tr><td><b>Lifecycle</b></td><td>Writes and updates email sequences in the repo</td><td>our <code>email-sequence</code> skill</td><td>GitHub (this repo)</td><td>On request</td></tr>
+      <tr><td><b>Ads analyst</b></td><td>Reads ad results, suggests keyword/budget changes</td><td>Windsor.ai plugin</td><td>Google Ads, Meta, TikTok (via Windsor)</td><td>Weekly</td></tr>
+      <tr><td><b>Listening</b></td><td>Digest of mentions, reviews, questions</td><td>Social Media Skills (analytics)</td><td>Gmail, web search</td><td>Daily</td></tr>
+      <tr><td><b>Reporting</b></td><td>Monday report: traffic, sign-ups, activation, revenue</td><td>our <code>weekly-report</code> skill</td><td>Search Console, PostHog, Stripe</td><td>Mondays</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="skills">
+  <h2>Claude plugins and skills to set up</h2>
+  <p>These exist in the Anthropic plugin directory today. Community plugins are written by third parties: read what they do before installing, and give them only the accounts they need.</p>
+  <div class="wrap"><table>
+    <thead><tr><th>Plugin</th><th>Publisher</th><th>Use it for</th></tr></thead>
+    <tbody>
+      <tr><td><b>Marketing</b></td><td>Anthropic</td><td>Content, campaign plans, performance analysis, brand voice (21 skills)</td></tr>
+      <tr><td><b>Windsor.ai Ads and Marketing Data</b></td><td>Partner</td><td>Google Ads, Meta, Instagram, TikTok, LinkedIn ads data from Claude Code</td></tr>
+      <tr><td><b>Social Media Skills</b></td><td>Community</td><td>106 skills: strategy, writing, video, platform growth, analytics</td></tr>
+      <tr><td><b>Ayrshare</b></td><td>Community</td><td>Publish and schedule to 13+ networks</td></tr>
+      <tr><td><b>Adology</b></td><td>Community</td><td>Competitor ad research</td></tr>
+    </tbody>
+  </table></div>
+  <h3>Our own skills, written into the repo (<code>.claude/skills/</code>)</h3>
+  <div class="grid2">
+    <div class="card"><h3><code>brand-voice</code></h3><p>How LinguaScript talks: friendly, plain, the chameleon's voice. Hard rules: no invented numbers, no fake testimonials, red → orange → green → gold always means the same thing.</p></div>
+    <div class="card"><h3><code>seo-page</code></h3><p>One page = one search intent; title ≤60, description ≤155, one buyer's-journey stage, one next step, internal links.</p></div>
+    <div class="card"><h3><code>email-sequence</code></h3><p>How to add a template to the registry and a trigger to the dispatcher; frequency caps; unsubscribe rules.</p></div>
+    <div class="card"><h3><code>creator-outreach</code></h3><p>Personal email templates, disclosure rules, affiliate terms, follow-up once then stop.</p></div>
+    <div class="card"><h3><code>weekly-report</code></h3><p>The 6 numbers that matter, where each comes from, and the format of the Monday page.</p></div>
+    <div class="card"><h3><code>clip-script</code></h3><p>Hook in 1 second, one word turning green, caption with <code>?ref=</code> link, native speaker check.</p></div>
+  </div>
+</section>
+
+<section id="hire">
+  <h2>Where to find the humans</h2>
+  <div class="wrap"><table>
+    <thead><tr><th>Role</th><th>Where to look</th><th>Hiring tip</th></tr></thead>
+    <tbody>
+      <tr><td>Video creators / editors</td><td>Upwork, Contra, Fiverr Pro; UGC marketplaces (Billo, Collabstr); TikTok One (Creator Marketplace)</td><td>Paid trial: 3 clips each, keep the best 2 people</td></tr>
+      <tr><td>Native-speaker creators and ambassadors</td><td>italki and Preply teachers who already post content; HelloTalk ambassadors; university language societies</td><td>They bring an audience and accuracy</td></tr>
+      <tr><td>SEO editor</td><td>Upwork, Contra, LinkedIn</td><td>Test with one real article from the list</td></tr>
+      <tr><td>Google Ads specialist</td><td>Google Partners directory, Upwork</td><td>Ask for a Search account they grew for a subscription product</td></tr>
+      <tr><td>Partnerships / community / Head of Growth</td><td>Wellfound (startup jobs), LinkedIn, Indie Hackers</td><td>Pay part salary, part equity once revenue allows</td></tr>
+      <tr><td>Vibe-coder collaborators</td><td>X (build in public), Indie Hackers, Product Hunt, r/SideProject</td><td>Collaborate on content; swap audiences</td></tr>
+    </tbody>
+  </table></div>
+  <p class="note">Rates vary a lot by country and level; compare 3 quotes on each platform before hiring. Hire freelancers on paid trials before anyone joins full-time.</p>
+</section>
+
+<section id="learn">
+  <h2>Upskilling: what you (and the marketer) should learn</h2>
+  <div class="grid2">
+    <div class="card"><h3>Free certificates</h3><ul><li>HubSpot Academy: Inbound Marketing, Content Marketing, Email Marketing</li><li>Google Skillshop: Google Ads Search certification, Google Analytics</li><li>Google Search Central: SEO starter guide</li><li>TikTok Academy and Meta Blueprint (for ads later)</li></ul></div>
+    <div class="card"><h3>Books (proven, widely used)</h3><ul><li><i>Traction</i>: Weinberg &amp; Mares (Bullseye, 19 channels)</li><li><i>Obviously Awesome</i>: April Dunford (positioning)</li><li><i>The Mom Test</i>: Rob Fitzpatrick (talking to users)</li><li><i>$100M Offers</i>: Alex Hormozi (pricing and offers)</li><li><i>Building a StoryBrand</i>: Donald Miller (website messaging)</li></ul></div>
+    <div class="card"><h3>Skills to practise weekly</h3><ul><li>Writing hooks (first 1 second of a video)</li><li>Reading a funnel in PostHog</li><li>5 user interviews a month (The Mom Test style)</li><li>Writing a one-page brief for an agent or freelancer</li></ul></div>
+  </div>
+</section>
+
+<section id="phases">
+  <h2>The phases</h2>
+  <pre class="mermaid">
+flowchart LR
+  A["PHASE 1 · Prove it<br/>you + marketer + agents<br/>2–3 freelance video creators<br/>SEO editor · small Search ads<br/><b>Goal:</b> site indexed, 20 testimonials,<br/>1 channel that works"] --> B["PHASE 2 · Repeat it<br/>+ partnerships manager<br/>+ community manager · designer<br/>affiliate programme · Pod101 affiliate<br/>Meta/TikTok boosts · YouTube long-form<br/><b>Goal:</b> predictable sign-ups every week"]
+  B --> C["PHASE 3 · Scale it<br/>Head of Growth · data analyst<br/>language ambassadors · school sales<br/>App campaigns · more languages<br/><b>Goal:</b> every channel profitable"]
+  style A fill:#FDEDEC,stroke:#D92B21
+  style B fill:#FFF3E5,stroke:#C05F00
+  style C fill:#E9F6EE,stroke:#1F8F46
+  </pre>
+  <p><b>Move to the next phase only when its goal is met.</b> Not on a date, and not because a tool made it possible.</p>
+</section>
+
+<section>
+  <h2>Sources</h2>
+  <ul class="note">
+    <li>Duolingo on TikTok: <a href="https://ads.tiktok.com/business/en/inspiration/ad-awards-duolingo-case-study">TikTok case study</a>, <a href="https://www.fastcompany.com/90963949/duolingo-duo-owl-gen-z-obsessed">Fast Company</a>, <a href="https://shortyawards.com/14th/duolingo-tiktok-2">Shorty Awards entry</a></li>
+    <li>Affiliates: <a href="https://lingopie.com/affiliate">Lingopie affiliate</a>, <a href="https://copycatcafe.com/blog/lingopie-affiliate-program">Lingopie terms review</a>, <a href="https://www.lingq.com/referral-affiliate-program/">LingQ referral</a>, <a href="https://affilimate.io/programs/innovative-languages-affiliate-program/">Innovative Language programme listing</a>, <a href="https://uppromote.com/blog/language-learning-affiliate-programs/">UpPromote directory</a></li>
+    <li>Creator sponsorships: <a href="https://creatomap.com/brand/lingopie">Creatomap: Lingopie</a>, <a href="https://sponsorradar.com/brands/hellotalk">SponsorRadar: HelloTalk</a></li>
+    <li>HelloTalk: <a href="https://www.hellotalk.com/faq/account/208">posting rules</a>, <a href="https://home.hellotalk.cn/ambassadors">ambassador programme</a></li>
+    <li>Google Ads: <a href="https://support.google.com/adwords/answer/1722050">Choose the right campaign type</a>, <a href="https://www.revenuecat.com/blog/growth/a-practical-guide-to-google-app-campaigns.md">RevenueCat: App campaigns</a></li>
+    <li>Framework: Gabriel Weinberg &amp; Justin Mares, <i>Traction</i> (Bullseye framework); HubSpot inbound methodology and buyer's journey (see the marketing audit)</li>
+  </ul>
+</section>
+</main>
+</html>
