@@ -1,6 +1,7 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="robots" content="noindex,nofollow"><title>LinguaScript Motion Library</title>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="robots" content="noindex,nofollow"><title>LinguaScript Motion · Transitions & Moments</title>
 </head><body style="margin:0">
+
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@500;700&display=swap">
 <style>
@@ -44,13 +45,15 @@ button{font:inherit;color:inherit;cursor:pointer}
 </style>
 <main>
 <header style="display:grid;gap:12px">
-  <div class="eyebrow-s">LinguaScript · Motion Library · step 2 of 3</div>
+  <div class="eyebrow-s">LinguaScript · Motion Library · Part 3 of 3 · Transitions, backgrounds, LinguaScript moments, easing</div>
   <h1>Motion for a<br>streaming app, <em>in base form</em></h1>
   <p class="mut" style="font-size:1.05rem">Every effect on its own, in plain greys plus the deck colours, so you can judge the motion itself. Each one says where it would go in LinguaScript. Effects come from what the best streaming apps and motion sites use (hover previews, parallax cards, brand reveals, skeleton loaders, spring physics, kinetic type), plus LinguaScript's own word-colour moments. Step 3 combines your favourites with the homepages.</p>
+  <nav class="chips"><a class="chip" href="motion-1.html" aria-pressed="false" style="text-decoration:none">1 · Text & cards</a><a class="chip" href="motion-2.html" aria-pressed="false" style="text-decoration:none">2 · Video, buttons, loading</a><a class="chip" href="motion-3.html" aria-pressed="true" style="text-decoration:none">3 · Transitions & LinguaScript moments</a></nav>
   <div class="chips" id="cats"></div>
 </header>
 <div class="grid" id="grid"></div>
 </main>
+<script>document.documentElement.dataset.part='motion3';</script>
 <script>
 // [name, category, where it's used, html, css]
 const FX=[];const add=(n,c,u,h,css)=>FX.push([n,c,u,h,css]);
@@ -165,15 +168,19 @@ durations.forEach(([n,d],i)=>add(`Duration: ${n}`,"Easing","Speed scale for ever
 window.FXN=FX.length;
 </script>
 <script>
-const grid=document.getElementById('grid');let css='';const cats=[...new Set(FX.map(f=>f[1]))];
-FX.forEach(([n,c,u,h,s],i)=>{css+=s;const el=document.createElement('article');el.className='fx';el.dataset.c=c;el.innerHTML=`<div class="st">${h}</div><div class="inf"><span class="n">#${String(i+1).padStart(3,'0')} · ${c}</span><b>${n}</b><span>${u}</span></div>`;grid.appendChild(el)});
-const s=document.createElement('style');s.textContent=css;document.head.appendChild(s);
-// JS-driven ones
-const scr=document.querySelector('.sc');const tgt='fenêtre';const pool='abcdefghijklmnopqrstuvwxyzéè';let f=0;setInterval(()=>{f=(f+1)%40;scr.textContent=[...tgt].map((ch,i)=>f>i*3+8?ch:pool[Math.floor(Math.random()*pool.length)]).join('')},70);
-const nr=document.querySelector('.nr');let v=0;setInterval(()=>{v=v>=87?0:v+3;nr.textContent=Math.min(v,87)+'%'},70);
-const io=new IntersectionObserver(es=>es.forEach(e=>e.target.classList.toggle('paused',!e.isIntersecting)));document.querySelectorAll('.st').forEach(x=>io.observe(x));
-const host=document.getElementById('cats');const mk=(v,label)=>{const b=document.createElement('button');b.className='chip';b.textContent=label;b.setAttribute('aria-pressed',v==='all');b.addEventListener('click',()=>{host.querySelectorAll('.chip').forEach(c=>c.setAttribute('aria-pressed',c===b));document.querySelectorAll('.fx').forEach(x=>x.hidden=!(v==='all'||x.dataset.c===v))});host.appendChild(b)};
-mk('all',`All ${FX.length}`);cats.forEach(c=>mk(c,`${c} (${FX.filter(f=>f[1]===c).length})`));
+const PARTS={motion1:["Text","Cards"],motion2:["Hero & video","Buttons","Loading"],motion3:["Transitions","Backgrounds","LinguaScript","Easing"]};
+const KEEP=PARTS[document.documentElement.dataset.part]||null;
+const grid=document.getElementById('grid');let css='';const ALL=FX.map((f,i)=>[...f,i]);const LIST=KEEP?ALL.filter(f=>KEEP.includes(f[1])):ALL;const cats=[...new Set(LIST.map(f=>f[1]))];
+const lazy=new IntersectionObserver(es=>es.forEach(e=>{const st=e.target;if(e.isIntersecting){if(!st.dataset.on){st.innerHTML=st._h;st.dataset.on=1}}else if(st.dataset.on){st.innerHTML='';delete st.dataset.on}}),{rootMargin:'250px'});
+const io=new IntersectionObserver(es=>es.forEach(e=>e.target.classList.toggle('paused',!e.isIntersecting)));
+LIST.forEach(([n,c,u,h,s,i])=>{css+=s;const el=document.createElement('article');el.className='fx';el.dataset.c=c;el.innerHTML=`<div class="st"></div><div class="inf"><span class="n">#${String(i+1).padStart(3,'0')} · ${c}</span><b>${n}</b><span>${u}</span></div>`;const st=el.firstElementChild;st._h=h;grid.appendChild(el);lazy.observe(st);io.observe(st)});
+const s2=document.createElement('style');s2.textContent=css;document.head.appendChild(s2);
+// one shared ticker, only for effects currently on screen
+const tgt='fenêtre';const pool='abcdefghijklmnopqrstuvwxyzéè';let f=0,v=0;setInterval(()=>{f=(f+1)%40;v=v>=87?0:v+3;
+ const scr=document.querySelector('.st:not(.paused) .sc');if(scr)scr.textContent=[...tgt].map((ch,i)=>f>i*3+8?ch:pool[Math.random()*pool.length|0]).join('');
+ const nr=document.querySelector('.st:not(.paused) .nr');if(nr)nr.textContent=Math.min(v,87)+'%';},70);
+const host=document.getElementById('cats');const mk=(val,label)=>{const btn=document.createElement('button');btn.className='chip';btn.textContent=label;btn.setAttribute('aria-pressed',val==='all');btn.addEventListener('click',()=>{host.querySelectorAll('.chip').forEach(x=>x.setAttribute('aria-pressed',x===btn));document.querySelectorAll('.fx').forEach(x=>x.hidden=!(val==='all'||x.dataset.c===val))});host.appendChild(btn)};
+mk('all',`All ${LIST.length}`);cats.forEach(c=>mk(c,`${c} (${LIST.filter(x=>x[1]===c).length})`));
 </script>
 
 </body></html>
