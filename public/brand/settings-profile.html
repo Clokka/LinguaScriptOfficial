@@ -104,11 +104,58 @@ h1 em{font-family:var(--serif);font-weight:400;color:var(--green)}
 .th-split{--sbg:linear-gradient(180deg,#fff 0 300px,#0a0a0d 300px)}
 .th-split .bar0,.th-split .hero1{color:#0a0a0d}.th-split .hero1 .mu{color:#555}
 .th-ios{--sbg:#000;--card:#1c1c1e;--ln:#ffffff12;--rad:14px;--acc:#30D158}
+/* ============ "Me" tab patterns (social-app inspired) ============ */
+@property --pct{syntax:'<number>';inherits:true;initial-value:0}
+.avr{--pct:0;position:relative;width:92px;height:92px;border-radius:50%;flex:none;background:conic-gradient(var(--acc) calc(var(--pct)*1%),#ffffff18 0);display:grid;place-items:center;animation:fillp 2s .3s cubic-bezier(.16,1,.3,1) forwards}
+@keyframes fillp{to{--pct:var(--to,92)}}
+.avr .av{width:80px;height:80px;border:3px solid var(--sbg)}
+.avr .badge{position:absolute;bottom:-8px;left:50%;translate:-50% 0;background:#0a0a0d;border:1px solid var(--ln);border-radius:99px;padding:2px 8px;font:800 11px var(--sans)}
+.dotmap{position:absolute;inset:0;background-image:radial-gradient(#ffffff55 1.4px,transparent 1.6px);background-size:9px 9px;-webkit-mask:radial-gradient(28% 34% at 26% 42%,#000 60%,transparent 62%),radial-gradient(14% 22% at 32% 78%,#000 60%,transparent 62%),radial-gradient(30% 30% at 66% 38%,#000 60%,transparent 62%),radial-gradient(12% 14% at 82% 76%,#000 60%,transparent 62%);mask:radial-gradient(28% 34% at 26% 42%,#000 60%,transparent 62%),radial-gradient(14% 22% at 32% 78%,#000 60%,transparent 62%),radial-gradient(30% 30% at 66% 38%,#000 60%,transparent 62%),radial-gradient(12% 14% at 82% 76%,#000 60%,transparent 62%)}
+.dotmap i{position:absolute;width:10px;height:10px;border-radius:50%;background:#FFD60A;box-shadow:0 0 0 0 #FFD60A;animation:ping 2s infinite}
+@keyframes ping{70%{box-shadow:0 0 0 14px #ffd60a00}}
+.stat6{display:grid;grid-template-columns:repeat(3,1fr);gap:12px 6px;text-align:center}
+.stat6 b{display:block;font-size:20px;font-weight:900}.stat6 span{font-size:20px}.stat6 small{font-size:10.5px;color:var(--mu)}
+.tools{display:grid;grid-template-columns:repeat(4,1fr);gap:14px 6px;text-align:center;font-size:11px;font-weight:600}
+.tools i{display:grid;place-items:center;width:52px;height:52px;margin:0 auto 6px;border-radius:16px;font-style:normal;font-size:24px;position:relative;box-shadow:inset 0 -3px 0 #0003,0 8px 18px -8px #000;transition:transform .2s}
+.tools div:active i,.tools div:hover i{transform:scale(1.08) rotate(-4deg)}
+.tools i.new::after{content:"";position:absolute;top:-2px;right:-2px;width:10px;height:10px;border-radius:50%;background:#FF453A;border:2px solid var(--card)}
+.ldots{display:flex;gap:3px;margin-top:5px}.lrow .ldots i{width:7px;height:7px;border-radius:50%;flex:none}.ldots i{width:6px;height:6px;border-radius:50%;background:#ffffff22}.ldots i.f{background:var(--acc)}
+.rdot{width:8px;height:8px;border-radius:50%;background:#FF453A;display:inline-block;animation:pulse 1.4s infinite}
+.lrow{display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid var(--ln)}
+.lrow:first-child{border-top:0}
+.lrow i{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;font-style:normal;font-size:19px;flex:none}
+.lrow .k1{font-size:11.5px;color:var(--mu)}.lrow .v1{font-weight:700;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lrow>div{min-width:0;flex:1}
+.bot2{position:absolute;left:14px;right:14px;bottom:16px;z-index:6;display:flex;gap:10px}
+.bot2 b{flex:1;text-align:center;border-radius:999px;padding:14px;font-weight:800;cursor:pointer}
+.tabbar{position:absolute;left:0;right:0;bottom:0;z-index:6;display:flex;justify-content:space-around;padding:10px 6px 16px;background:#0a0a0dee;border-top:1px solid var(--ln);backdrop-filter:blur(14px)}
+.tabbar span{font-size:10px;text-align:center;color:var(--mu);position:relative}.tabbar span b{display:block;font-size:20px;filter:grayscale(1);opacity:.6}
+.tabbar span.on{color:var(--acc)}.tabbar span.on b{filter:none;opacity:1}
+.tabbar em{position:absolute;top:-4px;right:-6px;font:800 9px var(--sans);font-style:normal;background:#FF453A;color:#fff;border-radius:99px;padding:1px 5px}
+.sheet{position:absolute;left:0;right:0;bottom:0;z-index:8;border-radius:26px 26px 0 0;background:#17171d;border-top:1px solid #ffffff1c;padding:12px 18px 26px;transform:translateY(105%);transition:transform .55s cubic-bezier(.16,1,.3,1);color:#fff}
+.sheet::before{content:"";display:block;width:40px;height:5px;border-radius:9px;background:#ffffff33;margin:0 auto 14px}
+.scrim{position:absolute;inset:0;z-index:7;background:#0008;opacity:0;pointer-events:none;transition:opacity .4s}
+.S.open-sheet .sheet{transform:none}.S.open-sheet .scrim{opacity:1}
+.week{display:flex;align-items:center;justify-content:space-between;position:relative;margin:14px 0 4px}
+.week::before{content:"";position:absolute;left:14px;right:14px;top:50%;height:4px;background:#ffffff14;border-radius:4px}
+.week i{position:relative;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-style:normal;font-size:14px;background:#2a2a32;transform:scale(.6);opacity:.5;transition:all .4s}
+.S.open-sheet .week i{transform:none;opacity:1}
+.week i.d{background:var(--orange);box-shadow:0 0 16px var(--orange)}
+.flipwrap{perspective:1200px}
+.flip{position:relative;transform-style:preserve-3d;transition:transform .8s cubic-bezier(.16,1,.3,1);min-height:500px}
+.S.preview .flip{transform:rotateY(180deg)}
+.flip>.face{backface-visibility:hidden;-webkit-backface-visibility:hidden}
+.flip>.back{position:absolute;inset:0;transform:rotateY(180deg)}
+.complete{display:flex;gap:14px;align-items:center;border-radius:20px;padding:14px;background:linear-gradient(120deg,#34C75926,#FFD60A1a);border:1px solid #34C75944}
+.mini-ring{--pct:0;width:58px;height:58px;border-radius:50%;flex:none;background:conic-gradient(var(--acc) calc(var(--pct)*1%),#ffffff14 0);display:grid;place-items:center;animation:fillp 2s .4s forwards}
+.mini-ring b{width:46px;height:46px;border-radius:50%;background:var(--sbg);display:grid;place-items:center;font-size:13px}
+.ticker{display:inline-block;animation:up .6s both}
+
 </style>
 
 <div class="wrap">
   <h1>Profile & settings, <em>many ways</em></h1>
-  <p class="lead">Phone versions of the Profile + Settings screen with everything on it today: photo and name, native language, your 5 languages with track and level, phone colours, daily word goal, hobby, privacy, school, pet, account and plan. Each screen scrolls by itself; scroll or tap it to take over (toggles, goals and hobbies respond). Some versions save automatically instead of a big Save button. Example data only.</p>
+  <p class="lead">Phone versions of the Profile + Settings screen with everything on it today: photo and name, native language, your 5 languages with track and level, phone colours, daily word goal, hobby, privacy, school, pet, account and plan. The Social group borrows patterns from social language apps (completion ring, streak sheet, tools grid, level dots, edit/preview) and plays its own taps. Each screen scrolls by itself; scroll or tap it to take over (toggles, goals and hobbies respond). Some versions save automatically instead of a big Save button. Example data only.</p>
   <div class="chips" id="flt" role="toolbar" aria-label="Filter versions"></div>
   <div class="grid" id="g"></div>
 </div>
@@ -190,6 +237,29 @@ add("Floating accents","Motion",()=>scr(ALL(),{bg:BG.letters,auto:1}));
 add("Orbs behind glass","Motion",()=>scr(ALL({ring:1}),{t:"glass",bg:BG.orbs}));
 add("Gold shimmer plan","Motion",()=>scr(`${hero({ring:1})}<div class="cd" style="background:linear-gradient(110deg,#2a2104,#6b5410,#2a2104);background-size:200% 100%;animation:glim 4s linear infinite;border-color:#FFD60A55"><div class="row"><div><div style="font:800 11px var(--mono);color:#FFD60A;letter-spacing:.2em">YOUR PLAN</div><div style="font-size:26px;font-weight:900">Pro ✨</div><div class="mu" style="color:#e9dca8">Gifted to you · no expiry</div></div><div style="font-size:44px">👑</div></div></div>${langs()}${goal()}${hobby(10)}${privacy()}${account()}`,{t:"gold"}));
 
+
+/* ---------- Social-app patterns (inspired by HelloTalk's Me tab, rebuilt for LinguaScript) ---------- */
+const avr=(to=92)=>`<div class="avr" style="--to:${to}"><div class="av">${U.ini}</div><span class="badge">${to}%</span></div>`;
+const lvl=n=>`<div class="ldots">${[1,2,3,4,5].map(i=>`<i class="${i<=n?"f":""}"></i>`).join("")}</div>`;
+const LV={"B2":4,"Below A1":1,"A1":2};
+const statRow=()=>`<div class="cd"><div class="row"><div class="h3">📊 Your learning</div><span class="mu">Joined 939 days</span></div><div class="stat6" style="margin-top:12px">${[["🟢",9525,"known"],["🟠",352,"learning"],["✨",413,"to review"],["🎬",7,"videos"],["⏱️",55,"minutes"],["🔥",1,"day streak"]].map(([e,n,l],i)=>`<div><span>${e}</span><b class="ticker" style="animation-delay:${i*.08}s">${n.toLocaleString()}</b><small>${l}</small></div>`).join("")}</div><div class="save" style="position:static;margin-top:14px;padding:12px">History</div></div>`;
+const toolGrid=(t="🧰 Tools")=>`<div class="cd"><div class="h3">${t}</div><div class="tools" style="margin-top:14px">${[["🃏","Flashcards","#34C759",0],["📈","Top 3,000","#FF9F0A",0],["📷","Scan a page","#3fa9ff",1],["🇫🇷","Fast Track","#7b6cff",1],["📊","Progress","#FF453A",0],["🧩","Extension","#14b8a6",0],["🦎","Phone bubble","#26A047",1],["📚","Vocabulary","#e0337a",0]].map(([e,l,c,n])=>`<div><i class="${n?"new":""}" style="background:linear-gradient(160deg,${c},${c}bb)">${e}</i>${l}</div>`).join("")}</div></div>`;
+const streakTile=()=>`<div class="row" style="gap:10px"><div class="cd" data-open style="cursor:pointer;flex:1"><div style="font-size:26px;font-weight:900">🔥 1</div><div class="mu">Day streak · tap</div></div><div class="cd" style="flex:1"><div style="font-size:26px;font-weight:900">57</div><div class="mu">Level · 80% understood</div></div></div>`;
+const sheet=()=>`<div class="scrim" data-close></div><div class="sheet"><div class="row"><b style="font-size:18px">🔥 1-day streak</b><span class="mu" data-close style="cursor:pointer">✕</span></div><div class="mu" style="margin-top:4px">Watch or review a little every day. Your words stay green.</div><div class="week">${["✓","","","","","",""].map((c,i)=>`<i class="${i==0?"d":""}" style="transition-delay:${i*.07}s">${i==6?"🏆":c||(i+1)}</i>`).join("")}</div><div class="mu" style="display:flex;justify-content:space-between;font-size:10px"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span></div><div class="cd" style="margin-top:14px;display:flex;gap:12px;align-items:center"><span style="font-size:30px">✨</span><div style="flex:1"><b>413 gold words waiting</b><div class="mu">5-minute review keeps the streak</div></div><span class="pill on">Go</span></div></div>`;
+const tabbar=(on=4)=>`<div class="tabbar">${[["🏠","Home"],["🎬","Watch",3],["🃏","Cards",9],["📊","Progress"],["🦎","Me",1]].map(([e,l,n],i)=>`<span class="${i==on?"on":""}"><b>${e}</b>${l}${n?`<em>${n}</em>`:""}</span>`).join("")}</div>`;
+const meHead=()=>`<div style="display:flex;gap:16px;align-items:center;padding-top:4px">${avr(92)}<div style="min-width:0;flex:1"><div style="font-size:22px;font-weight:900">${U.name}</div><div class="mu">🇬🇧 → 🇫🇷 French B2 · ⭐ Pro</div><div style="display:flex;gap:6px;margin-top:8px"><span class="pill on">✎ Edit <span class="rdot"></span></span><span class="pill">Share</span></div></div></div>`;
+const meScr=(body,o={})=>`<div class="S th-${o.t||"base"}" data-demo="${o.demo||""}">${o.bg||""}<div class="sc" style="padding-bottom:${o.pb||100}px"><div class="col">${o.noTop?"":topBar(o.title||"Me")}${body}</div></div>${o.bottom||tabbar()}${o.sheet===false?"":sheet()}</div>`;
+
+add("Me tab: ring + streak sheet","Social",()=>meScr(`${meHead()}${streakTile()}${statRow()}${toolGrid()}`,{demo:"[data-open]|[data-close]",bg:BG.aurora,t:"glass"}));
+add("Complete your profile","Social",()=>meScr(`${meHead()}<div class="complete"><div class="mini-ring" style="--to:92"><b>92%</b></div><div><b>Finish your profile</b><div class="mu">Add your school and one sentence about you, and we'll pick better videos.</div></div></div>${[["🏫","#14b8a6","School","Add school",1],["💬","#7b6cff","About me (in French)","Add a sentence",1],["❤️","#FF453A","Hobby","Entrepreneurship"],["🎯","#FF9F0A","Daily goal","10 words"]].map(([e,c,k,v,r])=>`<div class="cd" style="padding:4px 14px"><div class="lrow"><i style="background:${c}2a">${e}</i><div><div class="k1">${k}</div><div class="v1" style="${r?"color:var(--mu)":""}">${v}</div></div>${r?'<span class="rdot"></span>':""}<span class="mu">›</span></div></div>`).join("")}${toolGrid()}`,{demo:"[data-open]|[data-close]",bg:BG.grid}));
+add("Edit ↔ Preview flip","Social",()=>meScr(`<div class="flipwrap"><div class="flip"><div class="face col">${[["About me",[["👤","#34C759","Name",U.name],["💬","#7b6cff","About me","🔊 Salut ! J'apprends le français en regardant du foot."]]],["Languages",[["🇬🇧","#3fa9ff","Native","English"],...U.langs.slice(0,3).map(l=>[l[0],"#ffffff14","Learning",l[1]+" · "+l[3]])]],["Interests",[["❤️","#FF453A","Hobby","Entrepreneurship"],["✈️","#FF9F0A","Where I'll use French","Paris, Lyon, Montréal"]]]].map(([h,rows])=>`<div class="h3" style="margin-top:4px">${h}</div><div class="cd" style="padding:2px 14px">${rows.map(([e,c,k,v])=>`<div class="lrow"><i style="background:${c}2a">${e}</i><div><div class="k1">${k}</div><div class="v1">${v}</div></div><span class="mu">›</span></div>`).join("")}</div>`).join("")}</div><div class="face back"><div class="cd" style="text-align:center;padding:22px;background:linear-gradient(170deg,#1e9e45,#0b2a15 70%)"><div style="display:flex;justify-content:center">${avr(100)}</div><div style="font-size:26px;font-weight:900;margin-top:14px">${U.name}</div><div class="mu" style="color:#cfe">Learning French · B2</div><div style="margin-top:14px;font-size:15px" translate="no">"Salut ! J'apprends le français en regardant du foot."</div><div style="display:flex;justify-content:center;gap:8px;margin-top:16px">${U.langs.map(l=>`<span style="font-size:26px">${l[0]}</span>`).join("")}</div><div class="stat6" style="margin-top:18px"><div><b>9,525</b><small>known</small></div><div><b>7</b><small>videos</small></div><div><b>🔥1</b><small>streak</small></div></div></div></div></div></div>`,{demo:"[data-preview]|[data-preview]",bottom:`<div class="bot2"><b data-preview style="background:#ffffff14;border:1px solid var(--ln)">👁 Preview</b><b style="background:var(--acc);color:var(--accfg)">✓ Saved</b></div>`,sheet:false,title:"Edit profile"}));
+add("World-map cover","Social",()=>meScr(`<div style="position:relative;height:170px;margin:-18px -18px 0;background:linear-gradient(160deg,#0e3b1d,#1e9e45)"><div class="dotmap"><i style="left:47%;top:30%"></i><i style="left:30%;top:35%;animation-delay:.6s"></i><i style="left:76%;top:40%;animation-delay:1.2s"></i></div><span class="bk" style="position:absolute;left:16px;top:16px">←</span><span class="pill" style="position:absolute;right:14px;top:16px;background:#0006">🗺 Where I'll use French</span></div><div style="display:flex;justify-content:center;margin-top:-62px;position:relative">${avr(92)}</div><div style="text-align:center"><div style="font-size:22px;font-weight:900">${U.name}</div><div class="mu">Paris · Lyon · Montréal</div></div>${statRow()}${langs()}`,{noTop:1,demo:"[data-open]|[data-close]"}));
+add("Language level dots","Social",()=>meScr(`${meHead()}<div class="cd"><div class="row"><div class="h3">🌐 Languages</div><span class="mu">5/5</span></div>${U.langs.map(([f,n,m,l,a])=>`<div class="lrow"><i style="background:#ffffff0d">${f}</i><div><div class="v1">${n} ${a?'<span class="act">ACTIVE</span>':""}</div><div class="k1">${m} · ${l}</div>${lvl(LV[l])}</div><span class="mu">›</span></div>`).join("")}<div class="lrow"><i style="background:#34C75922">＋</i><div class="v1" style="color:var(--mu)">Add a language</div><span class="rdot"></span></div></div><div class="mu" style="padding:0 4px">Dots show your level: 1 = just starting, 5 = fluent.</div>${toolGrid()}`,{t:"forest",bg:BG.letters,demo:"[data-open]|[data-close]"}));
+add("Stats strip + tools","Social",()=>meScr(`${meHead()}${streakTile()}${toolGrid("🧰 LinguaScript tools")}${statRow()}<div class="cd" style="text-align:center"><b style="font-size:18px">Invite a friend</b><div class="mu">Learn together, keep each other's streak alive</div><div class="save" style="position:static;margin-top:12px;padding:12px">Share my link</div></div>`,{t:"ocean",bg:BG.orbs,demo:"[data-open]|[data-close]"}));
+add("Gold Pro + sheet","Social",()=>meScr(`${meHead()}<div class="cd" style="background:linear-gradient(110deg,#2a2104,#6b5410,#2a2104);background-size:200% 100%;animation:glim 4s linear infinite;border-color:#FFD60A55"><div class="row"><div><div style="font:800 11px var(--mono);color:#FFD60A;letter-spacing:.2em">PRO · GIFTED</div><div style="font-size:20px;font-weight:900">Everything unlocked 👑</div><div class="mu" style="color:#e9dca8">Any video, all 5 languages, phone bubble</div></div></div></div>${streakTile()}${statRow()}`,{t:"gold",demo:"[data-open]|[data-close]"}));
+add("Glass Me + tabs","Social",()=>meScr(`${meHead()}<div style="display:flex;background:#ffffff0a;border-radius:14px;padding:4px;gap:4px">${["Stats","Languages","Settings"].map((t,i)=>`<span style="flex:1;text-align:center;padding:9px;border-radius:10px;font-size:13px;font-weight:700;${i==0?"background:var(--acc);color:var(--accfg)":""}">${t}</span>`).join("")}</div>${statRow()}${streakTile()}${toolGrid()}`,{t:"glass",bg:BG.aurora,demo:"[data-open]|[data-close]"}));
+add("Paper Me","Social",()=>meScr(`${meHead()}<div class="complete" style="background:#fff;border-color:#15803d44"><div class="mini-ring" style="--to:92"><b>92%</b></div><div><b>Finish your profile</b><div class="mu">Two things left</div></div></div>${statRow()}${toolGrid()}`,{t:"paper",demo:"[data-open]|[data-close]"}));
+
 /* ---------- render ---------- */
 const tags=["All",...new Set(V.map(v=>v.tag))];
 const flt=document.getElementById("flt"),g=document.getElementById("g");
@@ -200,13 +270,17 @@ const ro=new ResizeObserver(es=>es.forEach(e=>fit(e.target)));
 /* auto-scroll: slow glide down then back up, stops for good once the viewer touches it */
 const live=new Set();
 let last=performance.now();
-(function loop(t){const dt=Math.min(50,t-last);last=t;live.forEach(st=>{const sc=st.querySelector(".sc");if(!sc||st._user)return;if(st._wait>0){st._wait-=dt;return}const max=sc.scrollHeight-sc.clientHeight;st._pos=(st._pos||0)+st._dir*dt*0.045;if(st._pos>=max){st._pos=max;st._dir=-1;st._wait=1500}if(st._pos<=0){st._pos=0;st._dir=1;st._wait=1500}sc.scrollTop=st._pos});requestAnimationFrame(loop)})(last);
+(function loop(t){const dt=Math.min(50,t-last);last=t;live.forEach(st=>{const S=st.querySelector(".S");const demo=S&&S.dataset.demo;if(demo&&!st._user){st._dt=(st._dt||0)+dt;if(st._dt>3200){st._dt=0;const sels=demo.split("|");st._di=((st._di??-1)+1)%sels.length;S.querySelector(sels[st._di])?.click()}if(S.classList.contains("open-sheet"))return}const sc=st.querySelector(".sc");if(!sc||st._user)return;if(st._wait>0){st._wait-=dt;return}const max=sc.scrollHeight-sc.clientHeight;st._pos=(st._pos||0)+st._dir*dt*0.045;if(st._pos>=max){st._pos=max;st._dir=-1;st._wait=1500}if(st._pos<=0){st._pos=0;st._dir=1;st._wait=1500}sc.scrollTop=st._pos});requestAnimationFrame(loop)})(last);
 const io=new IntersectionObserver(es=>es.forEach(e=>{const st=e.target.firstChild,i=[...g.children].indexOf(e.target.closest(".tile"));
  if(e.isIntersecting){if(!st.dataset.on){st.innerHTML=V[i].f();st.dataset.on=1;st._dir=1;st._wait=1200;st._pos=0;st._user=false;const sc=st.querySelector(".sc");["wheel","touchstart","pointerdown"].forEach(ev=>sc.addEventListener(ev,()=>{st._user=true},{passive:true}))}st.classList.remove("paused");live.add(st)}
  else{st.classList.add("paused");live.delete(st);if(Math.abs(e.boundingClientRect.top)>3000){st.innerHTML="";delete st.dataset.on}}}),{rootMargin:"200px"});
 document.querySelectorAll(".frame").forEach(fr=>{ro.observe(fr);io.observe(fr);fit(fr)});
 /* simple interactions */
-g.addEventListener("click",e=>{const t=e.target.closest(".tg,.goals b,.hob b,.wsprev div,.pill");if(!t)return;
+g.addEventListener("click",e=>{const S=e.target.closest(".S");
+ if(S&&e.target.closest("[data-open]")){S.classList.add("open-sheet");return}
+ if(S&&e.target.closest("[data-close]")){S.classList.remove("open-sheet");return}
+ if(S&&e.target.closest("[data-preview]")){S.classList.toggle("preview");return}
+ const t=e.target.closest(".tg,.goals b,.hob b,.wsprev div,.pill");if(!t)return;
  if(t.matches(".tg"))t.classList.toggle("on");
  else{[...t.parentElement.children].forEach(c=>c.classList.toggle("on",c===t))}});
 </script>
