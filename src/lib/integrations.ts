@@ -37,6 +37,14 @@ export function saveIntegrations(cfg: Record<IntegrationKey, IntegrationConfig>)
 
 const loaded = new Set<string>();
 
+function loadWhenIdle(key: string, src: string) {
+  if (loaded.has(key)) return;
+  loaded.add(key);
+  const go = () => { const t = document.createElement("script"); t.async = true; t.src = src; document.head.appendChild(t); };
+  const w = window as any;
+  if (w.requestIdleCallback) w.requestIdleCallback(go, { timeout: 4000 }); else setTimeout(go, 2500);
+}
+
 function loadClarity(id: string) {
   const key = `clarity:${id}`;
   if (loaded.has(key) || !id) return;
@@ -55,5 +63,10 @@ export function initIntegrations() {
   if (typeof window === "undefined") return;
   const cfg = getIntegrations();
   if (cfg.clarity.enabled && cfg.clarity.id) loadClarity(cfg.clarity.id);
+  // GoAffPro (old affiliate tracker) used to load for every visitor from
+  // index.html, before consent. It now loads only after consent, once the
+  // page is idle, until the own partner programme (src/lib/referral.ts) has
+  // replaced it; then delete this line and src/lib/goaffpro.ts.
+  loadWhenIdle("goaffpro", "https://api.goaffpro.com/loader.js?shop=pyqppuomzx");
   // Future: meta pixel, GA, etc.
 }

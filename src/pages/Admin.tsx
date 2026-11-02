@@ -379,7 +379,10 @@ const Admin = () => {
         </Button>
 
         <h1 className="text-3xl font-bold text-foreground mb-2">Admin Dashboard</h1>
-        <p className="text-muted-foreground mb-8">Add films and upload subtitle tracks, or let fetched YouTube captions auto-save here per film.</p>
+        <p className="text-muted-foreground mb-4">Add films and upload subtitle tracks, or let fetched YouTube captions auto-save here per film.</p>
+        <Button variant="hero" onClick={() => navigate("/partners")} className="mb-8">
+          Partners &amp; Site Studio
+        </Button>
 
         <AdminBlogEditor />
 

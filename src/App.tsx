@@ -54,6 +54,8 @@ const Write = lazy(() => import("./pages/Write"));
 const Speak = lazy(() => import("./pages/Speak"));
 const Studio = lazy(() => import("./pages/Studio"));
 const ConnectAI = lazy(() => import("./pages/ConnectAI"));
+const Partners = lazy(() => import("./pages/Partners"));
+const RefLink = lazy(() => import("./pages/RefLink"));
 const PhoneOverlay = lazy(() => import("./pages/PhoneOverlay"));
 const FrequentWords = lazy(() => import("./pages/FrequentWords"));
 const FrenchWords = lazy(() => import("./pages/FrenchWords"));
@@ -172,6 +174,8 @@ const App = () => (
                 <Route path="/french-words" element={<FrenchWords />} />
                 <Route path="/zipf" element={<Navigate to="/frequent-words" replace />} />
                 <Route path="/admin" element={<Admin />} />
+                <Route path="/partners" element={<Partners />} />
+                <Route path="/r/:code" element={<RefLink />} />
                 <Route path="/story" element={<Story />} />
                 <Route path="/friends" element={<Friends />} />
                 <Route path="/onboarding" element={<Onboarding />} />

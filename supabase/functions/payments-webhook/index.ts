@@ -200,6 +200,101 @@ async function sendRenewalPaymentFailed(invoice: any) {
   });
 }
 
+// ── Partner programme ─────────────────────────────────────────────────────
+// A learner who signed up through a partner link (public.referrals) earns
+// that partner a share of each payment, excluding tax, for the partner's
+// commission_months. Commissions start "pending" and become payable after
+// 30 days without a refund (approve_due_commissions). Never throws: a
+// commission problem must not stop the payment itself being processed.
+async function recordCommission(opts: { userId?: string; ref: string; paymentIntent?: string | null; gross: number; currency?: string }) {
+  try {
+    if (!opts.userId || !opts.ref || !(opts.gross > 0)) return;
+    const db = getSupabase();
+    const { data: referral } = await db.from("referrals").select("partner_id, signed_up_at").eq("user_id", opts.userId).maybeSingle();
+    if (!referral) return;
+    const { data: partner } = await db.from("partners").select("id, status, commission_rate, commission_months, user_id").eq("id", (referral as any).partner_id).maybeSingle();
+    const p = partner as any;
+    if (!p || p.status !== "active" || p.user_id === opts.userId) return;
+    const ends = new Date((referral as any).signed_up_at);
+    ends.setMonth(ends.getMonth() + (p.commission_months ?? 12));
+    if (Date.now() > ends.getTime()) return;
+    const amount = Math.round(opts.gross * Number(p.commission_rate ?? 0));
+    if (amount <= 0) return;
+    await db.from("commissions").upsert({
+      partner_id: p.id,
+      user_id: opts.userId,
+      stripe_ref: opts.ref,
+      stripe_payment_intent: opts.paymentIntent ?? null,
+      gross_amount: opts.gross,
+      commission_amount: amount,
+      currency: (opts.currency || "gbp").toLowerCase(),
+    }, { onConflict: "stripe_ref", ignoreDuplicates: true });
+    await db.rpc("approve_due_commissions");
+  } catch (e) {
+    console.error("recordCommission failed", opts.ref, e);
+  }
+}
+
+function invoiceTax(invoice: any): number {
+  if (typeof invoice.tax === "number") return invoice.tax;
+  if (Array.isArray(invoice.total_taxes)) return invoice.total_taxes.reduce((s: number, t: any) => s + (t?.amount ?? 0), 0);
+  return 0;
+}
+
+async function commissionFromInvoice(invoice: any) {
+  const userId = invoice.subscription_details?.metadata?.userId
+    ?? invoice.parent?.subscription_details?.metadata?.userId;
+  await recordCommission({
+    userId,
+    ref: invoice.id,
+    paymentIntent: typeof invoice.payment_intent === "string" ? invoice.payment_intent : invoice.payment_intent?.id,
+    gross: (invoice.amount_paid ?? 0) - invoiceTax(invoice),
+    currency: invoice.currency,
+  });
+}
+
+async function commissionFromOneTime(session: any) {
+  if (session.mode !== "payment" || session.payment_status !== "paid") return;
+  await recordCommission({
+    userId: session.metadata?.userId,
+    ref: session.id,
+    paymentIntent: typeof session.payment_intent === "string" ? session.payment_intent : session.payment_intent?.id,
+    gross: (session.amount_total ?? 0) - (session.total_details?.amount_tax ?? 0),
+    currency: session.currency,
+  });
+}
+
+// Refunds take the commission back: unpaid ones shrink or are reversed;
+// already-paid ones get a negative adjustment deducted from the next payout.
+async function reverseCommission(charge: any) {
+  try {
+    const db = getSupabase();
+    const pi = typeof charge.payment_intent === "string" ? charge.payment_intent : charge.payment_intent?.id;
+    const inv = typeof charge.invoice === "string" ? charge.invoice : charge.invoice?.id;
+    if (!pi && !inv) return;
+    let q = db.from("commissions").select("*");
+    q = pi && inv ? q.or(`stripe_payment_intent.eq.${pi},stripe_ref.eq.${inv}`) : pi ? q.eq("stripe_payment_intent", pi) : q.eq("stripe_ref", inv);
+    const { data: rows } = await q;
+    const fraction = charge.amount ? Math.min(1, (charge.amount_refunded ?? 0) / charge.amount) : 1;
+    for (const c of (rows as any[]) ?? []) {
+      if (c.status === "reversed" || String(c.stripe_ref).startsWith("refund_")) continue;
+      if (c.status === "paid") {
+        await db.from("commissions").upsert({
+          partner_id: c.partner_id, user_id: c.user_id, stripe_ref: `refund_${charge.id}_${c.id}`,
+          gross_amount: -Math.round(c.gross_amount * fraction), commission_amount: -Math.round(c.commission_amount * fraction),
+          currency: c.currency, status: "approved", available_at: new Date().toISOString(),
+        }, { onConflict: "stripe_ref", ignoreDuplicates: true });
+      } else if (fraction >= 0.999) {
+        await db.from("commissions").update({ status: "reversed" }).eq("id", c.id);
+      } else {
+        await db.from("commissions").update({ commission_amount: Math.round(c.commission_amount * (1 - fraction)) }).eq("id", c.id);
+      }
+    }
+  } catch (e) {
+    console.error("reverseCommission failed", charge?.id, e);
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
   const rawEnv = new URL(req.url).searchParams.get("env");
@@ -219,12 +314,17 @@ Deno.serve(async (req) => {
         break;
       case "checkout.session.completed":
         await grantOneTimePro(event.data.object);
+        await commissionFromOneTime(event.data.object);
         break;
       case "invoice.finalization_failed":
         await flagTaxIssue(event.data.object);
         break;
       case "invoice.paid":
         await clearTaxIssue(event.data.object);
+        await commissionFromInvoice(event.data.object);
+        break;
+      case "charge.refunded":
+        await reverseCommission(event.data.object);
         break;
       case "checkout.session.expired":
         await sendCheckoutRecovery(event.data.object);
