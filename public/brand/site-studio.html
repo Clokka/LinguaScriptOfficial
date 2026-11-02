@@ -1,0 +1,584 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="robots" content="noindex,nofollow"><title>LinguaScript Site Studio</title>
+</head><body style="margin:0">
+
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: dark studio shell. Tabs: Builder (control panel + live scaled site preview), Loader lab, Plan & prompts. The preview site is themed by its own tokens. */
+:root{
+  --ink:#08090b; --panel:#101216; --panel2:#171a20; --line:#ffffff17; --fg:#f2f4f3; --mut:#9aa1a8; --green:#34C759; --gold:#FFD60A; --red:#FF453A; --orange:#FF9F0A;
+  --sans:'Inter',system-ui,-apple-system,sans-serif; --serif:'Instrument Serif',Georgia,serif; --mono:'JetBrains Mono',ui-monospace,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--ink);color:var(--fg);font:14px/1.5 var(--sans);padding-left:max(12px,env(safe-area-inset-left,0px));padding-right:max(12px,env(safe-area-inset-right,0px));padding-block:12px 40px}
+button,select,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.top{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;max-width:1500px;margin:0 auto 12px}
+.brand{display:flex;align-items:center;gap:8px;font-weight:800;font-size:17px;letter-spacing:-.02em}
+.brand em{font-family:var(--serif);font-style:italic;font-weight:400;color:var(--green);font-size:19px}
+.tabs{display:flex;gap:4px;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:4px}
+.tabs button{border:0;background:none;border-radius:999px;padding:7px 14px;font-weight:600;color:var(--mut)}
+.tabs button[aria-selected=true]{background:var(--fg);color:#08090b}
+.view{max-width:1500px;margin:0 auto}
+/* builder layout */
+.builder{display:grid;grid-template-columns:330px minmax(0,1fr);gap:14px;align-items:start}
+@media (max-width:900px){.builder{grid-template-columns:minmax(0,1fr)}.pv{order:-1}}
+.ctl{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:14px;display:grid;gap:14px;position:sticky;top:12px;max-height:calc(100vh - 24px);overflow:auto}
+@media (max-width:900px){.ctl{position:static;max-height:none}}
+.ctl h3{margin:0;font:700 11px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--mut)}
+.grp{display:grid;gap:8px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);background:var(--panel2);border-radius:999px;padding:6px 11px;font-size:12.5px;font-weight:600;color:var(--fg)}
+.chip[aria-pressed=true]{background:var(--green);border-color:var(--green);color:#04130a}
+.chip .sw{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:-1px;border:1px solid #ffffff40}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:var(--panel2);border-radius:12px;padding:8px 12px;font-weight:600}
+.btn.pri{background:var(--green);border-color:var(--green);color:#04130a}
+.btn.gold{background:var(--gold);border-color:var(--gold);color:#1a1400}
+select,input[type=text]{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:7px 9px;min-width:0}
+.secs{display:grid;gap:6px}
+.sec-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;align-items:center;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:8px}
+.sec-row.off{opacity:.45}
+.sec-row b{font-size:13px}
+.sec-row select{width:100%;margin-top:4px;font-size:12px;padding:5px 7px}
+.mv{display:flex;flex-direction:column;gap:2px}
+.mv button{border:1px solid var(--line);background:var(--ink);border-radius:6px;width:28px;height:22px;line-height:1;font-size:11px}
+.tgl{width:36px;height:22px;border-radius:99px;background:#ffffff22;border:0;position:relative;flex:none}
+.tgl::after{content:"";position:absolute;left:3px;top:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:transform .2s}
+.tgl[aria-pressed=true]{background:var(--green)}.tgl[aria-pressed=true]::after{transform:translateX(14px)}
+.note{font-size:12px;color:var(--mut)}
+.arms{display:grid;gap:6px}
+.arm{display:flex;justify-content:space-between;gap:8px;align-items:center;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:6px 8px;font-size:12.5px}
+.arm button{border:0;background:none;color:var(--mut)}
+/* preview */
+.pv{display:grid;gap:8px;min-width:0}
+.pvbar{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.stage{position:relative;width:100%;border-radius:18px;overflow:hidden;border:1px solid var(--line);background:#000}
+.frame{position:absolute;left:0;top:0;transform-origin:0 0}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));translate:-50% 0;background:var(--fg);color:#08090b;padding:9px 16px;border-radius:999px;font-weight:700;opacity:0;transition:opacity .3s;pointer-events:none;z-index:99}
+.toast.on{opacity:1}
+
+/* ===================== THE MOCK SITE ===================== */
+.site{--bg:#070809;--bg2:#0d0f12;--card:#121418;--fg:#fff;--mut:#9aa0a6;--line:#ffffff14;--acc:#34C759;--accfg:#04130a;--it:#34C759;--g1:#34c7592e;--g2:#ff9f0a1c;--btn2:#ffffff12;--hf:var(--sans);
+  container-type:inline-size;container-name:site;position:relative;background:var(--bg);color:var(--fg);font-family:var(--sans);overflow:hidden}
+.site[data-theme=glassdark]{--bg:#06070c;--bg2:#0a0b12;--card:#ffffff10;--g1:#34c75940;--g2:#7b6cff38;--acc:#fff;--accfg:#000;--it:#7fe39b}
+.site[data-theme=glasslight]{--bg:#eef1f5;--bg2:#e6eaf0;--card:#ffffffb3;--fg:#0b0d10;--mut:#5b6168;--line:#0000001a;--acc:#0b0d10;--accfg:#fff;--it:#1e9e45;--g1:#34c75938;--g2:#3fa9ff30;--btn2:#0000000d}
+.site[data-theme=gold]{--bg:#050505;--bg2:#0b0905;--card:#13110b;--line:#ffd60a26;--acc:#FFD60A;--accfg:#1a1400;--it:#FFD60A;--g1:#ffd60a26;--g2:#b07a0026}
+.site[data-theme=forest]{--bg:#03110a;--bg2:#062012;--card:#0b2416;--line:#34c75926;--acc:#34C759;--accfg:#04130a;--it:#F5D76E;--g1:#34c75933;--g2:#f5d76e1a}
+.site[data-theme=aurora]{--bg:#1b1640;--bg2:#241b52;--card:#ffffff14;--line:#ffffff24;--acc:#fff;--accfg:#1b1640;--it:#f5d76e;--g1:#7b6cff66;--g2:#e0337a55}
+.site[data-theme=violet]{--bg:#0a0816;--bg2:#100c22;--card:#16122a;--line:#ffffff17;--acc:#34C759;--accfg:#04130a;--it:#c4b5fd;--g1:#7b6cff40;--g2:#ff9f0a26}
+.site[data-theme=neon]{--bg:#020403;--bg2:#030806;--card:#06100a;--line:#34c75940;--acc:#39ff7a;--accfg:#001a08;--it:#39ff7a;--g1:#39ff7a22;--g2:#39ff7a10;--hf:var(--mono)}
+.site[data-theme=paper]{--bg:#f3eee3;--bg2:#ebe4d4;--card:#fffdf7;--fg:#1b1a17;--mut:#6b665c;--line:#0000001a;--acc:#15803d;--accfg:#fff;--it:#15803d;--g1:#15803d14;--g2:#c2410c10;--btn2:#0000000a}
+.site[data-theme=split]{--bg:#000;--bg2:#fff;--card:#111;--acc:#34C759;--accfg:#04130a;--it:#34C759;--g1:transparent;--g2:transparent}
+.site[data-theme=split] .sec:nth-of-type(even){--bg:#fff;--fg:#000;--mut:#555;--card:#f2f2f2;--line:#00000018;--btn2:#0000000d;background:#fff;color:#000}
+.site[data-theme=glassdark] .card,.site[data-theme=glasslight] .card,.site[data-theme=aurora] .card{backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);box-shadow:inset 0 1px 0 #ffffff30}
+.site[data-theme=neon] .card{box-shadow:0 0 18px #39ff7a1c,inset 0 0 18px #39ff7a10}
+.site[data-theme=neon] .h1{text-shadow:0 0 22px #39ff7a55}
+.site[data-theme=paper] .h1,.site[data-theme=paper] .h2{font-family:var(--serif);font-weight:400;letter-spacing:-.01em}
+
+.site .sec{position:relative;padding:72px 56px;background:var(--bg);color:var(--fg)}
+.site .sec.glow::before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(45% 60% at 12% 20%,var(--g1),transparent 70%),radial-gradient(40% 55% at 88% 80%,var(--g2),transparent 70%)}
+.site .wrap{position:relative;max-width:1160px;margin:0 auto}
+.site .g2{display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:center}
+.site .eb{font:700 11px var(--mono);letter-spacing:.2em;text-transform:uppercase;color:var(--acc)}
+.site[data-theme=glassdark] .eb,.site[data-theme=aurora] .eb{color:var(--it)}
+.site .h1{font-family:var(--hf);font-size:68px;line-height:.98;font-weight:900;letter-spacing:-.045em;margin:14px 0;text-wrap:balance}
+.site .h2{font-family:var(--hf);font-size:46px;line-height:1.02;font-weight:900;letter-spacing:-.04em;margin:10px 0;text-wrap:balance}
+.site .it{font-family:var(--serif);font-style:italic;font-weight:400;color:var(--it);letter-spacing:-.01em}
+.site .sub{color:var(--mut);font-size:18px;max-width:46ch}
+.site .ctas{display:flex;gap:12px;flex-wrap:wrap;margin-top:24px}
+.site .b1{background:var(--acc);color:var(--accfg);border-radius:999px;padding:13px 22px;font-weight:800;font-size:15px}
+.site .b2{background:var(--btn2);border:1px solid var(--line);border-radius:999px;padding:13px 20px;font-weight:700;font-size:15px}
+.site .card{background:var(--card);border:1px solid var(--line);border-radius:22px}
+.wr{color:#FF5B50}.wo{color:#FFA53A}.wg{color:#4fd26f}.wy{color:#FFD60A}
+.site[data-theme=glasslight] .wr,.site[data-theme=paper] .wr{color:#d1281d}.site[data-theme=glasslight] .wo,.site[data-theme=paper] .wo{color:#c25e00}.site[data-theme=glasslight] .wg,.site[data-theme=paper] .wg{color:#15803d}.site[data-theme=glasslight] .wy,.site[data-theme=paper] .wy{color:#a07a00}
+/* nav */
+.site .nav{display:flex;align-items:center;gap:22px;padding:18px 56px;position:relative;z-index:3;background:var(--bg)}
+.site .nav .lg{display:flex;align-items:center;gap:8px;font-weight:800;font-size:17px}
+.site .nav .links{margin-left:auto;display:flex;gap:22px;color:var(--mut);font-size:14px}
+.site .nav .b1{padding:9px 16px;font-size:13px}
+/* hero: cinema */
+.film{aspect-ratio:16/10;padding:18px;display:flex;flex-direction:column;justify-content:flex-end;overflow:hidden;position:relative;background:radial-gradient(50% 60% at 30% 40%,#2f8f4e55,transparent 70%),radial-gradient(45% 55% at 75% 70%,#6a4cff55,transparent 70%),#0d0f16!important}
+.film .tc{position:absolute;top:16px;left:18px;font:700 10px var(--mono);letter-spacing:.2em;color:#ffffff99}
+.film .sl{font-size:22px;font-weight:800;text-align:center;color:#fff}
+.film .tr{font-size:13px;color:#ffffffaa;text-align:center;margin-top:4px}
+.film .seek{height:4px;background:#ffffff22;border-radius:4px;margin-top:16px;overflow:hidden}.film .seek i{display:block;height:100%;width:55%;background:#FF453A;animation:seek 12s linear infinite}
+@keyframes seek{from{width:5%}to{width:100%}}
+.saved{display:inline-grid;margin-top:18px;padding:12px 18px;min-width:180px}
+.saved small{font:700 9px var(--mono);letter-spacing:.2em;color:var(--mut)}.saved b{font-size:30px;font-weight:900}
+/* kinetic */
+.kin{display:inline-block;padding:0 .2em;border-radius:.25em;transition:color .4s,background .4s,box-shadow .4s}
+/* marquee */
+.mq{display:grid;gap:10px;margin-top:28px;overflow:hidden;-webkit-mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent);mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent)}
+.mq>div{display:flex;gap:10px;width:max-content;animation:mq 26s linear infinite}.mq>div:nth-child(2){animation-direction:reverse;animation-duration:32s}.mq>div:nth-child(3){animation-duration:22s}
+.mq span{padding:9px 16px;border-radius:999px;background:var(--card);border:1px solid var(--line);font-weight:800;font-size:16px;white-space:nowrap}
+@keyframes mq{to{transform:translateX(-50%)}}
+/* orbit */
+.orb{position:relative;width:420px;height:420px;max-width:100%;margin:auto}
+.orb .ring{position:absolute;inset:0;border-radius:50%;border:1px dashed var(--line);animation:spin 40s linear infinite}
+.orb .ring span{position:absolute;left:50%;top:50%;font-weight:800;font-size:16px;padding:6px 12px;border-radius:999px;background:var(--card);border:1px solid var(--line);animation:spin 40s linear infinite reverse}
+.orb .core{position:absolute;inset:34%;border-radius:50%;display:grid;place-items:center;background:radial-gradient(circle,var(--g1),transparent 70%);border:1px solid var(--line)}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* split hero */
+.splith{background:linear-gradient(90deg,#000 50%,#fff 50%)!important;text-align:center;padding-block:110px!important}
+.splith .h1{color:#fff;mix-blend-mode:difference;font-size:92px}
+.splith .wcard{display:inline-block;margin-top:24px;background:#111;border:1px solid #ffffff22;border-radius:18px;padding:12px 30px;color:#fff}
+.splith .wcard b{font-size:28px;font-weight:900;animation:rg 4s infinite}.splith .wcard small{display:block;font-size:12px;color:#999}
+.splith .lbl{position:absolute;bottom:22px;font:700 10px var(--mono);letter-spacing:.2em}
+@keyframes rg{0%,40%{color:#FF453A}50%,90%{color:#34C759}}
+/* lens */
+.lens{position:relative;font-size:30px;font-weight:800;line-height:1.35;margin-top:22px;max-width:760px}
+.lens i{position:absolute;top:-10px;left:0;width:120px;height:120px;border-radius:50%;border:1px solid #ffffff70;background:radial-gradient(circle at 30% 30%,#ffffff40,#ffffff08 60%);backdrop-filter:saturate(2.2) brightness(1.4) blur(.5px);-webkit-backdrop-filter:saturate(2.2) brightness(1.4) blur(.5px);box-shadow:0 10px 30px #0008;animation:lensm 7s ease-in-out infinite}
+@keyframes lensm{50%{transform:translate(560px,40px)}}
+/* ring hero */
+.cring{position:relative;width:300px;height:300px;margin:auto}
+.cring svg{position:absolute;inset:0;rotate:-90deg}
+.cring .v{position:absolute;inset:0;display:grid;place-items:center;text-align:center}
+.cring b{font-size:68px;font-weight:900;letter-spacing:-.04em}
+.legend{display:flex;gap:16px;margin-top:14px;font-size:13px;color:var(--mut)}.legend i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
+/* tap demo hero */
+.tap{padding:22px;display:grid;gap:14px}
+.tap .subb{background:#00000055;border-radius:16px;padding:20px 12px;text-align:center}
+.site[data-theme=glasslight] .tap .subb,.site[data-theme=paper] .tap .subb{background:#0b0d10;color:#fff}
+.tap .sl{font-size:26px;font-weight:800}.tap .tg{padding:0 5px;border-radius:9px;transition:all .4s}
+.tap[data-s="0"] .tg{box-shadow:0 0 0 3px var(--orange),0 0 20px var(--orange)}
+.tap[data-s="1"] .tg{color:#FF5B50}.tap[data-s="2"] .tg{color:#FFA53A}.tap[data-s="3"] .tg{color:#4fd26f}
+.tap[data-s="4"] .tg{background:linear-gradient(100deg,#FFD60A 30%,#fff7c2 50%,#FFD60A 70%);background-size:220% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:glim 1.6s linear infinite}
+@keyframes glim{from{background-position:120% 0}to{background-position:-120% 0}}
+.cnt{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center}
+.cnt div{border:1.5px solid;border-radius:14px;padding:8px}.cnt small{display:block;font-size:10px;font-weight:800;letter-spacing:.08em}.cnt b{font-size:22px}
+.cnt .n{border-color:#FF453A66}.cnt .n small{color:#FF5B50}.cnt .o{border-color:#FF9F0A66}.cnt .o small{color:#FFA53A}.cnt .gg{border-color:#34C75966}.cnt .gg small{color:#4fd26f}
+.cnt .hot{box-shadow:0 0 0 2px var(--orange),0 0 20px var(--orange)}
+/* launcher */
+.doors{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:12px;margin-top:22px}
+.door{border-radius:18px;min-height:190px;padding:16px;display:flex;flex-direction:column;justify-content:flex-end;color:#fff;position:relative;overflow:hidden;border:1px solid #ffffff14}
+.door .pl{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;background:#0007;border:1px solid #ffffff22;border-radius:8px;padding:4px 8px;width:fit-content;margin-bottom:8px}
+.door .pl i{width:14px;height:14px;border-radius:4px;display:inline-block}
+.door b{font-size:15px}.door small{font-size:11.5px;opacity:.75}
+.door .go{margin-top:10px;width:fit-content;background:var(--acc);color:var(--accfg);border-radius:999px;padding:7px 14px;font-weight:800;font-size:12.5px}
+.rail{display:grid;grid-template-columns:repeat(7,1fr);gap:10px;margin-top:12px}
+.vc{aspect-ratio:3/4;border-radius:14px;padding:10px;display:flex;flex-direction:column;justify-content:flex-end;color:#fff;position:relative;overflow:hidden;border:1px solid #ffffff14}
+.vc .tag{position:absolute;top:8px;left:8px;font:800 8px var(--sans);letter-spacing:.06em;background:#0008;border-radius:5px;padding:2px 5px}
+.vc .pc{position:absolute;top:7px;right:7px;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font:800 8px var(--sans);background:conic-gradient(#34C759 calc(var(--p)*1%),#ffffff2a 0)}
+.vc .pc::before{content:"";position:absolute;inset:3px;border-radius:50%;background:#000a}.vc .pc span{position:relative}
+.vc .bub{position:absolute;right:-10%;bottom:22%;width:58%;aspect-ratio:1;border-radius:50%;background:#ffffff22}
+.vc b{font-size:12px;line-height:1.15;position:relative}.vc small{font-size:9.5px;opacity:.75;position:relative}
+/* coverflow */
+.cf{position:relative;height:330px;margin-top:20px;perspective:1100px}
+.cf .vc{position:absolute;left:50%;top:10px;width:170px;transition:transform .7s cubic-bezier(.16,1,.3,1),opacity .7s,box-shadow .7s}
+.cfbtn{display:flex;gap:10px;justify-content:center;margin-top:10px}
+/* steps */
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:22px}
+.steps .card{padding:20px}.steps .ic{font-size:30px}.steps b{display:block;font-size:17px;margin-top:10px}.steps p{margin:6px 0 0;color:var(--mut);font-size:14px}
+/* deck fan */
+.fan{position:relative;height:360px}
+.fan .dk{position:absolute;width:210px;height:280px;border-radius:20px;background:linear-gradient(160deg,#1d1d24,#111116);border-top:3px solid var(--c);padding:18px;color:#fff;box-shadow:0 30px 60px -20px #000;animation:fanb 6s ease-in-out infinite}
+.fan .dk small{font:700 9px var(--sans);letter-spacing:.24em;color:#999}.fan .dk b{display:block;font-size:36px;line-height:.95;color:var(--c);margin-top:10px;font-weight:900}
+.fan .dk .w{position:absolute;left:14px;right:14px;bottom:14px;border-radius:12px;background:#0b0b0f;padding:10px 12px;font-weight:800}
+.fan .dk .w span{display:block;font-weight:500;font-size:12px;color:#999}
+@keyframes fanb{50%{translate:0 -8px}}
+/* shuffle */
+.shuf{position:relative;height:300px;max-width:360px;margin:auto}
+.shuf .fc{position:absolute;inset:0;border-radius:22px;display:grid;place-items:center;text-align:center;background:linear-gradient(var(--card),var(--card)),var(--bg2);border:1px solid var(--line)}
+.shuf .fc:nth-child(1){transform:rotate(-6deg) translate(-14px,10px)}.shuf .fc:nth-child(2){transform:rotate(4deg) translate(12px,6px)}
+.shuf .fc:nth-child(3){animation:shuf 5s cubic-bezier(.6,0,.2,1) infinite;box-shadow:0 30px 60px -24px #000}
+.shuf .fc b{font-size:44px;font-weight:900;color:var(--it)}
+@keyframes shuf{0%,40%{transform:none}55%{transform:translateX(130%) rotate(18deg);opacity:0}56%{transform:none;opacity:0}75%,100%{opacity:1}}
+/* bento */
+.bento{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.bento .card{padding:18px}.bento small{font:700 9px var(--mono);letter-spacing:.2em;color:var(--mut)}.bento .big{font-size:44px;font-weight:900;letter-spacing:-.03em;margin-top:6px}
+.bento .goldc{background:linear-gradient(135deg,#FFD60A,#b08a00)!important;color:#1a1400;border:0}.bento .goldc small{color:#5a4600}
+/* bars */
+.bars{display:grid;gap:14px;padding:22px}
+.bars .br{display:grid;grid-template-columns:32px 1fr 52px;gap:12px;align-items:center}
+.bars .n{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font-weight:900;color:#000}
+.bars .t{height:12px;border-radius:9px;background:#ffffff14;overflow:hidden}.bars .t i{display:block;height:100%;border-radius:9px;transform-origin:left;animation:grow 1.4s cubic-bezier(.16,1,.3,1) both}
+@keyframes grow{from{transform:scaleX(0)}}
+/* gold */
+.goldsec{padding-bottom:0!important}
+.goldsec .strip{margin-top:32px;border-radius:24px 24px 0 0;padding:34px 30px 40px;background:linear-gradient(180deg,#2a2104,#8a6b0c 70%,#d9b13a);display:flex;gap:14px;flex-wrap:wrap}
+.goldsec .gc{border-radius:14px;background:#14110a;border:1px solid #ffd60a44;padding:12px 18px;min-width:140px;box-shadow:0 10px 30px -10px #000}
+.goldsec .gc b{display:block;font-size:20px;background:linear-gradient(100deg,#FFD60A 30%,#fff7c2 50%,#FFD60A 70%);background-size:220% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:glim 2s linear infinite}
+.goldsec .gc small{color:#bba86a;font-size:12px}
+.spark{position:absolute;width:4px;height:4px;border-radius:50%;background:#FFD60A;box-shadow:0 0 8px #FFD60A;animation:tw 3s ease-in-out infinite}
+@keyframes tw{50%{opacity:.15}}
+/* social */
+.lb{padding:16px}.lb .r{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:12px;font-size:14px}
+.lb .r.me{outline:1.5px solid var(--acc)}.lb .av{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:12px;color:#000}
+.lb .r b{margin-left:auto;font-variant-numeric:tabular-nums}
+.chal{border-radius:22px;padding:26px;background:linear-gradient(135deg,#7a2e17,#3a1508);color:#fff;min-height:200px}
+.phone{width:250px;height:500px;border-radius:40px;border:8px solid #22222a;background:#000;margin:auto;padding:30px 14px;display:grid;gap:8px;align-content:start;color:#fff;position:relative}
+.phone .wv{border-radius:12px;background:#15151b;padding:10px;border-left:4px solid var(--c)}
+.phone .wv b{display:block;color:var(--c)}.phone .wv small{font-size:11px;color:#999}
+.widget{position:absolute;right:-90px;top:130px;width:150px;border-radius:18px;background:#14110a;border:1px solid #ffd60a55;padding:12px;box-shadow:0 20px 40px #000a}
+/* cta */
+.ctasec{text-align:center}
+.ctasec .h1{font-size:76px}
+.trust{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:34px;text-align:left}
+.trust .card{padding:16px}.trust b{display:block;font-size:14px}.trust p{margin:4px 0 0;color:var(--mut);font-size:13px}
+.foot{padding:26px 56px;color:var(--mut);font-size:12.5px;display:flex;gap:16px;flex-wrap:wrap;border-top:1px solid var(--line);background:var(--bg)}
+.mockpill{position:absolute;top:10px;right:10px;z-index:40;font:700 9px var(--mono);letter-spacing:.14em;background:#000a;color:#fff;border:1px solid #ffffff33;border-radius:99px;padding:4px 9px}
+/* phone-width site */
+@container site (max-width:760px){
+  .site .sec{padding:48px 20px}.site .nav{padding:14px 20px}.site .nav .links{display:none}.site .nav .b1{margin-left:auto}
+  .site .g2{grid-template-columns:1fr;gap:28px}
+  .site .h1{font-size:44px}.site .h2{font-size:34px}.site .sub{font-size:16px}
+  .splith .h1{font-size:54px}.ctasec .h1{font-size:46px}
+  .doors{grid-template-columns:1fr 1fr}.doors .door:first-child{grid-column:span 2}
+  .rail{grid-template-columns:repeat(3,1fr)}.rail .vc:nth-child(n+7){display:none}
+  .steps,.trust{grid-template-columns:1fr 1fr}
+  .fan{height:320px}.fan .dk{width:170px;height:230px}
+  .orb{width:300px;height:300px}.lens{font-size:22px}.film .sl{font-size:17px}
+  .cf .vc{width:130px}.foot{padding:20px}
+  .widget{right:-20px;top:auto;bottom:40px}
+  .cring{width:240px;height:240px}.cring b{font-size:52px}
+}
+/* loader */
+.ldr{position:absolute;left:0;top:0;right:0;z-index:50;display:grid;place-items:center;background:#050607;transition:opacity .6s}
+.ldr.out{opacity:0;pointer-events:none}
+.lx{display:grid;justify-items:center;gap:14px;text-align:center}
+.lw{font:900 clamp(34px,8.5cqi,76px) var(--sans);letter-spacing:-.04em;white-space:nowrap;min-height:1.1em}
+.lw span{display:inline-block;transition:color .3s}
+.ll{font:700 11px var(--mono);letter-spacing:.25em;text-transform:uppercase;color:#9aa1a8;min-height:1.4em}
+.lsteps{display:flex;gap:14px;font-size:12px;color:#ffffff66}.lsteps span.on{color:#fff}.lsteps span.on::before{content:"✓ ";color:#34C759}
+.lcham{transition:filter .5s,transform .5s}
+@media (prefers-reduced-motion:reduce){.site *,.ldr *{animation:none!important;transition:none!important}}
+/* loader lab + plan */
+.lab{display:grid;gap:14px}
+.labstage{position:relative;height:460px;container-type:inline-size;border-radius:20px;overflow:hidden;border:1px solid var(--line)}
+.plan{max-width:860px;margin:0 auto;display:grid;gap:26px}
+.plan h2{font-size:28px;letter-spacing:-.03em;margin:0}.plan h2 em{font-family:var(--serif);font-weight:400;color:var(--green)}
+.plan h3{margin:0;font-size:17px}
+.plan p,.plan li{color:#c9ced3;max-width:72ch}
+.plan .box{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px 18px;display:grid;gap:10px;min-width:0}
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:12px}
+.tbl table{border-collapse:collapse;width:100%;min-width:620px;font-size:13px}
+.tbl th,.tbl td{text-align:left;padding:9px 11px;border-bottom:1px solid var(--line);vertical-align:top}
+.tbl th{font:700 10px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--mut);background:var(--panel2)}
+.ok{color:var(--green);font-weight:700}.todo{color:var(--orange);font-weight:700}
+pre.prompt{white-space:pre-wrap;background:#06070a;border:1px solid var(--line);border-radius:12px;padding:12px;font:12.5px/1.55 var(--mono);color:#d6dbe0;margin:0;max-height:300px;overflow:auto}
+pre.mermaid{background:#fff;border-radius:12px;padding:12px;overflow-x:auto;color:#111}
+code{font-family:var(--mono);font-size:.9em;color:#e7ffe9}
+</style>
+
+<div class="top">
+  <div class="brand"><svg width="34" viewBox="14 76 372 184" aria-hidden="true"><path d="M136 196 Q128 118 205 106 Q276 96 285 160 Q290 202 244 208 L164 210 Q140 208 136 196 Z" fill="#34C759"/><path d="M162 118 Q160 92 134 88 Q104 84 88 112 Q74 138 84 162 Q94 186 126 188 Q152 189 160 168 Q166 148 162 118 Z" fill="#34C759"/><circle cx="118" cy="126" r="11.5" fill="#fff"/><circle cx="122" cy="125" r="5.5" fill="#241a12"/><path d="M272 176 C322 168 348 190 344 214 C340 236 316 242 304 230" fill="none" stroke="#26A047" stroke-width="15" stroke-linecap="round"/></svg>LinguaScript <em>Site Studio</em></div>
+  <div class="tabs" role="tablist">
+    <button role="tab" aria-selected="true" data-tab="builder">Builder</button>
+    <button role="tab" aria-selected="false" data-tab="loaders">Loader lab</button>
+    <button role="tab" aria-selected="false" data-tab="plan">Plan &amp; prompts</button>
+  </div>
+</div>
+
+<!-- ================= BUILDER ================= -->
+<section class="view" id="v-builder">
+  <div class="builder">
+    <aside class="ctl" aria-label="Site controls">
+      <div class="grp"><h3>Start from</h3>
+        <div class="row"><select id="preset" aria-label="Preset" style="flex:1"></select><button class="btn" id="shuffle" title="Random combination">🎲 Shuffle</button></div>
+      </div>
+      <div class="grp"><h3>Theme</h3><div class="chips" id="themes"></div></div>
+      <div class="grp"><h3>Loading screen</h3>
+        <div class="row"><select id="loader" aria-label="Loader" style="flex:1"></select><button class="btn pri" id="playL">▶ Play</button></div>
+      </div>
+      <div class="grp"><h3>Sections</h3><div class="secs" id="secs"></div>
+        <p class="note">Switch a section on or off, pick its design, and move it up or down. The preview updates straight away.</p></div>
+      <div class="grp"><h3>Save &amp; share</h3>
+        <div class="row"><input type="text" id="pname" placeholder="Name this version" aria-label="Version name" style="flex:1"><button class="btn" id="save">Save</button></div>
+        <button class="btn" id="copy">Copy config for the real site</button>
+      </div>
+      <div class="grp"><h3>A/B test arms (max 4)</h3>
+        <div class="arms" id="arms"></div>
+        <div class="row"><button class="btn gold" id="addArm">＋ Add this version as an arm</button><button class="btn" id="copyExp">Copy experiment</button></div>
+        <p class="note">Your traffic can only test 2–4 versions at once. The copied experiment plugs into the plan in "Plan &amp; prompts".</p>
+      </div>
+    </aside>
+    <div class="pv">
+      <div class="pvbar">
+        <div class="chips" role="group" aria-label="Device"><button class="chip" data-dev="desktop" aria-pressed="true">🖥 Desktop</button><button class="chip" data-dev="phone" aria-pressed="false">📱 Phone</button></div>
+        <span class="note" id="summary"></span>
+      </div>
+      <div class="stage" id="stage"><div class="frame" id="frame"></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= LOADER LAB ================= -->
+<section class="view lab" id="v-loaders" hidden>
+  <div class="row">
+    <div class="chips" id="lvars"></div>
+  </div>
+  <div class="row">
+    <label class="note" for="lword">Final word</label><input type="text" id="lword" value="LinguaScript" style="width:170px">
+    <label class="note" for="lspeed">Speed</label><select id="lspeed"><option value="1.6">Slow</option><option value="1" selected>Normal</option><option value=".65">Fast</option></select>
+    <button class="chip" id="lsteps" aria-pressed="true">Loading steps</button>
+    <button class="chip" id="lbg" aria-pressed="false">Light background</button>
+    <button class="btn pri" id="lplay">▶ Replay</button>
+  </div>
+  <div class="labstage" id="labstage"></div>
+  <p class="note" id="ldesc"></p>
+</section>
+
+<!-- ================= PLAN ================= -->
+<section class="view" id="v-plan" hidden>
+<div class="plan">
+  <div>
+    <h2>Switch your landing page <em>from a dashboard</em></h2>
+    <p>Short answer: yes, and you already own most of the parts. What you're describing is a <b>site builder (a CMS)</b> for your own pages. A <b>CRM</b> is something different: it tracks people (leads, schools, emails). You'll want a small CRM later, but this tool is the builder.</p>
+  </div>
+
+  <div class="box">
+    <h3>Audit: what exists today vs what's needed</h3>
+    <div class="tbl"><table>
+      <thead><tr><th>Piece</th><th>Today</th><th>Needed</th></tr></thead>
+      <tbody>
+        <tr><td>Homepage A/B test</td><td class="ok">Yes: <code>LandingPageTest.tsx</code>, test <code>landing_page_v2</code>, 4 arms, <code>?lp=</code> previews</td><td>Arms point to a saved config instead of a hard-coded page</td></tr>
+        <tr><td>Assigning visitors + counting</td><td class="ok">Yes: <code>getVariant</code>, <code>track</code>, <code>compare</code>, <code>MIN_SAMPLE</code> in <code>experiments.ts</code></td><td>Nothing new</td></tr>
+        <tr><td>Funnel events</td><td class="ok">Yes: <code>analytics.ts</code> (<code>cta_clicked</code>, <code>signed_up</code>…)</td><td>Add the arm name to <code>cta_clicked</code></td></tr>
+        <tr><td>Admin access</td><td class="ok">Yes: <code>Admin.tsx</code> + <code>user_roles</code> check</td><td>A new "Landing pages" tab</td></tr>
+        <tr><td>Section designs</td><td class="todo">Only in these labs (HTML)</td><td>Each section as a React component in one registry</td></tr>
+        <tr><td>Saved versions</td><td class="todo">Only in this browser</td><td>Supabase table <code>landing_configs</code> (admins write, everyone reads published)</td></tr>
+        <tr><td>Loading screen</td><td class="todo">Lab only</td><td><code>BrandLoader</code> component, used by <code>PageLoading</code> and the player</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+
+  <div class="box">
+    <h3>How it would work</h3>
+<pre class="mermaid">flowchart LR
+  A["Admin dashboard<br/>pick theme, sections, loader"] -->|save| B[("Supabase<br/>landing_configs")]
+  B --> C["Homepage reads config<br/>renders sections from registry"]
+  D["experiments.ts<br/>getVariant: arm A/B/C"] --> C
+  C --> E["PostHog + experiments<br/>view → cta → signup"]
+  E --> F["Admin sees results<br/>keep the winner"]
+  F --> A</pre>
+  </div>
+
+  <div class="box">
+    <h3>Plan, in order</h3>
+    <ol>
+      <li><b>Section registry.</b> Turn the favourites (Subtitle cinema, Kinetic headline, Word marquee, Platform launcher, Cover-flow, Deck fan, Progress bento, Gold strip, Phone + widget…) into React components with the same props. One file lists them all.</li>
+      <li><b>Config renderer.</b> A page that takes a config (theme + list of sections) and draws it. Heavy sections load lazily so the first load stays small.</li>
+      <li><b>Admin tab.</b> This builder, inside your real Admin page: preview, save, publish.</li>
+      <li><b>Experiment wiring.</b> <code>landing_page_v3</code> arms = saved config IDs. Keep 2 arms until you have the traffic for more.</li>
+      <li><b>Brand loader.</b> The decoding "LinguaScript" loader as one component for page loads and the 10–30 s subtitle wait.</li>
+    </ol>
+  </div>
+
+  <div class="box">
+    <h3>Rules so it doesn't break things</h3>
+    <ul>
+      <li><b>Speed:</b> sections load only when used; three.js and PostHog stay out of the first load (your AGENTS.md rule).</li>
+      <li><b>Honest numbers:</b> mock-up numbers (1,204 words, 12 days) are samples. On the live site, show real data or none.</li>
+      <li><b>One change at a time:</b> test a theme <i>or</i> a hero, not both, or you won't know what worked.</li>
+      <li><b>Accessibility:</b> every animation stops when the phone asks for reduced motion; word colours always have a second clue (rings or labels).</li>
+      <li><b>SEO:</b> all arms keep the same main heading topic and one canonical URL, so Google sees one page.</li>
+    </ul>
+  </div>
+
+  <div class="box">
+    <h3>Prompts to build it (copy into Claude Code)</h3>
+    <div id="prompts" style="display:grid;gap:14px"></div>
+  </div>
+</div>
+</section>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+/* ---------- helpers ---------- */
+const $=s=>document.querySelector(s);
+const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch{return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch{}}};
+const toast=t=>{const el=$('#toast');el.textContent=t;el.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(()=>el.classList.remove('on'),1800)};
+async function copyText(t){try{await navigator.clipboard.writeText(t);toast('Copied')}catch{const ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');toast('Copied')}catch{toast('Select and copy the text')}ta.remove()}}
+const LOGO=(w=36,fill='#34C759')=>`<svg class="lcham" width="${w}" viewBox="14 76 372 184" aria-hidden="true"><path d="M20 236 Q200 222 380 240 L380 254 Q200 236 20 250 Z" fill="#5b4332"/><path d="M272 176 C322 168 348 190 344 214 C340 236 316 242 304 230 C295 220 302 206 314 207" fill="none" stroke="#26A047" stroke-width="15" stroke-linecap="round"/><rect x="233" y="196" width="15" height="38" rx="7.5" fill="#26A047"/><path d="M136 196 Q128 118 205 106 Q276 96 285 160 Q290 202 244 208 L164 210 Q140 208 136 196 Z" fill="${fill}"/><path d="M158 130 q7 -14 14 0 q7 -14 14 0 q7 -14 14 0 q7 -14 14 0 q7 -14 14 0 q7 -14 14 0 q7 -14 14 0 l-2 10 q-49 -10 -94 2 Z" fill="#1B7A35"/><path d="M150 196 Q152 168 178 166 Q166 190 190 206 L164 208 Q152 206 150 196 Z" fill="#B8EFC8"/><rect x="182" y="198" width="15" height="40" rx="7.5" fill="#26A047"/><path d="M162 118 Q160 92 134 88 Q104 84 88 112 Q74 138 84 162 Q94 186 126 188 Q152 189 160 168 Q166 148 162 118 Z" fill="${fill}"/><path d="M82 148 Q104 162 128 154" fill="none" stroke="#3d2b1f" stroke-width="4.5" stroke-linecap="round"/><circle cx="118" cy="126" r="21" fill="#B8EFC8"/><circle cx="118" cy="126" r="11.5" fill="#fffef9"/><circle cx="122.27" cy="124.58" r="5.5" fill="#241a12"/><circle cx="124.77" cy="122.08" r="2" fill="#fff" opacity=".9"/></svg>`;
+
+/* ---------- content ---------- */
+const VIDS=[["Cuisine avec Laura","YOUTUBE",93,"#8a5a1e","#2a1a08"],["PSG Vlog","YOUTUBE",86,"#1d2c6b","#0a1030"],["HugoDécrypte","YOUTUBE",88,"#1f6b66","#082624"],["4 jours à Marrakech","YOUTUBE",84,"#b8642a","#3a1a08"],["Le Souffle des Dieux","YOUTUBE",91,"#4c2ec4","#170c40"],["Amélie","NETFLIX",87,"#1f5a2e","#08200f"],["Dix pour cent","NETFLIX",68,"#8a2350","#2a0818"]];
+const vcard=([t,p,pc,a,b],extra='')=>`<div class="vc" style="background:linear-gradient(160deg,${a},${b});${extra}"><span class="tag">${p}</span><span class="pc" style="--p:${pc}"><span>${pc}%</span></span><span class="bub"></span><b translate="no">${t}</b><small>${p==='NETFLIX'?'Film':'YouTube'} · ${pc}% you understand</small></div>`;
+const btns=(a='Start free →',b='Watch the demo')=>`<div class="ctas"><span class="b1">${a}</span>${b?`<span class="b2">${b}</span>`:''}</div>`;
+
+const R={
+ nav:()=>`<div class="nav"><span class="lg">${LOGO(34)} LinguaScript</span><span class="links"><span>Method</span><span>Films</span><span>Pricing</span></span><span class="b1">Start free</span></div>`,
+ hero:{
+  cinema:()=>`<section class="sec glow"><div class="wrap g2"><div><div class="eb">Dual subtitles</div><h1 class="h1">Tap any word.<br><span class="it">Save it.</span></h1><p class="sub">Every word in the film, coloured by what you already know.</p><div class="card saved"><small>SAVED WORDS</small><b data-count="127">127</b></div>${btns()}</div><div class="card film"><span class="tc">UN CAFÉ PRÈS DE LA SEINE · 12:04</span><div class="sl" translate="no"><span class="wg">Je voudrais</span> <span class="wo">un café</span> <span class="wr">noir</span>, <span class="wg">s'il vous plaît</span></div><div class="tr">I would like a black coffee, please</div><div class="seek"><i></i></div></div></div></section>`,
+  kinetic:()=>`<section class="sec glow" style="text-align:center;padding-block:110px"><div class="wrap"><div class="eb">Watch · tap · remember</div><h1 class="h1" style="font-size:96px">Turn it <span class="kin" data-kin>orange</span></h1><p class="sub" style="margin:auto">The language app that colours the shows you already love.</p><div class="ctas" style="justify-content:center"><span class="b1">Start free →</span><span class="b2">See how it works</span></div></div></section>`,
+  tap:()=>`<section class="sec glow"><div class="wrap g2"><div><div class="eb">Try it: tap the word</div><h1 class="h1">Every word you learn <span class="it">turns green.</span></h1><p class="sub">Red when it's new, orange while you learn it, green when you know it, gold when it's time for a quick review.</p>${btns('Try LinguaScript free →','')}</div><div class="card tap" data-tap data-s="0"><div class="row" style="gap:10px">${LOGO(48)}<span class="note" style="color:var(--mut)">Le café · 0:42</span></div><div class="subb"><div class="sl" translate="no">Je voudrais <span class="tg">un</span> café, s'il vous plaît.</div><div style="font-size:13px;opacity:.7;margin-top:4px">I would like a coffee, please.</div></div><div class="cnt"><div class="n"><small>NEW</small><b data-c="n">0</b></div><div class="o"><small>LEARNING</small><b data-c="o">0</b></div><div class="gg"><small>KNOWN</small><b data-c="g">0</b></div></div><div class="note" data-msg style="color:var(--mut)">Tap a coloured word to save it.</div></div></div></section>`,
+  marquee:()=>{const w=[["la plage","wo"],["voudrais","wo"],["chat","wr"],["merci","wg"],["fenêtre","wo"],["maison","wg"],["bonjour","wy"],["regarder","wr"],["parfait","wg"],["toujours","wo"],["demain","wg"],["peut-être","wr"],["ensemble","wy"],["vite","wo"],["heureux","wr"],["beaucoup","wg"],["ici","wg"],["avant","wo"],["jamais","wg"],["salut","wg"]];const row=o=>{const s=[...w.slice(o),...w.slice(0,o)].map(([x,c])=>`<span class="${c}" translate="no">${x}</span>`).join('');return `<div>${s}${s}</div>`};return `<section class="sec glow"><div class="wrap"><div class="eb">1,204 words and counting</div><h1 class="h1">Every word you see,<br>coloured by <span class="it">what you know.</span></h1></div><div class="mq">${row(0)}${row(7)}${row(13)}</div><div class="wrap">${btns()}</div></section>`},
+  orbit:()=>{const w=[["café","wg"],["fenêtre","wo"],["merci","wg"],["plage","wy"],["maison","wg"],["chat","wr"],["voudrais","wo"]];return `<section class="sec glow"><div class="wrap g2"><div><div class="eb">Your vocabulary</div><h1 class="h1">Every word you know, <span class="it">in orbit.</span></h1><p class="sub">Your decks follow you on YouTube, Netflix and any website.</p>${btns('Add to Chrome','Start free')}</div><div class="orb"><div class="ring">${w.map(([x,c],i)=>{const a=i/w.length*2*Math.PI;return `<span class="${c}" translate="no" style="transform:translate(calc(-50% + ${Math.cos(a)*190}px),calc(-50% + ${Math.sin(a)*190}px))">${x}</span>`}).join('')}</div><div class="core">${LOGO(90)}</div></div></div></section>`},
+  split:()=>`<section class="sec splith"><div class="wrap"><h1 class="h1">Don't know it.<br>Know it.</h1><div class="wcard"><b translate="no">maison</b><small>house</small></div></div><span class="lbl" style="left:24px;color:#FF453A">RED · NEW</span><span class="lbl" style="right:24px;color:#1e9e45">GREEN · KNOWN</span></section>`,
+  lens:()=>`<section class="sec glow"><div class="wrap"><div class="eb">Read any website · Alt+L</div><h1 class="h1">Read the web <span class="it">in colour.</span></h1><div class="lens" translate="no"><span class="wg">Ce matin, je</span> <span class="wo">voudrais</span> <span class="wg">un café</span> <span class="wr">noir</span> et un <span class="wy">croissant</span> près de la <span class="wo">fenêtre</span>.<i></i></div>${btns('Add to Chrome','Start free')}</div></section>`,
+  ring:()=>{const r=130,L=2*Math.PI*r;return `<section class="sec glow"><div class="wrap g2"><div><div class="eb">Comprehensible input</div><h1 class="h1">Know <span class="it">87%</span> before you press play.</h1><p class="sub">We measure every film against your decks, so you only watch what you'll understand.</p><div class="legend"><span><i style="background:#34C759"></i>known</span><span><i style="background:#FF9F0A"></i>learning</span><span><i style="background:#FF453A"></i>new</span></div>${btns()}</div><div class="cring"><svg viewBox="0 0 300 300"><circle cx="150" cy="150" r="${r}" fill="none" stroke="#ffffff14" stroke-width="18"/><circle cx="150" cy="150" r="${r}" fill="none" stroke="url(#rg)" stroke-width="18" stroke-linecap="round" stroke-dasharray="${L}" stroke-dashoffset="${L*.13}"/><defs><linearGradient id="rg"><stop offset="0" stop-color="#34C759"/><stop offset="1" stop-color="#cdeb8b"/></linearGradient></defs></svg><div class="v"><div><b>87%</b><div class="note" style="color:var(--mut)">of <i>Amélie</i> you understand</div></div></div></div></div></section>`},
+ },
+ launcher:{
+  launcher:()=>`<section class="sec glow"><div class="wrap"><div class="eb">Where do you want to watch?</div><h2 class="h2">Pick a door. <span class="it">Learn inside.</span></h2><div class="doors"><div class="door" style="background:linear-gradient(150deg,#3a2a9a,#170c40)"><span class="pl"><i style="background:#FF0033"></i>YouTube</span><b style="font-size:20px">Keep learning on YouTube</b><small>Your hub · 2,400 French videos for your level</small><span class="go">▶ Open YouTube hub</span></div><div class="door" style="background:linear-gradient(160deg,#1a2238,#0a0e18)"><span class="pl"><i style="background:#E50914"></i>Netflix</span><b>Netflix</b><small>Opens with the extension</small></div><div class="door" style="background:linear-gradient(160deg,#c4502b,#2a0e06)"><span class="pl"><i style="background:#F47521"></i>Crunchyroll</span><b>Crunchyroll</b><small>Anime in French</small></div><div class="door" style="background:linear-gradient(160deg,#2a5aa8,#0a1630)"><span class="pl"><i style="background:#3b82f6"></i>TV5MONDE</span><b>TV5MONDE</b><small>News &amp; films</small></div></div><h3 style="margin:22px 0 0;font-size:16px">Picked for your level</h3><div class="rail">${VIDS.map(v=>vcard(v)).join('')}</div></div></section>`,
+  coverflow:()=>`<section class="sec glow" style="text-align:center"><div class="wrap"><div class="eb">Discover</div><h2 class="h2">Films you'll <span class="it">actually understand</span></h2><div class="chips" style="justify-content:center;margin-top:12px">${['For you','YouTube','Netflix','Anime','News'].map((t,i)=>`<span class="b2" style="padding:6px 14px;font-size:12px;${i==0?'background:var(--fg);color:var(--bg)':''}">${t}</span>`).join('')}</div><div class="cf" data-cf>${VIDS.map(v=>vcard(v)).join('')}</div><div class="cfbtn"><span class="b1" data-cfbtn>▶ Watch Le Souffle · 91%</span></div></div></section>`,
+  rail:()=>`<section class="sec"><div class="wrap"><div class="eb">Up next for you</div><h2 class="h2">Picked for <span class="it">your level</span></h2><div class="rail">${VIDS.map(v=>vcard(v)).join('')}</div></div></section>`,
+ },
+ how:{
+  steps:()=>`<section class="sec"><div class="wrap"><div class="eb">How it works</div><h2 class="h2">Four steps. <span class="it">No homework.</span></h2><div class="steps">${[['🎬','Watch a show','With two subtitle lines.'],['👆','Tap a word','It goes into your flashcards.'],['🃏','Review it','Red → orange → green.'],['✨','Green → gold','A quick check keeps it forever.']].map(([i,b,p])=>`<div class="card"><div class="ic">${i}</div><b>${b}</b><p>${p}</p></div>`).join('')}</div></div></section>`,
+  decks:()=>`<section class="sec glow"><div class="wrap g2"><div><div class="eb">Flashcards</div><h2 class="h2">Frequency decks.<br><span style="color:#34C759">Top 50</span> to <span style="color:#FF9F0A">Top 3,000</span>.</h2><p class="sub">Learn the words people actually say, first.</p>${btns('Start free →','See the decks')}</div><div class="fan">${[["Top 50","#FF453A","être","to be"],["Top 500","#FF9F0A","vraiment","really"],["Top 1,000","#34C759","pourtant","however"],["Top 3,000","#FFD60A","plaît","please"]].map(([n,c,w,m],i)=>`<div class="dk" style="--c:${c};left:${10+i*70}px;top:${40-i*10}px;transform:rotate(${-18+i*11}deg);animation-delay:${i*.4}s"><small>FRENCH · DECK</small><b>${n.replace(' ','<br>')}</b><div class="w" translate="no">${w}<span>${m}</span></div></div>`).join('')}</div></div></section>`,
+  shuffle:()=>`<section class="sec glow"><div class="wrap g2"><div><div class="eb">Spaced repetition</div><h2 class="h2">Review in <span class="it">two minutes.</span></h2><p class="sub">Words come back right before you'd forget them.</p>${btns('Review now','')}</div><div class="shuf"><div class="fc"><div><small class="note">FRENCH · REVIEW</small><br><b translate="no">maison</b></div></div><div class="fc"><div><small class="note">FRENCH · REVIEW</small><br><b translate="no">toujours</b></div></div><div class="fc"><div><small class="note" style="color:var(--mut)">FRENCH · REVIEW</small><br><b translate="no">la plage</b><div style="color:var(--mut)">the beach</div></div></div></div></div></section>`,
+ },
+ progress:{
+  bento:()=>`<section class="sec glow"><div class="wrap g2"><div><div class="eb">Your progress</div><h2 class="h2">Watch your French <span class="it">grow.</span></h2><p class="sub">Every film you watch adds to the green.</p>${btns('Start free','')}</div><div class="bento"><div class="card" style="grid-row:span 2"><small>GREEN WORDS</small><div class="big" style="color:#4fd26f" data-count="1204">1,204</div></div><div class="card"><small>STREAK</small><div class="big" style="font-size:28px">🔥 12 days</div></div><div class="card goldc"><small>READY TO REVIEW</small><div class="big" data-count="32">32</div></div><div class="card" style="grid-column:span 2"><small>THIS FILM</small><div style="margin-top:6px;font-weight:700">You understand <span style="color:#4fd26f">87%</span> of <i>Amélie</i></div></div></div></div></section>`,
+  rewatch:()=>`<section class="sec"><div class="wrap g2"><div><div class="eb">Rewatch to master</div><h2 class="h2">Every rewatch, you understand <span class="it">more.</span></h2><p class="sub">Watch once for the story. Watch again and watch the red turn green.</p></div><div class="card bars"><div style="display:flex;gap:10px;align-items:center"><span style="font-size:28px">⚽</span><div><b>Football tactics, explained</b><div class="note" style="color:var(--mut)">Mastered after 3 watches</div></div></div>${[[42,'#FF453A'],[71,'#FF9F0A'],[97,'#FFD60A']].map(([v,c],i)=>`<div class="br"><span class="n" style="background:${c}">${i+1}</span><span class="t"><i style="width:${v}%;background:${c};animation-delay:${i*.2}s"></i></span><b>${v}%</b></div>`).join('')}<div style="border-radius:12px;background:#ffd60a1a;color:#FFD60A;padding:10px 12px;font-weight:700">🏆 +55 points from three watches</div></div></div></section>`,
+  coverage:()=>`<section class="sec glow"><div class="wrap g2"><div><div class="eb">Most common French words</div><h2 class="h2">You know <span style="color:#4fd26f">2,987</span> of the top 3,000.</h2><p class="sub">Learn in frequency order and real speech opens up fastest.</p></div><div class="card bars">${[["Top 100",100],["Top 500",100],["Top 1,000",99],["Top 2,000",98],["Top 3,000",99.6]].map(([l,v],i)=>`<div><div style="display:flex;justify-content:space-between;font-size:14px"><span>${l}</span><b>${v}%</b></div><div class="t" style="height:10px;border-radius:9px;background:#ffffff14;margin-top:6px;overflow:hidden"><i style="display:block;height:100%;width:${v}%;background:linear-gradient(90deg,#34C759,#FFD60A);border-radius:9px;transform-origin:left;animation:grow 1.4s ${i*.1}s both"></i></div></div>`).join('')}</div></div></section>`,
+ },
+ gold:{
+  gold:()=>`<section class="sec goldsec" style="background:linear-gradient(180deg,var(--bg),#0b0904)"><div class="wrap">${[[12,20],[70,15],[85,40],[40,30],[60,8]].map(([x,y],i)=>`<i class="spark" style="left:${x}%;top:${y}%;animation-delay:${i*.6}s"></i>`).join('')}<div class="eb" style="color:#FFD60A">Reviews</div><h2 class="h2"><span style="color:#FFD60A">Your gold words</span> are ready.</h2><p class="sub">Words you know, due for a quick check. Tap, remember, keep them forever.</p><div class="strip">${[["partent","they leave"],["maison","house"],["toujours","always"],["ensemble","together"]].map(([w,m])=>`<div class="gc"><b translate="no">${w}</b><small>${m}</small></div>`).join('')}</div></div></section>`,
+ },
+ social:{
+  leaderboard:()=>`<section class="sec"><div class="wrap g2" style="align-items:stretch"><div class="chal"><div class="eb" style="color:#ffd9c9">Weekly challenge</div><h2 class="h2" style="color:#fff">Watch 3 anime,<br><span class="it" style="color:#cdebb0">save 30 words</span></h2><span class="b1" style="display:inline-block;margin-top:14px">Join · +500 XP</span></div><div class="card lb"><div class="eb" style="color:var(--mut)">This week</div><b style="font-size:18px">Leaderboard</b>${[["A","Alex",2310,"#FFD60A"],["M","Maya",1840,"#FF9F0A"],["T","Tom",1505,"#34C759"],["S","Sophie",1220,"#a78bfa"],["Y","You",1180,"#34C759",1],["L","Léa",990,"#FF453A"]].map(([a,n,p,c,me],i)=>`<div class="r ${me?'me':''}"><span class="note" style="width:14px">${i+1}</span><span class="av" style="background:${c}">${a}</span>${n}<b>${p.toLocaleString()}</b></div>`).join('')}</div></div></section>`,
+  phone:()=>`<section class="sec glow"><div class="wrap g2"><div><div class="eb">Android app</div><h2 class="h2">Your words, <span class="it">everywhere.</span></h2><p class="sub">Colours on any app, gold words on your lock screen.</p>${btns('Get the app','')}</div><div style="position:relative"><div class="phone"><div style="height:110px;border-radius:14px;background:radial-gradient(circle at 40% 40%,#c4672c88,#1d1d24)"></div><div style="font-size:12px;text-align:center;color:#4fd26f" translate="no">Je regarde la mer</div><div class="wv" style="--c:#FF5B50"><b translate="no">regarder</b><small>to watch · saved just now</small></div><div class="wv" style="--c:#4fd26f"><b translate="no">la mer</b><small>the sea · known</small></div></div><div class="widget"><small style="color:#bba86a;font-size:10px">✨ Gold word</small><b style="display:block;color:#FFD60A;font-size:20px" translate="no">partent</b><span style="display:inline-block;margin-top:6px;background:#FFD60A;color:#1a1400;border-radius:99px;padding:3px 10px;font-size:11px;font-weight:800">Show meaning</span></div></div></div></section>`,
+ },
+ cta:{
+  cta:()=>`<section class="sec glow ctasec"><div class="wrap"><div class="eb">Free · no card needed</div><h2 class="h1">Start with the words<br><span class="it">you'll actually hear.</span></h2><div class="ctas" style="justify-content:center"><span class="b1">Try LinguaScript free →</span></div><p class="sub" style="margin:16px auto 0">Works on YouTube · Netflix · Crunchyroll</p></div></section>`,
+  trust:()=>`<section class="sec glow ctasec"><div class="wrap"><h2 class="h1">Learn French <span class="it">by watching.</span></h2><div class="ctas" style="justify-content:center"><span class="b1">Try LinguaScript free →</span></div><div class="trust">${[["🎓 Made by a TEFL-certified teacher","Designed by someone who teaches languages."],["📚 Built on word-frequency research","You learn the words you'll hear most, first."],["🛡 Your data stays private","UK GDPR. Never sold. Delete it any time."],["🏢 A real UK company","LinguaScript Ltd, registered in England & Wales."]].map(([b,p])=>`<div class="card"><b>${b}</b><p>${p}</p></div>`).join('')}</div></div></section>`,
+ },
+};
+const META={hero:["Hero",{cinema:"Subtitle cinema",kinetic:"Kinetic headline",tap:"Tap-a-word demo",marquee:"Word marquee",orbit:"Word orbit",split:"Don't know it / Know it",lens:"Glass lens reading",ring:"Coverage ring"}],
+ launcher:["Watch hub",{launcher:"Platform launcher",coverflow:"Cover-flow fan",rail:"Picked-for-you rail"}],
+ how:["How it works",{steps:"4 steps",decks:"Frequency deck fan",shuffle:"Flashcard shuffle"}],
+ progress:["Progress",{bento:"Progress bento",rewatch:"Rewatch bars",coverage:"Top-3,000 coverage"}],
+ gold:["Gold words",{gold:"Gold-to-black strip"}],
+ social:["Community & app",{leaderboard:"Challenge + leaderboard",phone:"Phone + widget"}],
+ cta:["Final call",{cta:"Big start-free",trust:"Trust + start free"}]};
+const THEMES=[["obsidian","Obsidian","#070809"],["glassdark","Glass dark","#2f8f4e"],["glasslight","Glass light","#eef1f5"],["gold","Black & gold","#FFD60A"],["forest","Forest","#0b2416"],["aurora","Aurora","#5b3a8a"],["violet","Midnight violet","#16122a"],["split","Split B/W","#ffffff"],["neon","Neon terminal","#39ff7a"],["paper","Paper","#f3eee3"]];
+const LOADERS={languages:"Through the languages → LinguaScript",decode:"Decoding text",alphabets:"Every alphabet → LinguaScript",deck:"Deck colours drop in",none:"No loader"};
+const S=(id,v,on=true)=>({id,v,on});
+const PRESETS={
+ "⭐ Obsidian cinema":{theme:"obsidian",loader:"languages",sections:[S('hero','cinema'),S('launcher','launcher'),S('how','decks'),S('progress','bento'),S('gold','gold'),S('social','phone'),S('cta','trust')]},
+ "Black & gold vault":{theme:"gold",loader:"decode",sections:[S('hero','kinetic'),S('launcher','coverflow'),S('how','shuffle'),S('progress','rewatch'),S('gold','gold'),S('social','leaderboard'),S('cta','cta')]},
+ "Glass light hub":{theme:"glasslight",loader:"alphabets",sections:[S('hero','tap'),S('launcher','launcher'),S('how','steps'),S('progress','coverage'),S('gold','gold',false),S('social','phone'),S('cta','trust')]},
+ "Forest coverage":{theme:"forest",loader:"deck",sections:[S('hero','ring'),S('launcher','coverflow'),S('how','decks'),S('progress','bento'),S('gold','gold'),S('social','leaderboard'),S('cta','cta')]},
+ "Split statement":{theme:"split",loader:"decode",sections:[S('hero','split'),S('launcher','rail'),S('how','steps'),S('progress','rewatch'),S('gold','gold'),S('social','phone'),S('cta','trust')]},
+ "Aurora orbit":{theme:"aurora",loader:"languages",sections:[S('hero','orbit'),S('launcher','coverflow'),S('how','decks'),S('progress','coverage'),S('gold','gold'),S('social','phone'),S('cta','cta')]},
+ "Neon reader":{theme:"neon",loader:"alphabets",sections:[S('hero','lens'),S('launcher','rail'),S('how','shuffle'),S('progress','bento'),S('gold','gold',false),S('social','leaderboard'),S('cta','cta')]},
+};
+let saved=store.get('ls.studio.saved',{});
+let cfg=store.get('ls.studio.cfg',null)||JSON.parse(JSON.stringify(PRESETS["⭐ Obsidian cinema"]));
+let arms=store.get('ls.studio.arms',[]);
+let device=(window.innerWidth<700)?'phone':'desktop';
+
+/* ---------- builder UI ---------- */
+function fillPresets(){const sel=$('#preset');sel.innerHTML=`<option value="" disabled>Choose a preset…</option><optgroup label="Built-in">${Object.keys(PRESETS).map(k=>`<option>${k}</option>`).join('')}</optgroup>${Object.keys(saved).length?`<optgroup label="Saved">${Object.keys(saved).map(k=>`<option value="saved:${k}">${k}</option>`).join('')}</optgroup>`:''}`;sel.value='';}
+$('#preset').onchange=e=>{const v=e.target.value;const src=v.startsWith('saved:')?saved[v.slice(6)]:PRESETS[v];if(src){cfg=JSON.parse(JSON.stringify(src));sync();play();toast('Loaded '+v.replace('saved:',''))}};
+$('#themes').innerHTML=THEMES.map(([k,n,c])=>`<button class="chip" data-th="${k}"><span class="sw" style="background:${c}"></span>${n}</button>`).join('');
+$('#themes').onclick=e=>{const b=e.target.closest('[data-th]');if(!b)return;cfg.theme=b.dataset.th;sync()};
+$('#loader').innerHTML=Object.entries(LOADERS).map(([k,n])=>`<option value="${k}">${n}</option>`).join('');
+$('#loader').onchange=e=>{cfg.loader=e.target.value;save();play()};
+$('#playL').onclick=()=>play();
+function drawSecs(){$('#secs').innerHTML=cfg.sections.map((s,i)=>{const [lab,vars]=META[s.id];return `<div class="sec-row ${s.on?'':'off'}"><button class="tgl" aria-label="Show ${lab}" aria-pressed="${s.on}" data-i="${i}" data-act="tg"></button><div><b>${lab}</b><select data-i="${i}" data-act="v" aria-label="${lab} design">${Object.entries(vars).map(([k,n])=>`<option value="${k}" ${k==s.v?'selected':''}>${n}</option>`).join('')}</select></div><div class="mv"><button data-i="${i}" data-act="up" aria-label="Move ${lab} up">▲</button><button data-i="${i}" data-act="dn" aria-label="Move ${lab} down">▼</button></div></div>`}).join('')}
+$('#secs').onclick=e=>{const b=e.target.closest('button[data-act]');if(!b)return;const i=+b.dataset.i,a=b.dataset.act,L=cfg.sections;if(a=='tg')L[i].on=!L[i].on;if(a=='up'&&i>0)[L[i-1],L[i]]=[L[i],L[i-1]];if(a=='dn'&&i<L.length-1)[L[i+1],L[i]]=[L[i],L[i+1]];sync()};
+$('#secs').onchange=e=>{const s=e.target.closest('select[data-act=v]');if(!s)return;cfg.sections[+s.dataset.i].v=s.value;sync()};
+$('#shuffle').onclick=()=>{const pick=a=>a[Math.random()*a.length|0];cfg.theme=pick(THEMES)[0];cfg.loader=pick(Object.keys(LOADERS).filter(k=>k!='none'));cfg.sections.forEach(s=>{s.v=pick(Object.keys(META[s.id][1]))});sync();play();toast('New combination')};
+$('#save').onclick=()=>{const n=$('#pname').value.trim()||('Version '+(Object.keys(saved).length+1));saved[n]=JSON.parse(JSON.stringify(cfg));store.set('ls.studio.saved',saved);fillPresets();$('#pname').value='';toast('Saved "'+n+'" on this device')};
+const exportCfg=c=>JSON.stringify({version:1,theme:c.theme,loader:c.loader,sections:c.sections.filter(s=>s.on).map(({id,v})=>({id,variant:v}))},null,2);
+$('#copy').onclick=()=>copyText(exportCfg(cfg));
+function drawArms(){$('#arms').innerHTML=arms.length?arms.map((a,i)=>`<div class="arm"><span><b>${String.fromCharCode(65+i)}</b> · ${a.name}</span><button data-rm="${i}" aria-label="Remove arm">✕</button></div>`).join(''):'<p class="note">No arms yet. Build a version, then add it.</p>'}
+$('#arms').onclick=e=>{const b=e.target.closest('[data-rm]');if(!b)return;arms.splice(+b.dataset.rm,1);store.set('ls.studio.arms',arms);drawArms()};
+$('#addArm').onclick=()=>{if(arms.length>=4){toast('4 arms max for your traffic');return}const name=($('#pname').value.trim())||`${THEMES.find(t=>t[0]==cfg.theme)[1]} · ${META.hero[1][cfg.sections.find(s=>s.id=='hero').v]}`;arms.push({name,cfg:JSON.parse(JSON.stringify(cfg))});store.set('ls.studio.arms',arms);drawArms();toast('Added arm '+String.fromCharCode(64+arms.length))};
+$('#copyExp').onclick=()=>{if(!arms.length){toast('Add at least 2 arms first');return}copyText(JSON.stringify({key:"landing_page_v3",arms:arms.map((a,i)=>({id:String.fromCharCode(97+i),name:a.name,config:JSON.parse(exportCfg(a.cfg))}))},null,2))};
+document.querySelectorAll('[data-dev]').forEach(b=>b.onclick=()=>{device=b.dataset.dev;document.querySelectorAll('[data-dev]').forEach(x=>x.setAttribute('aria-pressed',x===b));renderSite();play()});
+function save(){store.set('ls.studio.cfg',cfg)}
+function sync(){save();document.querySelectorAll('[data-th]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.th==cfg.theme));$('#loader').value=cfg.loader;drawSecs();renderSite()}
+
+/* ---------- site render + live bits ---------- */
+let timers=[];const every=(fn,ms)=>timers.push(setInterval(fn,ms));
+function renderSite(){
+  timers.forEach(clearInterval);timers=[];
+  const html=R.nav()+cfg.sections.filter(s=>s.on).map(s=>R[s.id][s.v]()).join('')+`<div class="foot"><span>© LinguaScript Ltd</span><span>Privacy</span><span>Terms</span><span>Built in Falmouth, Cornwall</span></div>`;
+  const frame=$('#frame');frame.innerHTML=`<div class="site" data-theme="${cfg.theme}"><span class="mockpill">MOCK-UP · SAMPLE NUMBERS</span>${html}<div class="ldr out" id="ldr"></div></div>`;
+  $('#summary').textContent=`${THEMES.find(t=>t[0]==cfg.theme)[1]} · ${cfg.sections.filter(s=>s.on).length} sections`;
+  fit();live(frame);
+}
+function live(root){
+  const k=root.querySelector('[data-kin]');if(k){const C=[["red","#FF453A"],["orange","#FF9F0A"],["green","#34C759"],["gold","#FFD60A"]];let i=1;every(()=>{i=(i+1)%4;k.textContent=C[i][0];k.style.color=C[i][1];k.style.background=C[i][1]+'22';k.style.boxShadow=`0 0 40px ${C[i][1]}44`},1500);k.style.color=C[1][1];k.style.background=C[1][1]+'22'}
+  const t=root.querySelector('[data-tap]');if(t){const msg=["Tap a coloured word to save it.","Saved: 1 of the 50 most common French words added","Learning un · #7 most common French word","You know 1 of the 50 most common French words","✨ Gold: time for a quick review of un"];let s=0;every(()=>{s=(s+1)%5;t.dataset.s=s;const n=s==1?1:0,o=s==2?1:0,g=s>=3?1:0;t.querySelector('[data-c=n]').textContent=n;t.querySelector('[data-c=o]').textContent=o;t.querySelector('[data-c=g]').textContent=g;t.querySelectorAll('.cnt div').forEach(d=>d.classList.remove('hot'));const h=s==1?'.n':s==2?'.o':s==3?'.gg':null;if(h)t.querySelector('.cnt '+h).classList.add('hot');t.querySelector('[data-msg]').textContent=msg[s];const c=t.querySelector('.lcham');if(c)c.style.filter=['none','hue-rotate(-110deg) saturate(1.6)','hue-rotate(-80deg) saturate(1.5)','none','hue-rotate(-60deg) saturate(1.8) brightness(1.2)'][s]},1700)}
+  const cf=root.querySelector('[data-cf]');if(cf){const cards=[...cf.children];let a=4;const lay=()=>{cards.forEach((c,i)=>{const d=i-a;c.style.transform=`translateX(calc(-50% + ${d*120}px)) translateY(${Math.abs(d)*14}px) rotate(${d*9}deg) scale(${d?0.86:1.06})`;c.style.zIndex=10-Math.abs(d);c.style.opacity=Math.abs(d)>3?0:1;c.style.boxShadow=d?'none':'0 20px 50px -10px #000, 0 0 0 2px #fff3'});const b=root.querySelector('[data-cfbtn]');if(b)b.textContent=`▶ Watch ${VIDS[a][0].split(' ').slice(0,2).join(' ')} · ${VIDS[a][2]}%`};lay();every(()=>{a=(a+1)%cards.length;lay()},2600)}
+  root.querySelectorAll('[data-count]').forEach(el=>{const to=+el.dataset.count;let v=0;const st=Math.max(1,Math.round(to/40));const id=setInterval(()=>{v=Math.min(to,v+st);el.textContent=v.toLocaleString();if(v>=to)clearInterval(id)},30);timers.push(id)});
+}
+function fit(){const stage=$('#stage'),frame=$('#frame');const W=stage.clientWidth;const V=device=='phone'?390:1280;const s=Math.min(1,W/V);frame.style.width=V+'px';frame.style.transform=`scale(${s})`;frame.style.left=Math.max(0,(W-V*s)/2)+'px';stage.style.height=Math.ceil(frame.scrollHeight*s)+'px';const l=$('#ldr');if(l)l.style.height=(device=='phone'?760:720)+'px'}
+new ResizeObserver(fit).observe($('#stage'));
+new ResizeObserver(()=>fit()).observe($('#frame'));
+
+/* ---------- loader engine ---------- */
+const POOLS={latin:'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzéèàçôûïê',mix:'AБΓДЖЗЛПФЦЧШЭЮЯαβγδλπσωあいうえおかきくけこさしすせそアイウエオカキクケコ가나다라마바사아자차카타파하กขคงจฉชซญดตถทนบปผพมยรลวสหअआइईउऊएऐओकखगघचछजझटठडढतथदधनपफबभमयरलवशसहابتثجحخدذرزسشصضطظعغفقكلمنهوي'};
+const rnd=p=>p[Math.random()*p.length|0];
+const LANGS=[["Hello","English"],["Bonjour","Français"],["Hola","Español"],["Ciao","Italiano"],["Привет","Русский"],["こんにちは","日本語"],["안녕하세요","한국어"],["สวัสดี","ไทย"],["你好","中文"],["مرحبا","العربية"]];
+let runId=0;
+function playLoader(host,variant,opts={}){
+  const id=++runId,speed=opts.speed||1,word=opts.word||'LinguaScript';const alive=()=>id===runId;
+  if(variant==='none'){host.classList.add('out');return}
+  const light=opts.light;host.style.background=light?'#f3f5f4':'#050607';host.style.color=light?'#0b0d10':'#fff';
+  host.classList.remove('out');
+  host.innerHTML=`<div class="lx"><div style="transform:scale(.0);transition:transform .6s cubic-bezier(.34,1.56,.64,1)" data-ch>${LOGO(90)}</div><div class="lw" data-w></div><div class="ll" data-l></div>${opts.steps!==false?`<div class="lsteps" data-st><span>Finding subtitles</span><span>Translating</span><span>Colouring your words</span></div>`:''}</div>`;
+  const W=host.querySelector('[data-w]'),Lb=host.querySelector('[data-l]'),CH=host.querySelector('[data-ch]'),ST=host.querySelector('[data-st]');
+  const sleep=ms=>new Promise(r=>setTimeout(r,ms*speed));
+  const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const paint=(chars,cols)=>{W.innerHTML=chars.map((c,i)=>`<span style="color:${cols?cols[i]||'':''}">${c===' '?'&nbsp;':c}</span>`).join('')};
+  const finalCols=[...word].map((c,i)=>i>=Math.ceil(word.length/2)&&word==='LinguaScript'?(i>=6?'#34C759':''):(word==='LinguaScript'?'':(i%2?'#34C759':'')));
+  const fc=[...word].map((c,i)=>word==='LinguaScript'?(i>=6?'#34C759':(light?'#0b0d10':'#fff')):(light?'#0b0d10':'#fff'));
+  const scramble=async(target,dur,pool,colFn)=>{const T=[...target];const n=T.length;const t0=performance.now();while(alive()){const p=Math.min(1,(performance.now()-t0)/(dur*speed));const k=Math.floor(p*n*1.15);paint(T.map((c,i)=>i<k?c:(c===' '?' ':rnd(pool))),T.map((c,i)=>colFn?colFn(i,i<k):''));if(p>=1)break;await new Promise(r=>setTimeout(r,45))}};
+  const step=n=>{if(ST)ST.querySelectorAll('span').forEach((s,i)=>s.classList.toggle('on',i<n))};
+  const finish=async()=>{if(!alive())return;paint([...word],fc);CH.style.transform='scale(1)';Lb.textContent='Learn languages by watching';step(3);
+    const c=CH.querySelector('.lcham');if(c){for(const f of['hue-rotate(-110deg) saturate(1.6)','hue-rotate(-80deg) saturate(1.5)','hue-rotate(-60deg) saturate(1.8) brightness(1.2)','none']){if(!alive())return;c.style.filter=f;await sleep(260)}}
+    await sleep(1100);if(alive()&&opts.autoHide!==false)host.classList.add('out')};
+  if(reduce){finish();return}
+  (async()=>{
+    if(variant==='languages'){
+      for(let i=0;i<LANGS.length&&alive();i++){const [w,l]=LANGS[i];Lb.textContent=l;step(Math.floor(i/LANGS.length*3));await scramble(w,170,POOLS.mix,(j,done)=>done?(light?'#0b0d10':'#fff'):['#FF453A','#FF9F0A','#34C759','#FFD60A'][j%4]);await sleep(90)}
+      Lb.textContent='';await scramble(word,700,POOLS.mix,(j,done)=>done?fc[j]:['#FF453A','#FF9F0A','#34C759','#FFD60A'][j%4]);
+    }else if(variant==='decode'){
+      Lb.textContent='Decoding';step(1);await scramble(word,1600,POOLS.latin,(j,done)=>done?fc[j]:(light?'#0b0d1066':'#ffffff55'));step(2);
+    }else if(variant==='alphabets'){
+      const T=[...word];const t0=performance.now();Lb.textContent='Every alphabet';
+      while(alive()){const p=(performance.now()-t0)/(2400*speed);if(p>=1)break;const k=Math.floor(Math.max(0,(p-.35)/.65)*T.length*1.1);paint(T.map((c,i)=>i<k?c:rnd(POOLS.mix)),T.map((c,i)=>i<k?fc[i]:['#FF453A','#FF9F0A','#34C759','#FFD60A'][(i+Math.floor(p*20))%4]));step(Math.floor(p*3));await new Promise(r=>setTimeout(r,55))}
+    }else if(variant==='deck'){
+      const T=[...word];Lb.textContent='New → learning → known → gold';
+      for(let k=1;k<=T.length&&alive();k++){paint(T.slice(0,k),T.slice(0,k).map((c,i)=>i==k-1?'#FF453A':['#FF9F0A','#34C759','#FFD60A'][(k-i)%3]));step(Math.floor(k/T.length*3));await sleep(110)}
+      for(const col of['#FF9F0A','#34C759','#FFD60A']){if(!alive())return;paint(T,T.map(()=>col));await sleep(300)}
+    }
+    finish();
+  })();
+}
+function play(){const l=$('#ldr');if(!l)return;fit();playLoader(l,cfg.loader,{steps:true})}
+
+/* ---------- loader lab ---------- */
+let lvar='languages';
+const LDESC={languages:"Says hello in 10 languages, each word decoding out of mixed alphabets, then decodes into LinguaScript while the chameleon changes colour.",decode:"Classic decoding text: random letters lock into place one by one.",alphabets:"Letters from Latin, Cyrillic, Greek, Japanese, Korean, Thai, Hindi and Arabic flicker in your deck colours until LinguaScript settles.",deck:"Each letter drops in red, then the whole word walks the learning ladder: orange, green, gold.",none:""};
+$('#lvars').innerHTML=Object.entries(LOADERS).filter(([k])=>k!='none').map(([k,n])=>`<button class="chip" data-lv="${k}" aria-pressed="${k==lvar}">${n}</button>`).join('');
+$('#lvars').onclick=e=>{const b=e.target.closest('[data-lv]');if(!b)return;lvar=b.dataset.lv;document.querySelectorAll('[data-lv]').forEach(x=>x.setAttribute('aria-pressed',x===b));labPlay()};
+['lsteps','lbg'].forEach(id=>$('#'+id).onclick=e=>{e.target.setAttribute('aria-pressed',e.target.getAttribute('aria-pressed')!='true');labPlay()});
+$('#lplay').onclick=()=>labPlay();$('#lspeed').onchange=()=>labPlay();
+function labPlay(){const st=$('#labstage');st.innerHTML='<div class="ldr" style="position:absolute;inset:0"></div>';$('#ldesc').textContent=LDESC[lvar];playLoader(st.firstChild,lvar,{speed:+$('#lspeed').value,word:$('#lword').value.trim()||'LinguaScript',steps:$('#lsteps').getAttribute('aria-pressed')=='true',light:$('#lbg').getAttribute('aria-pressed')=='true',autoHide:false})}
+
+/* ---------- tabs ---------- */
+function showTab(t){document.querySelectorAll('[data-tab]').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab==t));['builder','loaders','plan'].forEach(v=>$('#v-'+v).hidden=v!=t);if(t=='loaders')labPlay();if(t=='builder'){fit();}try{history.replaceState(null,'','#'+t)}catch{}}
+document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
+
+/* ---------- prompts ---------- */
+const PROMPTS=[
+["1 · Section registry",`In the LinguaScript repo, create src/components/landing/sections/ with one React component per landing section, matching the designs in public/brand/ (Site Studio): HeroCinema, HeroKinetic, HeroTapDemo, HeroMarquee, HeroOrbit, HeroSplit, HeroLens, HeroRing, PlatformLauncher, CoverFlow, PickedRail, HowSteps, DeckFan, FlashcardShuffle, ProgressBento, RewatchBars, CoverageBars, GoldStrip, ChallengeLeaderboard, PhoneWidget, CtaBig, CtaTrust.
+Add sections/registry.ts mapping {id, variant} → lazy component. Themes = CSS variables (obsidian, glassdark, glasslight, gold, forest, aurora, violet, split, neon, paper) in one landing-themes.css scoped under .ls-site.
+Rules from AGENTS.md: lazy-load heavy sections, no three.js/PostHog in the first load, respect prefers-reduced-motion, learning-language text translate="no", no invented numbers (use real data or hide the stat). Run npx vite build and report the entry bundle size.`],
+["2 · Render a page from a config",`Add a Supabase migration for table landing_configs (id uuid, name text, config jsonb, status text check in ('draft','published'), created_by uuid, updated_at timestamptz). RLS: anyone can select status='published'; only users with an admin row in user_roles can insert/update/delete.
+Config shape: {version:1, theme, loader, sections:[{id, variant}]}.
+Create src/pages/landing/ConfigLanding.tsx that takes a config and renders the sections from the registry. Show PageLoading while it loads. Copy the new types into packages/core/src/database.types.ts.`],
+["3 · Admin dashboard tab",`In src/pages/Admin.tsx add a "Landing pages" tab (admins only, same user_roles check as AdminProGrants). It lists landing_configs, and has a builder: theme chips, loader select, section list with on/off, variant select and up/down, plus a live preview of ConfigLanding at desktop and phone width. Buttons: Save draft, Publish, Duplicate, Preview link (/?lc=<id>).`],
+["4 · A/B test with saved configs",`Replace the hard-coded arms in src/components/landing/LandingPageTest.tsx with a new test landing_page_v3 whose arms are published landing_configs IDs (stored in a small table landing_experiments: key, arm, config_id, active). Keep using getVariant/track from src/lib/experiments.ts and add the arm to cta_clicked and signed_up via src/lib/analytics.ts. Keep ?lp= previews working. Max 4 arms; default to 2. In the Admin tab show views → CTA → sign-ups per arm and use compare() + MIN_SAMPLE to say "not enough data yet" until it's significant.`],
+["5 · Brand loader",`Create src/components/BrandLoader.tsx: the "decoding" LinguaScript loader (variants: languages, decode, alphabets, deck) from the Site Studio. Hello in 10 languages decodes into "LinguaScript" with the chameleon changing red → orange → green. Optional steps line: Finding subtitles · Translating · Colouring your words. Use it inside PageLoading after 600 ms and in the video player while subtitles load. Respect prefers-reduced-motion (show the final word only). Keep it under 6 kB.`],
+];
+$('#prompts').innerHTML=PROMPTS.map(([t,p],i)=>`<div style="display:grid;gap:6px"><div class="row" style="justify-content:space-between"><b>${t}</b><button class="btn" data-cp="${i}">Copy</button></div><pre class="prompt">${p.replace(/</g,'&lt;')}</pre></div>`).join('');
+$('#prompts').onclick=e=>{const b=e.target.closest('[data-cp]');if(b)copyText(PROMPTS[+b.dataset.cp][1])};
+
+/* ---------- boot ---------- */
+fillPresets();drawArms();document.querySelectorAll('[data-dev]').forEach(x=>x.setAttribute('aria-pressed',x.dataset.dev==device));sync();
+const h=(location.hash||'').slice(1);showTab(['builder','loaders','plan'].includes(h)?h:'builder');
+setTimeout(play,300);
+</script>
+
+</body></html>
