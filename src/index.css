@@ -329,3 +329,75 @@
   45% { transform: scale(1.35); }
   100% { transform: scale(1); }
 }
+
+/* ── Premium UI kit (src/components/premium) ──────────────────────────────
+   Liquid-glass cards with a gradient hairline border, soft accent glow,
+   glossy deck cards with a light sweep, and a calm aurora behind pages.
+   Every effect is CSS-only and stops under prefers-reduced-motion. */
+@layer components {
+  .ls-aurora { position: relative; isolation: isolate; }
+  .ls-aurora::before {
+    content: ""; position: fixed; inset: -20vh -20vw auto; height: 70vh; z-index: -1; pointer-events: none;
+    background:
+      radial-gradient(40% 50% at 20% 30%, hsl(145 63% 49% / 0.16), transparent 70%),
+      radial-gradient(35% 45% at 80% 20%, hsl(40 95% 55% / 0.10), transparent 70%),
+      radial-gradient(30% 40% at 55% 60%, hsl(200 90% 55% / 0.07), transparent 70%);
+    filter: blur(20px);
+    animation: ls-drift 22s ease-in-out infinite alternate;
+  }
+  .ls-glass {
+    position: relative; border-radius: 1.5rem;
+    background: linear-gradient(160deg, hsl(0 0% 100% / 0.07), hsl(0 0% 100% / 0.02) 40%, hsl(0 0% 100% / 0.03));
+    box-shadow: inset 0 1px 0 hsl(0 0% 100% / 0.10), 0 20px 50px -24px hsl(0 0% 0% / 0.8);
+    backdrop-filter: blur(18px) saturate(140%); -webkit-backdrop-filter: blur(18px) saturate(140%);
+  }
+  .ls-glass::after {
+    content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1px; pointer-events: none;
+    background: linear-gradient(150deg, hsl(0 0% 100% / 0.28), hsl(0 0% 100% / 0.04) 35%, hsl(var(--ls-accent, 145 63% 49%) / 0.45));
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor; mask-composite: exclude;
+  }
+  .ls-glow { box-shadow: inset 0 1px 0 hsl(0 0% 100% / 0.10), 0 0 0 1px hsl(var(--ls-accent, 145 63% 49%) / 0.10), 0 18px 60px -20px hsl(var(--ls-accent, 145 63% 49%) / 0.45); }
+  .ls-press { transition: transform .25s cubic-bezier(.2,.8,.2,1), box-shadow .25s; }
+  .ls-press:hover { transform: translateY(-2px); }
+  .ls-press:active { transform: scale(.98); }
+  .ls-shine { position: relative; overflow: hidden; }
+  .ls-shine::before {
+    content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 1;
+    background: linear-gradient(105deg, transparent 35%, hsl(0 0% 100% / 0.22) 50%, transparent 65%);
+    transform: translateX(-120%); animation: ls-sweep 5.5s ease-in-out infinite;
+  }
+  .ls-deck {
+    position: relative; overflow: hidden; border-radius: 1.75rem; color: #fff;
+    background:
+      radial-gradient(120% 90% at 100% 0%, hsl(0 0% 100% / 0.28), transparent 55%),
+      linear-gradient(150deg, var(--deck-a), var(--deck-b));
+    box-shadow: inset 0 1px 0 hsl(0 0% 100% / 0.35), inset 0 -20px 40px hsl(0 0% 0% / 0.18), 0 24px 50px -22px var(--deck-a);
+  }
+  .ls-deck .ls-orb {
+    position: absolute; right: -40px; bottom: -50px; width: 180px; height: 180px; border-radius: 9999px;
+    background: radial-gradient(circle at 35% 30%, hsl(0 0% 100% / 0.45), hsl(0 0% 100% / 0.06) 60%, transparent 70%);
+    animation: ls-float 7s ease-in-out infinite;
+  }
+  .ls-chip-glass {
+    border-radius: 9999px; border: 1px solid hsl(0 0% 100% / 0.12);
+    background: hsl(0 0% 100% / 0.05); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  }
+  .ls-text-gradient {
+    background: linear-gradient(120deg, #fff 10%, hsl(145 70% 62%) 55%, hsl(42 95% 62%));
+    -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .ls-skeleton {
+    border-radius: .75rem;
+    background: linear-gradient(90deg, hsl(0 0% 100% / 0.04), hsl(0 0% 100% / 0.10), hsl(0 0% 100% / 0.04));
+    background-size: 200% 100%; animation: ls-skel 1.4s linear infinite;
+  }
+}
+@keyframes ls-drift { to { transform: translate3d(4vw, 3vh, 0) scale(1.08); } }
+@keyframes ls-sweep { 0%, 60% { transform: translateX(-120%); } 85%, 100% { transform: translateX(120%); } }
+@keyframes ls-float { 50% { transform: translate(-10px, -14px); } }
+@keyframes ls-skel { to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .ls-aurora::before, .ls-shine::before, .ls-deck .ls-orb, .ls-skeleton { animation: none; }
+  .ls-press:hover { transform: none; }
+}

@@ -4,6 +4,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { mergeActivityByDate } from "@/lib/activityLog";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
+import { StatTile as GlowStat } from "@/components/premium";
+
+// Local YYYY-MM-DD (toISOString is UTC, which put days in the wrong cell
+// for learners west of London late in the evening).
+const localKey = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
 interface ActivityDay {
   date: string;
@@ -30,7 +36,7 @@ export const ActivityCalendarDark = () => {
         .from("activity_log")
         .select("date, minutes_watched, videos_watched")
         .eq("user_id", user.id)
-        .gte("date", thirty.toISOString().split("T")[0])
+        .gte("date", localKey(thirty))
         .order("date", { ascending: false });
       // One entry per day across languages (rows are per language).
       const rows = mergeActivityByDate((data as ActivityDay[]) || []);
@@ -43,7 +49,7 @@ export const ActivityCalendarDark = () => {
       for (let i = 0; i < 365; i++) {
         const d = new Date(today);
         d.setDate(d.getDate() - i);
-        const ds = d.toISOString().split("T")[0];
+        const ds = localKey(d);
         if (dates.has(ds)) s++;
         else if (i > 0) break;
       }
@@ -60,16 +66,18 @@ export const ActivityCalendarDark = () => {
   const end = new Date(today);
   // jump to the Sunday at the end of the current week
   end.setDate(end.getDate() + (6 - dow));
-  const cells: { date: string; active: boolean; inFuture: boolean }[] = [];
+  const cells: { date: string; active: boolean; inFuture: boolean; isToday: boolean; day: number }[] = [];
   for (let i = 34; i >= 0; i--) {
     const d = new Date(end);
     d.setDate(d.getDate() - i);
-    const ds = d.toISOString().split("T")[0];
+    const ds = localKey(d);
     const a = activity.find((x) => x.date === ds);
     cells.push({
       date: ds,
       active: !!a && ((a.minutes_watched || 0) > 0 || (a.videos_watched || 0) > 0),
       inFuture: d > today,
+      isToday: ds === localKey(today),
+      day: d.getDate(),
     });
   }
 
@@ -81,76 +89,41 @@ export const ActivityCalendarDark = () => {
       </div>
 
       {/* Stat cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <StatTile
-          icon={<Flame className="w-7 h-7" />}
-          value={streak}
-          label="Day Streak"
-          color="text-orange-400"
-          ring="ring-orange-500/20"
-        />
-        <StatTile
-          icon={<Clock className="w-7 h-7" />}
-          value={totalMinutes}
-          label="Minutes Watched"
-          color="text-primary"
-          ring="ring-primary/20"
-        />
-        <StatTile
-          icon={<Play className="w-7 h-7 fill-current" />}
-          value={totalVideos}
-          label="Videos Watched"
-          color="text-emerald-400"
-          ring="ring-emerald-500/20"
-        />
+      <div className="grid grid-cols-3 gap-2.5 sm:gap-4">
+        <GlowStat icon={<Flame className="w-5 h-5" />} value={streak} label="Day streak" accent="orange" className="p-3.5 sm:p-5" />
+        <GlowStat icon={<Clock className="w-5 h-5" />} value={totalMinutes} label="Minutes · 30 days" accent="green" className="p-3.5 sm:p-5" />
+        <GlowStat icon={<Play className="w-5 h-5 fill-current" />} value={totalVideos} label="Videos · 30 days" accent="blue" className="p-3.5 sm:p-5" />
       </div>
 
       {/* Last 30 days grid */}
-      <div>
-        <h3 className="text-xl font-semibold text-foreground mb-5">Last 30 Days</h3>
-        <div className="grid grid-cols-7 gap-2 sm:gap-3">
+      <div className="ls-glass p-4 sm:p-6">
+        <h3 className="text-lg font-bold text-foreground mb-4">Last 30 days</h3>
+        <div className="grid grid-cols-7 gap-1.5 sm:gap-2.5">
           {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
-            <div key={d} className="text-xs sm:text-sm font-medium text-muted-foreground text-center pb-2">
-              {d}
+            <div key={d} className="text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground text-center pb-1">
+              {d.slice(0, 1)}<span className="hidden sm:inline">{d.slice(1)}</span>
             </div>
           ))}
-          {cells.map((c) => {
-            const day = new Date(c.date).getDate();
-            return (
-              <div
-                key={c.date}
-                title={c.date}
-                className={cn(
-                  "aspect-square rounded-xl flex items-center justify-center text-sm transition-colors",
-                  c.inFuture
-                    ? "bg-secondary/20 text-muted-foreground/30"
-                    : c.active
-                      ? "bg-primary/25 ring-1 ring-primary/40 text-foreground font-semibold"
-                      : "bg-secondary/40 text-muted-foreground/70",
-                )}
-              >
-                {day}
-              </div>
-            );
-          })}
+          {cells.map((c, i) => (
+            <div
+              key={c.date}
+              title={c.date}
+              className={cn(
+                "aspect-square min-w-0 rounded-xl flex items-center justify-center text-xs sm:text-sm transition-all duration-500",
+                c.inFuture
+                  ? "bg-white/[0.02] text-muted-foreground/30"
+                  : c.active
+                    ? "bg-gradient-to-br from-[#34C759] to-[#1a8f3e] text-white font-bold shadow-[0_0_18px_-4px_#34C759]"
+                    : "bg-white/[0.04] text-muted-foreground/70",
+                c.isToday && "ring-2 ring-amber-300/80 ring-offset-2 ring-offset-background",
+              )}
+              style={{ transitionDelay: `${i * 12}ms` }}
+            >
+              {c.day}
+            </div>
+          ))}
         </div>
       </div>
     </div>
   );
 };
-
-const StatTile = ({
-  icon, value, label, color, ring,
-}: {
-  icon: React.ReactNode;
-  value: number;
-  label: string;
-  color: string;
-  ring: string;
-}) => (
-  <div className={cn("glass-panel rounded-2xl p-6 sm:p-8 text-center ring-1", ring)}>
-    <div className={cn("mb-3 flex justify-center", color)}>{icon}</div>
-    <p className="text-4xl sm:text-5xl font-bold text-foreground tabular-nums">{value}</p>
-    <p className="text-sm text-muted-foreground mt-1">{label}</p>
-  </div>
-);
