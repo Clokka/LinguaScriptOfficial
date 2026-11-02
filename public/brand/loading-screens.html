@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="robots" content="noindex,nofollow"><title>LinguaScript Loading Screens</title>
+</head><body style="margin:0">
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: dark studio shell (deliberate single dark world). Three sections: 12 complete experiences (large), 100 loading screens (motif × frame grid), 30 motion graphics. Each tile is a 16:9 stage; motion pauses off-screen and respects reduced motion. */
+:root{color-scheme:dark;--ink:#050607;--panel:#0C0F0E;--line:rgba(255,255,255,.09);--fg:#F3F6F4;--mut:rgba(243,246,244,.6);--gold:#FFD54A;
+--r:#FF3B30;--o:#FF8A00;--g:#34C759;--a:#FFD54A;--ease:cubic-bezier(.22,1,.36,1);--spring:cubic-bezier(.34,1.56,.64,1);
+--sans:"Inter","Segoe UI",system-ui,sans-serif;--serif:"Instrument Serif",Georgia,serif;--mono:"JetBrains Mono",ui-monospace,monospace}
+*{box-sizing:border-box}
+body{background:var(--ink);color:var(--fg);font:15px/1.5 var(--sans);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 80px}
+main{max-width:1400px;margin:0 auto;display:grid;gap:44px}
+h1{margin:0;font:800 clamp(2.3rem,6vw,4.4rem)/0.98 var(--sans);letter-spacing:-.045em;text-wrap:balance}
+h1 em{font:italic 400 1.04em var(--serif);background:linear-gradient(90deg,#FFE9A1,#FFD54A 40%,#B07A00);-webkit-background-clip:text;background-clip:text;color:transparent}
+h2{margin:0;font:800 1.7rem/1.1 var(--sans);letter-spacing:-.03em}
+p{margin:0;max-width:74ch}.mut{color:var(--mut)}
+section{display:grid;gap:16px;min-width:0}
+.eyebrow-s{font:600 11px var(--mono);letter-spacing:.18em;text-transform:uppercase;color:var(--gold)}
+button{font:inherit;color:inherit;cursor:pointer}
+[hidden]{display:none!important}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);background:#0E1211;border-radius:999px;padding:6px 12px;font:600 12.5px var(--sans);color:var(--mut)}
+.chip[aria-pressed="true"]{background:var(--fg);color:#050607;border-color:var(--fg)}
+.tips{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:12px}
+.tip{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;display:grid;gap:6px}
+.tip b{font:800 15px var(--sans)}.tip span{font-size:13.5px;color:var(--mut)}
+.big{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,520px),1fr));gap:18px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,250px),1fr));gap:14px}
+.tile{display:grid;gap:7px;min-width:0}
+.meta{font:500 12px var(--sans);color:var(--mut)}.meta b{color:var(--fg)}.meta .n{font:500 11px var(--mono);color:var(--gold);margin-right:6px}
+.stage{position:relative;aspect-ratio:16/9;border-radius:14px;overflow:hidden;border:1px solid var(--line);display:grid;place-items:center;isolation:isolate;container-type:inline-size}
+.paused *,.paused *::before,.paused *::after{animation-play-state:paused!important}
+@media (prefers-reduced-motion: reduce){.stage *,.stage *::before,.stage *::after{animation:none!important}}
+
+/* ---------- FRAMES (backdrop + caption) ---------- */
+.fr-min{background:#050607}
+.fr-glass{background:radial-gradient(40% 50% at 20% 30%,rgba(52,199,89,.5),transparent 70%),radial-gradient(40% 50% at 80% 70%,rgba(123,97,255,.45),transparent 70%),#06070C}
+.fr-glass .core{padding:6% 8%;border-radius:22px;background:linear-gradient(135deg,rgba(255,255,255,.18),rgba(255,255,255,.04));border:1px solid rgba(255,255,255,.35);box-shadow:inset 0 1px 0 rgba(255,255,255,.7),0 20px 40px rgba(0,0,0,.35);backdrop-filter:blur(14px)}
+.fr-cine{background:radial-gradient(60% 70% at 40% 40%,#7a3f1c,transparent 70%),radial-gradient(50% 60% at 75% 60%,#14402a,transparent 70%),#0b0d10}
+.fr-cine::before,.fr-cine::after{content:"";position:absolute;left:0;right:0;height:12%;background:#000;z-index:1}.fr-cine::before{top:0}.fr-cine::after{bottom:0}
+.fr-cine .bgk{position:absolute;inset:0;z-index:-1;background:inherit;animation:kb 10s ease-in-out infinite alternate;filter:blur(2px) brightness(.6)}
+.fr-split{background:linear-gradient(90deg,#000 50%,#fff 50%)}
+.fr-split .core{mix-blend-mode:difference}
+.fr-gold{background:radial-gradient(70% 55% at 50% 120%,rgba(255,213,74,.5),rgba(176,122,0,.18) 45%,transparent 72%),#050505}
+.core{position:relative;z-index:2;display:grid;justify-items:center;gap:10px;color:#fff}
+.cap{position:absolute;left:0;right:0;bottom:7%;z-index:3;text-align:center;font:600 clamp(9px,3.4cqi,13px) var(--sans);color:rgba(255,255,255,.75)}
+.cap b{color:#fff}
+.fr-split .cap{mix-blend-mode:difference}
+.fr-gold .cap b{color:var(--a)}
+
+/* ---------- MOTIFS (sized relative to tile via cqi) ---------- */
+.m{font-size:clamp(10px,4cqi,18px)}
+.logo{width:9em;height:4.45em}
+.c-hue{animation:hue 3s linear infinite}@keyframes hue{to{filter:hue-rotate(360deg)}}
+.c-walk{animation:walk 2.4s ease-in-out infinite}@keyframes walk{0%{transform:translateX(-3em)}50%{transform:translateX(3em)}100%{transform:translateX(-3em) scaleX(1)}}
+.branch{width:18em;height:.35em;border-radius:1em;background:#5b4332;margin-top:-.4em}
+.tongue{position:relative;width:16em;height:5em}
+.tongue .logo{position:absolute;left:0;top:0;width:8em;height:4em}
+.tongue b{position:absolute;right:0;top:.9em;font:800 2em var(--sans);color:var(--r);animation:catch 2.4s var(--ease) infinite}
+@keyframes catch{0%,30%{transform:none;opacity:1;color:var(--r)}60%{transform:translateX(-7em) scale(.4);opacity:.6;color:var(--g)}61%,100%{opacity:0}}
+.type{font:700 1.2em var(--mono);width:16ch;white-space:nowrap;overflow:hidden;border-right:2px solid var(--g);animation:type 3s steps(16) infinite}@keyframes type{from{width:0}60%,100%{width:16ch}}
+.cw{font:800 1.5em var(--sans);display:flex;gap:.35em}.cw span{animation:cw 3.6s infinite}@keyframes cw{0%,8%{color:#fff}20%,40%{color:var(--r)}50%,65%{color:var(--o)}75%,100%{color:var(--g)}}
+.deck{position:relative;width:5em;height:7em}.deck i{position:absolute;inset:0;border-radius:.6em;animation:shuf 2.4s var(--ease) infinite}
+.deck i:nth-child(1){background:linear-gradient(160deg,var(--r),#2a0806)}.deck i:nth-child(2){background:linear-gradient(160deg,var(--o),#2a1500);animation-delay:-.8s}.deck i:nth-child(3){background:linear-gradient(160deg,var(--g),#06210f);animation-delay:-1.6s}
+@keyframes shuf{0%,30%{transform:none;z-index:3}50%{transform:translateX(4em) rotate(14deg);z-index:3}70%,100%{transform:translate(.3em,.3em);z-index:1}}
+.fan{position:relative;width:5em;height:7em}.fan i{position:absolute;inset:0;border-radius:.6em;transform-origin:50% 120%;animation:fan 2.6s var(--ease) infinite}
+.fan i:nth-child(1){--a:-24deg;background:linear-gradient(160deg,var(--r),#2a0806)}.fan i:nth-child(2){--a:-8deg;background:linear-gradient(160deg,var(--o),#2a1500)}.fan i:nth-child(3){--a:8deg;background:linear-gradient(160deg,var(--g),#06210f)}.fan i:nth-child(4){--a:24deg;background:linear-gradient(160deg,var(--a),#3a2a05)}
+@keyframes fan{0%,100%{transform:rotate(0)}40%,70%{transform:rotate(var(--a))}}
+.ring{position:relative;width:6em;height:6em;display:grid;place-items:center}.ring svg{position:absolute;inset:0;transform:rotate(-90deg)}
+.ring .v{animation:ringf 3s var(--ease) infinite}@keyframes ringf{from{stroke-dashoffset:163}to{stroke-dashoffset:20}}
+.ring b{font:800 1.3em var(--sans)}
+.film{display:flex;gap:.3em;animation:film 2s linear infinite}.film i{width:3em;height:2.2em;border-radius:.3em;background:linear-gradient(160deg,#5a4bd6,#14102e);border:2px dashed rgba(255,255,255,.25)}
+.film i:nth-child(even){background:linear-gradient(160deg,#ff8a3d,#3a1406)}@keyframes film{to{transform:translateX(-3.3em)}}
+.wave{display:flex;gap:.25em;align-items:center;height:4em}.wave i{width:.45em;border-radius:1em;background:var(--g);animation:wave 1s ease-in-out infinite alternate}
+@keyframes wave{from{height:.5em}to{height:4em}}
+.srt{font:500 .8em/1.6 var(--mono);color:rgba(255,255,255,.7);height:5em;overflow:hidden;text-align:left}.srt div{animation:srt 4s linear infinite}@keyframes srt{to{transform:translateY(-50%)}}
+.orb{position:relative;width:5em;height:5em}.orb i{position:absolute;left:50%;top:50%;width:.9em;height:.9em;margin:-.45em;border-radius:50%;animation:orb 2s linear infinite}
+.orb i:nth-child(1){background:var(--r)}.orb i:nth-child(2){background:var(--o);animation-delay:-.5s}.orb i:nth-child(3){background:var(--g);animation-delay:-1s}.orb i:nth-child(4){background:var(--a);animation-delay:-1.5s}
+@keyframes orb{from{transform:rotate(0) translateX(2em)}to{transform:rotate(360deg) translateX(2em)}}
+.goo{display:flex;gap:.2em;filter:url(#gooF)}.goo i{width:1.6em;height:1.6em;border-radius:50%;animation:goo 1.2s ease-in-out infinite}
+.goo i:nth-child(1){background:var(--r)}.goo i:nth-child(2){background:var(--o);animation-delay:.15s}.goo i:nth-child(3){background:var(--g);animation-delay:.3s}.goo i:nth-child(4){background:var(--a);animation-delay:.45s}
+@keyframes goo{50%{transform:translateY(-1em)}}
+.scr{font:800 1.6em var(--mono);letter-spacing:.05em}
+.steps{display:grid;gap:.4em;font:600 .95em var(--sans);text-align:left}.steps div{display:flex;gap:.5em;align-items:center;opacity:.35;animation:step 6s infinite}
+.steps div:nth-child(2){animation-delay:2s}.steps div:nth-child(3){animation-delay:4s}.steps i{width:.9em;height:.9em;border-radius:50%;border:2px solid var(--g)}
+@keyframes step{0%,5%{opacity:.35}12%,100%{opacity:1}}
+.spark{position:relative;width:12em;height:5em}.spark i{position:absolute;width:.35em;height:.35em;border-radius:50%;background:var(--a);box-shadow:0 0 .6em var(--a);animation:spk 2s ease-in-out infinite}
+.spark b{position:absolute;inset:0;display:grid;place-items:center;font:800 1.5em var(--sans);background:linear-gradient(100deg,#FFD54A,#FFF3C4 45%,#FFD54A 60%);background-size:220% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:shine 2.4s linear infinite}
+@keyframes spk{0%,100%{opacity:0;transform:scale(.3)}50%{opacity:1;transform:scale(1)}}@keyframes shine{to{background-position:-220% 0}}
+.lens{position:relative;font:700 1em var(--sans);width:14em}.lens i{position:absolute;top:-.6em;left:0;width:2.6em;height:2.6em;border-radius:50%;background:linear-gradient(135deg,rgba(255,255,255,.3),rgba(255,255,255,.05));border:1px solid rgba(255,255,255,.6);animation:lens 3s ease-in-out infinite}
+@keyframes lens{50%{transform:translateX(11em)}}
+.mq{width:100%;display:grid;gap:.4em;overflow:hidden}.mq div{white-space:nowrap;font:700 .95em var(--sans);animation:mq 7s linear infinite}.mq div:nth-child(2){animation-direction:reverse}
+@keyframes mq{to{transform:translateX(-50%)}}
+.play{width:4em;height:4em;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.12);animation:pp 1.6s ease-in-out infinite}
+.play i{width:0;height:0;border-left:1.3em solid #fff;border-top:.8em solid transparent;border-bottom:.8em solid transparent;margin-left:.3em}
+@keyframes pp{50%{box-shadow:0 0 0 1em rgba(52,199,89,.15),0 0 0 2em rgba(52,199,89,.07);transform:scale(1.06)}}
+.skel{display:grid;gap:.5em;width:16em}.skel .h{height:4.5em;border-radius:.6em}.skel .r{display:flex;gap:.4em}.skel .r i{flex:1;height:2.4em;border-radius:.4em}
+.skel .h,.skel .r i{background:linear-gradient(90deg,rgba(255,255,255,.06) 25%,rgba(255,255,255,.16) 50%,rgba(255,255,255,.06) 75%);background-size:200% 100%;animation:sk 1.3s linear infinite}
+@keyframes sk{to{background-position:-200% 0}}
+@keyframes kb{to{transform:scale(1.15)}}
+.pbar{width:14em;height:.45em;border-radius:1em;background:rgba(255,255,255,.12);overflow:hidden}.pbar i{display:block;height:100%;background:linear-gradient(90deg,var(--r),var(--o),var(--g));animation:pb 6s var(--ease) infinite}
+@keyframes pb{from{width:4%}80%,100%{width:96%}}
+
+/* ---------- MOTION GRAPHICS (30) ---------- */
+.mg{background:#07090B}
+/* specific mg css added via JS strings */
+</style>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="gooF"><feGaussianBlur stdDeviation="5"/><feColorMatrix values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 18 -7"/></filter></svg>
+<main>
+<header style="display:grid;gap:12px">
+  <div class="eyebrow-s">LinguaScript · Loading Lab · Part 2 of 3 · 100 loading screens</div>
+  <h1>Make the wait<br><em>feel like learning</em></h1>
+  <p class="mut" style="font-size:1.05rem">Fetching and translating subtitles takes 10–30 seconds. Here are 12 complete loading experiences, 100 loading screens (20 LinguaScript animations × 5 frame styles) and 30 motion graphics, mostly the "loading → playing" moment. All live, all in your colours and chameleon.</p>
+  <nav class="chips" style="margin-top:4px"><a class="chip" href="loading-experiences.html" aria-pressed="false" style="text-decoration:none">1 · Experiences (12)</a><a class="chip" href="loading-screens.html" aria-pressed="true" style="text-decoration:none">2 · Loading screens (100)</a><a class="chip" href="loading-motion.html" aria-pressed="false" style="text-decoration:none">3 · Motion graphics (30)</a></nav>
+</header>
+
+
+
+
+
+<section>
+  <div class="eyebrow-s">100 loading screens</div>
+  <h2>20 animations × 5 frames</h2>
+  <div class="chips" id="fF"></div>
+  <div class="chips" id="fM"></div>
+  <div class="grid" id="loaders"></div>
+</section>
+
+
+</main>
+
+<script>document.documentElement.dataset.part='screens';</script>
+<script>
+const LOGO=`<svg class="logo" viewBox="14 76 372 184" aria-hidden="true"><path d="M272 176 C322 168 348 190 344 214 C340 236 316 242 304 230 C295 220 302 206 314 207" fill="none" stroke="#26A047" stroke-width="15" stroke-linecap="round"/><rect x="233" y="196" width="15" height="38" rx="7.5" fill="#26A047"/><path d="M136 196 Q128 118 205 106 Q276 96 285 160 Q290 202 244 208 L164 210 Q140 208 136 196 Z" fill="#34C759"/><path d="M158 130 q7 -14 14 0 q7 -14 14 0 q7 -14 14 0 q7 -14 14 0 q7 -14 14 0 q7 -14 14 0 q7 -14 14 0 l-2 10 q-49 -10 -94 2 Z" fill="#1B7A35"/><path d="M150 196 Q152 168 178 166 Q166 190 190 206 L164 208 Q152 206 150 196 Z" fill="#B8EFC8"/><rect x="182" y="198" width="15" height="40" rx="7.5" fill="#26A047"/><circle cx="189.5" cy="238" r="9" fill="#26A047"/><path d="M162 118 Q160 92 134 88 Q104 84 88 112 Q74 138 84 162 Q94 186 126 188 Q152 189 160 168 Q166 148 162 118 Z" fill="#34C759"/><path d="M82 148 Q104 162 128 154" fill="none" stroke="#3d2b1f" stroke-width="4.5" stroke-linecap="round"/><circle cx="118" cy="126" r="21" fill="#B8EFC8"/><circle cx="118" cy="126" r="11.5" fill="#fffef9"/><circle cx="122.27" cy="124.58" r="5.5" fill="#241a12"/><circle cx="124.77" cy="122.08" r="2" fill="#ffffff" opacity="0.9"/></svg>`;
+const SRT=`00:00:12,400 → 00:00:14,900<br>Je voudrais un café noir.<br>00:00:15,100 → 00:00:17,300<br>Avec du sucre ?<br>00:00:17,600 → 00:00:19,800<br>Non merci, sans sucre.<br>`;
+const MOTIFS=[
+ ["Chameleon colour cycle",()=>`<div class="c-hue">${LOGO}</div>`],
+ ["Chameleon walks the branch",()=>`<div class="c-walk">${LOGO}</div><div class="branch"></div>`],
+ ["Tongue catches a word",()=>`<div class="tongue">${LOGO}<b>noir</b></div>`],
+ ["Subtitle typing",()=>`<div class="type">Je voudrais un…</div>`],
+ ["Words colour in",()=>`<div class="cw">${["Je","voudrais","un","café"].map((w,i)=>`<span style="animation-delay:${i*.3}s">${w}</span>`).join("")}</div>`],
+ ["Deck shuffle",()=>`<div class="deck"><i></i><i></i><i></i></div>`],
+ ["Frequency fan",()=>`<div class="fan"><i></i><i></i><i></i><i></i></div>`],
+ ["% ring fills",()=>`<div class="ring"><svg viewBox="0 0 60 60"><circle cx="30" cy="30" r="26" fill="none" stroke="rgba(255,255,255,.12)" stroke-width="5"/><circle class="v" cx="30" cy="30" r="26" fill="none" stroke="#34C759" stroke-width="5" stroke-linecap="round" stroke-dasharray="163"/></svg><b>87%</b></div>`],
+ ["Film strip",()=>`<div style="width:10em;overflow:hidden"><div class="film">${"<i></i>".repeat(6)}</div></div>`],
+ ["Audio waveform",()=>`<div class="wave">${Array.from({length:9},(_,i)=>`<i style="animation-delay:${i*.1}s"></i>`).join("")}</div>`],
+ ["SRT timecodes scroll",()=>`<div class="srt"><div>${SRT+SRT}</div></div>`],
+ ["Deck-colour orbit",()=>`<div class="orb"><i></i><i></i><i></i><i></i></div>`],
+ ["Gooey deck dots",()=>`<div class="goo"><i></i><i></i><i></i><i></i></div>`],
+ ["Name decode",()=>`<div class="scr" data-scr="LinguaScript">LinguaScript</div>`],
+ ["Progress steps",()=>`<div class="steps"><div><i></i>Finding subtitles</div><div><i></i>Translating</div><div><i></i>Colouring your words</div></div>`],
+ ["Gold sparkle",()=>`<div class="spark"><b>partent</b>${[[10,10],[80,20],[30,80],[90,70],[55,5]].map(([x,y],i)=>`<i style="left:${x}%;top:${y}%;animation-delay:${i*.35}s"></i>`).join("")}</div>`],
+ ["Glass lens scan",()=>`<div class="lens">Je voudrais un café noir.<i></i></div>`],
+ ["Word wall marquee",()=>`<div class="mq"><div>${"<span style='color:#34C759'>bonjour</span> · <span style='color:#FF8A00'>fenêtre</span> · <span style='color:#FF3B30'>noir</span> · <span style='color:#FFD54A'>maison</span> · ".repeat(4)}</div><div>${"merci · café · toujours · demain · ".repeat(4)}</div></div>`],
+ ["Pulsing play",()=>`<div class="play"><i></i></div>`],
+ ["Skeleton player",()=>`<div class="skel"><div class="h"></div><div class="r"><i></i><i></i><i></i></div></div>`],
+];
+const FRAMES=[["min","Minimal dark","Getting French subtitles…"],["glass","Glass","<b>Translating</b> · about 15 s"],["cine","Cinematic","Preparing <b>Le Souffle des Dieux</b>"],["split","Split B/W","<b>Almost ready</b>"],["gold","Gold to black","You'll meet <b>12 new words</b>"]];
+const io=new IntersectionObserver(es=>es.forEach(e=>e.target.classList.toggle('paused',!e.isIntersecting)),{rootMargin:'80px'});
+const lazy=new IntersectionObserver(es=>es.forEach(e=>{const st=e.target;if(e.isIntersecting){if(!st.dataset.on){st.innerHTML=st._html;st.dataset.on=1}}else if(st.dataset.on){st.innerHTML='';delete st.dataset.on}}),{rootMargin:'300px'});
+const tile=(host,n,name,sub,inner,cls='')=>{const d=document.createElement('div');d.className='tile';d.innerHTML=`<div class="stage ${cls}"></div><div class="meta"><span class="n">#${n}</span><b>${name}</b>${sub?` · ${sub}`:''}</div>`;const st=d.firstElementChild;st._html=inner;host.appendChild(d);io.observe(st);lazy.observe(st);return d};
+// ---- 100 loaders
+const PART=document.documentElement.dataset.part||'all';const L=document.getElementById('loaders');let n=0;if(PART==='all'||PART==='screens')
+MOTIFS.forEach(([mn,mh],mi)=>FRAMES.forEach(([fk,fn,cap])=>{n++;const t=tile(L,String(n).padStart(3,'0'),mn,fn,`${fk==='cine'?'<div class="bgk"></div>':''}<div class="core m">${mh()}</div><div class="cap">${cap}</div>`,'fr-'+fk);t.dataset.f=fk;t.dataset.m=mi}));
+const st={f:'all',m:'all'};const filt=()=>L.querySelectorAll('.tile').forEach(t=>t.hidden=!((st.f==='all'||t.dataset.f===st.f)&&(st.m==='all'||t.dataset.m===String(st.m))));
+const mk=(host,items,key,label)=>[['all',label],...items].forEach(([v,nm])=>{const b=document.createElement('button');b.className='chip';b.textContent=nm;b.setAttribute('aria-pressed',v==='all');b.onclick=()=>{st[key]=v;host.querySelectorAll('.chip').forEach(c=>c.setAttribute('aria-pressed',c===b));filt()};host.appendChild(b)});
+if(document.getElementById('fF'))mk(document.getElementById('fF'),FRAMES.map(f=>[f[0],f[1]]),'f','All frames');if(document.getElementById('fM'))mk(document.getElementById('fM'),MOTIFS.map((m,i)=>[String(i),m[0]]),'m','All animations');
+// ---- 30 motion graphics
+const MG=[
+ ["Letterbox opens to the film","bars slide away, film appears",`<div class="x1"></div>`,`.x1{position:absolute;inset:0;background:radial-gradient(60% 70% at 40% 40%,#c4672c,transparent 70%),#0b0d10}.x1::before,.x1::after{content:'';position:absolute;left:0;right:0;height:50%;background:#000;animation:x1 3s var(--ease) infinite}.x1::before{top:0}.x1::after{bottom:0}@keyframes x1{0%,30%{height:50%}70%,100%{height:10%}}`],
+ ["Circle iris reveal","old-cinema iris",`<div class="x2"></div>`,`.x2{position:absolute;inset:0;background:radial-gradient(60% 70% at 40% 40%,#c4672c,transparent 70%),#0b0d10;clip-path:circle(0 at 50% 50%);animation:x2 3s var(--ease) infinite}@keyframes x2{30%{clip-path:circle(0 at 50% 50%)}80%,100%{clip-path:circle(80% at 50% 50%)}}`],
+ ["Chameleon zoom-through","logo grows until it becomes the screen",`<div class="x3">${LOGO}</div>`,`.x3{animation:x3 3s var(--ease) infinite}.x3 .logo{width:90px;height:45px}@keyframes x3{0%,30%{transform:none;opacity:1}100%{transform:scale(14);opacity:0}}`],
+ ["Colour wash","red → orange → green sweep, then film",`<div class="x4"></div>`,`.x4{position:absolute;inset:0;background:linear-gradient(90deg,#FF3B30,#FF8A00,#34C759,#0b0d10 75%);background-size:400% 100%;animation:x4 3s var(--ease) infinite}@keyframes x4{from{background-position:0 0}to{background-position:100% 0}}`],
+ ["Curtain split","two panels part",`<div class="x5"><i></i><i></i></div>`,`.x5{position:absolute;inset:0;background:radial-gradient(60% 70% at 40% 40%,#2f8f4e,transparent 70%),#0b0d10}.x5 i{position:absolute;top:0;bottom:0;width:50%;background:#7a0d14;animation:x5 3s var(--ease) infinite}.x5 i:first-child{left:0;--d:-100%}.x5 i:last-child{right:0;--d:100%}@keyframes x5{0%,30%{transform:none}80%,100%{transform:translateX(var(--d))}}`],
+ ["Words explode into subtitles","scattered words fly into one line",`<div class="x6">${["Je","voudrais","un","café"].map((w,i)=>`<b style="--x:${[-60,50,-40,70][i]}px;--y:${[-40,-50,40,30][i]}px">${w}</b>`).join(" ")}</div>`,`.x6{font:800 18px var(--sans);display:flex;gap:6px}.x6 b{animation:x6 3s var(--spring) infinite;color:#34C759}@keyframes x6{0%,20%{transform:translate(var(--x),var(--y)) rotate(20deg);opacity:0}60%,100%{transform:none;opacity:1}}`],
+ ["Glass panel lifts","glass card slides up off the video",`<div class="x7"></div><div class="x7g"></div>`,`.x7{position:absolute;inset:0;background:radial-gradient(60% 70% at 40% 40%,#6a4cff,transparent 70%),#0b0d10}.x7g{position:absolute;inset:12%;border-radius:18px;background:linear-gradient(135deg,rgba(255,255,255,.25),rgba(255,255,255,.05));border:1px solid rgba(255,255,255,.4);backdrop-filter:blur(14px);animation:x7 3s var(--ease) infinite}@keyframes x7{0%,35%{transform:none;opacity:1}100%{transform:translateY(-130%);opacity:0}}`],
+ ["Pixel dissolve","blocks resolve into the picture",`<div class="x8">${Array.from({length:48},(_,i)=>`<i style="animation-delay:${(i*37%48)*0.04}s"></i>`).join("")}</div>`,`.x8{position:absolute;inset:0;display:grid;grid-template-columns:repeat(8,1fr);background:radial-gradient(60% 70% at 40% 40%,#c4672c,transparent 70%),#0b0d10}.x8 i{background:#050607;animation:x8 3s infinite}@keyframes x8{0%,20%{opacity:1}40%,100%{opacity:0}}`],
+ ["Progress bar becomes the timeline","loading bar turns into the video's seek bar",`<div class="x9"><i></i></div>`,`.x9{position:absolute;left:10%;right:10%;top:50%;height:6px;border-radius:6px;background:rgba(255,255,255,.12);animation:x9b 3s var(--ease) infinite}.x9 i{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,#FF3B30,#FF8A00,#34C759);animation:x9 3s var(--ease) infinite}@keyframes x9{0%{width:0}55%{width:100%}100%{width:8%;background:#FF3B30}}@keyframes x9b{55%{top:50%;left:10%;right:10%}100%{top:88%;left:4%;right:4%}}`],
+ ["Ring becomes play button","% ring completes, morphs into ▶",`<div class="x10"><svg viewBox="0 0 60 60" width="80"><circle cx="30" cy="30" r="26" fill="none" stroke="#34C759" stroke-width="4" stroke-dasharray="163" class="x10c"/><path d="M25 20 L41 30 L25 40 Z" fill="#fff" class="x10p"/></svg></div>`,`.x10c{transform:rotate(-90deg);transform-origin:center;animation:x10c 3s var(--ease) infinite}.x10p{animation:x10p 3s var(--spring) infinite;transform-origin:center}@keyframes x10c{0%{stroke-dashoffset:163}60%,100%{stroke-dashoffset:0}}@keyframes x10p{0%,60%{transform:scale(0)}80%,100%{transform:scale(1)}}`],
+ ["Card flips into the player","the poster flips to show the video",`<div class="x11"></div>`,`.stage:has(.x11){perspective:600px}.x11{width:40%;aspect-ratio:2/3;border-radius:10px;background:linear-gradient(160deg,#5a4bd6,#14102e);animation:x11 3s var(--ease) infinite}@keyframes x11{0%,30%{transform:none}60%{transform:rotateY(90deg)}61%{background:linear-gradient(160deg,#c4672c,#2a1406)}100%{transform:rotateY(0);width:92%;aspect-ratio:16/9;background:linear-gradient(160deg,#c4672c,#2a1406)}}`],
+ ["Subtitle line drops in","glass subtitle bar drops with a spring",`<div class="x12">Je <span style="color:#FFA94D">voudrais</span> un <span style="color:#FF6B61">café</span></div>`,`.x12{position:absolute;bottom:14%;padding:8px 14px;border-radius:14px;font:700 15px var(--sans);background:linear-gradient(135deg,rgba(255,255,255,.22),rgba(255,255,255,.05));border:1px solid rgba(255,255,255,.4);animation:x12 3s var(--spring) infinite}@keyframes x12{0%,30%{transform:translateY(120px)}60%,100%{transform:none}}`],
+ ["Gold shimmer sweep","for the 'review ready' moment",`<div class="x13"></div>`,`.x13{position:absolute;inset:0;background:linear-gradient(105deg,transparent 40%,rgba(255,213,74,.55) 50%,transparent 60%);background-size:250% 100%;animation:x13 2.4s linear infinite}@keyframes x13{from{background-position:150% 0}to{background-position:-100% 0}}`],
+ ["Typewriter subtitle","first line types itself",`<div class="type" style="font-size:16px">Bonjour, bienvenue…</div>`,``],
+ ["Waveform to text","audio bars turn into words",`<div class="x15"><div class="wave">${Array.from({length:7},(_,i)=>`<i style="animation-delay:${i*.1}s"></i>`).join("")}</div><b>Bonjour</b></div>`,`.x15{position:relative;display:grid;place-items:center}.x15 .wave{animation:x15a 3s infinite}.x15 b{position:absolute;font:800 24px var(--sans);opacity:0;animation:x15b 3s infinite}@keyframes x15a{0%,50%{opacity:1}60%,100%{opacity:0}}@keyframes x15b{0%,55%{opacity:0;transform:scale(.8)}70%,100%{opacity:1;transform:none}}`],
+ ["Particles gather into logo","scattered dots form the chameleon",`<div class="x16">${Array.from({length:18},(_,i)=>`<i style="--x:${(i*53%200)-100}px;--y:${(i*37%120)-60}px;animation-delay:${i*.02}s"></i>`).join("")}</div>`,`.x16{position:relative;width:60px;height:30px}.x16 i{position:absolute;left:50%;top:50%;width:6px;height:6px;border-radius:50%;background:#34C759;animation:x16 3s var(--ease) infinite}@keyframes x16{0%{transform:translate(var(--x),var(--y));opacity:.4}60%,100%{transform:translate(calc(var(--x)*.08),calc(var(--y)*.08));opacity:1}}`],
+ ["Blur to sharp","video comes into focus",`<div class="x17"></div>`,`.x17{position:absolute;inset:0;background:radial-gradient(60% 70% at 40% 40%,#c4672c,transparent 70%),radial-gradient(40% 50% at 75% 60%,#2f8f4e,transparent 70%),#0b0d10;animation:x17 3s var(--ease) infinite}@keyframes x17{0%,20%{filter:blur(24px) brightness(.5);transform:scale(1.1)}70%,100%{filter:none;transform:none}}`],
+ ["Stripe wipe","three deck-colour stripes wipe across",`<div class="x18"><i></i><i></i><i></i></div>`,`.x18 i{position:absolute;top:0;bottom:0;width:120%;left:-120%;animation:x18 2.6s var(--ease) infinite}.x18 i:nth-child(1){background:#FF3B30}.x18 i:nth-child(2){background:#FF8A00;animation-delay:.12s}.x18 i:nth-child(3){background:#34C759;animation-delay:.24s}@keyframes x18{0%{left:-120%}50%{left:-10%}100%{left:120%}}`],
+ ["Counting words found","'12 new words in this video' counts up",`<div class="x19"><b data-to="12">0</b><span>new words in this video</span></div>`,`.x19{display:grid;justify-items:center}.x19 b{font:800 48px var(--sans);color:#FF3B30}.x19 span{font:600 12px var(--sans);color:rgba(255,255,255,.7)}`],
+ ["Time estimate ring","seconds left counting down",`<div class="x20"><b data-down="15">15</b><span>seconds</span></div>`,`.x20{width:90px;height:90px;border-radius:50%;display:grid;place-content:center;text-align:center;border:3px solid #34C759;animation:x20 1s ease-in-out infinite}.x20 b{font:800 28px var(--sans)}.x20 span{font:600 10px var(--sans);opacity:.7}@keyframes x20{50%{box-shadow:0 0 0 8px rgba(52,199,89,.15)}}`],
+ ["Bouncing chameleon","hops while you wait",`<div class="x21">${LOGO}</div>`,`.x21{animation:x21 1s cubic-bezier(.3,0,.6,1) infinite alternate}.x21 .logo{width:90px;height:45px}@keyframes x21{to{transform:translateY(-24px)}}`],
+ ["Morphing deck pill","red → orange → green → gold",`<div class="x22">chat</div>`,`.x22{font:800 24px var(--sans);padding:4px 18px;animation:x22 4s var(--ease) infinite}@keyframes x22{0%,22%{background:rgba(255,59,48,.22);color:#FF3B30;border-radius:999px}25%,47%{background:rgba(255,138,0,.22);color:#FF8A00;border-radius:10px 30px}50%,72%{background:rgba(52,199,89,.24);color:#34C759;border-radius:8px}75%,97%{background:rgba(255,213,74,.26);color:#FFD54A;border-radius:30px 10px}}`],
+ ["Rotating tips","a new tip every few seconds",`<div class="x23"><div>💡 Tap any word to save it</div><div>💡 Gold = time for a quick review</div><div>💡 Rewatch to turn the line green</div></div>`,`.x23{height:20px;overflow:hidden;font:600 13px var(--sans)}.x23 div{height:20px;animation:x23 9s infinite}@keyframes x23{0%,30%{transform:none}33%,63%{transform:translateY(-20px)}66%,96%{transform:translateY(-40px)}}`],
+ ["Ambient glow pulse","video colours breathe around the frame",`<div class="x24"></div>`,`.x24{width:55%;aspect-ratio:16/9;border-radius:10px;background:linear-gradient(160deg,#c4672c,#2a1406);animation:x24 2.4s ease-in-out infinite alternate}@keyframes x24{from{box-shadow:0 0 30px 6px rgba(196,103,44,.4)}to{box-shadow:0 0 60px 18px rgba(52,199,89,.4)}}`],
+ ["Line goes green, then play","a full line lights up green, then ▶",`<div class="x25">Je voudrais un café</div>`,`.x25{font:800 18px var(--sans);animation:x25 3s var(--ease) infinite}@keyframes x25{0%,30%{color:#fff}60%,100%{color:#34C759;text-shadow:0 0 18px rgba(52,199,89,.6)}}`],
+ ["Glass lens magnifies poster","lens sweeps over the poster",`<div class="x26"><i></i></div>`,`.x26{position:relative;width:45%;aspect-ratio:2/3;border-radius:10px;background:linear-gradient(160deg,#5a4bd6,#14102e)}.x26 i{position:absolute;width:44%;aspect-ratio:1;border-radius:50%;top:20%;left:-10%;background:linear-gradient(135deg,rgba(255,255,255,.3),rgba(255,255,255,.05));border:1px solid rgba(255,255,255,.6);animation:x26 3s ease-in-out infinite}@keyframes x26{50%{transform:translate(130%,90%)}}`],
+ ["Neon trace border","a green line traces the player frame",`<svg viewBox="0 0 160 90" width="80%" class="x27"><rect x="2" y="2" width="156" height="86" rx="8" fill="none" stroke="#34C759" stroke-width="2" stroke-dasharray="480"/></svg>`,`.x27 rect{animation:x27 3s linear infinite;filter:drop-shadow(0 0 4px #34C759)}@keyframes x27{from{stroke-dashoffset:480}to{stroke-dashoffset:0}}`],
+ ["Confetti burst on ready","quick celebration when it loads",`<div class="lcc" style="position:relative">${Array.from({length:12},(_,i)=>`<i style="--x:${(i-6)*14}px;--c:${["#FF3B30","#FF8A00","#34C759","#FFD54A"][i%4]}"></i>`).join("")}<b style="font:800 18px var(--sans);color:#34C759">Ready ✓</b></div>`,`.lcc i{position:absolute;left:50%;top:50%;width:6px;height:10px;background:var(--c);animation:lcc 2s ease-out infinite}@keyframes lcc{0%{transform:none;opacity:1}70%{transform:translate(var(--x),-60px) rotate(240deg);opacity:1}100%{transform:translate(var(--x),30px);opacity:0}}`],
+ ["Stacked cards spread","word cards for this video fan out",`<div class="fan" style="font-size:12px"><i></i><i></i><i></i><i></i></div>`,``],
+ ["Logo stroke draw","the chameleon outline draws itself",`<svg viewBox="70 80 230 140" width="45%" class="x30"><path d="M136 196 Q128 118 205 106 Q276 96 285 160 Q290 202 244 208 L164 210 Q140 208 136 196 Z M162 118 Q160 92 134 88 Q104 84 88 112 Q74 138 84 162 Q94 186 126 188 Q152 189 160 168" fill="none" stroke="#34C759" stroke-width="5" stroke-dasharray="900" stroke-linecap="round"/></svg>`,`.x30 path{animation:x30 3s var(--ease) infinite}@keyframes x30{0%{stroke-dashoffset:900}70%,100%{stroke-dashoffset:0}}`],
+];
+let css='';const M=document.getElementById('mgs');(PART==='all'||PART==='motion'?MG:[]).forEach(([nm,sub,h,c],i)=>{css+=c;tile(M,'M'+String(i+1).padStart(2,'0'),nm,sub,h,'mg')});
+// ---- 12 combos
+const words=[["noir","black","r"],["voudrais","would like","o"],["sucre","sugar","r"],["café","coffee","g"]];
+const W=(f)=>`<div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center">${words.map(([w,m,c],i)=>`<span class="wchip" style="--c:var(--${c});animation-delay:${i*.4}s"><b>${w}</b> ${m}</span>`).join("")}</div>`;
+css+=`.wchip{padding:6px 10px;border-radius:999px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);font:500 12px var(--sans);animation:wch 6s var(--spring) infinite}.wchip b{color:var(--c);font-weight:800}@keyframes wch{0%,5%{transform:translateY(12px);opacity:0}15%,100%{transform:none;opacity:1}}
+.cbx{display:grid;justify-items:center;gap:12px;color:#fff;text-align:center;font-size:clamp(10px,2.4cqi,16px)}.cbx h3{margin:0;font:800 1.6em var(--sans);letter-spacing:-.02em}.cbx small{font:500 .85em var(--sans);opacity:.7}`;
+const COMBOS=[
+ ["Pre-lesson: words you'll hear","fr-glass",`<div class="cbx core"><div class="c-hue m">${LOGO}</div><h3>You'll hear these words</h3>${W()}<div class="m"><div class="pbar"><i></i></div></div><small>Translating subtitles · about 15 s</small></div>`],
+ ["Steps + time estimate","fr-min",`<div class="cbx"><div class="m"><div class="steps"><div><i></i>Finding subtitles</div><div><i></i>Translating</div><div><i></i>Colouring your words</div></div></div><div class="x20" style="width:70px;height:70px"><b data-down="15" style="font-size:22px">15</b><span>seconds</span></div></div>`],
+ ["Cinematic: poster + letterbox","fr-cine",`<div class="bgk"></div><div class="cbx core"><small style="letter-spacing:.3em">NOW PREPARING</small><h3 style="font-size:2.4em">LE SOUFFLE<br>DES DIEUX</h3><div class="m"><div class="pbar"><i></i></div></div><small>91% you'll understand</small></div>`],
+ ["Gold vault: reviews while you wait","fr-gold",`<div class="cbx core"><small style="color:#FFD54A;letter-spacing:.25em">WHILE YOU WAIT</small><div class="m"><div class="spark"><b>partent</b><i style="left:10%;top:10%"></i><i style="left:85%;top:30%;animation-delay:.5s"></i><i style="left:40%;top:85%;animation-delay:1s"></i></div></div><small>Do you remember it? Tap to check, 1 of 3 gold words</small></div>`],
+ ["Quick quiz","fr-glass",`<div class="cbx core"><small>Quick one while we load</small><h3><span style="color:#FF3B30">noir</span> means…</h3><div style="display:flex;gap:8px"><span class="wchip"><b style="color:#fff">white</b></span><span class="wchip" style="background:rgba(52,199,89,.25);border-color:#34C759"><b style="color:#34C759">black ✓</b></span><span class="wchip"><b style="color:#fff">night</b></span></div><div class="m"><div class="pbar"><i></i></div></div></div>`],
+ ["Chameleon catches the words","fr-min",`<div class="cbx"><div class="m"><div class="tongue">${LOGO}<b>noir</b></div></div><small>Catching 12 new words for you…</small><div class="m"><div class="pbar"><i></i></div></div></div>`],
+ ["SRT → coloured subtitles","fr-min",`<div class="cbx"><div class="m"><div class="srt"><div>${SRT+SRT}</div></div></div><div class="cw m">${["Je","voudrais","un","café"].map((w,i)=>`<span style="animation-delay:${i*.3}s">${w}</span>`).join("")}</div><small>Reading the subtitle file, then colouring it by what you know</small></div>`],
+ ["Coverage ring → play","fr-glass",`<div class="cbx core"><div class="x10"><svg viewBox="0 0 60 60" width="90"><circle cx="30" cy="30" r="26" fill="none" stroke="#34C759" stroke-width="4" stroke-dasharray="163" class="x10c"/><path d="M25 20 L41 30 L25 40 Z" fill="#fff" class="x10p"/></svg></div><h3>87% you'll understand</h3><small>Getting the last subtitles…</small></div>`],
+ ["Split: don't know → know","fr-split",`<div class="cbx core"><h3 style="font-size:2em">Don't know it.<br>Know it.</h3><div class="m"><div class="pbar"><i></i></div></div><small>Preparing your subtitles</small></div>`],
+ ["Tips carousel + skeleton","fr-min",`<div class="cbx"><div class="m"><div class="skel"><div class="h"></div><div class="r"><i></i><i></i><i></i></div></div></div><div class="x23"><div>💡 Tap any word to save it</div><div>💡 Gold = time for a quick review</div><div>💡 Rewatch to turn the line green</div></div></div>`],
+ ["Word rain into the deck","fr-gold",`<div class="cbx core"><div class="m"><div class="deck"><i></i><i></i><i></i></div></div><h3>12 new words found</h3><small>They'll be red the first time you see them</small></div>`],
+ ["Aurora + logo draw","fr-glass",`<div class="cbx core"><svg viewBox="70 80 230 140" width="140" class="x30"><path d="M136 196 Q128 118 205 106 Q276 96 285 160 Q290 202 244 208 L164 210 Q140 208 136 196 Z M162 118 Q160 92 134 88 Q104 84 88 112 Q74 138 84 162 Q94 186 126 188 Q152 189 160 168" fill="none" stroke="#34C759" stroke-width="5" stroke-dasharray="900" stroke-linecap="round"/></svg><h3>Making French watchable</h3><small>About 20 seconds</small></div>`],
+];
+const C=document.getElementById('combos');(PART==='all'||PART==='experiences'?COMBOS:[]).forEach(([nm,fr,h],i)=>tile(C,'C'+String(i+1).padStart(2,'0'),nm,'',h+'',fr));
+const s=document.createElement('style');s.textContent=css;document.head.appendChild(s);
+// JS: decode text, counters, countdowns
+const pool='abcdefghijklmnopqrstuvwxyz';
+let tick=0;setInterval(()=>{tick++;
+ document.querySelectorAll('.stage:not(.paused) [data-scr]').forEach(el=>{const t=el.dataset.scr,f=tick%50;el.textContent=[...t].map((c,i)=>f>i*2+8?c:pool[Math.random()*26|0]).join('')});
+ if(tick%2===0)document.querySelectorAll('.stage:not(.paused) [data-to]').forEach(el=>{const to=+el.dataset.to,v=(tick/2)%(to+6);el.textContent=Math.min(v|0,to)});
+ if(tick%14===0)document.querySelectorAll('.stage:not(.paused) [data-down]').forEach(el=>{const d=+el.dataset.down,v=d-((tick/14)%(d+1));el.textContent=v|0});
+},70);
+</script>
+
+</body></html>

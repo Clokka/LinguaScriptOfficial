@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="robots" content="noindex,nofollow"><title>LinguaScript Loading Lab</title>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="robots" content="noindex,nofollow"><title>LinguaScript Loading Motion</title>
 </head><body style="margin:0">
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@500;700&display=swap">
@@ -109,36 +109,17 @@ button{font:inherit;color:inherit;cursor:pointer}
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="gooF"><feGaussianBlur stdDeviation="5"/><feColorMatrix values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 18 -7"/></filter></svg>
 <main>
 <header style="display:grid;gap:12px">
-  <div class="eyebrow-s">LinguaScript · Loading Lab</div>
+  <div class="eyebrow-s">LinguaScript · Loading Lab · Part 3 of 3 · 30 motion graphics</div>
   <h1>Make the wait<br><em>feel like learning</em></h1>
   <p class="mut" style="font-size:1.05rem">Fetching and translating subtitles takes 10–30 seconds. Here are 12 complete loading experiences, 100 loading screens (20 LinguaScript animations × 5 frame styles) and 30 motion graphics, mostly the "loading → playing" moment. All live, all in your colours and chameleon.</p>
+  <nav class="chips" style="margin-top:4px"><a class="chip" href="loading-experiences.html" aria-pressed="false" style="text-decoration:none">1 · Experiences (12)</a><a class="chip" href="loading-screens.html" aria-pressed="false" style="text-decoration:none">2 · Loading screens (100)</a><a class="chip" href="loading-motion.html" aria-pressed="true" style="text-decoration:none">3 · Motion graphics (30)</a></nav>
 </header>
 
-<section>
-  <div class="eyebrow-s">Rules for a 10–30 second wait</div>
-  <div class="tips">
-    <div class="tip"><b>Show real progress, in steps</b><span>"Finding subtitles → Translating → Colouring your words". A wait with visible steps feels shorter than a spinner.</span></div>
-    <div class="tip"><b>Give an honest time estimate</b><span>"About 15 seconds" beats silence. Under-promise: say 20 if it's usually 15.</span></div>
-    <div class="tip"><b>Teach while they wait</b><span>Show 3–5 words from this video ("you'll hear…"). The wait becomes a pre-lesson, and those words light up in the film.</span></div>
-    <div class="tip"><b>Start the video sooner</b><span>Play the video as soon as it's ready and let subtitles colour in when they arrive. Cache every subtitle file so the second visit is instant.</span></div>
-    <div class="tip"><b>End with a reveal</b><span>A satisfying transition (letterbox opening, colour wash) turns "finally" into "wow".</span></div>
-    <div class="tip"><b>Never just a spinner after 3 s</b><span>After ~3 seconds, people need something to read or do.</span></div>
-  </div>
-</section>
 
-<section>
-  <div class="eyebrow-s">12 complete experiences</div>
-  <h2>Loading screens + motion, together</h2>
-  <div class="big" id="combos"></div>
-</section>
 
-<section>
-  <div class="eyebrow-s">100 loading screens</div>
-  <h2>20 animations × 5 frames</h2>
-  <div class="chips" id="fF"></div>
-  <div class="chips" id="fM"></div>
-  <div class="grid" id="loaders"></div>
-</section>
+
+
+
 
 <section>
   <div class="eyebrow-s">30 motion graphics</div>
@@ -147,6 +128,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 </section>
 </main>
 
+<script>document.documentElement.dataset.part='motion';</script>
 <script>
 const LOGO=`<svg class="logo" viewBox="14 76 372 184" aria-hidden="true"><path d="M272 176 C322 168 348 190 344 214 C340 236 316 242 304 230 C295 220 302 206 314 207" fill="none" stroke="#26A047" stroke-width="15" stroke-linecap="round"/><rect x="233" y="196" width="15" height="38" rx="7.5" fill="#26A047"/><path d="M136 196 Q128 118 205 106 Q276 96 285 160 Q290 202 244 208 L164 210 Q140 208 136 196 Z" fill="#34C759"/><path d="M158 130 q7 -14 14 0 q7 -14 14 0 q7 -14 14 0 q7 -14 14 0 q7 -14 14 0 q7 -14 14 0 q7 -14 14 0 l-2 10 q-49 -10 -94 2 Z" fill="#1B7A35"/><path d="M150 196 Q152 168 178 166 Q166 190 190 206 L164 208 Q152 206 150 196 Z" fill="#B8EFC8"/><rect x="182" y="198" width="15" height="40" rx="7.5" fill="#26A047"/><circle cx="189.5" cy="238" r="9" fill="#26A047"/><path d="M162 118 Q160 92 134 88 Q104 84 88 112 Q74 138 84 162 Q94 186 126 188 Q152 189 160 168 Q166 148 162 118 Z" fill="#34C759"/><path d="M82 148 Q104 162 128 154" fill="none" stroke="#3d2b1f" stroke-width="4.5" stroke-linecap="round"/><circle cx="118" cy="126" r="21" fill="#B8EFC8"/><circle cx="118" cy="126" r="11.5" fill="#fffef9"/><circle cx="122.27" cy="124.58" r="5.5" fill="#241a12"/><circle cx="124.77" cy="122.08" r="2" fill="#ffffff" opacity="0.9"/></svg>`;
 const SRT=`00:00:12,400 → 00:00:14,900<br>Je voudrais un café noir.<br>00:00:15,100 → 00:00:17,300<br>Avec du sucre ?<br>00:00:17,600 → 00:00:19,800<br>Non merci, sans sucre.<br>`;
@@ -174,13 +156,14 @@ const MOTIFS=[
 ];
 const FRAMES=[["min","Minimal dark","Getting French subtitles…"],["glass","Glass","<b>Translating</b> · about 15 s"],["cine","Cinematic","Preparing <b>Le Souffle des Dieux</b>"],["split","Split B/W","<b>Almost ready</b>"],["gold","Gold to black","You'll meet <b>12 new words</b>"]];
 const io=new IntersectionObserver(es=>es.forEach(e=>e.target.classList.toggle('paused',!e.isIntersecting)),{rootMargin:'80px'});
-const tile=(host,n,name,sub,inner,cls='')=>{const d=document.createElement('div');d.className='tile';d.innerHTML=`<div class="stage ${cls}">${inner}</div><div class="meta"><span class="n">#${n}</span><b>${name}</b>${sub?` · ${sub}`:''}</div>`;host.appendChild(d);io.observe(d.firstElementChild);return d};
+const lazy=new IntersectionObserver(es=>es.forEach(e=>{const st=e.target;if(e.isIntersecting){if(!st.dataset.on){st.innerHTML=st._html;st.dataset.on=1}}else if(st.dataset.on){st.innerHTML='';delete st.dataset.on}}),{rootMargin:'300px'});
+const tile=(host,n,name,sub,inner,cls='')=>{const d=document.createElement('div');d.className='tile';d.innerHTML=`<div class="stage ${cls}"></div><div class="meta"><span class="n">#${n}</span><b>${name}</b>${sub?` · ${sub}`:''}</div>`;const st=d.firstElementChild;st._html=inner;host.appendChild(d);io.observe(st);lazy.observe(st);return d};
 // ---- 100 loaders
-const L=document.getElementById('loaders');let n=0;
+const PART=document.documentElement.dataset.part||'all';const L=document.getElementById('loaders');let n=0;if(PART==='all'||PART==='screens')
 MOTIFS.forEach(([mn,mh],mi)=>FRAMES.forEach(([fk,fn,cap])=>{n++;const t=tile(L,String(n).padStart(3,'0'),mn,fn,`${fk==='cine'?'<div class="bgk"></div>':''}<div class="core m">${mh()}</div><div class="cap">${cap}</div>`,'fr-'+fk);t.dataset.f=fk;t.dataset.m=mi}));
 const st={f:'all',m:'all'};const filt=()=>L.querySelectorAll('.tile').forEach(t=>t.hidden=!((st.f==='all'||t.dataset.f===st.f)&&(st.m==='all'||t.dataset.m===String(st.m))));
 const mk=(host,items,key,label)=>[['all',label],...items].forEach(([v,nm])=>{const b=document.createElement('button');b.className='chip';b.textContent=nm;b.setAttribute('aria-pressed',v==='all');b.onclick=()=>{st[key]=v;host.querySelectorAll('.chip').forEach(c=>c.setAttribute('aria-pressed',c===b));filt()};host.appendChild(b)});
-mk(document.getElementById('fF'),FRAMES.map(f=>[f[0],f[1]]),'f','All frames');mk(document.getElementById('fM'),MOTIFS.map((m,i)=>[String(i),m[0]]),'m','All animations');
+if(document.getElementById('fF'))mk(document.getElementById('fF'),FRAMES.map(f=>[f[0],f[1]]),'f','All frames');if(document.getElementById('fM'))mk(document.getElementById('fM'),MOTIFS.map((m,i)=>[String(i),m[0]]),'m','All animations');
 // ---- 30 motion graphics
 const MG=[
  ["Letterbox opens to the film","bars slide away, film appears",`<div class="x1"></div>`,`.x1{position:absolute;inset:0;background:radial-gradient(60% 70% at 40% 40%,#c4672c,transparent 70%),#0b0d10}.x1::before,.x1::after{content:'';position:absolute;left:0;right:0;height:50%;background:#000;animation:x1 3s var(--ease) infinite}.x1::before{top:0}.x1::after{bottom:0}@keyframes x1{0%,30%{height:50%}70%,100%{height:10%}}`],
@@ -214,7 +197,7 @@ const MG=[
  ["Stacked cards spread","word cards for this video fan out",`<div class="fan" style="font-size:12px"><i></i><i></i><i></i><i></i></div>`,``],
  ["Logo stroke draw","the chameleon outline draws itself",`<svg viewBox="70 80 230 140" width="45%" class="x30"><path d="M136 196 Q128 118 205 106 Q276 96 285 160 Q290 202 244 208 L164 210 Q140 208 136 196 Z M162 118 Q160 92 134 88 Q104 84 88 112 Q74 138 84 162 Q94 186 126 188 Q152 189 160 168" fill="none" stroke="#34C759" stroke-width="5" stroke-dasharray="900" stroke-linecap="round"/></svg>`,`.x30 path{animation:x30 3s var(--ease) infinite}@keyframes x30{0%{stroke-dashoffset:900}70%,100%{stroke-dashoffset:0}}`],
 ];
-let css='';const M=document.getElementById('mgs');MG.forEach(([nm,sub,h,c],i)=>{css+=c;tile(M,'M'+String(i+1).padStart(2,'0'),nm,sub,h,'mg')});
+let css='';const M=document.getElementById('mgs');(PART==='all'||PART==='motion'?MG:[]).forEach(([nm,sub,h,c],i)=>{css+=c;tile(M,'M'+String(i+1).padStart(2,'0'),nm,sub,h,'mg')});
 // ---- 12 combos
 const words=[["noir","black","r"],["voudrais","would like","o"],["sucre","sugar","r"],["café","coffee","g"]];
 const W=(f)=>`<div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center">${words.map(([w,m,c],i)=>`<span class="wchip" style="--c:var(--${c});animation-delay:${i*.4}s"><b>${w}</b> ${m}</span>`).join("")}</div>`;
@@ -234,13 +217,15 @@ const COMBOS=[
  ["Word rain into the deck","fr-gold",`<div class="cbx core"><div class="m"><div class="deck"><i></i><i></i><i></i></div></div><h3>12 new words found</h3><small>They'll be red the first time you see them</small></div>`],
  ["Aurora + logo draw","fr-glass",`<div class="cbx core"><svg viewBox="70 80 230 140" width="140" class="x30"><path d="M136 196 Q128 118 205 106 Q276 96 285 160 Q290 202 244 208 L164 210 Q140 208 136 196 Z M162 118 Q160 92 134 88 Q104 84 88 112 Q74 138 84 162 Q94 186 126 188 Q152 189 160 168" fill="none" stroke="#34C759" stroke-width="5" stroke-dasharray="900" stroke-linecap="round"/></svg><h3>Making French watchable</h3><small>About 20 seconds</small></div>`],
 ];
-const C=document.getElementById('combos');COMBOS.forEach(([nm,fr,h],i)=>tile(C,'C'+String(i+1).padStart(2,'0'),nm,'',h+'',fr));
+const C=document.getElementById('combos');(PART==='all'||PART==='experiences'?COMBOS:[]).forEach(([nm,fr,h],i)=>tile(C,'C'+String(i+1).padStart(2,'0'),nm,'',h+'',fr));
 const s=document.createElement('style');s.textContent=css;document.head.appendChild(s);
 // JS: decode text, counters, countdowns
 const pool='abcdefghijklmnopqrstuvwxyz';
-document.querySelectorAll('[data-scr]').forEach(el=>{const t=el.dataset.scr;let f=0;setInterval(()=>{f=(f+1)%50;el.textContent=[...t].map((c,i)=>f>i*2+8?c:pool[Math.random()*26|0]).join('')},70)});
-document.querySelectorAll('[data-to]').forEach(el=>{let v=0;setInterval(()=>{v=v>=+el.dataset.to+6?0:v+1;el.textContent=Math.min(v,+el.dataset.to)},150)});
-document.querySelectorAll('[data-down]').forEach(el=>{let v=+el.dataset.down;setInterval(()=>{v=v<=0?+el.dataset.down:v-1;el.textContent=v},1000)});
+let tick=0;setInterval(()=>{tick++;
+ document.querySelectorAll('.stage:not(.paused) [data-scr]').forEach(el=>{const t=el.dataset.scr,f=tick%50;el.textContent=[...t].map((c,i)=>f>i*2+8?c:pool[Math.random()*26|0]).join('')});
+ if(tick%2===0)document.querySelectorAll('.stage:not(.paused) [data-to]').forEach(el=>{const to=+el.dataset.to,v=(tick/2)%(to+6);el.textContent=Math.min(v|0,to)});
+ if(tick%14===0)document.querySelectorAll('.stage:not(.paused) [data-down]').forEach(el=>{const d=+el.dataset.down,v=d-((tick/14)%(d+1));el.textContent=v|0});
+},70);
 </script>
 
 </body></html>
