@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, Volume2, BookOpen, Search } from "lucide-react";
+import { Volume2, BookOpen, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { LevelBadge } from "@/components/LevelBadge";
@@ -13,6 +13,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { DeckState, STATE_META, coerceDeckState } from "@/lib/vocab";
 import { getGuestWords } from "@/lib/guestWords";
 import { cn } from "@/lib/utils";
+import { GlassCard, CountUp, PremiumHeader, Eyebrow, Skeleton, type Accent } from "@/components/premium";
 
 interface DeckWord {
   id: string;
@@ -28,6 +29,9 @@ interface DeckWord {
 // "Recognized" = words the system assumes you know based on your CEFR level
 // (cascaded: picking B1 inherits A1+A2+B1). These are seeded as green
 // saved_words by `seed_known_vocabulary` so subtitles render them green too.
+const DECK_ACCENT: Record<DeckState, Accent> = { green: "green", orange: "orange", red: "red" };
+const PAGE = 120;
+
 const DECKS: { key: DeckState; title: string; subtitle: string }[] = [
   { key: "green",  title: "Recognized Vocabulary", subtitle: "From your level — assumed known" },
   { key: "orange", title: "Learning",              subtitle: "Actively reviewing" },
@@ -44,6 +48,11 @@ export default function Vocabulary() {
   const [filter, setFilter] = useState<"all" | DeckState>("all");
   const [search, setSearch] = useState("");
   const [coreTotal, setCoreTotal] = useState<number | null>(null);
+  // Exact per-deck counts come back in one fast round trip, long before the
+  // full word list (10k+ rows for seeded accounts) finishes paging in — so the
+  // cards never flash "0" while the list loads.
+  const [fastCounts, setFastCounts] = useState<Record<DeckState, number> | null>(null);
+  const [shown, setShown] = useState(PAGE);
 
   useEffect(() => {
     let alive = true;
@@ -56,6 +65,14 @@ export default function Vocabulary() {
         .select("id", { count: "exact", head: true })
         .eq("language", lang)
         .then(({ count }) => { if (alive) setCoreTotal(count ?? 0); });
+
+      if (user) {
+        Promise.all((["red", "orange", "green"] as DeckState[]).map((st) =>
+          supabase.from("saved_words").select("id", { count: "exact", head: true })
+            .eq("user_id", user.id).eq("language", lang).eq("state", st)
+            .then(({ count }) => [st, count ?? 0] as const),
+        )).then((pairs) => { if (alive) setFastCounts(Object.fromEntries(pairs) as Record<DeckState, number>); });
+      }
 
       if (!user) {
         const guest = getGuestWords()
@@ -103,8 +120,11 @@ export default function Vocabulary() {
   const counts = useMemo(() => {
     const c: Record<DeckState, number> = { red: 0, orange: 0, green: 0 };
     for (const w of words) c[w.state] = (c[w.state] ?? 0) + 1;
-    return c;
-  }, [words]);
+    return loading && fastCounts ? fastCounts : c;
+  }, [words, loading, fastCounts]);
+  const countsReady = !loading || fastCounts != null;
+  const total = counts.red + counts.orange + counts.green;
+  useEffect(() => { setShown(PAGE); }, [filter, search]);
 
   // ⚪ Unassessed = high-frequency words in this language we haven't seen the
   // learner save yet. Never goes negative; falls back to 0 until we know.
@@ -142,86 +162,68 @@ export default function Vocabulary() {
   }, [words, filter, search]);
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-xl border-b border-border">
-        <div className="flex items-center gap-3 px-6 py-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/discover")}>
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-          <BrandMark variant="pin" size={26} />
-          <h1 className="text-lg font-bold text-foreground">Your Vocabulary</h1>
-          <div className="ml-auto"><LevelBadge /></div>
-        </div>
-      </header>
+    <div className="ls-aurora min-h-screen bg-background">
+      <PremiumHeader
+        title="Your Vocabulary"
+        onBack={() => navigate("/discover")}
+        icon={<BrandMark variant="pin" size={26} />}
+        right={<LevelBadge />}
+      />
 
-      <div className="max-w-5xl mx-auto px-6 py-8 space-y-8">
-        {/* Confidence-first hero: surface Recognized Vocabulary front and centre. */}
-        <section className="rounded-2xl border border-[#34C759]/40 bg-[#34C759]/10 p-6">
-          <p className="text-xs uppercase tracking-wider text-[#34C759] font-semibold">Recognized vocabulary</p>
-          <p className="text-5xl font-bold tabular-nums text-[#34C759] mt-1">
-            {counts.green.toLocaleString()}
-            {coreTotal != null && (
-              <span className="text-base text-muted-foreground font-normal ml-2">
-                / ~{coreTotal.toLocaleString()} high-frequency words
-              </span>
-            )}
-          </p>
-          <p className="text-sm text-muted-foreground mt-2">
-            You already know more than you think. These words are inherited from your CEFR level and treated as known across subtitles, flashcards, and comprehension scoring.
-          </p>
-        </section>
-
-
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 space-y-8">
         {learningLanguage && <FrequencyCoverageCard language={learningLanguage} />}
 
-        {/* Three-state overview: Recognized · Learning · Unknown */}
+        {/* Three decks: Known · Learning · New, each a filter. */}
         <section className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {DECKS.map((d, i) => {
             const meta = STATE_META[d.key];
+            const share = total ? counts[d.key] / total : 0;
             return (
-              <motion.button
+              <motion.div
                 key={d.key}
-                initial={{ opacity: 0, y: 8 }}
+                initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.05 * i }}
-                onClick={() => setFilter(d.key)}
-                className={cn(
-                  "text-left rounded-2xl border p-5 transition hover:scale-[1.01]",
-                  meta.bg,
-                  meta.border,
-                  filter === d.key && "ring-2 ring-offset-2 ring-offset-background",
-                  filter === d.key && meta.ring,
-                )}
+                transition={{ delay: 0.06 * i, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
               >
-                <div className="flex items-center gap-2 mb-1">
-                  <span className={cn("w-2.5 h-2.5 rounded-full", meta.dot)} />
-                  <p className="font-semibold text-foreground">{d.title}</p>
-                </div>
-                <p className={cn("text-4xl font-bold tabular-nums", meta.text)}>{counts[d.key]}</p>
-                <p className="text-xs text-muted-foreground mt-1">{d.subtitle}</p>
-              </motion.button>
+                <GlassCard
+                  as="button"
+                  accent={DECK_ACCENT[d.key]}
+                  glow={filter === d.key}
+                  onClick={() => setFilter(filter === d.key ? "all" : d.key)}
+                  className="ls-press w-full p-5 text-left"
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className={cn("w-2.5 h-2.5 rounded-full shadow-[0_0_10px_currentColor]", meta.dot)} />
+                    <p className="font-semibold text-foreground">{d.title}</p>
+                  </div>
+                  {countsReady ? (
+                    <p className={cn("text-4xl font-black tracking-tight", meta.text)}><CountUp value={counts[d.key]} /></p>
+                  ) : (
+                    <Skeleton className="h-10 w-28" />
+                  )}
+                  <p className="text-xs text-muted-foreground mt-1">{d.subtitle}</p>
+                  <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-white/5">
+                    <div className={cn("h-full rounded-full transition-[width] duration-1000", meta.dot)} style={{ width: `${Math.round(share * 100)}%` }} />
+                  </div>
+                </GlassCard>
+              </motion.div>
             );
           })}
-
         </section>
 
         {/* Totals */}
         <section className="grid grid-cols-2 gap-4">
-          <div className="glass-panel rounded-2xl p-5">
-            <p className="text-xs uppercase tracking-wider text-muted-foreground/70">Total saved</p>
-            <p className="text-3xl font-bold mt-1 tabular-nums">{words.length}</p>
-          </div>
-          <div className="glass-panel rounded-2xl p-5">
-            <p className="text-xs uppercase tracking-wider text-muted-foreground/70">Learned this week</p>
-            <p className="text-3xl font-bold mt-1 tabular-nums text-[#34C759]">+{learnedThisWeek}</p>
-          </div>
+          <GlassCard className="p-5">
+            <Eyebrow>Total saved</Eyebrow>
+            {countsReady ? <p className="text-3xl font-black mt-1"><CountUp value={total} /></p> : <Skeleton className="mt-2 h-8 w-20" />}
+          </GlassCard>
+          <GlassCard className="p-5" accent="green">
+            <Eyebrow>Learned this week</Eyebrow>
+            {loading ? <Skeleton className="mt-2 h-8 w-14" /> : (
+              <p className="text-3xl font-black mt-1 text-[#34C759]">+<CountUp value={learnedThisWeek} /></p>
+            )}
+          </GlassCard>
         </section>
-
-        <div className="flex justify-end">
-          <Button onClick={() => navigate("/flashcards")} className="gap-2">
-            <BookOpen className="w-4 h-4" /> Review flashcards
-          </Button>
-        </div>
 
         {/* Filter + search */}
         <section className="space-y-4">
@@ -231,10 +233,8 @@ export default function Vocabulary() {
                 key={f}
                 onClick={() => setFilter(f)}
                 className={cn(
-                  "px-3 py-1.5 rounded-full text-xs font-medium border transition",
-                  filter === f
-                    ? "bg-primary text-primary-foreground border-primary"
-                    : "border-border text-muted-foreground hover:bg-secondary/60",
+                  "ls-chip-glass px-3.5 py-1.5 text-xs font-semibold transition",
+                  filter === f ? "bg-primary text-primary-foreground border-primary shadow-[0_0_20px_-4px_hsl(var(--primary))]" : "text-muted-foreground hover:text-foreground",
                 )}
               >
                 {f === "all" ? "All" : STATE_META[f].label}
@@ -246,46 +246,60 @@ export default function Vocabulary() {
                 placeholder="Search…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="pl-9"
+                className="pl-9 rounded-full bg-white/5 border-white/10"
               />
             </div>
+            <Button onClick={() => navigate("/flashcards")} className="gap-2 rounded-full">
+              <BookOpen className="w-4 h-4" /> Review
+            </Button>
           </div>
 
           {loading ? (
-            <p className="text-sm text-muted-foreground">Loading…</p>
-          ) : filtered.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-8">
-              No words here yet. Click any word in subtitles to save it.
-            </p>
-          ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {filtered.map((w) => {
-                const meta = STATE_META[w.state];
-                return (
-                  <div
-                    key={w.id}
-                    className="rounded-xl border border-border/60 p-4 bg-card/50 transition hover:bg-card flex items-start justify-between gap-2"
-                  >
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className={cn("w-2 h-2 rounded-full", meta.dot)} />
-                        <p className="font-semibold text-foreground truncate">{w.word}</p>
-                      </div>
-                      <p className="text-sm text-muted-foreground truncate">{w.translation}</p>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="shrink-0"
-                      onClick={() => speak(w.word, learningLanguage)}
-                      title="Pronounce"
-                    >
-                      <Volume2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                );
-              })}
+              {Array.from({ length: 6 }, (_, i) => <Skeleton key={i} className="h-[74px]" />)}
             </div>
+          ) : filtered.length === 0 ? (
+            <GlassCard className="p-8 text-center text-sm text-muted-foreground">
+              No words here yet. Tap any word in subtitles to save it.
+            </GlassCard>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {filtered.slice(0, shown).map((w) => {
+                  const meta = STATE_META[w.state];
+                  return (
+                    <div
+                      key={w.id}
+                      className="group rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4 transition hover:bg-white/[0.06] hover:border-white/10 flex items-start justify-between gap-2"
+                    >
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className={cn("w-2 h-2 rounded-full shrink-0", meta.dot)} />
+                          <p className="font-semibold text-foreground truncate" translate="no">{w.word}</p>
+                        </div>
+                        <p className="text-sm text-muted-foreground truncate">{w.translation}</p>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="shrink-0 rounded-full opacity-70 group-hover:opacity-100"
+                        onClick={() => speak(w.word, learningLanguage)}
+                        title="Pronounce"
+                      >
+                        <Volume2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  );
+                })}
+              </div>
+              {filtered.length > shown && (
+                <div className="flex justify-center">
+                  <Button variant="outline" className="rounded-full" onClick={() => setShown((n) => n + PAGE * 2)}>
+                    Show more ({(filtered.length - shown).toLocaleString()} left)
+                  </Button>
+                </div>
+              )}
+            </>
           )}
         </section>
       </div>

@@ -7,6 +7,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { fetchProgressStats, fetchLearningRate, type DashboardStats } from "@/lib/watchSessions";
 import { getLanguageLabel, getLanguageFlag } from "@/lib/languages";
 import { cn } from "@/lib/utils";
+import { GlassCard, CountUp, ACCENT, Eyebrow, type Accent } from "@/components/premium";
 
 export function YourProgressDashboard({ languages }: { languages?: string[] }) {
   const { user } = useAuth();
@@ -44,16 +45,16 @@ export function YourProgressDashboard({ languages }: { languages?: string[] }) {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Card icon={TrendingUp} label="Average comprehension" value={`${Math.round(stats.avg_comprehension)}%`} tint="emerald" />
-        <Card icon={Trophy} label="Best video" value={`${Math.round(stats.highest_comprehension)}%`} tint="amber" />
-        <Card icon={Target} label="Avg gain / watch" value={`${stats.avg_gain_per_watch > 0 ? "+" : ""}${stats.avg_gain_per_watch}%`} tint="primary" />
-        <Card icon={CheckCircle2} label="Videos mastered" value={stats.videos_mastered.toLocaleString()} tint="emerald" />
-        <Card icon={PlayCircle} label="In progress" value={stats.videos_in_progress.toLocaleString()} tint="primary" />
-        <Card icon={Clock} label="Hours of input" value={`${hours}h`} tint="amber" />
-        <Card icon={BookOpen} label="Vocabulary learned" value={stats.vocab_learned.toLocaleString()} tint="emerald" />
+        <Card icon={TrendingUp} label="Average comprehension" value={Math.round(stats.avg_comprehension)} suffix="%" accent="green" />
+        <Card icon={Trophy} label="Best video" value={Math.round(stats.highest_comprehension)} suffix="%" accent="gold" />
+        <Card icon={Target} label="Avg gain / watch" value={stats.avg_gain_per_watch} prefix={stats.avg_gain_per_watch > 0 ? "+" : ""} suffix="%" accent="blue" />
+        <Card icon={CheckCircle2} label="Videos mastered" value={stats.videos_mastered} accent="green" />
+        <Card icon={PlayCircle} label="In progress" value={stats.videos_in_progress} accent="blue" />
+        <Card icon={Clock} label="Hours of input" value={Number(hours)} decimals={stats.total_minutes < 600 ? 1 : 0} suffix="h" accent="gold" />
+        <Card icon={BookOpen} label="Vocabulary learned" value={stats.vocab_learned} accent="green" />
         {rates.length > 0 && (
-          <div className="glass-panel-strong rounded-2xl p-4 col-span-2 md:col-span-1">
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Learning rate · 7d</p>
+          <GlassCard className="p-4 col-span-2 md:col-span-1">
+            <Eyebrow className="mb-2 text-[10px]">Learning rate · 7d</Eyebrow>
             <div className="space-y-1.5">
               {rates.map((r) => (
                 <div key={r.lang} className="flex items-center justify-between text-xs">
@@ -69,24 +70,29 @@ export function YourProgressDashboard({ languages }: { languages?: string[] }) {
                 </div>
               ))}
             </div>
-          </div>
+          </GlassCard>
         )}
       </div>
     </section>
   );
 }
 
-function Card({ icon: Icon, label, value, tint }: { icon: any; label: string; value: string; tint: "emerald" | "amber" | "primary" }) {
-  const tints = {
-    emerald: "text-emerald-400 from-emerald-500/10",
-    amber:   "text-amber-300 from-amber-500/10",
-    primary: "text-primary from-primary/10",
-  } as const;
+function Card({ icon: Icon, label, value, prefix = "", suffix = "", decimals = 0, accent }: {
+  icon: any; label: string; value: number; prefix?: string; suffix?: string; decimals?: number; accent: Accent;
+}) {
+  const hsl = ACCENT[accent];
   return (
-    <div className={cn("glass-panel-strong rounded-2xl p-4 relative overflow-hidden bg-gradient-to-br to-transparent", tints[tint])}>
-      <Icon className={cn("w-4 h-4 mb-2", tints[tint])} />
-      <p className="text-2xl font-bold text-foreground tabular-nums">{value}</p>
-      <p className="text-[11px] text-muted-foreground mt-0.5 leading-tight">{label}</p>
-    </div>
+    <GlassCard accent={accent} className="overflow-hidden p-4">
+      <div
+        className="mb-3 inline-grid h-9 w-9 place-items-center rounded-xl"
+        style={{ background: `hsl(${hsl} / 0.14)`, color: `hsl(${hsl})`, boxShadow: `0 0 22px -6px hsl(${hsl} / 0.8)` }}
+      >
+        <Icon className="w-4 h-4" />
+      </div>
+      <p className="text-3xl font-black tracking-tight text-foreground">
+        {prefix}<CountUp value={value} format={(n) => n.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals })} />{suffix}
+      </p>
+      <p className="text-[11px] text-muted-foreground mt-1 leading-tight">{label}</p>
+    </GlassCard>
   );
 }

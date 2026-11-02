@@ -1,6 +1,6 @@
 // LinguaScript — Reader (pillar 1: reading on ANY website)
 //
-// Injected on demand (pop-up "Read this page", right-click menu, or Alt+L) via
+// Injected on demand (Alt+L only for now) via
 // chrome.scripting with activeTab, so the extension never asks to "read and
 // change all your data on all websites". Every word on the page becomes a
 // tappable .ls-word span painted by the ONE Deck (red / orange / green / gold);
@@ -142,8 +142,6 @@
     document.body.appendChild(badge);
   }
 
-  // Reading on a white page: deck colours as a tinted highlight + underline, so
-  // text stays readable (bright green text on white is not).
   // Reading on a normal page. Style "Text" (default): the word itself turns
   // red / orange / green, gold glimmers. On a light background the brand hexes
   // are too pale to read, so the chunk gets .ls-light and deeper shades of the

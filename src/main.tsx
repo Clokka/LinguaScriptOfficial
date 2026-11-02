@@ -6,6 +6,7 @@ import { initAnalytics } from "./lib/analytics";
 import { loadPosthog } from "./lib/posthog";
 
 import { getConsent } from "./lib/consent";
+import { captureRefFromUrl } from "./lib/referral";
 
 // Analytics only after consent (UK GDPR/PECR) — see src/lib/consent.ts.
 // PostHog downloads after the page has shown (src/lib/posthog.ts).
@@ -14,5 +15,7 @@ if (getConsent() === "granted") {
   loadPosthog();
   initAnalytics();
 }
+
+captureRefFromUrl();
 
 createRoot(document.getElementById("root")!).render(<App />);

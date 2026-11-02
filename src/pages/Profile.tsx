@@ -24,7 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Camera, ArrowLeft, Save, Loader2, LogOut, Check } from "lucide-react";
+import { Camera, Save, Loader2, LogOut, Check } from "lucide-react";
 import { INTERESTS } from "@/lib/interests";
 import { useToast } from "@/hooks/use-toast";
 import { useT } from "@/i18n";
@@ -37,6 +37,8 @@ import { getPetById } from "@/lib/pets";
 import { PetViewer } from "@/components/pets/PetViewer";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
+import { PageLoading } from "@/components/PageLoading";
+import { GlassCard, PremiumHeader } from "@/components/premium";
 import { useSubscription } from "@/hooks/useSubscription";
 import { ManageBillingButton } from "@/components/ManageBillingButton";
 
@@ -286,28 +288,21 @@ const Profile = () => {
 
   if (authLoading || loadingProfile) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
+      <PageLoading />
     );
   }
 
   return (
     <>
-    <div className="min-h-screen bg-background relative">
-      <div className="absolute inset-0 bg-gradient-hero pointer-events-none" />
-      <div className="relative z-10 max-w-xl mx-auto px-4 sm:px-6 pt-6 pb-28 sm:py-12">
-        <Button variant="glass" onClick={() => navigate("/")} className="mb-6 gap-2">
-          <ArrowLeft className="w-4 h-4" /> Back
-        </Button>
-
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground mb-6">Your Profile</h1>
-
-        <div className="glass-panel-strong rounded-2xl p-5 sm:p-8 space-y-7">
-          {/* Avatar */}
-          <div className="flex items-center gap-6">
-            <div className="relative group">
-              <Avatar className="w-20 h-20 border-2 border-primary/30">
+    <div className="ls-aurora min-h-screen bg-background relative">
+      <PremiumHeader title="Your Profile" onBack={() => navigate("/")} />
+      <div className="relative z-10 max-w-xl mx-auto px-4 sm:px-6 pt-6 pb-28 sm:py-10">
+        {/* Hero: photo with a glowing ring, name, email */}
+        <GlassCard accent="green" glow className="ls-shine mb-5 overflow-hidden p-5 sm:p-6">
+          <div className="flex items-center gap-5">
+            <div className="relative group shrink-0">
+              <span aria-hidden className="absolute -inset-1.5 rounded-full bg-[conic-gradient(from_180deg,#34C759,#FFD60A,#FF9F0A,#34C759)] opacity-80 blur-[2px]" />
+              <Avatar className="relative w-20 h-20 border-[3px] border-background">
                 <AvatarImage src={avatarUrl ?? undefined} />
                 <AvatarFallback className="bg-secondary text-foreground text-xl">
                   {displayName?.charAt(0)?.toUpperCase() ?? "?"}
@@ -328,11 +323,15 @@ const Profile = () => {
                 />
               </label>
             </div>
-            <div>
-              <p className="text-foreground font-medium">{displayName || "Your Name"}</p>
-              <p className="text-muted-foreground text-sm">{user?.email}</p>
+            <div className="min-w-0">
+              <p className="text-xl font-black tracking-tight text-foreground truncate">{displayName || "Your Name"}</p>
+              <p className="text-muted-foreground text-sm truncate">{user?.email}</p>
+              <p className="mt-2 text-xs text-muted-foreground sm:hidden">Tap your photo to change it</p>
             </div>
           </div>
+        </GlassCard>
+
+        <GlassCard className="p-5 sm:p-8 space-y-7">
 
           {/* Display Name */}
           <div>
@@ -340,7 +339,7 @@ const Profile = () => {
             <Input
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
-              className="bg-secondary/50 border-border"
+              className="h-12 rounded-xl bg-white/[0.04] border-white/10"
             />
           </div>
 
@@ -350,7 +349,7 @@ const Profile = () => {
               Your Native Language
             </label>
             <Select value={nativeLanguage} onValueChange={setNativeLanguage}>
-              <SelectTrigger className="bg-secondary/50 border-border">
+              <SelectTrigger className="h-12 rounded-xl bg-white/[0.04] border-white/10">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -386,14 +385,14 @@ const Profile = () => {
                     aria-pressed={active}
                     onClick={() => toggleInterest(interest.id)}
                     className={cn(
-                      "relative rounded-xl border px-3 py-2.5 flex items-center gap-2 text-sm transition-colors text-left",
+                      "relative h-auto min-h-[48px] justify-start whitespace-normal rounded-2xl border px-3 py-2.5 flex items-center gap-2 text-sm transition-all text-left",
                       active
-                        ? "border-primary/60 bg-primary/10 text-foreground"
-                        : "border-border/50 bg-secondary/30 text-muted-foreground hover:border-border hover:text-foreground",
+                        ? "border-primary/70 bg-primary/15 text-foreground shadow-[0_0_24px_-8px_hsl(var(--primary))]"
+                        : "border-white/[0.07] bg-white/[0.03] text-muted-foreground hover:border-white/20 hover:text-foreground",
                     )}
                   >
-                    <span>{interest.emoji}</span>
-                    <span className="truncate">{interest.label}</span>
+                    <span className="text-base">{interest.emoji}</span>
+                    <span className="leading-tight">{interest.label}</span>
                     {active && <Check className="w-3.5 h-3.5 text-primary ml-auto shrink-0" />}
                   </Button>
                 );
@@ -425,14 +424,14 @@ const Profile = () => {
               value={school}
               onChange={(e) => setSchool(e.target.value)}
               placeholder="e.g. Truro College"
-              className="bg-secondary/50 border-border"
+              className="h-12 rounded-xl bg-white/[0.04] border-white/10"
             />
           </div>
 
           <div className="sticky bottom-4 z-20 -mx-1">
           <Button
             size="lg"
-            className="w-full gap-2 rounded-xl font-bold shadow-lg bg-emerald-500 text-black hover:bg-emerald-400"
+            className="ls-shine w-full gap-2 rounded-full font-bold bg-[#34C759] text-black hover:bg-[#3ad664] shadow-[0_12px_40px_-10px_#34C759]"
             onClick={handleSave}
             disabled={saving}
           >
@@ -446,7 +445,7 @@ const Profile = () => {
             <p className="text-sm font-medium text-foreground mb-3">🐾 My Pet</p>
             <button
               onClick={() => setShowPetGallery(true)}
-              className="w-full rounded-xl border border-border/50 bg-secondary/30 hover:bg-secondary/60 transition-all p-4 flex items-center gap-4 text-left group"
+              className="ls-press w-full rounded-2xl border border-white/[0.07] bg-white/[0.03] hover:bg-white/[0.06] transition-all p-4 flex items-center gap-4 text-left group"
             >
               {activePetMeta ? (
                 <div className="w-16 h-16 rounded-full overflow-hidden border border-primary/20 bg-background/30 flex-shrink-0">
@@ -566,7 +565,7 @@ const Profile = () => {
           )}
 
           <BillingSection />
-        </div>
+        </GlassCard>
 
       </div>
     </div>

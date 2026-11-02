@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ✨ Gold widget (GoldWidget.kt): one gold word, Show meaning → Next. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/ls_gw_root"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:orientation="vertical" android:gravity="center"
+    android:background="@drawable/ls_widget_gold_bg" android:padding="12dp">
+
+  <TextView
+      android:id="@+id/ls_gw_word"
+      android:layout_width="match_parent" android:layout_height="wrap_content"
+      android:gravity="center" android:maxLines="1" android:ellipsize="end"
+      android:text="✨ Gold words"
+      android:textColor="#FFFFD54A" android:textSize="26sp" android:textStyle="bold"
+      android:shadowColor="#99FFC83C" android:shadowRadius="12" />
+
+  <TextView
+      android:id="@+id/ls_gw_meaning"
+      android:layout_width="match_parent" android:layout_height="wrap_content"
+      android:layout_marginTop="2dp" android:gravity="center"
+      android:maxLines="2" android:ellipsize="end"
+      android:textColor="#FFF5F5F7" android:textSize="15sp" android:visibility="invisible" />
+
+  <TextView
+      android:id="@+id/ls_gw_button"
+      android:layout_width="wrap_content" android:layout_height="wrap_content"
+      android:layout_marginTop="8dp" android:background="@drawable/ls_gold_bar"
+      android:paddingTop="5dp" android:paddingBottom="5dp"
+      android:paddingStart="16dp" android:paddingEnd="16dp"
+      android:text="Show meaning"
+      android:textColor="#FF3A2A00" android:textSize="13sp" android:textStyle="bold" />
+
+  <TextView
+      android:id="@+id/ls_gw_count"
+      android:layout_width="wrap_content" android:layout_height="wrap_content"
+      android:layout_marginTop="4dp"
+      android:textColor="#99F5F5F7" android:textSize="10sp" />
+</LinearLayout>

@@ -1303,9 +1303,9 @@ const SettingsTab = ({
     return (
       <div className="space-y-6">
         <h2 className="text-2xl font-bold text-foreground">Settings</h2>
-        <div className="rounded-3xl border border-orange-100 bg-orange-50/50 p-12 text-center">
-          <p className="text-neutral-600 mb-4">Sign in to access settings.</p>
-          <Button onClick={() => navigate("/auth")} className="rounded-full bg-orange-500 hover:bg-orange-600 text-white">Sign In</Button>
+        <div className="ls-glass p-12 text-center">
+          <p className="text-muted-foreground mb-4">Sign in to access settings.</p>
+          <Button onClick={() => navigate("/auth")} className="rounded-full">Sign In</Button>
         </div>
       </div>
     );
@@ -1324,12 +1324,12 @@ const SettingsTab = ({
       <button
         type="button"
         onClick={() => navigate("/profile")}
-        className="w-full text-left rounded-2xl border border-orange-100 bg-orange-50/50 p-4 flex items-center justify-between gap-3 hover:bg-orange-50 transition-colors"
+        className="ls-glass ls-press w-full text-left p-4 sm:p-5 flex items-center justify-between gap-4"
       >
-        <span className="text-sm text-neutral-700">
-          Looking for your photo, hobbies, CEFR level or privacy settings? Those live on your full <span className="font-semibold">Profile</span>.
+        <span className="text-sm text-muted-foreground">
+          Looking for your photo, hobbies, CEFR level or privacy settings? Those live on your full <span className="font-semibold text-foreground">Profile</span>.
         </span>
-        <span className="text-orange-600 text-sm font-medium shrink-0">Go to Profile →</span>
+        <span className="shrink-0 rounded-full bg-primary/15 px-3 py-1.5 text-sm font-semibold text-primary">Profile →</span>
       </button>
 
       {/* Languages */}
@@ -1337,7 +1337,7 @@ const SettingsTab = ({
         <div data-tour="settings-native">
           <label className="text-sm font-medium text-foreground mb-2 block">Native language</label>
           <Select value={nativeLanguage} onValueChange={setNativeLanguage} onOpenChange={onNativeOpenChange}>
-            <SelectTrigger className="rounded-xl border-orange-100"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="h-12 rounded-xl border-white/10 bg-white/[0.04]"><SelectValue /></SelectTrigger>
             <SelectContent>
               {LANGUAGES.map((l) => (<SelectItem key={l.code} value={l.code}>{l.flag} {l.label}</SelectItem>))}
             </SelectContent>
@@ -1346,7 +1346,7 @@ const SettingsTab = ({
         <div data-tour="settings-learning">
           <label className="text-sm font-medium text-foreground mb-2 block">Learning</label>
           <Select value={learningLanguage} onValueChange={setLearningLanguage} onOpenChange={onLearningOpenChange}>
-            <SelectTrigger className="rounded-xl border-orange-100"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="h-12 rounded-xl border-white/10 bg-white/[0.04]"><SelectValue /></SelectTrigger>
             <SelectContent>
               {LANGUAGES.filter((l) => l.code !== nativeLanguage).map((l) => (
                 <SelectItem key={l.code} value={l.code}>{l.flag} {l.label}</SelectItem>
@@ -1359,7 +1359,7 @@ const SettingsTab = ({
       <Button
         onClick={onSave}
         disabled={saving}
-        className="w-full h-12 rounded-full bg-orange-500 hover:bg-orange-600 text-white font-semibold gap-2 shadow-[0_8px_24px_-8px_rgba(249,115,22,0.5)]"
+        className="ls-shine w-full h-12 rounded-full font-bold gap-2 shadow-[0_10px_34px_-10px_hsl(var(--primary))]"
       >
         {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
         Save settings
@@ -1369,7 +1369,7 @@ const SettingsTab = ({
 };
 
 const SettingsSection = ({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) => (
-  <div className="rounded-3xl bg-card border border-orange-100/80 p-6 sm:p-7 space-y-5">
+  <div className="ls-glass p-6 sm:p-7 space-y-5">
     <div>
       <h3 className="text-lg font-semibold text-foreground">{title}</h3>
       {subtitle && <p className="text-sm text-muted-foreground mt-0.5">{subtitle}</p>}

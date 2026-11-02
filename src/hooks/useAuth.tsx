@@ -1,3 +1,4 @@
+import { claimRefIfAny } from "@/lib/referral";
 import { useSyncExternalStore } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { identifyUser, resetUser } from "@/lib/posthog";
@@ -47,6 +48,7 @@ function start() {
       void migrateGuestWords(session.user.id);
       identifyUser(session.user.id, session.user.email);
       maybeTrackSignup(session.user);
+      void claimRefIfAny();
     }
     if (event === "SIGNED_OUT") {
       resetUser();

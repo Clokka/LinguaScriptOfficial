@@ -4,9 +4,8 @@ import { getNativeLanguage, overlayNative } from "@/lib/nativeGloss";
 // start studying, so reviews flow through the normal SRS.
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowLeft, BookOpen, Loader2 } from "lucide-react";
+import { BookOpen, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 import { FlashcardReview } from "@/components/FlashcardReview";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -17,6 +16,7 @@ import { FrequencyCoverageCard } from "@/components/FrequencyCoverageCard";
 import { Check, Lock } from "lucide-react";
 import { normalizeToken, type DeckState } from "@/lib/vocab";
 import { topUpDailyNew, DAILY_NEW } from "@/lib/focusDeck";
+import { GlassCard, CountUp, PremiumHeader, Eyebrow, Skeleton, ProgressRing } from "@/components/premium";
 
 interface CoreWord { rank: number; word: string; translation: string; cefr_level: string | null }
 interface Saved { id: string; word: string; state: DeckState; times_correct: number; translation: string; pronunciation: string; ipa: string }
@@ -137,36 +137,57 @@ export default function CommonWordsDeck() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-xl border-b border-border">
-        <div className="flex items-center gap-3 px-6 py-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/flashcards")}>
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-          <h1 className="text-lg font-bold text-foreground">Most common words</h1>
-        </div>
-      </header>
+    <div className="ls-aurora min-h-screen bg-background">
+      <PremiumHeader title="Most common words" onBack={() => navigate("/flashcards")} />
 
       {loading ? (
-        <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 space-y-6" aria-busy="true" aria-label="Loading">
+          <Skeleton className="h-56 rounded-3xl" />
+          <Skeleton className="h-16 rounded-2xl" />
+          <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+            {Array.from({ length: 15 }, (_, i) => <Skeleton key={i} className="h-16" />)}
+          </div>
+        </div>
       ) : (
-        <div className="max-w-3xl mx-auto px-6 py-8 space-y-6">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 space-y-6">
           <FrequencyCoverageCard language={language} studyTo="/flashcards" />
           {justDone && (
-            <p className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-2 text-sm font-semibold text-emerald-500">
-              Top {justDone.toLocaleString()} complete. Top {(justDone + 50).toLocaleString()} unlocked.
-            </p>
+            <GlassCard accent="green" glow className="px-4 py-3 text-sm font-semibold text-emerald-400">
+              🎉 Top {justDone.toLocaleString()} complete. Top {(justDone + 50).toLocaleString()} unlocked.
+            </GlassCard>
           )}
           {user && (
-            <div className="flex items-center justify-between gap-3 rounded-xl border border-border px-4 py-3">
+            <GlassCard className="flex items-center justify-between gap-3 px-5 py-4">
               <p className="text-sm text-muted-foreground">
-                Today: <span className="font-semibold text-foreground">{Math.min(addedToday, DAILY_NEW)} new words added</span> · {dueNow} to review
+                Today: <span className="font-semibold text-foreground">{Math.min(addedToday, DAILY_NEW)} new words</span>
+                <span className="mx-1.5 opacity-40">·</span>
+                <span className="font-semibold text-amber-300">{dueNow.toLocaleString()}</span> to review
               </p>
-              <Button size="sm" onClick={() => navigate("/flashcards")}>Review</Button>
-            </div>
+              <Button size="sm" className="rounded-full px-5 shadow-[0_0_24px_-6px_hsl(var(--primary))]" onClick={() => navigate("/flashcards")}>Review</Button>
+            </GlassCard>
           )}
+
+          {/* Current deck */}
+          <GlassCard accent="green" glow className="p-6">
+            <div className="flex items-center gap-5">
+              <ProgressRing value={words.length ? known / words.length : 0} size={84} stroke={7}>
+                <span className="text-sm font-bold text-foreground tabular-nums">{words.length ? Math.round((known / words.length) * 100) : 0}%</span>
+              </ProgressRing>
+              <div className="min-w-0">
+                <Eyebrow>Top {band.toLocaleString()} {langName} words · {band - 49}–{band}</Eyebrow>
+                <p className="mt-1 text-3xl font-black text-foreground">
+                  <CountUp value={known} /> <span className="text-muted-foreground font-bold">/ {words.length} known</span>
+                </p>
+              </div>
+            </div>
+            <Button size="lg" className="ls-shine mt-6 w-full gap-2 rounded-full text-base font-bold shadow-[0_10px_40px_-12px_hsl(var(--primary))]" onClick={start} disabled={starting || toLearn.length === 0}>
+              {starting ? <Loader2 className="w-5 h-5 animate-spin" /> : <BookOpen className="w-5 h-5" />}
+              {toLearn.length === 0 ? "All known — nice!" : `Study the next ${Math.min(BATCH, toLearn.length)}`}
+            </Button>
+          </GlassCard>
+
           <section>
-            <p className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Decks</p>
+            <Eyebrow className="mb-3">Decks</Eyebrow>
             <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
               {Array.from({ length: 60 }, (_, i) => (i + 1) * 50).map((b) => {
                 const cur = bands.find((x) => x.band === b);
@@ -176,46 +197,44 @@ export default function CommonWordsDeck() {
                 const done = sliceTotal > 0 && sliceKnown >= sliceTotal;
                 const next = unlockedBand(bands) === b;
                 const locked = b > unlockedBand(bands);
+                const pct = sliceTotal ? Math.min(100, (sliceKnown / sliceTotal) * 100) : 0;
                 return (
                   <button
                     key={b}
                     disabled={locked}
                     aria-label={locked ? `Top ${b} locked — finish the deck before it` : `Top ${b}`}
                     onClick={() => setParams({ band: String(b) })}
-                    className={`rounded-xl border px-2 py-2 text-left transition ${b === band ? "border-primary bg-primary/10" : next ? "border-primary/50" : "border-border"} ${locked ? "opacity-50 cursor-not-allowed" : ""}`}
+                    className={`relative overflow-hidden rounded-2xl border px-3 py-2.5 text-left transition ${
+                      b === band
+                        ? "border-primary/70 bg-primary/15 shadow-[0_0_24px_-8px_hsl(var(--primary))]"
+                        : next ? "border-primary/40 bg-white/[0.03]" : done ? "border-emerald-500/20 bg-emerald-500/[0.05]" : "border-white/[0.07] bg-white/[0.02]"
+                    } ${locked ? "opacity-40 cursor-not-allowed" : "hover:border-primary/50"}`}
                   >
                     <span className="flex items-center gap-1 text-xs font-bold text-foreground">
-                      Top {b.toLocaleString()} {done && <Check className="w-3 h-3 text-emerald-500" />}{locked && <Lock className="w-3 h-3 text-muted-foreground" />}
+                      Top {b.toLocaleString()} {done && <Check className="w-3 h-3 text-emerald-400" />}{locked && <Lock className="w-3 h-3 text-muted-foreground" />}
                     </span>
                     <span className="text-[11px] tabular-nums text-muted-foreground">{sliceKnown}/{sliceTotal || 50}</span>
+                    <span className="absolute inset-x-0 bottom-0 h-0.5 bg-white/5">
+                      <span className="block h-full bg-emerald-400/80" style={{ width: `${pct}%` }} />
+                    </span>
                   </button>
                 );
               })}
             </div>
           </section>
-          <section className="rounded-2xl border border-border bg-card/40 p-5">
-            <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-              Top {band.toLocaleString()} {langName} words · words {band - 49}–{band}
-            </p>
-            <p className="mt-1 text-2xl font-bold tabular-nums text-foreground">
-              {known} <span className="text-muted-foreground">/ {words.length} known</span>
-            </p>
-            <Progress value={words.length ? (known / words.length) * 100 : 0} className="mt-4 h-1.5" />
-            <Button size="lg" className="mt-5 w-full gap-2" onClick={start} disabled={starting || toLearn.length === 0}>
-              {starting ? <Loader2 className="w-5 h-5 animate-spin" /> : <BookOpen className="w-5 h-5" />}
-              {toLearn.length === 0 ? "All known — nice!" : `Study the next ${Math.min(BATCH, toLearn.length)}`}
-            </Button>
-          </section>
 
-          <ol className="rounded-2xl border border-border divide-y divide-border">
-            {words.map((w, i) => (
-              <li key={w.rank} className="flex items-center gap-3 px-4 py-2.5">
-                <span className="w-10 text-xs tabular-nums text-muted-foreground">{band - 50 + i + 1}</span>
-                <span className={`h-2 w-2 rounded-full ${DOT[stateOf(w)]}`} />
-                <span className="font-semibold text-foreground">{w.word}</span>
-                <span className="ml-auto text-sm text-muted-foreground truncate">{w.translation}</span>
-              </li>
-            ))}
+          <ol className="ls-glass overflow-hidden divide-y divide-white/[0.06]">
+            {words.map((w, i) => {
+              const st = stateOf(w);
+              return (
+                <li key={w.rank} className="flex items-center gap-3 px-5 py-3 transition hover:bg-white/[0.03]">
+                  <span className="w-10 text-xs tabular-nums text-muted-foreground">{band - 50 + i + 1}</span>
+                  <span className={`h-2 w-2 shrink-0 rounded-full ${DOT[st]} ${st === "green" ? "shadow-[0_0_8px_#34C759]" : ""}`} />
+                  <span className="font-semibold text-foreground" translate="no">{w.word}</span>
+                  <span className="ml-auto text-sm text-muted-foreground truncate">{w.translation}</span>
+                </li>
+              );
+            })}
           </ol>
         </div>
       )}

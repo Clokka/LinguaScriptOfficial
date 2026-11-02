@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Loader2, Sparkles, ChevronRight, RefreshCw } from "lucide-react";
 import { PageLoading } from "@/components/PageLoading";
+import { motion } from "framer-motion";
+import { GlassCard, CountUp } from "@/components/premium";
 import { Button } from "@/components/ui/button";
 import { FlashcardReview } from "@/components/FlashcardReview";
 import { supabase } from "@/integrations/supabase/client";
@@ -78,6 +80,12 @@ interface StarterDeck {
 }
 
 type DeckKey = "red" | "orange" | "green";
+
+const DECK_GRADIENT: Record<DeckKey, [string, string]> = {
+  red: ["#FF453A", "#B3150D"],
+  orange: ["#FF9F0A", "#E2550B"],
+  green: ["#34C759", "#14853A"],
+};
 
 const DECK_CONFIG: Record<DeckKey, { label: string; subtitle: string; color: string; emoji: string; cta: string }> = {
   red:    { label: "UNKNOWN",  subtitle: "Newly saved words",   color: "#FF3B30", emoji: "🔴", cta: "Review" },
@@ -332,7 +340,7 @@ const Flashcards = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="ls-aurora min-h-screen bg-background">
       <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-xl border-b border-border">
         <div className="flex items-center gap-3 px-6 py-3">
           <Button data-tour="page-back" variant="ghost" size="icon" onClick={() => navigate("/discover")}>
@@ -396,49 +404,62 @@ const Flashcards = () => {
                   </span>
                 )}
               </div>
-              <div className="grid gap-5 sm:grid-cols-3">
-                {(Object.keys(DECK_CONFIG) as DeckKey[]).map((key) => {
+              <div className="grid gap-4 sm:grid-cols-3">
+                {(Object.keys(DECK_CONFIG) as DeckKey[]).map((key, i) => {
                   const cfg = DECK_CONFIG[key];
                   const n = counts[key];
                   const disabled = n === 0;
+                  const [a, b] = DECK_GRADIENT[key];
+                  if (disabled) {
+                    return (
+                      <GlassCard key={key} data-tour={`deck-${key}`} accent={key} className="flex min-h-[200px] flex-col gap-3 p-7" aria-label={`${cfg.label}: no cards yet`}>
+                        <span className="h-9 w-9 rounded-full" style={{ background: `radial-gradient(circle at 35% 30%, #fff8, ${a} 45%, ${b})`, boxShadow: `0 0 24px -4px ${a}` }} />
+                        <div className="text-xs font-bold tracking-[0.2em]" style={{ color: a }}>{cfg.label}</div>
+                        <div className="text-5xl font-black leading-none text-foreground">0</div>
+                        <div className="text-sm text-muted-foreground">{cfg.subtitle}</div>
+                        <div className="mt-auto text-sm text-muted-foreground">Tap a word in any video to start</div>
+                      </GlassCard>
+                    );
+                  }
                   return (
-                    <button
+                    <motion.button
                       key={key}
                       data-tour={`deck-${key}`}
-                      disabled={disabled}
                       onClick={() => openDeck(key)}
-                      className={cn(
-                        "rounded-3xl p-8 text-left text-white shadow-xl transition-transform",
-                        "flex flex-col gap-3 min-h-[200px]",
-                        disabled ? "opacity-50 cursor-not-allowed" : "hover:scale-[1.02] active:scale-[0.99]",
-                      )}
-                      style={{ backgroundColor: cfg.color }}
+                      initial={{ opacity: 0, y: 14 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.06 * i, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+                      className="ls-deck ls-press ls-shine flex min-h-[200px] flex-col gap-3 p-7 text-left"
+                      style={{ ["--deck-a" as string]: a, ["--deck-b" as string]: b }}
                     >
-                      <div className="text-3xl">{cfg.emoji}</div>
-                      <div className="text-xs font-bold tracking-widest opacity-90">{cfg.label}</div>
-                      <div className="text-5xl font-black leading-none">{n}</div>
-                      <div className="text-sm opacity-90">{cfg.subtitle}</div>
-                      <div className="mt-auto inline-flex items-center gap-1 text-sm font-semibold">
-                        {disabled ? "No cards yet" : cfg.cta} <ChevronRight className="w-4 h-4" />
+                      <span className="ls-orb" aria-hidden />
+                      <span className="relative h-9 w-9 rounded-full" style={{ background: `radial-gradient(circle at 35% 30%, #fff, ${a} 55%)`, boxShadow: "0 4px 14px rgba(0,0,0,.25)" }} />
+                      <div className="relative text-xs font-bold tracking-[0.2em] opacity-90">{cfg.label}</div>
+                      <div className="relative text-5xl font-black leading-none drop-shadow-sm"><CountUp value={n} /></div>
+                      <div className="relative text-sm opacity-90">{cfg.subtitle}</div>
+                      <div className="relative mt-auto inline-flex w-fit items-center gap-1 rounded-full bg-black/15 px-3 py-1.5 text-sm font-semibold backdrop-blur">
+                        {cfg.cta} <ChevronRight className="w-4 h-4" />
                       </div>
-                    </button>
+                    </motion.button>
                   );
                 })}
               </div>
             </section>
 
             {/* Most common words deck */}
-            <button
+            <GlassCard
+              as="button"
+              accent="green"
               onClick={() => navigate("/flashcards/common")}
-              className="w-full glass-panel-strong rounded-2xl p-5 flex items-center gap-4 text-left hover:border-primary/40 transition-colors"
+              className="ls-press flex w-full items-center gap-4 p-5 text-left"
             >
               <CommonWordsBadge language={learningLanguage || "fr"} />
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
                 <p className="font-bold text-foreground">Most common words</p>
                 <p className="text-sm text-muted-foreground">Learn the words you'll hear most, in order.</p>
               </div>
-              <ChevronRight className="w-5 h-5 text-muted-foreground" />
-            </button>
+              <ChevronRight className="w-5 h-5 shrink-0 text-muted-foreground" />
+            </GlassCard>
 
             {/* Starter decks */}
             {false && starterDecks.length > 0 && (
