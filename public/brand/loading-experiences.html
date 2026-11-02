@@ -207,7 +207,8 @@ const MG=[
  ["Stacked cards spread","word cards for this video fan out",`<div class="fan" style="font-size:12px"><i></i><i></i><i></i><i></i></div>`,``],
  ["Logo stroke draw","the chameleon outline draws itself",`<svg viewBox="70 80 230 140" width="45%" class="x30"><path d="M136 196 Q128 118 205 106 Q276 96 285 160 Q290 202 244 208 L164 210 Q140 208 136 196 Z M162 118 Q160 92 134 88 Q104 84 88 112 Q74 138 84 162 Q94 186 126 188 Q152 189 160 168" fill="none" stroke="#34C759" stroke-width="5" stroke-dasharray="900" stroke-linecap="round"/></svg>`,`.x30 path{animation:x30 3s var(--ease) infinite}@keyframes x30{0%{stroke-dashoffset:900}70%,100%{stroke-dashoffset:0}}`],
 ];
-let css='';const M=document.getElementById('mgs');(PART==='all'||PART==='motion'?MG:[]).forEach(([nm,sub,h,c],i)=>{css+=c;tile(M,'M'+String(i+1).padStart(2,'0'),nm,sub,h,'mg')});
+// Styles for every motion graphic load on every part: the experiences reuse x10/x20/x23/x30.
+let css=MG.map(m=>m[3]).join('');const M=document.getElementById('mgs');(PART==='all'||PART==='motion'?MG:[]).forEach(([nm,sub,h,c],i)=>{tile(M,'M'+String(i+1).padStart(2,'0'),nm,sub,h,'mg')});
 // ---- 12 combos
 const words=[["noir","black","r"],["voudrais","would like","o"],["sucre","sugar","r"],["café","coffee","g"]];
 const W=(f)=>`<div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center">${words.map(([w,m,c],i)=>`<span class="wchip" style="--c:var(--${c});animation-delay:${i*.4}s"><b>${w}</b> ${m}</span>`).join("")}</div>`;
