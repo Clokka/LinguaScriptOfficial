@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="robots" content="noindex,nofollow">
+<title>LinguaScript Marketing Audit</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: one reading column (~760px) with wide tables/diagrams scrolling in their own boxes. Stage colours = the LinguaScript decks. */
+:root{
+  --bg:#FBFBF8; --surface:#FFFFFF; --fg:#16201A; --muted:#5B665F; --line:#DDE3DE;
+  --accent:#1F8F46; --red:#D92B21; --orange:#C05F00; --green:#1F8F46; --gold:#9A6B00;
+  --tint-red:#FDEDEC; --tint-orange:#FFF3E5; --tint-green:#E9F6EE; --tint-gold:#FFF7DD;
+  --display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --body:"IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0F1411; --surface:#161D19; --fg:#E8EEE9; --muted:#9AA79F; --line:#2A342E;
+  --accent:#4CD37A; --red:#FF6B61; --orange:#FFA94D; --green:#4CD37A; --gold:#FFD54A;
+  --tint-red:#2A1716; --tint-orange:#2A1F12; --tint-green:#14261B; --tint-gold:#2A2410; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0F1411; --surface:#161D19; --fg:#E8EEE9; --muted:#9AA79F; --line:#2A342E;
+  --accent:#4CD37A; --red:#FF6B61; --orange:#FFA94D; --green:#4CD37A; --gold:#FFD54A;
+  --tint-red:#2A1716; --tint-orange:#2A1F12; --tint-green:#14261B; --tint-gold:#2A2410; color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font:16px/1.6 var(--body);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:32px 64px}
+main{max-width:760px;margin:0 auto;display:grid;gap:40px}
+section{display:grid;gap:14px;min-width:0}
+h1,h2,h3{font-family:var(--display);line-height:1.15;text-wrap:balance;margin:0}
+h1{font-size:2.3rem;font-weight:800;letter-spacing:-.02em}
+h2{font-size:1.55rem;font-weight:800;padding-top:8px;border-top:2px solid var(--fg)}
+h3{font-size:1.1rem;font-weight:600}
+p,ul,ol{margin:0;max-width:68ch}
+ul,ol{padding-left:1.2em;display:grid;gap:6px}
+.kicker{font:500 12px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.lede{font-size:1.1rem;color:var(--muted)}
+.wrap{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:620px;font-size:14px}
+th,td{text-align:left;vertical-align:top;padding:9px 12px;border-bottom:1px solid var(--line)}
+th{font:600 12px var(--body);text-transform:uppercase;letter-spacing:.05em;color:var(--muted);background:var(--bg)}
+tr:last-child td{border-bottom:0}
+code,.mono{font-family:var(--mono);font-size:.88em}
+.pill{display:inline-block;font:600 11px var(--mono);padding:2px 7px;border-radius:4px;white-space:nowrap}
+.p0{background:var(--tint-red);color:var(--red)} .p1{background:var(--tint-orange);color:var(--orange)} .p2{background:var(--tint-gold);color:var(--gold)}
+.tofu{background:var(--tint-red);color:var(--red)} .mofu{background:var(--tint-orange);color:var(--orange)} .bofu{background:var(--tint-green);color:var(--green)}
+.verdict{border-left:4px solid var(--red);background:var(--surface);padding:16px 18px;display:grid;gap:10px}
+.note{font-size:14px;color:var(--muted)}
+pre.mermaid{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px;overflow-x:auto;margin:0}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px;display:grid;gap:6px;min-width:0}
+.card h3{font-size:1rem}
+.card p,.card li{font-size:14px}
+a{color:var(--accent)}
+a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.vp{font-family:var(--display);font-size:1.35rem;font-weight:600;line-height:1.3;border:1px solid var(--line);border-radius:8px;padding:16px;background:var(--surface)}
+</style>
+
+<main>
+<header style="display:grid;gap:10px">
+  <div class="kicker">Audit · 1 Nov 2026 · linguascript.co.uk</div>
+  <h1>LinguaScript Marketing Audit</h1>
+  <p class="lede">SEO, buyer's journey, personas (HubSpot GPCT/BA C&amp;I), full-funnel map, email automation and what to automate. Built from the code in the repo and public framework sources. Frameworks used: HubSpot inbound (attract → engage → delight), buyer's journey (awareness → consideration → decision), GPCTBA/C&amp;I.</p>
+</header>
+
+<section>
+  <h2>The verdict</h2>
+  <div class="verdict">
+    <p><b>The product is far ahead of the marketing.</b> LinguaScript has a website, Chrome extension, Android app with bubble, widgets and lock-screen card, an MCP connector, Video Studio, Write, Speak, Scan a page and a French course. It has no proof that anyone wants it badly enough to pay, no search presence I could find, and no follow-up for visitors who don't sign up on the spot.</p>
+    <ol>
+      <li><b>Google can't see you yet.</b> A <code>site:linguascript.co.uk</code> search returned zero pages. Every URL serves the same HTML until JavaScript runs.</li>
+      <li><b>No proof.</b> No testimonials, user numbers, ratings or case studies (the landing page says so on purpose: "no invented numbers"). Right call, but it means you need to collect real ones now.</li>
+      <li><b>No single ICP.</b> Pages target adults, polyglots, families and schools at once. A solo founder can't run four funnels.</li>
+      <li><b>No lead capture and no welcome series.</b> The email system is built for <i>retention</i> (reminders, streaks, recaps). Nothing nurtures a visitor who isn't ready, or turns a new sign-up into an active user in week one.</li>
+      <li><b>Too many features, no headline.</b> Visitors need one sentence and one button. Today the story is spread across 20+ pages and 6 test landing pages.</li>
+    </ol>
+  </div>
+</section>
+
+<section>
+  <h2>1 · SEO audit</h2>
+  <p>Checked from the repo (routes, <code>Seo.tsx</code>, <code>index.html</code>, <code>robots.txt</code>, <code>sitemap.xml</code>). I could not open the live site or Search Console from this session, and the Semrush account had no API units, so there are no keyword volumes here yet.</p>
+  <div class="wrap"><table>
+    <thead><tr><th>Priority</th><th>Problem</th><th>Evidence</th><th>Fix</th></tr></thead>
+    <tbody>
+      <tr><td><span class="pill p0">P0</span></td><td>Not visible in search</td><td><code>site:linguascript.co.uk</code> returned no pages from the domain.</td><td>Verify the domain in Google Search Console and Bing Webmaster Tools, submit <code>sitemap.xml</code>, request indexing for the 15 key pages. Check "Pages → Why pages aren't indexed".</td></tr>
+      <tr><td><span class="pill p0">P0</span></td><td>Single-page app: every URL ships identical HTML</td><td>Titles and descriptions are set by <code>react-helmet-async</code> after JavaScript runs. Before that, every page says "LinguaScript — Learn Languages by Watching Films". Google renders JS late; Bing, social previews and AI crawlers often don't.</td><td>Pre-render the ~20 marketing pages to static HTML at build time (Google's preferred "static rendering"). Keep the app pages as they are.</td></tr>
+      <tr><td><span class="pill p1">P1</span></td><td>Test and duplicate pages are indexable</td><td><code>/landing</code>, <code>/landingpage2–5</code>, <code>/landing5</code>, <code>/gap-demo</code>, <code>/demo</code>, <code>/mieoframes</code>, <code>/thechameleonmethod</code> (duplicate of <code>/the-chameleon-method</code>) have no <code>noindex</code> and inherit the homepage title.</td><td>Add <code>noindex</code> to every test page; redirect <code>/thechameleonmethod</code> → <code>/the-chameleon-method</code>.</td></tr>
+      <tr><td><span class="pill p1">P1</span></td><td>Key pages have no own title / description</td><td>41 pages have no <code>&lt;Seo&gt;</code>, including <b>/pricing</b>, <b>/story</b>, <b>/privacy</b>, <b>/terms</b>, <b>/teacher</b>.</td><td>Give each indexable page a unique title (≤60 chars) and description (≤155), written for one search intent.</td></tr>
+      <tr><td><span class="pill p1">P1</span></td><td>Sitemap lists pages that shouldn't rank</td><td><code>/linguascripts</code> is a redirect to the app's flashcards; <code>/overlay</code>, <code>/ai</code>, <code>/story</code> are app or niche pages.</td><td>Sitemap = marketing pages + blog posts only. Generate it at build time from one list (<code>scripts/generate-sitemap.ts</code> exists — make it the only source).</td></tr>
+      <tr><td><span class="pill p2">P2</span></td><td>Share image hosted on a preview domain</td><td><code>og:image</code> points at a Lovable preview R2 URL.</td><td>Host a 1200×630 brand image on linguascript.co.uk; one per key page later.</td></tr>
+      <tr><td><span class="pill p2">P2</span></td><td>Blog lives in the database</td><td>Posts load at runtime from Supabase (<code>src/lib/blog.ts</code>).</td><td>Include posts in the pre-render and the sitemap, or crawlers see empty pages.</td></tr>
+      <tr><td><span class="pill p2">P2</span></td><td>No keyword research behind the pages</td><td>Pages are written from the product outwards ("Chameleon Method", "dual subtitles").</td><td>Pick 1 keyword per page from real search data (Search Console after 4 weeks, or Semrush once units are added).</td></tr>
+    </tbody>
+  </table></div>
+  <p class="note">Brand-name searches matter too: you already redirect <code>/lingoscript</code> and <code>/language-script</code>, which shows people misspell the name. Search Console will show how many.</p>
+</section>
+
+<section>
+  <h2>2 · Every page on one stage of the buyer's journey</h2>
+  <p>HubSpot's three stages: <b>Awareness</b> (the buyer notices a problem), <b>Consideration</b> (they name it and research approaches), <b>Decision</b> (they choose a product). Each page should serve one stage and push to the next.</p>
+  <div class="wrap"><table>
+    <thead><tr><th>Stage</th><th>Page</th><th>Search intent it should own</th><th>Next step (CTA)</th></tr></thead>
+    <tbody>
+      <tr><td><span class="pill tofu">Awareness</span></td><td><code>/frequent-words</code></td><td>"how many words to understand a language", "most common French words"</td><td>Free: first 100 words → sign up</td></tr>
+      <tr><td><span class="pill tofu">Awareness</span></td><td><code>/language-learning-psychology</code></td><td>"why can't I understand native speakers", "Duolingo plateau"</td><td>Read the method</td></tr>
+      <tr><td><span class="pill tofu">Awareness</span></td><td><code>/blog</code> posts</td><td>Problem questions (see content plan below)</td><td>Lead magnet</td></tr>
+      <tr><td><span class="pill tofu">Awareness</span></td><td><code>/french-words</code> <i>(new)</i></td><td>"French words that are the same in English"</td><td>Lesson 1 → sign up to save progress</td></tr>
+      <tr><td><span class="pill mofu">Consideration</span></td><td><code>/the-chameleon-method</code></td><td>"learn a language by watching TV", "comprehensible input"</td><td>Watch the demo</td></tr>
+      <tr><td><span class="pill mofu">Consideration</span></td><td><code>/dual-subtitles</code>, <code>/netflix</code>, <code>/youtube</code></td><td>"dual subtitles Netflix", "learn French with YouTube"</td><td>Install extension</td></tr>
+      <tr><td><span class="pill mofu">Consideration</span></td><td><code>/anki-alternative</code></td><td>"Anki alternative", "spaced repetition app"</td><td>Start free</td></tr>
+      <tr><td><span class="pill mofu">Consideration</span></td><td><code>/chrome-extension</code></td><td>"language learning Chrome extension"</td><td>Add to Chrome</td></tr>
+      <tr><td><span class="pill bofu">Decision</span></td><td><code>/vs/language-reactor</code></td><td>"Language Reactor alternative"</td><td>Start free</td></tr>
+      <tr><td><span class="pill bofu">Decision</span></td><td><code>/pricing</code></td><td>"LinguaScript price" (brand)</td><td>Checkout</td></tr>
+      <tr><td><span class="pill bofu">Decision</span></td><td><code>/family</code>, <code>/for-schools</code>, <code>/polyglot</code></td><td>Buyer-specific: parent, teacher, multi-language learner</td><td>Plan checkout / book a call</td></tr>
+      <tr><td><span class="pill bofu">Decision</span></td><td><code>/</code> home</td><td>Brand searches; everyone arriving from ads and social</td><td>One button: Start free</td></tr>
+    </tbody>
+  </table></div>
+  <h3>Gaps by stage</h3>
+  <div class="grid2">
+    <div class="card"><span class="pill tofu" style="justify-self:start">Awareness — thinnest</span><p>Only 3–4 pages. No content answering the questions people type before they know you exist. This is where organic traffic comes from.</p></div>
+    <div class="card"><span class="pill mofu" style="justify-self:start">Consideration — OK</span><p>Good topic coverage. Missing: a 60-second product demo video on each page, and a "how it works in 3 steps" block.</p></div>
+    <div class="card"><span class="pill bofu" style="justify-self:start">Decision — weakest on trust</span><p>One comparison only. Missing: vs LingQ, vs Migaku, vs Duolingo; testimonials; a refund promise; a real founder face and story.</p></div>
+  </div>
+</section>
+
+<section>
+  <h2>3 · ICP and buyer personas (GPCTBA/C&amp;I)</h2>
+  <p><b>ICP</b> = the type of customer you want. <b>Buyer persona</b> = the person who decides and pays (HubSpot: "a semi-fictional representation of your ideal buyer"). For a teen learner the user and the buyer are different people, so they need different pages and emails.</p>
+  <div class="wrap"><table>
+    <thead><tr><th></th><th>A · Self-taught adult (recommended ICP)</th><th>B · Parent of a teen</th><th>C · Sibling / partner (gift)</th><th>D · School MFL department</th></tr></thead>
+    <tbody>
+      <tr><td><b>Who</b></td><td>18–35, watches Netflix/YouTube daily, has tried Duolingo, stuck at "I can't follow real speech"</td><td>Parent of a 13–16 year old taking GCSE French/Spanish</td><td>Buys a present for someone learning or moving abroad</td><td>Head of languages; bursar signs</td></tr>
+      <tr><td><b>Goals</b></td><td>Understand shows without subtitles; talk on a trip or after a move</td><td>Better grade; child studies without arguments</td><td>A thoughtful, useful gift</td><td>Better results and engagement; less marking</td></tr>
+      <tr><td><b>Plans</b> (today)</td><td>Duolingo streak, random YouTube, Language Reactor + Anki</td><td>Tutor (£25–40/hr), revision books</td><td>Book, course voucher</td><td>Textbook + a licensed platform</td></tr>
+      <tr><td><b>Challenges</b></td><td>Plateau; Anki deck-building is homework; no time</td><td>Teen won't use "school" apps; screen time</td><td>Doesn't know what's good</td><td>Safeguarding, GDPR, school login, budget cycle</td></tr>
+      <tr><td><b>Timeline</b></td><td>Days to weeks (trip date, new year)</td><td>Exam season: Jan–May</td><td>Birthdays, Christmas</td><td>Buys Jun–Sep for the next school year; 1–3 month cycle</td></tr>
+      <tr><td><b>Budget</b></td><td>£5–10/month (competitors sit at ~$5–13/month)</td><td>Compares with one tutor hour</td><td>£20–80 one-off</td><td>Per-seat annual licence</td></tr>
+      <tr><td><b>Authority</b></td><td>Decides alone, in minutes</td><td>Parent pays, teen must agree</td><td>Decides alone</td><td>Teacher champions, SLT/bursar signs, needs DPA</td></tr>
+      <tr><td><b>Negative consequences</b></td><td>Another abandoned app; feels "bad at languages"</td><td>Lower grade, more tutoring costs</td><td>Gift goes unused</td><td>Falling uptake at GCSE/A-level</td></tr>
+      <tr><td><b>Positive implications</b></td><td>Watches favourite shows in French; confidence abroad</td><td>Independent learner, better grade</td><td>Looks thoughtful</td><td>Engaged classes, data for Ofsted</td></tr>
+      <tr><td><b>Where to reach</b></td><td>Google, YouTube, Reddit (r/languagelearning, r/French), TikTok</td><td>Google ("GCSE French help"), Facebook groups, Mumsnet</td><td>Google ("gifts for language learners")</td><td>LinkedIn, TES, ALL (Association for Language Learning), email outreach</td></tr>
+      <tr><td><b>Fit now</b></td><td><b>High</b> — self-serve, fast</td><td>Medium — later, via /family</td><td>Low — seasonal add-on</td><td>Low now — needs proof, DPA, sales time</td></tr>
+    </tbody>
+  </table></div>
+  <p><b>Recommendation:</b> run one funnel for persona A for the next 90 days. Keep <code>/family</code> and <code>/for-schools</code> live, but don't spend time on them until you have 20+ real testimonials from A. Schools without case studies will cost you months.</p>
+</section>
+
+<section>
+  <h2>4 · Value proposition and proof</h2>
+  <div class="vp">Learn the language from the shows you already watch: every word you save turns red → orange → green on screen, until you understand without subtitles.</div>
+  <div class="grid2">
+    <div class="card"><h3>Explain it</h3><ul><li>3-step "how it works" with real screenshots</li><li>60-second screen recording: watch → tap → word turns green</li></ul></div>
+    <div class="card"><h3>Prove it</h3><ul><li>Ask for a quote when a learner hits 100 green words (<code>word_turned_green</code> event already exists)</li><li>Chrome Web Store rating and count on the home page</li><li>One "before/after" learner story per month</li></ul></div>
+    <div class="card"><h3>Compare it</h3><ul><li>Pages: vs LingQ, vs Migaku, vs Duolingo (you have vs Language Reactor)</li><li>Honest tables: what they do better, too</li></ul></div>
+    <div class="card"><h3>Lower the risk</h3><ul><li>Free plan stays free; say so in the hero</li><li>14-day refund on yearly</li><li>Founder name and photo on /story</li></ul></div>
+  </div>
+</section>
+
+<section>
+  <h2>5 · The funnel</h2>
+  <p>Top, middle and bottom of funnel with the offer at each step and the event that proves it happened. Events in <code>mono</code> already exist in <code>src/lib/analytics.ts</code>.</p>
+  <pre class="mermaid">
+flowchart TB
+  subgraph TOFU["TOP · Awareness: get found"]
+    A1["Google: problem questions<br/>blog + /frequent-words + /french-words"]
+    A2["YouTube Shorts / TikTok:<br/>screen recordings of words turning green"]
+    A3["Reddit + forums:<br/>answers, not ads"]
+  end
+  subgraph MOFU["MIDDLE · Consideration: earn the click"]
+    B1["Method + dual-subtitle pages"]
+    B2["Lead magnet: 'Your first 100 French words'<br/>email capture"]
+    B3["Chrome extension install<br/>extension_connected"]
+  end
+  subgraph BOFU["BOTTOM · Decision: convert"]
+    C1["Sign up · signed_up"]
+    C2["Activation: 10 words saved + 1 video<br/>first_word_saved · video_completed"]
+    C3["Paywall · paywall_viewed"]
+    C4["Paid · upgrade_completed"]
+  end
+  subgraph DELIGHT["DELIGHT: feed the top again"]
+    D1["word_turned_green milestones"]
+    D2["Ask for review / testimonial"]
+    D3["Gift a friend · /gift"]
+  end
+  A1 --> B1
+  A2 --> B3
+  A3 --> B1
+  B1 --> B2
+  B1 --> C1
+  B2 --> C1
+  B3 --> C1
+  C1 --> C2 --> C3 --> C4
+  C4 --> D1 --> D2 --> A1
+  D1 --> D3 --> C1
+  </pre>
+  <div class="wrap"><table>
+    <thead><tr><th>Stage</th><th>Metric to watch weekly</th><th>Healthy first target</th><th>Tool</th></tr></thead>
+    <tbody>
+      <tr><td><span class="pill tofu">Top</span></td><td>Organic clicks, impressions per page</td><td>Indexed pages = sitemap pages</td><td>Search Console</td></tr>
+      <tr><td><span class="pill mofu">Middle</span></td><td>Visitor → email or sign-up</td><td>2–5% of visitors</td><td>PostHog funnel</td></tr>
+      <tr><td><span class="pill bofu">Bottom</span></td><td>Sign-up → activated (10 words + 1 video in 7 days)</td><td>40%+</td><td>PostHog</td></tr>
+      <tr><td><span class="pill bofu">Bottom</span></td><td>Activated → paid</td><td>Measure first, then set</td><td>Stripe + PostHog</td></tr>
+    </tbody>
+  </table></div>
+  <p class="note">Targets are starting points to measure against, not benchmarks from a source. Set real ones after 4 weeks of data.</p>
+</section>
+
+<section>
+  <h2>6 · Email automation, synced to the funnel</h2>
+  <p>What exists today (in <code>supabase/functions/_shared/transactional-email-templates</code>): review reminder, streak rescue, weekly progress, monthly recap, trial ending, checkout recovery, payment failed, friend notifications. All of these are <b>retention</b>. Missing: everything before activation.</p>
+  <pre class="mermaid">
+flowchart LR
+  L["Lead magnet sign-up<br/>(no account)"] --> N1["Day 0: the 100 words PDF + 1 video"]
+  N1 --> N2["Day 2: why you plateau<br/>(awareness)"]
+  N2 --> N3["Day 4: how the Chameleon Method works<br/>(consideration)"]
+  N3 --> N4["Day 7: vs Duolingo / Language Reactor<br/>(decision) → Start free"]
+  S["signed_up"] --> W1["Day 0: welcome + 1 task:<br/>save 3 words in a video"]
+  W1 --> W2{"first_word_saved<br/>within 48h?"}
+  W2 -- no --> W3["Day 2: 'Pick a show' nudge"]
+  W2 -- yes --> W4["Day 3: install the extension"]
+  W3 --> W4
+  W4 --> W5["Day 5: first word turns green → review"]
+  W5 --> E["Existing retention:<br/>reminders · streak · weekly · monthly"]
+  E --> P{"paywall_viewed,<br/>no checkout?"}
+  P -- yes --> R["Existing checkout recovery"]
+  E --> X["Missing: win-back after 14 days inactive"]
+  </pre>
+  <div class="wrap"><table>
+    <thead><tr><th>Sequence</th><th>Trigger</th><th>Status</th><th>Build with</th></tr></thead>
+    <tbody>
+      <tr><td>Lead nurture (4 emails)</td><td>Email captured, no account</td><td><span class="pill p0">Missing</span></td><td>New <code>leads</code> table + <code>dispatch-retention-emails</code> pattern</td></tr>
+      <tr><td>Welcome / activation (4 emails)</td><td><code>signed_up</code></td><td><span class="pill p0">Missing</span></td><td>Same cron dispatcher, branch on events</td></tr>
+      <tr><td>Win-back</td><td>14 days inactive</td><td><span class="pill p1">Missing</span></td><td>Same dispatcher</td></tr>
+      <tr><td>Testimonial ask</td><td>100 green words</td><td><span class="pill p1">Missing</span></td><td>Template + reply-to inbox</td></tr>
+      <tr><td>Parent / school nurture</td><td>Lead from /family or /for-schools</td><td><span class="pill p2">Later</span></td><td>After persona A works</td></tr>
+      <tr><td>Retention, recovery, billing</td><td>Existing triggers</td><td><span class="pill bofu">Live</span></td><td>—</td></tr>
+    </tbody>
+  </table></div>
+  <p class="note">Benchmark to compare against: Mailchimp's Education &amp; Training average is a 35.64% open rate and 3.02% click rate (data last updated Dec 2023).</p>
+</section>
+
+<section>
+  <h2>7 · What to automate, and with what</h2>
+  <p>You already own most of the stack. The gap is wiring, not tools.</p>
+  <pre class="mermaid">
+flowchart LR
+  subgraph Data["Your data (have)"]
+    SB[("Supabase<br/>users · words · leads")]
+    PH["PostHog<br/>funnel events"]
+    ST["Stripe<br/>payments"]
+  end
+  subgraph Engine["Automation engine (have)"]
+    CRON["pg_cron → dispatch-retention-emails"]
+    MAIL["send-transactional-email<br/>templates"]
+  end
+  subgraph Search["Search (to connect)"]
+    GSC["Google Search Console API"]
+    SEM["Semrush MCP<br/>(needs API units)"]
+  end
+  subgraph Claude["Claude + connectors (available)"]
+    GM["Gmail MCP<br/>reply to testimonials, school leads"]
+    GD["Google Drive MCP<br/>content calendar, briefs"]
+    GC["Google Calendar MCP<br/>school demo calls"]
+    AP["Apollo MCP<br/>find school language heads (later)"]
+    CV["Canva / Figma MCP<br/>social images"]
+    TD["Todoist / Asana MCP<br/>weekly marketing tasks"]
+  end
+  SB --> CRON --> MAIL
+  PH --> CRON
+  ST --> CRON
+  GSC --> GD
+  SEM --> GD
+  GD --> CV
+  GM --> SB
+  AP --> GM
+  GC --> GM
+  </pre>
+  <div class="wrap"><table>
+    <thead><tr><th>Job</th><th>Automate how</th><th>Effort</th></tr></thead>
+    <tbody>
+      <tr><td>Weekly SEO report</td><td>Scheduled Claude task: Search Console + PostHog → one page per week (clicks, top pages, drop-offs)</td><td>Low, once GSC is verified</td></tr>
+      <tr><td>Blog drafts from real questions</td><td>Claude reads Search Console queries + Reddit threads → writes a brief → you edit and publish. A human edits every post.</td><td>Medium</td></tr>
+      <tr><td>Short videos</td><td>Video Studio already records dual-subtitle clips. Post 3 a week from your own screen.</td><td>Low</td></tr>
+      <tr><td>Testimonials</td><td>Email at 100 green words → replies land in Gmail → Claude files them in Drive with permission status</td><td>Low</td></tr>
+      <tr><td>School leads (later)</td><td>Apollo finds heads of languages → Gmail drafts → you send personally</td><td>Medium; only after case studies</td></tr>
+    </tbody>
+  </table></div>
+  <p class="note">Status of connectors in this session: Semrush is connected but has no API units. Canva, Notion, Stripe, Linear and monday.com need sign-in in your claude.ai connector settings. The Supabase connector failed to connect.</p>
+</section>
+
+<section>
+  <h2>8 · Awareness content plan (first 12 pieces)</h2>
+  <p>Each one answers a question your persona A types before they know you exist. Check real volumes in Search Console or Semrush before writing; these are candidates, not measured keywords.</p>
+  <div class="wrap"><table>
+    <thead><tr><th>#</th><th>Title (working)</th><th>Stage</th><th>Links to</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>How many French words do you need to understand Netflix?</td><td><span class="pill tofu">A</span></td><td>/frequent-words</td></tr>
+      <tr><td>2</td><td>Why you still can't understand native speakers after a year of Duolingo</td><td><span class="pill tofu">A</span></td><td>/the-chameleon-method</td></tr>
+      <tr><td>3</td><td>1,000 French words you already know (and the rules behind them)</td><td><span class="pill tofu">A</span></td><td>/french-words</td></tr>
+      <tr><td>4</td><td>Best French shows on Netflix for beginners, by vocabulary level</td><td><span class="pill tofu">A</span></td><td>/dual-subtitles/netflix</td></tr>
+      <tr><td>5</td><td>Is watching TV in a foreign language enough to learn it?</td><td><span class="pill tofu">A</span></td><td>/language-learning-psychology</td></tr>
+      <tr><td>6</td><td>How to turn on dual subtitles on Netflix and YouTube</td><td><span class="pill mofu">C</span></td><td>/chrome-extension</td></tr>
+      <tr><td>7</td><td>Comprehensible input: what it is and how to use it at home</td><td><span class="pill mofu">C</span></td><td>/the-chameleon-method</td></tr>
+      <tr><td>8</td><td>Anki without the homework: spaced repetition from what you watch</td><td><span class="pill mofu">C</span></td><td>/anki-alternative</td></tr>
+      <tr><td>9</td><td>LinguaScript vs LingQ</td><td><span class="pill bofu">D</span></td><td>/pricing</td></tr>
+      <tr><td>10</td><td>LinguaScript vs Migaku</td><td><span class="pill bofu">D</span></td><td>/pricing</td></tr>
+      <tr><td>11</td><td>LinguaScript vs Duolingo: which one for understanding real speech?</td><td><span class="pill bofu">D</span></td><td>/pricing</td></tr>
+      <tr><td>12</td><td>A learner's first 30 days (real story, with permission)</td><td><span class="pill bofu">D</span></td><td>Start free</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <h2>9 · 90-day plan</h2>
+  <div class="wrap"><table>
+    <thead><tr><th>When</th><th>Do</th><th>Done when</th></tr></thead>
+    <tbody>
+      <tr><td><b>Week 1</b></td><td>Search Console + Bing verified, sitemap cleaned and submitted, test pages <code>noindex</code>, titles on /pricing and /story</td><td>All key pages "Indexed" or "Discovered"</td></tr>
+      <tr><td><b>Weeks 1–2</b></td><td>Pre-render marketing pages; pick one homepage variant; 60-second demo video on home and method pages</td><td>View-source of each page shows its own title and H1</td></tr>
+      <tr><td><b>Weeks 2–3</b></td><td>Welcome/activation emails; lead magnet + nurture; testimonial ask at 100 green words</td><td>Emails firing; first 5 replies</td></tr>
+      <tr><td><b>Weeks 3–8</b></td><td>2 awareness posts a week (list above); 3 short videos a week from Video Studio; answer 5 Reddit questions a week (no links unless asked)</td><td>12 posts live; impressions rising in Search Console</td></tr>
+      <tr><td><b>Weeks 6–10</b></td><td>vs LingQ, vs Migaku, vs Duolingo pages; testimonials on home and pricing</td><td>3 comparison pages; 10+ real quotes</td></tr>
+      <tr><td><b>Weeks 10–13</b></td><td>Review funnel numbers; decide whether /family or /for-schools gets the next 90 days</td><td>A written decision based on your own data</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <h2>Sources</h2>
+  <ul class="note">
+    <li>HubSpot GPCTBA/C&amp;I: <a href="https://blog.hubspot.com/sales/gpct-sales-qualification">HubSpot Sales Blog</a>, <a href="https://resources.rework.com/libraries/pipeline-management/gpctba-ci-framework">Rework summary</a>, <a href="https://www.sybill.ai/blogs/gpct-vs-bant">Sybill: GPCT vs BANT</a></li>
+    <li>Buyer's journey and content mapping: <a href="https://consultevo.com/hubspot-buyers-journey-guide/">HubSpot buyer's journey guide (summary)</a>, <a href="https://www.pedowitzgroup.com/map-content-to-stages-of-buyer-journey">Pedowitz Group</a>, <a href="https://www.310creative.com/blog/map-content-across-buyers-journey">310 Creative</a></li>
+    <li>Inbound flywheel and personas: <a href="https://www.hubspot.com/flywheel%20">HubSpot flywheel</a>, <a href="https://academy.hubspot.com/courses/inbound">HubSpot Academy inbound course</a></li>
+    <li>JavaScript SEO: <a href="https://searchengineland.com/google-no-longer-recommends-using-dynamic-rendering-for-google-search-387054">Search Engine Land: Google no longer recommends dynamic rendering</a>, <a href="https://www.seroundtable.com/google-search-updates-javascript-docs-36849.html">Search Engine Roundtable</a></li>
+    <li>Email benchmarks: <a href="https://mailchimp.com/resources/email-marketing-benchmarks">Mailchimp benchmarks</a> (Education &amp; Training, Dec 2023)</li>
+    <li>Competitor pricing (vendor and third-party blogs; check each vendor's site): <a href="https://comprehensibleinput.it.com/blog/best-comprehensible-input-apps-2026">Comprehensible input apps 2026</a>, <a href="https://slashdot.org/software/comparison/Language-Reactor-vs-Migaku/">Slashdot comparison</a></li>
+  </ul>
+  <p class="note">Not checked in this audit: the live site (blocked from this session), Search Console data, keyword volumes (Semrush had no API units), your actual sign-up and payment numbers.</p>
+</section>
+</main>
+</html>

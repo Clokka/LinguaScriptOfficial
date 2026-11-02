@@ -37,6 +37,33 @@
     if (window.ResizeObserver) new ResizeObserver(post).observe(t);
     post(); setTimeout(post, 600); setTimeout(post, 1800);
   }
+  // Live homepage (&live=1): call-to-action buttons inside the design open the
+  // real page. The parent (StudioLanding) checks the origin and the path list.
+  if (/[#&]live=1/.test(location.hash)) {
+    var ROUTES = [
+      [/log ?in|sign ?in/i, "/auth"],
+      [/pric|plan|upgrade|\bpro\b/i, "/pricing"],
+      [/demo/i, "/demo"],
+      [/start|try|free|join|sign ?up|get |begin|create|download|install|add to|continue|let'?s go|open (the )?app/i, "/onboarding"],
+      [/method/i, "/the-chameleon-method"],
+      [/frequen|most common|top 3,?000/i, "/frequent-words"],
+      [/blog/i, "/blog"],
+      [/privacy/i, "/privacy"],
+      [/terms/i, "/terms"]
+    ];
+    document.addEventListener("click", function (e) {
+      var el = e.target.closest && e.target.closest("a,button,[role=button],.b1,.b2,.btn,.cta,.go,[class*=btn],[class*=cta]");
+      if (!el) return;
+      var text = (el.textContent || "").trim().slice(0, 60);
+      for (var i = 0; i < ROUTES.length; i++) {
+        if (ROUTES[i][0].test(text)) {
+          e.preventDefault(); e.stopPropagation();
+          try { parent.postMessage({ lsGo: ROUTES[i][1] }, location.origin); } catch (err) {}
+          return;
+        }
+      }
+    }, true);
+  }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", function () { setTimeout(go, 120); });
   else setTimeout(go, 120);
 })();

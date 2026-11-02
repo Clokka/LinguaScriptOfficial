@@ -3,14 +3,16 @@
 //                   give team logins, approve and pay.
 //   mode "studio" → Site Studio (public/brand/site-studio.html) in a lazy
 //                   iframe, so its ~700 kB of labs never reach visitors.
-import { useCallback, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Download, ExternalLink } from "lucide-react";
+import { Download } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { GlassCard, Eyebrow, Skeleton } from "@/components/premium";
 import { money } from "@/pages/Partners";
+
+const StudioFrame = lazy(() => import("@/components/hq/StudioFrame"));
 
 type Row = { id: string; code: string; display_name: string; status: string; commission_rate: number;
   clicks: number; signups: number; sales: number; pending: number; approved: number; paid: number };
@@ -24,16 +26,12 @@ export default function TeamTools({ mode, isAdmin, days, setDays, onOpen }: Prop
   return <Team isAdmin={isAdmin} days={days} setDays={setDays} onOpen={onOpen} />;
 }
 
+// The connected Studio (same as HQ → Studio), so "Go live" works here too.
 function Studio() {
   return (
-    <div className="space-y-2">
-      <a href="/brand/site-studio.html" target="_blank" rel="noopener"
-        className="inline-flex items-center gap-1 text-sm underline text-muted-foreground hover:text-foreground">
-        Open full screen <ExternalLink className="h-3.5 w-3.5" />
-      </a>
-      <iframe src="/brand/site-studio.html" title="Site Studio" loading="lazy"
-        className="w-full rounded-2xl border border-white/10 bg-black" style={{ height: "80vh" }} />
-    </div>
+    <Suspense fallback={<Skeleton className="h-64" />}>
+      <StudioFrame />
+    </Suspense>
   );
 }
 

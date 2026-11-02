@@ -1,18 +1,20 @@
 import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import LandingPageTest from "@/components/landing/LandingPageTest";
+import LiveHome from "@/components/landing/LiveHome";
 import { supabase } from "@/integrations/supabase/client";
 import { applyGuestOnboarding } from "@/lib/guestOnboarding";
 import { PageLoading } from "@/components/PageLoading";
 import { AppWelcome, isInApp } from "@/components/AppWelcome";
 
-// Root route: unauthenticated visitors get the landing page A/B test
-// (Landing5 vs LandingClear, see LandingPageTest) — or, inside the phone app,
+// Root route: unauthenticated visitors get the homepage published in HQ
+// (LiveHome; falls back to the built-in LandingPageTest) — or, inside the phone app,
 // the app's own welcome screens (AppWelcome).
 // Authenticated users go to /discover — unless they've never completed
 // onboarding (e.g. brand-new Google sign-ups), in which case they are
 // sent through the onboarding flow first.
+const isHomePreview = () => /[?&](lp|sitepreview)=/.test(window.location.search);
+
 const Index = () => {
   const { user, loading } = useAuth();
   const [onboarded, setOnboarded] = useState<boolean | null>(null);
@@ -54,8 +56,10 @@ const Index = () => {
     };
   }, [user]);
 
+  // HQ and Studio previews (?sitepreview=1, ?lp=…) show the homepage even to signed-in team members.
+  if (isHomePreview()) return <LiveHome />;
   if (loading) return <PageLoading />;
-  if (!user) return isInApp() ? <AppWelcome /> : <LandingPageTest />;
+  if (!user) return isInApp() ? <AppWelcome /> : <LiveHome />;
   if (onboarded === null) return <PageLoading />;
   return <Navigate to={onboarded ? next ?? "/discover" : "/onboarding"} replace />;
 };

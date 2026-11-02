@@ -54,7 +54,8 @@ export default function Partners() {
   const { user, loading } = useAuth();
   const [roles, setRoles] = useState<string[] | null>(null);
   const [tab, setTab] = useState<Tab>("home");
-  const [viewing, setViewing] = useState<string | null>(null); // team: which partner
+  // team: which partner (HQ → Partners opens /partners?view=<id>)
+  const [viewing, setViewing] = useState<string | null>(() => new URLSearchParams(window.location.search).get("view"));
   const [days, setDays] = useState(30);
   const [dash, setDash] = useState<Dash | null | undefined>(undefined);
 

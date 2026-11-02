@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="robots" content="noindex,nofollow">
+<title>LinguaScript Marketing Flowcharts</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,800&family=IBM+Plex+Sans:wght@400;600&display=swap">
+<style>
+/* Layout: one column of full-width flowcharts with a jump list. Diagram colours are fixed light cards so the stage colours read the same in both themes. */
+:root{--bg:#FBFBF8;--fg:#16201A;--muted:#5B665F;--line:#DDE3DE;--card:#FFFFFF;--accent:#1F8F46;--red:#D92B21;--orange:#C05F00;--gold:#9A6B00;
+--display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;--body:"IBM Plex Sans","Segoe UI",system-ui,sans-serif}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#0F1411;--fg:#E8EEE9;--muted:#9AA79F;--line:#2A342E;--accent:#4CD37A;--red:#FF6B61;--orange:#FFA94D;--gold:#FFD54A;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0F1411;--fg:#E8EEE9;--muted:#9AA79F;--line:#2A342E;--accent:#4CD37A;--red:#FF6B61;--orange:#FFA94D;--gold:#FFD54A;color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font:16px/1.55 var(--body);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:32px 64px}
+main{max-width:980px;margin:0 auto;display:grid;gap:36px}
+h1,h2{font-family:var(--display);font-weight:800;line-height:1.15;text-wrap:balance;margin:0}
+h1{font-size:2.2rem}h2{font-size:1.4rem}
+section{display:grid;gap:10px;min-width:0}
+p{margin:0;max-width:72ch;color:var(--muted)}
+pre.mermaid{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:16px;overflow-x:auto;margin:0;color:#16201A}
+nav{display:flex;flex-wrap:wrap;gap:6px}
+nav a{font-size:13px;color:var(--fg);text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:4px 10px}
+nav a:hover,nav a:focus-visible{border-color:var(--accent);outline:none}
+.key{display:flex;flex-wrap:wrap;gap:14px;font-size:14px}
+.key span{display:inline-flex;align-items:center;gap:6px}
+.key i{width:14px;height:14px;border-radius:3px;border:2px solid;display:inline-block}
+</style>
+<main>
+<header style="display:grid;gap:12px">
+<h1>LinguaScript Marketing Flowcharts</h1>
+<p>13 flowcharts: the funnel, the buyer's journey, personas, HubSpot GPCTBA/C&amp;I, every email sequence, the proof loop, content and video engines, school sales, the automation stack and your weekly rhythm. Dashed boxes are missing today.</p>
+<div class="key"><span><i style="border-color:var(--red)"></i>Awareness (top)</span><span><i style="border-color:var(--orange)"></i>Consideration (middle)</span><span><i style="border-color:var(--accent)"></i>Decision (bottom)</span><span><i style="border-color:var(--gold)"></i>Delight</span><span><i style="border-color:var(--muted);border-style:dashed"></i>Missing today</span></div>
+<nav><a href="#01-funnel">1. The whole funnel</a><a href="#02-journey">2. Every page on one buyer's-journey stage</a><a href="#03-personas">3. Who is buying? Persona routing</a><a href="#04-gpct">4. GPCTBA/C&amp;I: qualifying a buyer</a><a href="#05-lead-nurture">5. Lead magnet → nurture emails</a><a href="#06-activation">6. New user → activated</a><a href="#07-retention">7. Retention, paywall and win-back</a><a href="#08-proof">8. Delight loop: collecting real proof</a><a href="#09-content">9. Content engine: one article a week from real questions</a><a href="#10-video">10. Short-video engine</a><a href="#11-schools">11. School sales pipeline (later)</a><a href="#12-stack">12. Automation stack: what talks to what</a><a href="#13-weekly">13. Your weekly marketing rhythm</a></nav>
+</header>
+<section id="01-funnel"><h2>1. The whole funnel</h2><p>Red = awareness (top), orange = consideration (middle), green = decision (bottom), gold = delight. Every arrow is a step you can measure.</p><pre class="mermaid">flowchart TB
+  G["Google search&lt;br/&gt;problem questions"]:::tofu
+  V["Short videos&lt;br/&gt;TikTok · YouTube Shorts"]:::tofu
+  R["Reddit · forums&lt;br/&gt;helpful answers"]:::tofu
+  B["Blog · /frequent-words&lt;br/&gt;/french-words"]:::tofu
+  M["Method + dual-subtitle pages&lt;br/&gt;demo video"]:::mofu
+  LM["Lead magnet&lt;br/&gt;'First 100 French words'"]:::mofu
+  EX["Chrome extension install"]:::mofu
+  SU["Sign up"]:::bofu
+  AC["Activated&lt;br/&gt;10 words + 1 video in 7 days"]:::bofu
+  PW["Sees pricing"]:::bofu
+  PD["Pays"]:::bofu
+  GR["Words turn green&lt;br/&gt;milestones"]:::gold
+  TS["Testimonial / review"]:::gold
+  GF["Gifts a friend"]:::gold
+  G --&gt; B
+  R --&gt; B
+  V --&gt; EX
+  B --&gt; M
+  B --&gt; LM
+  M --&gt; SU
+  M --&gt; EX
+  LM --&gt;|"4 nurture emails"| SU
+  EX --&gt; SU
+  SU --&gt;|"4 welcome emails"| AC --&gt; PW --&gt; PD
+  PD --&gt; GR --&gt; TS --&gt;|"proof on site"| M
+  GR --&gt; GF --&gt; SU
+
+  classDef tofu fill:#FDEDEC,stroke:#D92B21,color:#16201A
+  classDef mofu fill:#FFF3E5,stroke:#C05F00,color:#16201A
+  classDef bofu fill:#E9F6EE,stroke:#1F8F46,color:#16201A
+  classDef gold fill:#FFF7DD,stroke:#9A6B00,color:#16201A
+  classDef miss fill:#FFFFFF,stroke:#D92B21,stroke-dasharray:5 4,color:#16201A
+  classDef tool fill:#EEF1F5,stroke:#5B665F,color:#16201A</pre></section>
+<section id="02-journey"><h2>2. Every page on one buyer's-journey stage</h2><p>Each page serves one stage and has one next step.</p><pre class="mermaid">flowchart LR
+  subgraph A["AWARENESS: 'I have a problem'"]
+    a1["/frequent-words"]:::tofu
+    a2["/language-learning-psychology"]:::tofu
+    a3["/blog posts"]:::tofu
+    a4["/french-words"]:::tofu
+  end
+  subgraph C["CONSIDERATION: 'what are my options?'"]
+    c1["/the-chameleon-method"]:::mofu
+    c2["/dual-subtitles&lt;br/&gt;/netflix · /youtube"]:::mofu
+    c3["/anki-alternative"]:::mofu
+    c4["/chrome-extension"]:::mofu
+  end
+  subgraph D["DECISION: 'is LinguaScript the one?'"]
+    d1["/vs/language-reactor&lt;br/&gt;+ vs LingQ · Migaku · Duolingo (to build)"]:::bofu
+    d2["/pricing"]:::bofu
+    d3["/family · /for-schools · /polyglot"]:::bofu
+    d4["Home: Start free"]:::bofu
+  end
+  a1 --&gt; c1
+  a2 --&gt; c1
+  a3 --&gt; c2
+  a4 --&gt; d4
+  c1 --&gt; d4
+  c2 --&gt; c4 --&gt; d4
+  c3 --&gt; d1 --&gt; d2
+  d3 --&gt; d2
+
+  classDef tofu fill:#FDEDEC,stroke:#D92B21,color:#16201A
+  classDef mofu fill:#FFF3E5,stroke:#C05F00,color:#16201A
+  classDef bofu fill:#E9F6EE,stroke:#1F8F46,color:#16201A
+  classDef gold fill:#FFF7DD,stroke:#9A6B00,color:#16201A
+  classDef miss fill:#FFFFFF,stroke:#D92B21,stroke-dasharray:5 4,color:#16201A
+  classDef tool fill:#EEF1F5,stroke:#5B665F,color:#16201A</pre></section>
+<section id="03-personas"><h2>3. Who is buying? Persona routing</h2><p>The learner and the payer are not always the same person. Focus on persona A first.</p><pre class="mermaid">flowchart TB
+  V(["Visitor arrives"]) --&gt; Q{"Who pays?"}
+  Q --&gt;|"I learn and I pay"| A["A · Self-taught adult&lt;br/&gt;decides alone, in minutes&lt;br/&gt;£5–10/month"]:::bofu
+  Q --&gt;|"I pay, my teen learns"| B["B · Parent&lt;br/&gt;exam deadline Jan–May&lt;br/&gt;compares to a tutor hour"]:::mofu
+  Q --&gt;|"It's a present"| C["C · Sibling / partner&lt;br/&gt;birthdays, Christmas"]:::gold
+  Q --&gt;|"My school pays"| D["D · Head of languages&lt;br/&gt;bursar signs · buys Jun–Sep&lt;br/&gt;needs DPA + safeguarding"]:::tofu
+  A --&gt; A1["Home → Start free → extension"]:::bofu
+  B --&gt; B1["/family → plan checkout"]:::mofu
+  C --&gt; C1["/gift → gift checkout"]:::gold
+  D --&gt; D1["/for-schools → book a call"]:::tofu
+  A1 --&gt; F["FOCUS NOW (90 days)"]:::bofu
+  D1 --&gt; L["LATER: needs case studies first"]:::miss
+
+  classDef tofu fill:#FDEDEC,stroke:#D92B21,color:#16201A
+  classDef mofu fill:#FFF3E5,stroke:#C05F00,color:#16201A
+  classDef bofu fill:#E9F6EE,stroke:#1F8F46,color:#16201A
+  classDef gold fill:#FFF7DD,stroke:#9A6B00,color:#16201A
+  classDef miss fill:#FFFFFF,stroke:#D92B21,stroke-dasharray:5 4,color:#16201A
+  classDef tool fill:#EEF1F5,stroke:#5B665F,color:#16201A</pre></section>
+<section id="04-gpct"><h2>4. GPCTBA/C&amp;I: qualifying a buyer</h2><p>HubSpot's qualification questions, in order. Use them for school calls and to write page copy.</p><pre class="mermaid">flowchart LR
+  G["Goals&lt;br/&gt;What do you want to reach?"]:::bofu --&gt; P["Plans&lt;br/&gt;What are you doing now?"]:::bofu
+  P --&gt; C["Challenges&lt;br/&gt;What's stopping you?"]:::mofu
+  C --&gt; T["Timeline&lt;br/&gt;By when? Trip, exam, school year"]:::mofu
+  T --&gt; B["Budget&lt;br/&gt;Self £5–10/mo · school per seat"]:::tofu
+  B --&gt; AU["Authority&lt;br/&gt;Who signs? Learner, parent, bursar"]:::tofu
+  AU --&gt; NC["Negative consequences&lt;br/&gt;What if nothing changes?"]:::gold
+  NC --&gt; PI["Positive implications&lt;br/&gt;What changes when it works?"]:::gold
+  PI --&gt; FIT{"Good fit?"}
+  FIT --&gt;|"yes"| GO["Offer: start free / trial / pilot"]:::bofu
+  FIT --&gt;|"not yet"| NUR["Nurture emails"]:::mofu
+
+  classDef tofu fill:#FDEDEC,stroke:#D92B21,color:#16201A
+  classDef mofu fill:#FFF3E5,stroke:#C05F00,color:#16201A
+  classDef bofu fill:#E9F6EE,stroke:#1F8F46,color:#16201A
+  classDef gold fill:#FFF7DD,stroke:#9A6B00,color:#16201A
+  classDef miss fill:#FFFFFF,stroke:#D92B21,stroke-dasharray:5 4,color:#16201A
+  classDef tool fill:#EEF1F5,stroke:#5B665F,color:#16201A</pre></section>
+<section id="05-lead-nurture"><h2>5. Lead magnet → nurture emails</h2><p>For visitors who aren't ready to sign up. Missing today: build this first.</p><pre class="mermaid">flowchart TB
+  P["Blog / awareness page"]:::tofu --&gt; F["Form: 'Get your first 100 French words'"]:::miss
+  F --&gt; E0["Day 0: the list + 1 short video"]:::miss
+  E0 --&gt; E2["Day 2: why you plateau after Duolingo&lt;br/&gt;(awareness)"]:::miss
+  E2 --&gt; E4["Day 4: how the Chameleon Method works&lt;br/&gt;(consideration)"]:::miss
+  E4 --&gt; E7["Day 7: LinguaScript vs the others&lt;br/&gt;(decision) → Start free"]:::miss
+  E7 --&gt; Q{"Signed up?"}
+  Q --&gt;|"yes"| W["→ Welcome series"]:::bofu
+  Q --&gt;|"no"| M["Monthly newsletter&lt;br/&gt;best new videos"]:::mofu
+  M --&gt; Q
+
+  classDef tofu fill:#FDEDEC,stroke:#D92B21,color:#16201A
+  classDef mofu fill:#FFF3E5,stroke:#C05F00,color:#16201A
+  classDef bofu fill:#E9F6EE,stroke:#1F8F46,color:#16201A
+  classDef gold fill:#FFF7DD,stroke:#9A6B00,color:#16201A
+  classDef miss fill:#FFFFFF,stroke:#D92B21,stroke-dasharray:5 4,color:#16201A
+  classDef tool fill:#EEF1F5,stroke:#5B665F,color:#16201A</pre></section>
+<section id="06-activation"><h2>6. New user → activated</h2><p>The first 7 days decide whether someone stays. Dashed = missing today.</p><pre class="mermaid">flowchart TB
+  S["signed_up"]:::bofu --&gt; W0["Day 0: welcome&lt;br/&gt;one task: save 3 words in a video"]:::miss
+  W0 --&gt; Q1{"first_word_saved&lt;br/&gt;within 48h?"}
+  Q1 --&gt;|"no"| W2["Day 2: 'Pick a show you love'&lt;br/&gt;3 links by hobby"]:::miss
+  Q1 --&gt;|"yes"| W3["Day 3: install the extension&lt;br/&gt;colours on Netflix/YouTube"]:::miss
+  W2 --&gt; W3
+  W3 --&gt; W5["Day 5: your first word turns green&lt;br/&gt;→ review flashcards"]:::miss
+  W5 --&gt; Q2{"10 words + 1 video&lt;br/&gt;in 7 days?"}
+  Q2 --&gt;|"yes"| ACT["ACTIVATED"]:::bofu
+  Q2 --&gt;|"no"| W7["Day 7: 2-minute French Fast Track lesson"]:::miss
+  W7 --&gt; ACT
+
+  classDef tofu fill:#FDEDEC,stroke:#D92B21,color:#16201A
+  classDef mofu fill:#FFF3E5,stroke:#C05F00,color:#16201A
+  classDef bofu fill:#E9F6EE,stroke:#1F8F46,color:#16201A
+  classDef gold fill:#FFF7DD,stroke:#9A6B00,color:#16201A
+  classDef miss fill:#FFFFFF,stroke:#D92B21,stroke-dasharray:5 4,color:#16201A
+  classDef tool fill:#EEF1F5,stroke:#5B665F,color:#16201A</pre></section>
+<section id="07-retention"><h2>7. Retention, paywall and win-back</h2><p>Solid boxes already exist in the code. Dashed boxes are missing.</p><pre class="mermaid">flowchart TB
+  ACT["Activated user"]:::bofu --&gt; RR["Review reminder&lt;br/&gt;≤1 per 48h"]:::bofu
+  ACT --&gt; SR["Streak rescue"]:::bofu
+  ACT --&gt; WK["Weekly progress&lt;br/&gt;Sundays"]:::bofu
+  ACT --&gt; MO["Monthly recap"]:::bofu
+  ACT --&gt; PW{"paywall_viewed"}
+  PW --&gt;|"checkout started,&lt;br/&gt;not finished"| CR["Checkout recovery"]:::bofu
+  PW --&gt;|"paid"| PAID["Paying user"]:::bofu
+  PAID --&gt; TE["Trial ending"]:::bofu
+  PAID --&gt; PF["Payment failed"]:::bofu
+  ACT --&gt; IN{"14 days inactive?"}
+  IN --&gt;|"yes"| WB["Win-back: 'your gold words are waiting'"]:::miss
+  WB --&gt; ACT
+
+  classDef tofu fill:#FDEDEC,stroke:#D92B21,color:#16201A
+  classDef mofu fill:#FFF3E5,stroke:#C05F00,color:#16201A
+  classDef bofu fill:#E9F6EE,stroke:#1F8F46,color:#16201A
+  classDef gold fill:#FFF7DD,stroke:#9A6B00,color:#16201A
+  classDef miss fill:#FFFFFF,stroke:#D92B21,stroke-dasharray:5 4,color:#16201A
+  classDef tool fill:#EEF1F5,stroke:#5B665F,color:#16201A</pre></section>
+<section id="08-proof"><h2>8. Delight loop: collecting real proof</h2><p>Turns happy learners into testimonials, reviews and referrals: the trust you're missing.</p><pre class="mermaid">flowchart LR
+  G["100 words turn green&lt;br/&gt;word_turned_green"]:::gold --&gt; E["Email: 'What changed for you?'"]:::miss
+  E --&gt; R["Reply lands in Gmail"]:::tool
+  R --&gt; K{"OK to quote&lt;br/&gt;with name?"}
+  K --&gt;|"yes"| D["Saved in Drive&lt;br/&gt;quote + permission"]:::tool
+  K --&gt;|"no"| X["Thank you, not used"]:::tool
+  D --&gt; H["Home + pricing&lt;br/&gt;testimonial cards"]:::bofu
+  G --&gt; CWS["Ask: rate the Chrome extension"]:::miss
+  CWS --&gt; H
+  G --&gt; GF["Gift a friend /gift"]:::gold
+  GF --&gt; NEW["New sign-up"]:::bofu
+
+  classDef tofu fill:#FDEDEC,stroke:#D92B21,color:#16201A
+  classDef mofu fill:#FFF3E5,stroke:#C05F00,color:#16201A
+  classDef bofu fill:#E9F6EE,stroke:#1F8F46,color:#16201A
+  classDef gold fill:#FFF7DD,stroke:#9A6B00,color:#16201A
+  classDef miss fill:#FFFFFF,stroke:#D92B21,stroke-dasharray:5 4,color:#16201A
+  classDef tool fill:#EEF1F5,stroke:#5B665F,color:#16201A</pre></section>
+<section id="09-content"><h2>9. Content engine: one article a week from real questions</h2><p>Claude helps with research and drafts; you edit and publish every post.</p><pre class="mermaid">flowchart LR
+  Q["Real questions&lt;br/&gt;Search Console · Reddit · YouTube comments"]:::tofu --&gt; BR["Claude writes a brief&lt;br/&gt;1 question = 1 page"]:::tool
+  BR --&gt; DR["Draft"]:::tool --&gt; ED["YOU edit:&lt;br/&gt;own voice, own examples"]:::bofu
+  ED --&gt; PUB["Publish on /blog"]:::tofu
+  PUB --&gt; SM["Sitemap + pre-rendered HTML"]:::tool
+  SM --&gt; IDX["Google indexes"]:::tofu
+  IDX --&gt; MEAS["Weekly report:&lt;br/&gt;clicks, sign-ups per post"]:::tool
+  MEAS --&gt;|"update winners,&lt;br/&gt;drop losers"| Q
+
+  classDef tofu fill:#FDEDEC,stroke:#D92B21,color:#16201A
+  classDef mofu fill:#FFF3E5,stroke:#C05F00,color:#16201A
+  classDef bofu fill:#E9F6EE,stroke:#1F8F46,color:#16201A
+  classDef gold fill:#FFF7DD,stroke:#9A6B00,color:#16201A
+  classDef miss fill:#FFFFFF,stroke:#D92B21,stroke-dasharray:5 4,color:#16201A
+  classDef tool fill:#EEF1F5,stroke:#5B665F,color:#16201A</pre></section>
+<section id="10-video"><h2>10. Short-video engine</h2><p>You already built the tool: Video Studio records dual-subtitle clips.</p><pre class="mermaid">flowchart LR
+  I["Idea: one word turning green&lt;br/&gt;or one funny scene"]:::tofu --&gt; VS["Record in Video Studio&lt;br/&gt;/studio · dual subtitles"]:::tool
+  VS --&gt; P1["TikTok"]:::tofu
+  VS --&gt; P2["YouTube Shorts"]:::tofu
+  VS --&gt; P3["Instagram Reels"]:::tofu
+  P1 --&gt; BIO["Link in bio → home"]:::mofu
+  P2 --&gt; BIO
+  P3 --&gt; BIO
+  BIO --&gt; SU["Start free"]:::bofu
+  SU --&gt; M["Track: signups with&lt;br/&gt;?ref=tiktok / shorts / reels"]:::tool
+  M --&gt;|"3 a week, keep what works"| I
+
+  classDef tofu fill:#FDEDEC,stroke:#D92B21,color:#16201A
+  classDef mofu fill:#FFF3E5,stroke:#C05F00,color:#16201A
+  classDef bofu fill:#E9F6EE,stroke:#1F8F46,color:#16201A
+  classDef gold fill:#FFF7DD,stroke:#9A6B00,color:#16201A
+  classDef miss fill:#FFFFFF,stroke:#D92B21,stroke-dasharray:5 4,color:#16201A
+  classDef tool fill:#EEF1F5,stroke:#5B665F,color:#16201A</pre></section>
+<section id="11-schools"><h2>11. School sales pipeline (later)</h2><p>Only after 20+ testimonials and one pilot case study. Schools buy for the next year in June–September.</p><pre class="mermaid">flowchart TB
+  L["Find heads of languages&lt;br/&gt;Apollo MCP"]:::tool --&gt; E["Personal email from you&lt;br/&gt;Gmail draft"]:::tofu
+  E --&gt; R{"Reply?"}
+  R --&gt;|"no"| F["1 follow-up after 7 days, then stop"]:::tofu
+  R --&gt;|"yes"| CALL["20-min call&lt;br/&gt;GPCTBA/C&amp;I questions"]:::mofu
+  CALL --&gt; PIL["Free 4-week pilot&lt;br/&gt;1 class"]:::mofu
+  PIL --&gt; RES["Pilot results&lt;br/&gt;words learned, engagement"]:::mofu
+  RES --&gt; DPA["DPA + safeguarding pack&lt;br/&gt;sent to bursar"]:::bofu
+  DPA --&gt; BUY["School licence"]:::bofu
+  BUY --&gt; CS["Case study → /for-schools"]:::gold
+  CS --&gt; E
+
+  classDef tofu fill:#FDEDEC,stroke:#D92B21,color:#16201A
+  classDef mofu fill:#FFF3E5,stroke:#C05F00,color:#16201A
+  classDef bofu fill:#E9F6EE,stroke:#1F8F46,color:#16201A
+  classDef gold fill:#FFF7DD,stroke:#9A6B00,color:#16201A
+  classDef miss fill:#FFFFFF,stroke:#D92B21,stroke-dasharray:5 4,color:#16201A
+  classDef tool fill:#EEF1F5,stroke:#5B665F,color:#16201A</pre></section>
+<section id="12-stack"><h2>12. Automation stack: what talks to what</h2><p>Grey = tools. You own the data and the email engine already; the gap is wiring.</p><pre class="mermaid">flowchart LR
+  subgraph DATA["Your data"]
+    SB[("Supabase&lt;br/&gt;users · words · leads")]:::tool
+    PH["PostHog&lt;br/&gt;events"]:::tool
+    ST["Stripe&lt;br/&gt;payments"]:::tool
+  end
+  subgraph EMAIL["Email engine (built)"]
+    CR["pg_cron every 15 min"]:::tool --&gt; DIS["dispatch-retention-emails"]:::tool --&gt; SEND["send-transactional-email"]:::tool
+  end
+  subgraph CLAUDE["Claude scheduled tasks + connectors"]
+    GSC["Search Console"]:::tool
+    GM["Gmail"]:::tool
+    GD["Google Drive"]:::tool
+    CAL["Calendar"]:::tool
+    AP["Apollo"]:::tool
+    SEM["Semrush (needs units)"]:::miss
+  end
+  SB --&gt; DIS
+  PH --&gt; DIS
+  ST --&gt; DIS
+  GSC --&gt; REP["Monday report"]:::bofu
+  PH --&gt; REP
+  GM --&gt; GD
+  AP --&gt; GM
+  CAL --&gt; GM
+  SEM --&gt; REP
+
+  classDef tofu fill:#FDEDEC,stroke:#D92B21,color:#16201A
+  classDef mofu fill:#FFF3E5,stroke:#C05F00,color:#16201A
+  classDef bofu fill:#E9F6EE,stroke:#1F8F46,color:#16201A
+  classDef gold fill:#FFF7DD,stroke:#9A6B00,color:#16201A
+  classDef miss fill:#FFFFFF,stroke:#D92B21,stroke-dasharray:5 4,color:#16201A
+  classDef tool fill:#EEF1F5,stroke:#5B665F,color:#16201A</pre></section>
+<section id="13-weekly"><h2>13. Your weekly marketing rhythm</h2><p>About 6 hours a week. Same steps every week; decide from numbers, not feelings.</p><pre class="mermaid">flowchart LR
+  MON["Monday&lt;br/&gt;read the report (15 min)"]:::tool --&gt; DEC{"What dropped?"}
+  DEC --&gt;|"traffic"| T["Write / update 1 article"]:::tofu
+  DEC --&gt;|"sign-ups"| S["Fix 1 page: headline, button, proof"]:::mofu
+  DEC --&gt;|"activation"| A["Fix 1 welcome email or first screen"]:::bofu
+  T --&gt; WED["Tue–Thu: 3 short videos&lt;br/&gt;+ 5 Reddit answers"]:::tofu
+  S --&gt; WED
+  A --&gt; WED
+  WED --&gt; FRI["Friday: answer every reply&lt;br/&gt;save testimonials"]:::gold
+  FRI --&gt; MON
+
+  classDef tofu fill:#FDEDEC,stroke:#D92B21,color:#16201A
+  classDef mofu fill:#FFF3E5,stroke:#C05F00,color:#16201A
+  classDef bofu fill:#E9F6EE,stroke:#1F8F46,color:#16201A
+  classDef gold fill:#FFF7DD,stroke:#9A6B00,color:#16201A
+  classDef miss fill:#FFFFFF,stroke:#D92B21,stroke-dasharray:5 4,color:#16201A
+  classDef tool fill:#EEF1F5,stroke:#5B665F,color:#16201A</pre></section>
+</main></html>
