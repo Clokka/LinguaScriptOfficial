@@ -57,6 +57,27 @@
       "when": 1793312438815,
       "tag": "0007_hobby_video_catalog",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793726311386,
+      "tag": "0008_partner_roles",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793726327764,
+      "tag": "0009_engineer_role",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793726355499,
+      "tag": "0010_site_hq",
+      "breakpoints": true
     }
   ]
 }

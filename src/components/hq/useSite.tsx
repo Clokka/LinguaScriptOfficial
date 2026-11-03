@@ -43,7 +43,7 @@ export function useSite() {
     const { error } = await db.rpc("publish_site", { _config: clean, _note: note || null });
     if (error) {
       toast.error(/schema cache|does not exist|Could not find the function/i.test(error.message)
-        ? "HQ isn't switched on in the database yet. Paste docs/sql/hq-setup.sql into the Supabase SQL Editor and press Run (one time)."
+        ? "HQ could not save these changes. Your live website has not changed. Please try again shortly."
         : error.message, { duration: 12000 });
       return false;
     }
