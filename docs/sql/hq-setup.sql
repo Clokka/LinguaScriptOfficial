@@ -1,5 +1,10 @@
--- STEP 2 of 2 — run AFTER step 1 has finished. Safe to run twice.
--- Creates the partner programme and LinguaScript HQ (publish_site etc.).
+-- LinguaScript HQ + Partner programme: the whole database setup in ONE paste.
+-- Supabase → SQL Editor → New query → paste all of this → Run.
+-- Safe to run more than once. Only adds things; changes no existing data.
+
+ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'marketer';
+ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'partner';
+ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'engineer';
 
 -- Partner programme, part 2: LinguaScript's own affiliate system (replaces GoAffPro).
 --
@@ -77,9 +82,12 @@ CREATE TABLE IF NOT EXISTS public.payouts (
 
 -- ── Helpers ─────────────────────────────────────────────────────────────
 CREATE OR REPLACE FUNCTION public.is_growth_team(_uid uuid)
-RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
-  SELECT public.has_role(_uid, 'admin') OR public.has_role(_uid, 'marketer');
-$$;
+RETURNS boolean LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $$
+-- plpgsql (not sql) so the role names are only read when it runs: lets the whole
+-- setup run in one go, in the same transaction that adds the new roles.
+BEGIN
+  RETURN public.has_role(_uid, 'admin') OR public.has_role(_uid, 'marketer');
+END $$;
 
 -- ── Row level security: writes only through functions / service role ───
 ALTER TABLE public.partners ENABLE ROW LEVEL SECURITY;
@@ -344,9 +352,12 @@ GRANT EXECUTE ON FUNCTION public.admin_partner_payout_details(uuid) TO authentic
 -- config can never inject HTML.
 
 CREATE OR REPLACE FUNCTION public.is_site_team(_uid uuid)
-RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
-  SELECT public.has_role(_uid, 'admin') OR public.has_role(_uid, 'marketer') OR public.has_role(_uid, 'engineer');
-$$;
+RETURNS boolean LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $$
+-- plpgsql (not sql) so the role names are only read when it runs: lets the whole
+-- setup run in one go, in the same transaction that adds the new roles.
+BEGIN
+  RETURN public.has_role(_uid, 'admin') OR public.has_role(_uid, 'marketer') OR public.has_role(_uid, 'engineer');
+END $$;
 GRANT EXECUTE ON FUNCTION public.is_site_team(uuid) TO authenticated;
 
 CREATE TABLE IF NOT EXISTS public.site_drafts (

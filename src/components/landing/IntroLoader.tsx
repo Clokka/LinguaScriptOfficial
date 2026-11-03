@@ -49,7 +49,7 @@ export default function IntroLoader({ loader, end, onDone }: { loader: string; e
       style={{ position: "fixed", inset: 0, zIndex: 100, background: "#050607", transition: "opacity .45s", opacity: leaving ? 0 : 1 }}
     >
       {isLab ? (
-        <iframe title="Loading" src={`/brand/${lab}.html#only=${Number(n) | 0}`} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: 0 }} />
+        <iframe title="Loading" src={`/brand/${lab}.html#only=${Number(n) | 0}&fit=1`} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: 0 }} />
       ) : (
         <div ref={host} className="ldr" style={{ position: "absolute", inset: 0 }} />
       )}

@@ -74,9 +74,12 @@ CREATE TABLE IF NOT EXISTS public.payouts (
 
 -- ── Helpers ─────────────────────────────────────────────────────────────
 CREATE OR REPLACE FUNCTION public.is_growth_team(_uid uuid)
-RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
-  SELECT public.has_role(_uid, 'admin') OR public.has_role(_uid, 'marketer');
-$$;
+RETURNS boolean LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $$
+-- plpgsql (not sql) so the role names are only read when it runs: lets the whole
+-- setup run in one go, in the same transaction that adds the new roles.
+BEGIN
+  RETURN public.has_role(_uid, 'admin') OR public.has_role(_uid, 'marketer');
+END $$;
 
 -- ── Row level security: writes only through functions / service role ───
 ALTER TABLE public.partners ENABLE ROW LEVEL SECURITY;
