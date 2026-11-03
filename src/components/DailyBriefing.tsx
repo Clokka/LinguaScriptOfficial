@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { ArrowRight, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -36,6 +36,7 @@ const dismissKey = (uid: string) => `briefing:${uid}:${new Date().toISOString().
 export const DailyBriefing = () => {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [open, setOpen] = useState(false);
   const [wordGoal, setWordGoal] = useState<number | null>(null);
   const [choosing, setChoosing] = useState(false);
@@ -101,7 +102,9 @@ export const DailyBriefing = () => {
     void streak.refresh();
   };
 
-  if (!open || !profileChecked || wordGoal == null) return null;
+  // Team tools (HQ, partners, admin) are work screens: the learner pop-up would cover the Studio.
+  const onTeamPage = /^\/(hq|partners|admin)(\/|$)/.test(location.pathname);
+  if (!open || onTeamPage || !profileChecked || wordGoal == null) return null;
 
   const remaining = Math.max(0, wordGoal - streak.wordsReviewed);
   const done = remaining === 0;
