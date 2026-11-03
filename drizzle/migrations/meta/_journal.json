@@ -78,6 +78,13 @@
       "when": 1793726355499,
       "tag": "0010_site_hq",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1793730605409,
+      "tag": "0011_partner_programme",
+      "breakpoints": true
     }
   ]
 }
