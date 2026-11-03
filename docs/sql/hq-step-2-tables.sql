@@ -1,0 +1,470 @@
+-- STEP 2 of 2 — run AFTER step 1 has finished. Safe to run twice.
+-- Creates the partner programme and LinguaScript HQ (publish_site etc.).
+
+-- Partner programme, part 2: LinguaScript's own affiliate system (replaces GoAffPro).
+--
+-- Flow: /r/:code link → record_referral_click → visitor signs up →
+-- claim_referral (new accounts only) → payments-webhook writes a pending
+-- commission on each paid invoice → approved after 30 days without refund →
+-- paid out monthly (admin_mark_commissions_paid).
+--
+-- Privacy: partners never read rows directly. They call partner_dashboard(),
+-- which returns totals for THEIR partner id only and folds any breakdown
+-- group smaller than 5 people into "Other", so no single learner can be
+-- picked out. No emails, names or user ids ever leave these functions.
+
+-- ── Tables ──────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS public.partners (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid UNIQUE REFERENCES auth.users(id) ON DELETE SET NULL,
+  code text UNIQUE NOT NULL CHECK (code ~ '^[a-z0-9][a-z0-9_-]{1,30}$'),
+  display_name text NOT NULL DEFAULT '',
+  socials jsonb NOT NULL DEFAULT '{}'::jsonb,
+  brand_logo_url text,
+  logo_approved boolean NOT NULL DEFAULT false,
+  commission_rate numeric(4,3) NOT NULL DEFAULT 0.25 CHECK (commission_rate >= 0 AND commission_rate <= 0.6),
+  commission_months int NOT NULL DEFAULT 12 CHECK (commission_months BETWEEN 1 AND 60),
+  status text NOT NULL DEFAULT 'active' CHECK (status IN ('pending','active','paused')),
+  payout_details text,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.referral_clicks (
+  id bigserial PRIMARY KEY,
+  partner_id uuid NOT NULL REFERENCES public.partners(id) ON DELETE CASCADE,
+  channel text NOT NULL DEFAULT 'other',
+  landing_path text,
+  visitor_hash text,
+  region text,
+  device text,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS referral_clicks_partner_time ON public.referral_clicks (partner_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS public.referrals (
+  user_id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  partner_id uuid NOT NULL REFERENCES public.partners(id) ON DELETE CASCADE,
+  channel text NOT NULL DEFAULT 'other',
+  signed_up_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS referrals_partner_time ON public.referrals (partner_id, signed_up_at DESC);
+
+CREATE TABLE IF NOT EXISTS public.commissions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  partner_id uuid NOT NULL REFERENCES public.partners(id) ON DELETE CASCADE,
+  user_id uuid REFERENCES auth.users(id) ON DELETE SET NULL,
+  stripe_ref text UNIQUE NOT NULL,          -- invoice id or checkout session id
+  stripe_payment_intent text,
+  gross_amount int NOT NULL,                -- minor units, excluding tax
+  commission_amount int NOT NULL,           -- minor units
+  currency text NOT NULL DEFAULT 'gbp',
+  status text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','approved','paid','reversed')),
+  available_at timestamptz NOT NULL DEFAULT (now() + interval '30 days'),
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS commissions_partner ON public.commissions (partner_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS commissions_pi ON public.commissions (stripe_payment_intent);
+
+CREATE TABLE IF NOT EXISTS public.payouts (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  partner_id uuid NOT NULL REFERENCES public.partners(id) ON DELETE CASCADE,
+  amount int NOT NULL,
+  currency text NOT NULL DEFAULT 'gbp',
+  method text NOT NULL DEFAULT 'bank_transfer',
+  reference text,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- ── Helpers ─────────────────────────────────────────────────────────────
+CREATE OR REPLACE FUNCTION public.is_growth_team(_uid uuid)
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT public.has_role(_uid, 'admin') OR public.has_role(_uid, 'marketer');
+$$;
+
+-- ── Row level security: writes only through functions / service role ───
+ALTER TABLE public.partners ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.referral_clicks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.referrals ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.commissions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.payouts ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Team reads partners" ON public.partners;
+CREATE POLICY "Team reads partners" ON public.partners FOR SELECT TO authenticated
+  USING (public.is_growth_team(auth.uid()) OR user_id = auth.uid());
+DROP POLICY IF EXISTS "Team reads clicks" ON public.referral_clicks;
+CREATE POLICY "Team reads clicks" ON public.referral_clicks FOR SELECT TO authenticated
+  USING (public.is_growth_team(auth.uid()));
+DROP POLICY IF EXISTS "Team reads referrals" ON public.referrals;
+CREATE POLICY "Team reads referrals" ON public.referrals FOR SELECT TO authenticated
+  USING (public.has_role(auth.uid(), 'admin'));
+DROP POLICY IF EXISTS "Partner reads own commissions" ON public.commissions;
+CREATE POLICY "Partner reads own commissions" ON public.commissions FOR SELECT TO authenticated
+  USING (public.is_growth_team(auth.uid())
+         OR partner_id IN (SELECT id FROM public.partners WHERE user_id = auth.uid()));
+DROP POLICY IF EXISTS "Partner reads own payouts" ON public.payouts;
+CREATE POLICY "Partner reads own payouts" ON public.payouts FOR SELECT TO authenticated
+  USING (public.is_growth_team(auth.uid())
+         OR partner_id IN (SELECT id FROM public.partners WHERE user_id = auth.uid()));
+
+-- payout_details (bank/PayPal) is left out on purpose: only admins read it, through admin_partner_payout_details().
+REVOKE SELECT ON public.partners FROM authenticated;
+GRANT SELECT (id, user_id, code, display_name, socials, brand_logo_url, logo_approved, commission_rate, commission_months, status, created_at)
+  ON public.partners TO authenticated;
+GRANT SELECT ON public.referral_clicks, public.referrals, public.commissions, public.payouts TO authenticated;
+GRANT ALL ON public.partners, public.referral_clicks, public.referrals, public.commissions, public.payouts TO service_role;
+GRANT USAGE, SELECT ON SEQUENCE public.referral_clicks_id_seq TO service_role;
+
+-- ── Public: a link was clicked ──────────────────────────────────────────
+CREATE OR REPLACE FUNCTION public.record_referral_click(
+  _code text, _channel text DEFAULT 'other', _path text DEFAULT '/',
+  _visitor text DEFAULT NULL, _region text DEFAULT NULL, _device text DEFAULT NULL)
+RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE _pid uuid;
+BEGIN
+  SELECT id INTO _pid FROM partners WHERE code = lower(_code) AND status = 'active';
+  IF _pid IS NULL THEN RETURN false; END IF;
+  -- One click per visitor per partner per 30 minutes (stops refresh spam).
+  IF _visitor IS NOT NULL AND EXISTS (
+    SELECT 1 FROM referral_clicks WHERE partner_id = _pid AND visitor_hash = left(_visitor, 64)
+      AND created_at > now() - interval '30 minutes') THEN
+    RETURN true;
+  END IF;
+  INSERT INTO referral_clicks (partner_id, channel, landing_path, visitor_hash, region, device)
+  VALUES (_pid, left(coalesce(nullif(lower(_channel), ''), 'other'), 20), left(_path, 120),
+          left(_visitor, 64), left(_region, 30), left(_device, 10));
+  RETURN true;
+END $$;
+GRANT EXECUTE ON FUNCTION public.record_referral_click(text, text, text, text, text, text) TO anon, authenticated;
+
+-- ── Signed-in: credit my new account to a partner ───────────────────────
+CREATE OR REPLACE FUNCTION public.claim_referral(_code text, _channel text DEFAULT 'other')
+RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE _pid uuid; _owner uuid; _created timestamptz;
+BEGIN
+  IF auth.uid() IS NULL THEN RETURN false; END IF;
+  SELECT id, user_id INTO _pid, _owner FROM partners WHERE code = lower(_code) AND status = 'active';
+  IF _pid IS NULL OR _owner = auth.uid() THEN RETURN false; END IF;      -- no self-referrals
+  SELECT created_at INTO _created FROM auth.users WHERE id = auth.uid();
+  IF _created < now() - interval '3 days' THEN RETURN false; END IF;     -- new accounts only
+  INSERT INTO referrals (user_id, partner_id, channel)
+  VALUES (auth.uid(), _pid, left(coalesce(nullif(lower(_channel), ''), 'other'), 20))
+  ON CONFLICT (user_id) DO NOTHING;
+  RETURN true;
+END $$;
+GRANT EXECUTE ON FUNCTION public.claim_referral(text, text) TO authenticated;
+
+-- ── Partner / team: the dashboard numbers (totals only) ─────────────────
+CREATE OR REPLACE FUNCTION public.partner_dashboard(_partner_id uuid DEFAULT NULL, _days int DEFAULT 30)
+RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $$
+DECLARE _p partners; _since timestamptz := now() - make_interval(days => greatest(1, least(_days, 365)));
+  _res jsonb;
+BEGIN
+  IF _partner_id IS NOT NULL AND public.is_growth_team(auth.uid()) THEN
+    SELECT * INTO _p FROM partners WHERE id = _partner_id;
+  ELSE
+    SELECT * INTO _p FROM partners WHERE user_id = auth.uid();
+  END IF;
+  IF _p.id IS NULL THEN RETURN NULL; END IF;
+
+  WITH clk AS (SELECT * FROM referral_clicks WHERE partner_id = _p.id AND created_at >= _since),
+       refs AS (SELECT * FROM referrals WHERE partner_id = _p.id AND signed_up_at >= _since),
+       act AS (SELECT r.user_id FROM refs r
+               WHERE (SELECT count(*) FROM saved_words s WHERE s.user_id = r.user_id) >= 10),
+       paid AS (SELECT DISTINCT user_id FROM commissions
+                WHERE partner_id = _p.id AND status <> 'reversed' AND user_id IN (SELECT user_id FROM refs)),
+       ch AS (SELECT channel, count(*) n FROM clk GROUP BY channel),
+       chs AS (SELECT channel, count(*) n FROM refs GROUP BY channel),
+       dev AS (SELECT coalesce(device, 'unknown') d, count(*) n FROM clk GROUP BY 1),
+       reg AS (SELECT coalesce(region, 'unknown') r, count(*) n FROM clk GROUP BY 1),
+       money AS (SELECT status, sum(commission_amount) amt FROM commissions WHERE partner_id = _p.id GROUP BY status),
+       months AS (SELECT to_char(date_trunc('month', created_at), 'YYYY-MM') m,
+                         sum(commission_amount) FILTER (WHERE status <> 'reversed') earned,
+                         count(*) FILTER (WHERE status <> 'reversed') sales
+                  FROM commissions WHERE partner_id = _p.id GROUP BY 1 ORDER BY 1 DESC LIMIT 12)
+  SELECT jsonb_build_object(
+    'partner', jsonb_build_object('id', _p.id, 'code', _p.code, 'display_name', _p.display_name,
+       'socials', _p.socials, 'brand_logo_url', _p.brand_logo_url, 'logo_approved', _p.logo_approved,
+       'commission_rate', _p.commission_rate, 'commission_months', _p.commission_months, 'status', _p.status,
+       'has_payout_details', _p.payout_details IS NOT NULL),
+    'days', _days,
+    'clicks', (SELECT count(*) FROM clk),
+    'visitors', (SELECT count(DISTINCT visitor_hash) FROM clk),
+    'signups', (SELECT count(*) FROM refs),
+    'activated', (SELECT count(*) FROM act),
+    'paid', (SELECT count(*) FROM paid),
+    -- Breakdowns: groups under 5 are folded into "other" so nobody can be singled out.
+    'channels', (SELECT coalesce(jsonb_agg(jsonb_build_object('channel', c, 'clicks', n, 'signups', s) ORDER BY n DESC), '[]'::jsonb)
+                 FROM (SELECT CASE WHEN coalesce(ch.n, 0) + coalesce(chs.n, 0) < 5 THEN 'other' ELSE channel END c,
+                              sum(coalesce(ch.n, 0)) n, sum(coalesce(chs.n, 0)) s
+                       FROM ch FULL JOIN chs USING (channel) GROUP BY 1) x),
+    'devices', (SELECT coalesce(jsonb_agg(jsonb_build_object('device', d, 'clicks', n) ORDER BY n DESC), '[]'::jsonb)
+                FROM (SELECT CASE WHEN n < 5 THEN 'other' ELSE d END d, sum(n) n FROM dev GROUP BY 1) x),
+    'regions', (SELECT coalesce(jsonb_agg(jsonb_build_object('region', r, 'clicks', n) ORDER BY n DESC), '[]'::jsonb)
+                FROM (SELECT CASE WHEN n < 5 THEN 'other' ELSE r END r, sum(n) n FROM reg GROUP BY 1) x),
+    'earnings', jsonb_build_object(
+       'pending', coalesce((SELECT amt FROM money WHERE status = 'pending'), 0),
+       'approved', coalesce((SELECT amt FROM money WHERE status = 'approved'), 0),
+       'paid', coalesce((SELECT amt FROM money WHERE status = 'paid'), 0),
+       'next_available', (SELECT min(available_at) FROM commissions WHERE partner_id = _p.id AND status = 'pending')),
+    'months', (SELECT coalesce(jsonb_agg(jsonb_build_object('month', m, 'earned', earned, 'sales', sales)), '[]'::jsonb) FROM months),
+    'payouts', (SELECT coalesce(jsonb_agg(jsonb_build_object('date', created_at, 'amount', amount, 'method', method) ORDER BY created_at DESC), '[]'::jsonb)
+                FROM payouts WHERE partner_id = _p.id)
+  ) INTO _res;
+  RETURN _res;
+END $$;
+GRANT EXECUTE ON FUNCTION public.partner_dashboard(uuid, int) TO authenticated;
+
+-- ── Team: every partner at a glance ─────────────────────────────────────
+CREATE OR REPLACE FUNCTION public.growth_partners_overview(_days int DEFAULT 30)
+RETURNS TABLE (id uuid, code text, display_name text, status text, commission_rate numeric,
+               clicks bigint, signups bigint, sales bigint, pending int, approved int, paid int)
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $$
+DECLARE _since timestamptz := now() - make_interval(days => greatest(1, least(_days, 365)));
+BEGIN
+  IF NOT public.is_growth_team(auth.uid()) THEN RETURN; END IF;
+  RETURN QUERY
+  SELECT p.id, p.code, p.display_name, p.status, p.commission_rate,
+    (SELECT count(*) FROM referral_clicks c WHERE c.partner_id = p.id AND c.created_at >= _since),
+    (SELECT count(*) FROM referrals r WHERE r.partner_id = p.id AND r.signed_up_at >= _since),
+    (SELECT count(*) FROM commissions m WHERE m.partner_id = p.id AND m.status <> 'reversed' AND m.created_at >= _since),
+    coalesce((SELECT sum(m.commission_amount)::int FROM commissions m WHERE m.partner_id = p.id AND m.status = 'pending'), 0),
+    coalesce((SELECT sum(m.commission_amount)::int FROM commissions m WHERE m.partner_id = p.id AND m.status = 'approved'), 0),
+    coalesce((SELECT sum(m.commission_amount)::int FROM commissions m WHERE m.partner_id = p.id AND m.status = 'paid'), 0)
+  FROM partners p ORDER BY p.created_at;
+END $$;
+GRANT EXECUTE ON FUNCTION public.growth_partners_overview(int) TO authenticated;
+
+-- ── Partner: edit my own profile (logo waits for approval) ──────────────
+CREATE OR REPLACE FUNCTION public.update_my_partner_profile(
+  _display_name text, _socials jsonb, _brand_logo_url text, _payout_details text)
+RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  UPDATE partners SET
+    display_name = left(coalesce(_display_name, display_name), 60),
+    socials = coalesce(_socials, socials),
+    logo_approved = CASE WHEN _brand_logo_url IS DISTINCT FROM brand_logo_url THEN false ELSE logo_approved END,
+    brand_logo_url = left(_brand_logo_url, 300),
+    payout_details = coalesce(left(_payout_details, 300), payout_details)
+  WHERE user_id = auth.uid();
+  RETURN FOUND;
+END $$;
+GRANT EXECUTE ON FUNCTION public.update_my_partner_profile(text, jsonb, text, text) TO authenticated;
+
+-- ── Admin only ──────────────────────────────────────────────────────────
+CREATE OR REPLACE FUNCTION public.admin_upsert_partner(
+  _email text, _code text, _display_name text, _rate numeric DEFAULT 0.25,
+  _months int DEFAULT 12, _status text DEFAULT 'active')
+RETURNS uuid LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE _uid uuid; _pid uuid;
+BEGIN
+  IF NOT public.has_role(auth.uid(), 'admin') THEN RAISE EXCEPTION 'admins only'; END IF;
+  SELECT id INTO _uid FROM auth.users WHERE lower(email) = lower(trim(_email));
+  IF _uid IS NULL THEN RAISE EXCEPTION 'No LinguaScript account uses that email yet. Ask them to sign up first.'; END IF;
+  INSERT INTO partners (user_id, code, display_name, commission_rate, commission_months, status)
+  VALUES (_uid, lower(trim(_code)), coalesce(_display_name, ''), _rate, _months, _status)
+  ON CONFLICT (user_id) DO UPDATE SET code = EXCLUDED.code, display_name = EXCLUDED.display_name,
+    commission_rate = EXCLUDED.commission_rate, commission_months = EXCLUDED.commission_months, status = EXCLUDED.status
+  RETURNING id INTO _pid;
+  INSERT INTO user_roles (user_id, role) VALUES (_uid, 'partner') ON CONFLICT DO NOTHING;
+  RETURN _pid;
+END $$;
+GRANT EXECUTE ON FUNCTION public.admin_upsert_partner(text, text, text, numeric, int, text) TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.admin_set_team_role(_email text, _role public.app_role, _grant boolean DEFAULT true)
+RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE _uid uuid;
+BEGIN
+  IF NOT public.has_role(auth.uid(), 'admin') THEN RAISE EXCEPTION 'admins only'; END IF;
+  IF _role NOT IN ('marketer', 'partner') THEN RAISE EXCEPTION 'Only marketer or partner can be set here'; END IF;
+  SELECT id INTO _uid FROM auth.users WHERE lower(email) = lower(trim(_email));
+  IF _uid IS NULL THEN RAISE EXCEPTION 'No LinguaScript account uses that email yet. Ask them to sign up first.'; END IF;
+  IF _grant THEN
+    INSERT INTO user_roles (user_id, role) VALUES (_uid, _role) ON CONFLICT DO NOTHING;
+  ELSE
+    DELETE FROM user_roles WHERE user_id = _uid AND role = _role;
+  END IF;
+  RETURN true;
+END $$;
+GRANT EXECUTE ON FUNCTION public.admin_set_team_role(text, public.app_role, boolean) TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.admin_approve_logo(_partner_id uuid, _ok boolean)
+RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  IF NOT public.has_role(auth.uid(), 'admin') THEN RAISE EXCEPTION 'admins only'; END IF;
+  UPDATE partners SET logo_approved = _ok, brand_logo_url = CASE WHEN _ok THEN brand_logo_url ELSE NULL END WHERE id = _partner_id;
+  RETURN FOUND;
+END $$;
+GRANT EXECUTE ON FUNCTION public.admin_approve_logo(uuid, boolean) TO authenticated;
+
+-- Pending commissions older than their 30-day hold become payable.
+CREATE OR REPLACE FUNCTION public.approve_due_commissions()
+RETURNS int LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE _n int;
+BEGIN
+  IF auth.uid() IS NOT NULL AND NOT public.has_role(auth.uid(), 'admin') THEN RAISE EXCEPTION 'admins only'; END IF;
+  UPDATE commissions SET status = 'approved' WHERE status = 'pending' AND available_at <= now();
+  GET DIAGNOSTICS _n = ROW_COUNT;
+  RETURN _n;
+END $$;
+GRANT EXECUTE ON FUNCTION public.approve_due_commissions() TO authenticated, service_role;
+
+-- Record a payout: every approved commission for the partner becomes paid.
+CREATE OR REPLACE FUNCTION public.admin_mark_commissions_paid(_partner_id uuid, _reference text DEFAULT NULL)
+RETURNS int LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE _sum int; _cur text;
+BEGIN
+  IF NOT public.has_role(auth.uid(), 'admin') THEN RAISE EXCEPTION 'admins only'; END IF;
+  SELECT coalesce(sum(commission_amount), 0)::int, min(currency) INTO _sum, _cur
+    FROM commissions WHERE partner_id = _partner_id AND status = 'approved';
+  IF _sum <= 0 THEN RETURN 0; END IF;  -- refunds after payout can leave a negative balance; it rolls into next month
+  UPDATE commissions SET status = 'paid' WHERE partner_id = _partner_id AND status = 'approved';
+  INSERT INTO payouts (partner_id, amount, currency, reference) VALUES (_partner_id, _sum, coalesce(_cur, 'gbp'), left(_reference, 120));
+  RETURN _sum;
+END $$;
+GRANT EXECUTE ON FUNCTION public.admin_mark_commissions_paid(uuid, text) TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.admin_partner_payout_details(_partner_id uuid)
+RETURNS text LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  IF NOT public.has_role(auth.uid(), 'admin') THEN RAISE EXCEPTION 'admins only'; END IF;
+  RETURN (SELECT payout_details FROM partners WHERE id = _partner_id);
+END $$;
+GRANT EXECUTE ON FUNCTION public.admin_partner_payout_details(uuid) TO authenticated;
+
+-- LinguaScript HQ, part 2: change the live website from /hq.
+--
+--   site_drafts    shared work-in-progress pages from the Site Studio
+--   site_publishes every "Go live" (newest row = what visitors get), so any
+--                  version can be rolled back
+--   get_live_site()  public: the one config the homepage reads
+--   publish_site()   team only (admin, marketer, engineer)
+--
+-- The config only *chooses* things (page ids, section ids, lab + number,
+-- loader ids); the website validates every value against its own lists, so a
+-- config can never inject HTML.
+
+CREATE OR REPLACE FUNCTION public.is_site_team(_uid uuid)
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT public.has_role(_uid, 'admin') OR public.has_role(_uid, 'marketer') OR public.has_role(_uid, 'engineer');
+$$;
+GRANT EXECUTE ON FUNCTION public.is_site_team(uuid) TO authenticated;
+
+CREATE TABLE IF NOT EXISTS public.site_drafts (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name text NOT NULL CHECK (char_length(name) BETWEEN 1 AND 80),
+  config jsonb NOT NULL CHECK (octet_length(config::text) < 100000),
+  updated_by uuid REFERENCES auth.users(id) ON DELETE SET NULL,
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS site_drafts_name ON public.site_drafts (lower(name));
+
+CREATE TABLE IF NOT EXISTS public.site_publishes (
+  id bigserial PRIMARY KEY,
+  config jsonb NOT NULL CHECK (octet_length(config::text) < 100000),
+  note text CHECK (note IS NULL OR char_length(note) <= 200),
+  published_by uuid REFERENCES auth.users(id) ON DELETE SET NULL,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.site_drafts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.site_publishes ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "team reads drafts" ON public.site_drafts;
+CREATE POLICY "team reads drafts" ON public.site_drafts FOR SELECT TO authenticated USING (public.is_site_team(auth.uid()));
+DROP POLICY IF EXISTS "team writes drafts" ON public.site_drafts;
+CREATE POLICY "team writes drafts" ON public.site_drafts FOR INSERT TO authenticated WITH CHECK (public.is_site_team(auth.uid()));
+DROP POLICY IF EXISTS "team edits drafts" ON public.site_drafts;
+CREATE POLICY "team edits drafts" ON public.site_drafts FOR UPDATE TO authenticated USING (public.is_site_team(auth.uid())) WITH CHECK (public.is_site_team(auth.uid()));
+DROP POLICY IF EXISTS "team deletes drafts" ON public.site_drafts;
+CREATE POLICY "team deletes drafts" ON public.site_drafts FOR DELETE TO authenticated USING (public.is_site_team(auth.uid()));
+DROP POLICY IF EXISTS "team reads publishes" ON public.site_publishes;
+CREATE POLICY "team reads publishes" ON public.site_publishes FOR SELECT TO authenticated USING (public.is_site_team(auth.uid()));
+
+REVOKE ALL ON public.site_drafts, public.site_publishes FROM anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.site_drafts TO authenticated;
+GRANT SELECT ON public.site_publishes TO authenticated;
+
+-- Public: what the homepage shows. NULL = nothing published yet (site keeps its built-in test).
+CREATE OR REPLACE FUNCTION public.get_live_site()
+RETURNS jsonb LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT config || jsonb_build_object('published_id', id, 'published_at', created_at)
+  FROM site_publishes ORDER BY id DESC LIMIT 1;
+$$;
+GRANT EXECUTE ON FUNCTION public.get_live_site() TO anon, authenticated;
+
+-- Team: go live. A homepage A/B test also registers its arms as an experiment,
+-- so the existing results table (Admin → Experiments) counts it.
+CREATE OR REPLACE FUNCTION public.publish_site(_config jsonb, _note text DEFAULT NULL)
+RETURNS bigint LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE _id bigint; _key text; _arms text[];
+BEGIN
+  IF NOT public.is_site_team(auth.uid()) THEN RAISE EXCEPTION 'Only the LinguaScript team can publish'; END IF;
+  IF jsonb_typeof(_config) <> 'object' OR coalesce((_config->>'version')::int, 0) <> 2 THEN
+    RAISE EXCEPTION 'Unknown config version';
+  END IF;
+  INSERT INTO site_publishes (config, note, published_by)
+  VALUES (_config - 'published_id' - 'published_at', left(_note, 200), auth.uid()) RETURNING id INTO _id;
+
+  IF _config #>> '{home,mode}' = 'test' THEN
+    _key := _config #>> '{home,key}';
+    SELECT array_agg(a->>'id') INTO _arms FROM jsonb_array_elements(_config #> '{home,arms}') a;
+    IF _key ~ '^[a-z0-9_]{3,40}$' AND coalesce(array_length(_arms, 1), 0) BETWEEN 2 AND 4 THEN
+      BEGIN
+        INSERT INTO experiments (key, name, variants, status)
+        VALUES (_key, 'Homepage test (from HQ)', _arms, 'running')
+        ON CONFLICT (key) DO UPDATE SET variants = EXCLUDED.variants, status = 'running';
+      EXCEPTION WHEN others THEN NULL; -- results table missing: publishing still works
+      END;
+    END IF;
+  END IF;
+  RETURN _id;
+END $$;
+GRANT EXECUTE ON FUNCTION public.publish_site(jsonb, text) TO authenticated;
+
+-- History for the "Go live" tab, with who published (team only).
+CREATE OR REPLACE FUNCTION public.site_publish_history(_limit int DEFAULT 30)
+RETURNS TABLE (id bigint, config jsonb, note text, published_by_email text, created_at timestamptz)
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  IF NOT public.is_site_team(auth.uid()) THEN RETURN; END IF;
+  RETURN QUERY
+  SELECT p.id, p.config, p.note, u.email::text, p.created_at
+  FROM site_publishes p LEFT JOIN auth.users u ON u.id = p.published_by
+  ORDER BY p.id DESC LIMIT greatest(1, least(_limit, 200));
+END $$;
+GRANT EXECUTE ON FUNCTION public.site_publish_history(int) TO authenticated;
+
+-- Admins give HQ logins: marketer, engineer or partner.
+CREATE OR REPLACE FUNCTION public.admin_set_team_role(_email text, _role public.app_role, _grant boolean DEFAULT true)
+RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE _uid uuid;
+BEGIN
+  IF NOT public.has_role(auth.uid(), 'admin') THEN RAISE EXCEPTION 'admins only'; END IF;
+  IF _role::text NOT IN ('marketer', 'partner', 'engineer') THEN RAISE EXCEPTION 'Only marketer, engineer or partner can be set here'; END IF;
+  SELECT id INTO _uid FROM auth.users WHERE lower(email) = lower(trim(_email));
+  IF _uid IS NULL THEN RAISE EXCEPTION 'No LinguaScript account uses that email yet. Ask them to sign up first.'; END IF;
+  IF _grant THEN
+    INSERT INTO user_roles (user_id, role) VALUES (_uid, _role) ON CONFLICT DO NOTHING;
+  ELSE
+    DELETE FROM user_roles WHERE user_id = _uid AND role = _role;
+  END IF;
+  RETURN true;
+END $$;
+GRANT EXECUTE ON FUNCTION public.admin_set_team_role(text, public.app_role, boolean) TO authenticated;
+
+-- Admins see who has an HQ login.
+CREATE OR REPLACE FUNCTION public.admin_team_members()
+RETURNS TABLE (email text, roles text[])
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  IF NOT public.has_role(auth.uid(), 'admin') THEN RAISE EXCEPTION 'admins only'; END IF;
+  RETURN QUERY
+  SELECT u.email::text, array_agg(r.role::text ORDER BY r.role::text)
+  FROM user_roles r JOIN auth.users u ON u.id = r.user_id
+  WHERE r.role::text IN ('admin', 'marketer', 'engineer', 'partner')
+  GROUP BY u.email ORDER BY u.email;
+END $$;
+GRANT EXECUTE ON FUNCTION public.admin_team_members() TO authenticated;
+
+-- Tell the API about the new functions straight away.
+NOTIFY pgrst, 'reload schema';

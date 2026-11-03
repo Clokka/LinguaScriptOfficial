@@ -41,7 +41,12 @@ export function useSite() {
     const clean = cleanConfig(config);
     if (!clean) { toast.error("That setup isn't complete yet."); return false; }
     const { error } = await db.rpc("publish_site", { _config: clean, _note: note || null });
-    if (error) { toast.error(error.message); return false; }
+    if (error) {
+      toast.error(/schema cache|does not exist|Could not find the function/i.test(error.message)
+        ? "HQ isn't switched on in the database yet. Run docs/sql/hq-step-1-roles.sql, then hq-step-2-tables.sql, in the Supabase SQL Editor."
+        : error.message, { duration: 12000 });
+      return false;
+    }
     writeCache(clean); // this device sees it straight away
     toast.success("Live! Visitors get it from their next page load.");
     await reload();
