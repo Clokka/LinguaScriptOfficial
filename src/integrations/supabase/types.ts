@@ -1830,7 +1830,7 @@ export type Database = {
             columns: ["updated_by"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
+            referencedColumns: ["user_id"]
           },
         ]
       }
@@ -1862,7 +1862,7 @@ export type Database = {
             columns: ["published_by"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
+            referencedColumns: ["user_id"]
           },
         ]
       }
