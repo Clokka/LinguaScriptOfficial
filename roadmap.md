@@ -1,4 +1,5 @@
 # Current work
+- [ ] Repair missing HQ publishing setup and verify team-only saves without changing the live website.
 - [x] Use only the lighter green for learned words (website, extension reader, Android bubble source).
 - [x] Replace blank route/auth startup and spinner-only website/Android startup with visible placeholders; daily word top-up no longer delays first card retrieval.
 - [x] Choose one onboarding hobby; prioritize authentic hobby videos using real popularity data. Signed-in French entrepreneurship feed checked.
