@@ -478,7 +478,7 @@ const HQ={on:false,drafts:[]};
 function hqSend(msg){if(!HQ.on){toast('Open the Studio from LinguaScript HQ to go live');return}try{parent.postMessage(msg,location.origin)}catch{}}
 const sitePage=c=>({kind:'studio',theme:c.theme,sections:c.sections.filter(s=>s.on).map(s=>s.id=='lib'?{id:'lib',lab:s.lab,element:s.n}:{id:s.id,variant:s.v})});
 function hqLive(){if(!cfg.sections.some(s=>s.on)){toast('Switch on at least one section');return}hqSend({lsHQ:'publish',page:sitePage(cfg),loader:cfg.loader,name:$('#pname').value.trim()||null})}
-function hqDraft(){const n=$('#pname').value.trim();if(!n){toast('Type a name for this version first');$('#pname').focus();return}hqSend({lsHQ:'saveDraft',name:n,config:JSON.parse(JSON.stringify(cfg))})}
+function hqDraft(){let n=$('#pname').value.trim();if(!n){n='Page '+new Date().toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});$('#pname').value=n}hqSend({lsHQ:'saveDraft',name:n,config:JSON.parse(JSON.stringify(cfg))})}
 $('#hqLive').onclick=$('#hqLive2').onclick=hqLive;$('#hqDraft').onclick=$('#hqDraft2').onclick=hqDraft;
 $('#hqTest').onclick=()=>{if(arms.length<2){toast('Add at least 2 arms first');return}hqSend({lsHQ:'publishTest',arms:arms.map((a,i)=>({id:String.fromCharCode(97+i),name:a.name,page:sitePage(a.cfg)}))})};
 $('#gmFilm').onclick=()=>{const d=galList[gmAt];if(d&&!d.real)hqSend({lsHQ:'filmLoader',id:`lab:${d.lab}:${d.n}`})};
