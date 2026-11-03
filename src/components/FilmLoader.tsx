@@ -12,7 +12,7 @@ const REVEAL_MS = 1800;
 const pick = (list: string[]) => (list.length ? list[Math.floor(Math.random() * list.length)] : null);
 const srcOf = (id: string) => {
   const [, lab, n] = id.split(":");
-  return `/brand/${lab}.html#only=${Number(n) | 0}&live=1`;
+  return `/brand/${lab}.html#only=${Number(n) | 0}&live=1&fit=1`;
 };
 
 /** One design, framed to fill the player. Sends the real status as its caption. */

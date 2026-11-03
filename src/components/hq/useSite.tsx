@@ -43,7 +43,7 @@ export function useSite() {
     const { error } = await db.rpc("publish_site", { _config: clean, _note: note || null });
     if (error) {
       toast.error(/schema cache|does not exist|Could not find the function/i.test(error.message)
-        ? "HQ isn't switched on in the database yet. Run docs/sql/hq-step-1-roles.sql, then hq-step-2-tables.sql, in the Supabase SQL Editor."
+        ? "HQ isn't switched on in the database yet. Paste docs/sql/hq-setup.sql into the Supabase SQL Editor and press Run (one time)."
         : error.message, { duration: 12000 });
       return false;
     }

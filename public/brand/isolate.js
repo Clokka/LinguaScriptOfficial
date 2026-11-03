@@ -13,7 +13,7 @@
   function undo() {
     if (!cur) return;
     document.querySelectorAll(".ls-keep,.ls-solo,.ls-hide").forEach(function (el) { el.classList.remove("ls-keep", "ls-solo", "ls-hide"); });
-    cur.style.zoom = ""; cur.style.width = "";
+    cur.style.zoom = ""; cur.style.width = ""; cur.style.marginTop = "";
     if (sizeFn) removeEventListener("resize", sizeFn);
     if (ro) ro.disconnect();
     cur = null;
@@ -60,7 +60,17 @@
     for (var a = t.parentElement; a && a !== document.body; a = a.parentElement) a.classList.add("ls-keep");
     cur = t;
     // Show the tile exactly as designed, zoomed to the frame width.
-    sizeFn = function () { if (cur) cur.style.zoom = Math.min(4, (root.clientWidth || innerWidth) / w0); };
+    // &fit=1 (video player, full-screen loaders): the whole element fits the
+    // frame's width AND height, centred, so nothing is cut off.
+    var fit = /[#&]fit=1/.test(location.hash), h0 = Math.max(1, t.getBoundingClientRect().height);
+    sizeFn = function () {
+      if (!cur) return;
+      var cw = root.clientWidth || innerWidth, ch = root.clientHeight || innerHeight;
+      var z = fit ? Math.min(cw / w0, ch / h0) : cw / w0;
+      z = Math.min(4, z);
+      cur.style.zoom = z;
+      cur.style.marginTop = fit ? Math.max(0, (ch - h0 * z) / 2) / z + "px" : "";
+    };
     sizeFn(); addEventListener("resize", sizeFn);
     window.scrollTo(0, 0);
     window.dispatchEvent(new Event("resize"));
