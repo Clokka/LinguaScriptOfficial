@@ -4,6 +4,7 @@
 // publish. Team drafts are sent back so everyone can open them.
 import { useEffect, useRef, useState } from "react";
 import { ExternalLink } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { DEFAULT_FILM_LOADER, describeLoader, describePage, isFilmDesign, isFilmReveal, isLoaderId, cleanConfig, type SiteConfig, type SitePage } from "@/lib/site/config";
 import { PublishDialog, useSite, type Pending } from "@/components/hq/useSite";
 
@@ -24,6 +25,13 @@ export default function StudioFrame({ tab = "gallery", site }: { tab?: string; s
       const d = e.data;
       if (!d || typeof d.lsHQ !== "string") return;
       if (d.lsHQ === "ready") { sendDrafts("hello"); frame.current?.contentWindow?.postMessage({ lsHQ: "tab", tab }, window.location.origin); }
+      if (d.lsHQ === "pageLoader" && (d.id === "skeleton" || d.id === "brand")) {
+        setPending({ title: "Change the streaming startup screen?", lines: [`App & page loading → ${d.id === "brand" ? "Chameleon + colour word" : "Grey skeleton"}`, "The homepage and film loading screens stay unchanged."], config: { ...s.base(), pageLoader: d.id } });
+      }
+      if (d.lsHQ === "introLoader" && isLoaderId(d.id)) {
+        const base = s.base();
+        setPending({ title: "Change the LinguaScript name intro?", lines: [`Homepage intro → ${describeLoader(d.id)}`, "The page builder, streaming startup and film screens stay unchanged."], config: { ...base, intro: { when: "session", end: "auto", ...base.intro, loader: d.id } } });
+      }
       if (d.lsHQ === "saveDraft" && typeof d.name === "string" && d.config) {
         const ok = await s.saveDraft(d.name, d.config, d.quiet === true);
         if (ok && !d.quiet) frame.current?.contentWindow?.postMessage({ lsHQ: "done", text: "Saved for the team ☁️" }, window.location.origin);
@@ -69,12 +77,13 @@ export default function StudioFrame({ tab = "gallery", site }: { tab?: string; s
 
   return (
     <div className="space-y-2">
-      <a href={`/brand/site-studio.html#${tab}`} target="_blank" rel="noopener"
-        className="inline-flex items-center gap-1 text-sm underline text-muted-foreground hover:text-foreground">
+      <Button variant="link" asChild className="h-auto justify-start p-0 text-muted-foreground">
+      <a href={`/brand/site-studio.html#${tab}`} target="_blank" rel="noopener">
         Open full screen (view only — publish from here) <ExternalLink className="h-3.5 w-3.5" />
       </a>
+      </Button>
       <iframe ref={frame} src={`/brand/site-studio.html#${tab}`} title="Site Studio"
-        className="w-full rounded-2xl border border-white/10 bg-black" style={{ height: "calc(100vh - 170px)", minHeight: 620 }} />
+        className="w-full rounded-md border border-border bg-background" style={{ height: "calc(100vh - 170px)", minHeight: 620 }} />
       <PublishDialog pending={pending} onClose={() => setPending(null)} publish={s.publish} />
     </div>
   );

@@ -114,14 +114,20 @@ code{font-family:var(--mono);font-size:.9em;color:#e7ffe9}
 .badge{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--gold);color:#1a1400;font:700 11px var(--sans);margin-left:5px}
 </style>
 <link rel="stylesheet" href="studio-kit.css">
+<link rel="stylesheet" href="studio-workspace.css">
 <script src="studio-kit.js"></script>
 
 <div class="top">
   <div class="brand"><svg width="34" viewBox="14 76 372 184" aria-hidden="true"><path d="M136 196 Q128 118 205 106 Q276 96 285 160 Q290 202 244 208 L164 210 Q140 208 136 196 Z" fill="#34C759"/><path d="M162 118 Q160 92 134 88 Q104 84 88 112 Q74 138 84 162 Q94 186 126 188 Q152 189 160 168 Q166 148 162 118 Z" fill="#34C759"/><circle cx="118" cy="126" r="11.5" fill="#fff"/><circle cx="122" cy="125" r="5.5" fill="#241a12"/><path d="M272 176 C322 168 348 190 344 214 C340 236 316 242 304 230" fill="none" stroke="#26A047" stroke-width="15" stroke-linecap="round"/></svg>LinguaScript <em>Site Studio</em></div>
   <div class="tabs" role="tablist">
+    <span class="nav-label">Design</span>
+    <button role="tab" aria-selected="true" data-tab="builder"><span>01</span> Page builder<span class="badge" id="secbadge" hidden></span></button>
     <button role="tab" aria-selected="false" data-tab="gallery">🖼️ Gallery</button>
-    <button role="tab" aria-selected="true" data-tab="builder">Builder<span class="badge" id="secbadge" hidden></span></button>
-    <button role="tab" aria-selected="false" data-tab="loaders">Loader lab</button>
+    <span class="nav-label">Loading screens</span>
+    <button role="tab" aria-selected="false" data-tab="loaders"><span>02</span> LinguaScript name</button>
+    <button role="tab" aria-selected="false" data-tab="films"><span>03</span> Before a film</button>
+    <button role="tab" aria-selected="false" data-tab="startup"><span>04</span> Streaming startup</button>
+    <span class="nav-label">Reference</span>
     <button role="tab" aria-selected="false" data-tab="plan">Plan &amp; prompts</button>
   </div>
   <div class="hqbar" id="hqbar" hidden>
@@ -131,9 +137,12 @@ code{font-family:var(--mono);font-size:.9em;color:#e7ffe9}
   </div>
 </div>
 
+<header class="workspace-heading"><div><span class="nav-label">SITE STUDIO</span><h1 id="workspace-title">Page builder</h1></div><span class="workspace-state" id="workspace-state">Preview workspace</span></header>
+
 <!-- ================= GALLERY ================= -->
 <section class="view" id="v-gallery" hidden>
   <div class="gal-top">
+    <div class="row" id="film-tools" hidden><label for="film-kind">Film stage</label><select id="film-kind"><option value="loading-screens">While subtitles load</option><option value="loading-experiences">Loading experiences</option><option value="loading-motion">When the film is ready</option></select></div>
     <p class="gal-hint">Every design, as pictures. Tap a picture to see it big, <b>⭐</b> to keep the ones you like, <b>＋ Add</b> to put it on your page in the Builder.</p>
     <div class="gal-bar">
       <input type="search" id="galq" placeholder="Search: cards, gold, glass, ring, deck…" aria-label="Search designs">
@@ -215,9 +224,18 @@ code{font-family:var(--mono);font-size:.9em;color:#e7ffe9}
     <button class="chip" id="lsteps" aria-pressed="true">Loading steps</button>
     <button class="chip" id="lbg" aria-pressed="false">Light background</button>
     <button class="btn pri" id="lplay">▶ Replay</button>
+    <button class="btn" id="luse">Use this name intro…</button>
   </div>
   <div class="labstage lsk" id="labstage"></div>
   <p class="note" id="ldesc"></p>
+</section>
+
+<section class="view lab" id="v-startup" hidden>
+  <div class="row"><label for="startup-style">Startup style</label><select id="startup-style"><option value="skeleton">Grey skeleton (fastest)</option><option value="brand">Chameleon + colour word</option></select><button class="btn" id="startup-use">Use this startup screen…</button></div>
+  <div class="startup-preview" id="startup-preview" data-style="skeleton" aria-label="Streaming startup preview">
+    <div class="startup-brand"><img src="/logo.svg" alt="LinguaScript chameleon" width="64" height="64"><strong>LinguaScript</strong></div>
+    <div class="startup-skeleton" aria-hidden="true"><div class="sk-nav"></div><div class="sk-title"></div><div class="sk-tiles"><i></i><i></i><i></i></div><div class="sk-title"></div><div class="sk-tiles"><i></i><i></i><i></i></div></div>
+  </div>
 </section>
 
 <!-- ================= PLAN ================= -->
@@ -363,7 +381,9 @@ $('#lplay').onclick=()=>labPlay();$('#lspeed').onchange=()=>labPlay();
 function labPlay(){const st=$('#labstage');st.innerHTML='<div class="ldr" style="position:absolute;inset:0"></div>';$('#ldesc').textContent=LDESC[lvar];playLoader(st.firstChild,lvar,{speed:+$('#lspeed').value,word:$('#lword').value.trim()||'LinguaScript',steps:$('#lsteps').getAttribute('aria-pressed')=='true',light:$('#lbg').getAttribute('aria-pressed')=='true',autoHide:false})}
 
 /* ---------- tabs ---------- */
-function showTab(t){document.querySelectorAll('[data-tab]').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab==t));['gallery','builder','loaders','plan'].forEach(v=>$('#v-'+v).hidden=v!=t);if(t=='gallery')galDraw();if(t=='loaders')labPlay();if(t=='builder'){fit();}try{history.replaceState(null,'','#'+t)}catch{}}
+let workspace='builder';
+const WORKSPACES={builder:'Page builder',gallery:'Design gallery',loaders:'LinguaScript name intro',films:'Before a film',startup:'Streaming startup',plan:'Plan & prompts'};
+function showTab(t){if(!WORKSPACES[t])t='builder';workspace=t;document.querySelectorAll('[data-tab]').forEach(b=>{b.setAttribute('aria-selected',b.dataset.tab==t);b.setAttribute('aria-controls','v-'+(t=='films'?'gallery':t))});['gallery','builder','loaders','startup','plan'].forEach(v=>$('#v-'+v).hidden=v!=(t=='films'?'gallery':t));$('#workspace-title').textContent=WORKSPACES[t];$('#workspace-state').textContent=t=='films'?'Video player':t=='startup'?'App & page loading':t=='loaders'?'Homepage intro':'Preview workspace';$('#film-tools').hidden=t!='films';$('#galchips').hidden=t=='films';$('.gal-hint').hidden=t=='films';$('#galFavPage').hidden=t=='films';if(t=='gallery'||t=='films')galDraw();if(t=='loaders')labPlay();else $('#labstage').innerHTML='';if(t=='builder'){fit();}else{const l=$('#ldr');if(l)l.innerHTML='';timers.forEach(clearInterval);timers=[]}if(t!='gallery'&&t!='films'){galIO.disconnect();$('#gal').innerHTML=''}try{history.replaceState(null,'','#'+t)}catch{}}
 document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
 
 /* ---------- prompts ---------- */
@@ -435,7 +455,7 @@ if(!CATS.some(c=>c[0]==galCat))galCat='home';
 const srcOf=d=>d.real?REAL_SRC[d.real]:`${LAB_BASE}${d.lab}.html#only=${d.n}`;
 const labelOf=d=>d.real?'Live site':LAB_NAMES[d.lab];
 function galFilter(){const q=$('#galq').value.trim().toLowerCase();const f=CATS.find(c=>c[0]==galCat)[2];
-  return ALL.filter(d=>f(d)&&(!q||(d.name+' '+labelOf(d)).toLowerCase().includes(q)||(q.startsWith('card')&&CARDY.test(d.name))))}
+  return ALL.filter(d=>(workspace=='films'?d.lab==$('#film-kind').value:f(d))&&(!q||(d.name+' '+labelOf(d)).toLowerCase().includes(q)||(q.startsWith('card')&&CARDY.test(d.name))))}
 function galChips(){const q=$('#galq').value.trim().toLowerCase();
   $('#galchips').innerHTML=CATS.map(([k,n,f])=>{const c=ALL.filter(d=>f(d)&&(!q||(d.name+' '+labelOf(d)).toLowerCase().includes(q))).length;return `<button class="chip" data-cat="${k}" aria-pressed="${k==galCat}">${n}<b>${c}</b></button>`}).join('')}
 // Only tiles near the screen hold a live iframe, so scrolling stays smooth.
@@ -444,7 +464,7 @@ const galIO=new IntersectionObserver(es=>es.forEach(e=>{const th=e.target,f=th.q
   else if(f)f.remove()}),{rootMargin:'300px 0px'});
 function galDraw(keep){galChips();galList=galFilter();if(!keep)galShown=24;
   galIO.disconnect();const items=galList.slice(0,galShown);
-  $('#gal').innerHTML=items.length?items.map((d,i)=>`<div class="gcard"><div class="th" data-open="${i}" data-src="${srcOf(d)}"><div class="ph">loading…</div></div><div class="meta"><span class="lb">${labelOf(d)}</span><span class="nm" title="${d.name.replace(/"/g,'&quot;')}">${d.name}</span><div class="acts"><button class="btn fav" data-fav="${i}" aria-pressed="${isFav(d.k)}" aria-label="Star">⭐</button>${d.real?(HQ.on?`<button class="btn live" data-golive="${i}">🚀 Make homepage</button>`:`<a class="btn" href="${srcOf(d)}" target="_blank" rel="noopener">Open ↗</a>`):`<button class="btn pri" data-add="${i}">＋ Add</button>`}</div></div></div>`).join('')
+  $('#gal').innerHTML=items.length?items.map((d,i)=>`<div class="gcard"><div class="th" data-open="${i}" data-src="${srcOf(d)}"><div class="ph">loading…</div></div><div class="meta"><span class="lb">${labelOf(d)}</span><span class="nm" title="${d.name.replace(/"/g,'&quot;')}">${d.name}</span><div class="acts"><button class="btn fav" data-fav="${i}" aria-pressed="${isFav(d.k)}" aria-label="Star">⭐</button>${workspace=='films'?`<button class="btn" data-open="${i}">Preview & select</button>`:d.real?(HQ.on?`<button class="btn live" data-golive="${i}">🚀 Make homepage</button>`:`<a class="btn" href="${srcOf(d)}" target="_blank" rel="noopener">Open ↗</a>`):`<button class="btn pri" data-add="${i}">＋ Add</button>`}</div></div></div>`).join('')
     :`<p class="libfb">${galCat=='fav'?'No stars yet. Tap ⭐ on any design you like and it shows up here.':'Nothing matches. Try another word or tap “Everything”.'}</p>`;
   $('#gal').querySelectorAll('.th').forEach(t=>galIO.observe(t));
   $('#galmore').hidden=galList.length<=galShown;$('#galmore').textContent=`Show more (${galList.length-galShown} left)`}
@@ -454,7 +474,7 @@ function addDesign(d,top){if(d.real){toast('Live pages open in a new tab');retur
 function badge(){const n=cfg.sections.filter(s=>s.id=='lib').length;const b=$('#secbadge');b.hidden=!n;b.textContent=n}
 function gmShow(i){const d=galList[i];if(!d)return;gmAt=i;$('#gm').hidden=false;$('#gmName').textContent=`${labelOf(d)} · ${d.name}`;
   $('#gmFrame').src=d.real?srcOf(d):`${LAB_BASE}${d.lab}.html#only=${d.n}`;$('#gmOpen').href=srcOf(d);
-  $('#gmFav').setAttribute('aria-pressed',isFav(d.k));$('#gmAdd').hidden=$('#gmTop').hidden=!!d.real;$('#gmLive').hidden=!(d.real&&HQ.on);$('#gmFilm').hidden=!(HQ.on&&/^loading-(screens|experiences|motion)$/.test(d.lab));$('#gmFilm').textContent=d.lab=='loading-motion'?'🎬 Use when a video is ready':'🎬 Use while videos load';$('#gmLoad').hidden=!/^loading-/.test(d.lab)}
+  $('#gmFav').setAttribute('aria-pressed',isFav(d.k));$('#gmAdd').hidden=$('#gmTop').hidden=!!d.real||workspace=='films';$('#gmLive').hidden=!(d.real&&HQ.on);$('#gmFilm').hidden=!/^loading-(screens|experiences|motion)$/.test(d.lab);$('#gmFilm').textContent=d.lab=='loading-motion'?'🎬 Use when a video is ready':'🎬 Use while videos load';$('#gmLoad').hidden=workspace=='films'||!/^loading-/.test(d.lab)}
 function gmClose(){$('#gm').hidden=true;$('#gmFrame').src='about:blank';$('#gal').querySelectorAll('[data-fav]').forEach(f=>f.setAttribute('aria-pressed',isFav(galList[+f.dataset.fav].k)));galChips()}
 $('#gal').onclick=e=>{const o=e.target.closest('[data-open]');if(o){gmShow(+o.dataset.open);return}
   const f=e.target.closest('[data-fav]');if(f){const d=galList[+f.dataset.fav];togFav(d.k);f.setAttribute('aria-pressed',isFav(d.k));toast(isFav(d.k)?'Starred ⭐':'Star removed');galChips();return}
@@ -471,6 +491,10 @@ addEventListener('keydown',e=>{if($('#gm').hidden)return;if(e.key=='Escape')gmCl
 $('#galFavPage').onclick=()=>{const st=ALL.filter(d=>isFav(d.k)&&!d.real);if(!st.length){toast('Star some designs first ⭐');return}
   const end=cfg.sections.filter(s=>s.id=='cta');cfg.sections=[...st.map(d=>({id:'lib',lab:d.lab,n:d.n,on:true})),...(end.length?end:[S('cta','trust')])];sync();badge();showTab('builder');renderSite();toast(`Page made from ${st.length} starred design${st.length>1?'s':''}`)};
 $('#toGallery').onclick=()=>showTab('gallery');
+$('#film-kind').onchange=()=>galDraw();
+$('#startup-style').onchange=e=>$('#startup-preview').dataset.style=e.target.value;
+$('#startup-use').onclick=()=>hqSend({lsHQ:'pageLoader',id:$('#startup-style').value});
+$('#luse').onclick=()=>hqSend({lsHQ:'introLoader',id:lvar});
 badge();
 
 /* ---------- HQ bridge: inside linguascript.co.uk/hq this page can save team drafts and go live ---------- */
@@ -489,11 +513,11 @@ $('#preset').addEventListener('change',e=>{const v=e.target.value;if(!v.startsWi
 addEventListener('message',e=>{if(e.origin!==location.origin||e.source!==parent)return;const d=e.data;if(!d||!d.lsHQ)return;
   if(d.lsHQ==='hello'||d.lsHQ==='drafts'){HQ.on=true;HQ.drafts=Array.isArray(d.drafts)?d.drafts.filter(x=>x&&x.name&&x.config):HQ.drafts;{const st=HQ.drafts.find(x=>Array.isArray(x.config.favs));if(st){favs=[...new Set([...favs,...st.config.favs])];store.set(FAVK,favs)}HQ.drafts=HQ.drafts.filter(x=>x.config.sections)}
     $('#hqbar').hidden=false;$('#hqSave').hidden=false;$('#hqTest').hidden=false;$('#hqNote').hidden=true;fillPresets();if(!$('#v-gallery').hidden)galDraw(true)}
-  if(d.lsHQ==='tab'&&['gallery','builder','loaders','plan'].includes(d.tab))showTab(d.tab);
+  if(d.lsHQ==='tab'&&WORKSPACES[d.tab])showTab(d.tab);
   if(d.lsHQ==='done')toast(d.text||'Done')});
 if(parent!==window)try{parent.postMessage({lsHQ:'ready'},location.origin)}catch{}
-const h=(location.hash||'').slice(1);showTab(['gallery','builder','loaders','plan'].includes(h)?h:'builder');
-setTimeout(play,300);
+const h=(location.hash||'').slice(1);showTab(WORKSPACES[h]?h:'builder');
+setTimeout(()=>{if(workspace=='builder')play()},300);
 </script>
 
 </body></html>
