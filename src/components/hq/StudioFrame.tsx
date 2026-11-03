@@ -4,7 +4,7 @@
 // publish. Team drafts are sent back so everyone can open them.
 import { useEffect, useRef, useState } from "react";
 import { ExternalLink } from "lucide-react";
-import { describeLoader, describePage, isLoaderId, cleanConfig, type SiteConfig, type SitePage } from "@/lib/site/config";
+import { DEFAULT_FILM_LOADER, describeLoader, describePage, isFilmDesign, isFilmReveal, isLoaderId, cleanConfig, type SiteConfig, type SitePage } from "@/lib/site/config";
 import { PublishDialog, useSite, type Pending } from "@/components/hq/useSite";
 
 export default function StudioFrame({ tab = "gallery", site }: { tab?: string; site?: ReturnType<typeof useSite> }) {
@@ -37,6 +37,19 @@ export default function StudioFrame({ tab = "gallery", site }: { tab?: string; s
           lines.push(`Intro loading screen → ${describeLoader(d.loader)} (change or switch off in Go live)`);
         }
         setPending({ title: "Make this the homepage?", lines, config: next, note: d.name ?? "" });
+      }
+      if (d.lsHQ === "filmLoader" && (isFilmDesign(d.id) || isFilmReveal(d.id))) {
+        const base = s.base();
+        const f = base.filmLoader ?? DEFAULT_FILM_LOADER;
+        const key = isFilmReveal(d.id) ? "reveals" : "designs";
+        if (f[key].includes(d.id)) { frame.current?.contentWindow?.postMessage({ lsHQ: "done", text: "Already in the video loading rotation" }, window.location.origin); return; }
+        const next: SiteConfig = { ...base, filmLoader: { ...f, [key]: [...f[key], d.id] } };
+        setPending({
+          title: "Add this to the video loading screens?",
+          lines: [key === "reveals" ? `Plays when a video's subtitles are ready (${f.reveals.length + 1} in rotation)` : `Shows while videos load (${f.designs.length + 1} in rotation)`,
+            "Remove or reorder any time in Go live → Video loading screens."],
+          config: next,
+        });
       }
       if (d.lsHQ === "publishTest" && Array.isArray(d.arms)) {
         const stamp = new Date().toISOString().slice(0, 16).replace(/\D/g, "");

@@ -36,6 +36,21 @@
     function post() { try { parent.postMessage({ lsSolo: location.hash, h: Math.ceil(t.getBoundingClientRect().height) }, "*"); } catch (e) {} }
     if (window.ResizeObserver) new ResizeObserver(post).observe(t);
     post(); setTimeout(post, 600); setTimeout(post, 1800);
+    // Video player (&live=1): the caption line shows the real status, sent by
+    // the parent as {lsCap: "..."} (same origin only, plain text only).
+    // The lab may redraw the tile, so find the caption each time and re-apply.
+    if (/[#&]live=1/.test(location.hash)) {
+      var capText = null;
+      var applyCap = function () {
+        var c = t.querySelector(".cap");
+        if (c && capText !== null && c.textContent !== capText) c.textContent = capText;
+      };
+      addEventListener("message", function (e) {
+        if (e.origin === location.origin && e.data && typeof e.data.lsCap === "string") { capText = e.data.lsCap.slice(0, 120); applyCap(); }
+      });
+      if (window.MutationObserver) new MutationObserver(applyCap).observe(t, { childList: true, subtree: true, characterData: true });
+      try { parent.postMessage({ lsCapReady: true }, location.origin); } catch (err) {}
+    }
   }
   // Live homepage (&live=1): call-to-action buttons inside the design open the
   // real page. The parent (StudioLanding) checks the origin and the path list.
