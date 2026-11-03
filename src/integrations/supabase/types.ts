@@ -1599,6 +1599,70 @@ export type Database = {
         }
         Relationships: []
       }
+      site_drafts: {
+        Row: {
+          config: Json
+          id: string
+          name: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          config: Json
+          id?: string
+          name: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          config?: Json
+          id?: string
+          name?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "site_drafts_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      site_publishes: {
+        Row: {
+          config: Json
+          created_at: string
+          id: number
+          note: string | null
+          published_by: string | null
+        }
+        Insert: {
+          config: Json
+          created_at?: string
+          id?: number
+          note?: string | null
+          published_by?: string | null
+        }
+        Update: {
+          config?: Json
+          created_at?: string
+          id?: number
+          note?: string | null
+          published_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "site_publishes_published_by_fkey"
+            columns: ["published_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       starter_deck_cards: {
         Row: {
           created_at: string
@@ -2293,6 +2357,21 @@ export type Database = {
           username: string
         }[]
       }
+      admin_set_team_role: {
+        Args: {
+          _email: string
+          _grant?: boolean
+          _role: Database["public"]["Enums"]["app_role"]
+        }
+        Returns: boolean
+      }
+      admin_team_members: {
+        Args: never
+        Returns: {
+          email: string
+          roles: string[]
+        }[]
+      }
       are_friends: { Args: { _a: string; _b: string }; Returns: boolean }
       bulk_invite_students: {
         Args: { _emails: string[]; _school_id: string }
@@ -2450,6 +2529,7 @@ export type Database = {
           xp_total: number
         }[]
       }
+      get_live_site: { Args: never; Returns: Json }
       get_unread_message_count: { Args: never; Returns: number }
       get_words_needing_review: {
         Args: { p_language: string; p_limit?: number; p_user_id: string }
@@ -2488,6 +2568,7 @@ export type Database = {
         Args: { _school_id: string; _user_id: string }
         Returns: boolean
       }
+      is_site_team: { Args: { _uid: string }; Returns: boolean }
       keep_streak: { Args: never; Returns: Json }
       list_school_students: {
         Args: { _school_id: string }
@@ -2525,6 +2606,7 @@ export type Database = {
       }
       preview_pro_chameleon_link: { Args: { _token: string }; Returns: Json }
       preview_pro_gift_link: { Args: { _token: string }; Returns: Json }
+      publish_site: { Args: { _config: Json; _note?: string }; Returns: number }
       read_email_batch: {
         Args: { batch_size: number; queue_name: string; vt: number }
         Returns: {
@@ -2588,6 +2670,16 @@ export type Database = {
             Returns: number
           }
       set_username: { Args: { _username: string }; Returns: string }
+      site_publish_history: {
+        Args: { _limit?: number }
+        Returns: {
+          config: Json
+          created_at: string
+          id: number
+          note: string
+          published_by_email: string
+        }[]
+      }
       touch_gold_word: {
         Args: { p_decay_at?: number; p_word_id: string }
         Returns: Json
