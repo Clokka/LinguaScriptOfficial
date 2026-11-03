@@ -358,7 +358,7 @@ function GoLive({ site, setPending, openStudio }: { site: ReturnType<typeof useS
               <Button size="sm" variant="outline" onClick={() => setLabNum(numOf + 1)} aria-label="Next design">▶</Button>
               <Input type="number" min={1} max={labMax} value={numOf + 1} onChange={(e) => setLabNum(Math.max(1, Math.min(labMax, Number(e.target.value) || 1)) - 1)} className="w-20" />
             </div>
-            <iframe key={intro.loader} title="Loading screen preview" src={`/brand/${labOf}.html#only=${numOf}`} loading="lazy"
+            <iframe title="Loading screen preview" src={`/brand/${labOf}.html#only=${numOf}`} loading="lazy"
               className="h-[200px] w-full rounded-xl border border-white/10 bg-black" />
           </div>
         )}
@@ -475,7 +475,7 @@ function FilmLoaderPicker({ film, setFilm }: { film: FilmLoaderConfig; setFilm: 
             <Button size="sm" onClick={() => toggle("designs", cand)}>{film.designs.includes(cand) ? "✕ Remove" : "＋ Add to rotation"}</Button>
             <Button size="sm" variant="ghost" onClick={() => toggle("designs", "chameleon")}>{film.designs.includes("chameleon") ? "✕ Old chameleon screen" : "＋ Old chameleon screen"}</Button>
           </div>
-          <iframe key={cand} title="Loading design preview" src={`/brand/${lab}.html#only=${n}`} loading="lazy" className="h-[180px] w-full rounded-xl border border-white/10 bg-black" />
+          <iframe title="Loading design preview" src={`/brand/${lab}.html#only=${n}`} loading="lazy" className="h-[180px] w-full rounded-xl border border-white/10 bg-black" />
         </div>
       </div>
 
@@ -495,7 +495,7 @@ function FilmLoaderPicker({ film, setFilm }: { film: FilmLoaderConfig; setFilm: 
             <Button size="sm" variant="outline" onClick={() => setM((m + 1) % 30)} aria-label="Next motion">▶</Button>
             <Button size="sm" onClick={() => toggle("reveals", motion)}>{film.reveals.includes(motion) ? "✕ Remove" : "＋ Add to rotation"}</Button>
           </div>
-          <iframe key={motion} title="Motion preview" src={`/brand/loading-motion.html#only=${m}`} loading="lazy" className="h-[180px] w-full rounded-xl border border-white/10 bg-black" />
+          <iframe title="Motion preview" src={`/brand/loading-motion.html#only=${m}`} loading="lazy" className="h-[180px] w-full rounded-xl border border-white/10 bg-black" />
         </div>
       </div>
 
