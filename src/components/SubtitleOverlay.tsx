@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { translateWord } from "@/lib/browserTranslate";
+import { instantMeaning } from "@/lib/instantDict";
 import { cn } from "@/lib/utils";
 import { WordPopup } from "./WordPopup";
 import { supabase } from "@/integrations/supabase/client";
@@ -340,6 +341,14 @@ export const SubtitleOverlay = ({
 
     if (word.translation) {
       setSelectedWord(word);
+      return;
+    }
+
+    // Instant: known on the device (built-in pack / prefetched for this video).
+    const instant = instantMeaning(word.text, effectiveLang, nativeLanguage || "en");
+    if (instant) {
+      word.translation = instant;
+      setSelectedWord({ ...word, translation: instant });
       return;
     }
 

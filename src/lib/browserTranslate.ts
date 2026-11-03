@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { instantMeaning, lineMeaning, loadPack, rememberMeaning } from "@/lib/instantDict";
 // Last-resort translation straight from the learner's browser (Google's free
 // "gtx" endpoint, CORS-open, no key). Used only when the translate-word /
 // translate-subtitles edge functions fail — AI credits gone, Gemini key
@@ -123,15 +124,53 @@ export async function translateWord(
   to: string,
   labels: { from: string; to: string },
 ): Promise<WordTranslation> {
-  const hit = await dictionaryLookup(word, from, to);
-  if (hit) {
-    const ctx = context && context !== word
-      ? await Promise.race([
+  // 0. Instant: the built-in pack + words prefetched for this video, from
+  //    memory (src/lib/instantDict.ts). No network at all.
+  const known = lineMeaning(context || "");
+  const single = !/\s/.test(word.trim());
+  if (single) {
+    let meaning = instantMeaning(word, from, to);
+    if (!meaning) {
+      // First tap of the session: give the pack a moment to arrive.
+      await Promise.race([loadPack(from, to), new Promise((r) => setTimeout(r, 400))]);
+      meaning = instantMeaning(word, from, to);
+    }
+    if (meaning) {
+      return {
+        translation: meaning, pronunciation: "", ipa: "", contextTranslation: known ?? "",
+        lemma: null, lemmaTranslation: null, pos: null, isInflected: false, grammarNote: null,
+      };
+    }
+  }
+  const ctxNow = (): Promise<string> =>
+    known != null ? Promise.resolve(known)
+    : context && context !== word
+      ? Promise.race([
           browserTranslate(context, from, to).then((r) => r.text).catch(() => ""),
           new Promise<string>((r) => setTimeout(() => r(""), 1500)),
         ])
-      : "";
-    return { ...hit, contextTranslation: ctx };
+      : Promise.resolve("");
+  const hit = await dictionaryLookup(word, from, to);
+  if (hit) {
+    if (single) rememberMeaning(word, from, to, hit.translation);
+    return { ...hit, contextTranslation: await ctxNow() };
+  }
+  // 1. Not known anywhere yet: Google in the browser (fast) and the server
+  //    (adds lemma/grammar and saves the word for every learner) at the same
+  //    time; the first real meaning wins.
+  if (single) {
+    const fast = await Promise.race([
+      browserTranslate(word, from, to).then((r) => (isPlaceholderMeaning(r.text, word) ? null : r)).catch(() => null),
+      new Promise<null>((r) => setTimeout(() => r(null), 2500)),
+    ]);
+    if (fast) {
+      rememberMeaning(word, from, to, fast.text);
+      void invoke({ word, context, fromLanguage: labels.from, toLanguage: labels.to }).catch(() => {}); // saves it for everyone
+      return {
+        translation: fast.text, pronunciation: fast.romanization, ipa: "", contextTranslation: await ctxNow(),
+        lemma: null, lemmaTranslation: null, pos: null, isInflected: false, grammarNote: null,
+      };
+    }
   }
   try {
     // A slow server shouldn't keep the learner on "Translating…": after
@@ -145,6 +184,7 @@ export async function translateWord(
     const error = res.error;
     const data = res.data as Partial<Record<keyof WordTranslation, string | boolean>> | null;
     if (!error && typeof data?.translation === "string" && data.translation) {
+      if (single) rememberMeaning(word, from, to, data.translation);
       return {
         translation: data.translation,
         pronunciation: String(data.pronunciation || ""),
