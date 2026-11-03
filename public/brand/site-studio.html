@@ -153,6 +153,7 @@ code{font-family:var(--mono);font-size:.9em;color:#e7ffe9}
     <button class="btn" id="gmTop">⬆ Put at the top</button>
     <button class="btn" id="gmLoad" hidden>Use as loading screen</button>
     <button class="btn live" id="gmLive" hidden>🚀 Make homepage</button>
+    <button class="btn live" id="gmFilm" hidden>🎬 Use for video loading</button>
     <a class="btn" id="gmOpen" target="_blank" rel="noopener">Open in new tab ↗</a>
     <button class="btn" id="gmNext" aria-label="Next design">▶</button>
     <button class="btn" id="gmClose" aria-label="Close">✕</button>
@@ -453,7 +454,7 @@ function addDesign(d,top){if(d.real){toast('Live pages open in a new tab');retur
 function badge(){const n=cfg.sections.filter(s=>s.id=='lib').length;const b=$('#secbadge');b.hidden=!n;b.textContent=n}
 function gmShow(i){const d=galList[i];if(!d)return;gmAt=i;$('#gm').hidden=false;$('#gmName').textContent=`${labelOf(d)} · ${d.name}`;
   $('#gmFrame').src=d.real?srcOf(d):`${LAB_BASE}${d.lab}.html#only=${d.n}`;$('#gmOpen').href=srcOf(d);
-  $('#gmFav').setAttribute('aria-pressed',isFav(d.k));$('#gmAdd').hidden=$('#gmTop').hidden=!!d.real;$('#gmLive').hidden=!(d.real&&HQ.on);$('#gmLoad').hidden=!/^loading-/.test(d.lab)}
+  $('#gmFav').setAttribute('aria-pressed',isFav(d.k));$('#gmAdd').hidden=$('#gmTop').hidden=!!d.real;$('#gmLive').hidden=!(d.real&&HQ.on);$('#gmFilm').hidden=!(HQ.on&&/^loading-(screens|experiences|motion)$/.test(d.lab));$('#gmFilm').textContent=d.lab=='loading-motion'?'🎬 Use when a video is ready':'🎬 Use while videos load';$('#gmLoad').hidden=!/^loading-/.test(d.lab)}
 function gmClose(){$('#gm').hidden=true;$('#gmFrame').src='about:blank';$('#gal').querySelectorAll('[data-fav]').forEach(f=>f.setAttribute('aria-pressed',isFav(galList[+f.dataset.fav].k)));galChips()}
 $('#gal').onclick=e=>{const o=e.target.closest('[data-open]');if(o){gmShow(+o.dataset.open);return}
   const f=e.target.closest('[data-fav]');if(f){const d=galList[+f.dataset.fav];togFav(d.k);f.setAttribute('aria-pressed',isFav(d.k));toast(isFav(d.k)?'Starred ⭐':'Star removed');galChips();return}
@@ -480,6 +481,7 @@ function hqLive(){if(!cfg.sections.some(s=>s.on)){toast('Switch on at least one 
 function hqDraft(){const n=$('#pname').value.trim();if(!n){toast('Type a name for this version first');$('#pname').focus();return}hqSend({lsHQ:'saveDraft',name:n,config:JSON.parse(JSON.stringify(cfg))})}
 $('#hqLive').onclick=$('#hqLive2').onclick=hqLive;$('#hqDraft').onclick=$('#hqDraft2').onclick=hqDraft;
 $('#hqTest').onclick=()=>{if(arms.length<2){toast('Add at least 2 arms first');return}hqSend({lsHQ:'publishTest',arms:arms.map((a,i)=>({id:String.fromCharCode(97+i),name:a.name,page:sitePage(a.cfg)}))})};
+$('#gmFilm').onclick=()=>{const d=galList[gmAt];if(d&&!d.real)hqSend({lsHQ:'filmLoader',id:`lab:${d.lab}:${d.n}`})};
 $('#gmLive').onclick=()=>{const d=galList[gmAt];if(d&&d.real)hqSend({lsHQ:'publish',page:{kind:'react',page:d.real}})};
 const fillPresetsBase=fillPresets;
 fillPresets=function(){fillPresetsBase();if(!HQ.drafts.length)return;const g=document.createElement('optgroup');g.label='☁️ Team drafts';HQ.drafts.forEach((d,i)=>{const o=document.createElement('option');o.value='team:'+i;o.textContent=d.name;g.appendChild(o)});$('#preset').appendChild(g)};

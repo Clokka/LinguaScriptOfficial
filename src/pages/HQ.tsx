@@ -24,14 +24,15 @@ import { GlassCard, PremiumHeader, Eyebrow, Skeleton } from "@/components/premiu
 import { cn } from "@/lib/utils";
 import { PublishDialog, useSite, type Pending } from "@/components/hq/useSite";
 import {
-  BUILT_IN_LOADERS, DEFAULT_SITE, PAGE_LOADERS, REACT_PAGES, cleanConfig, describeLoader, describePage,
-  studioToPage, writePreview, type ReactPageId, type SiteArm, type SiteConfig, type SitePage,
+  BUILT_IN_LOADERS, DEFAULT_FILM_LOADER, DEFAULT_SITE, PAGE_LOADERS, REACT_PAGES, cleanConfig, describeLoader, describePage,
+  studioToPage, writePreview, type FilmLoaderConfig, type ReactPageId, type SiteArm, type SiteConfig, type SitePage,
 } from "@/lib/site/config";
 
 const StudioFrame = lazy(() => import("@/components/hq/StudioFrame"));
 const TeamTools = lazy(() => import("@/components/partners/TeamTools"));
 const AdminExperiments = lazy(() => import("@/components/AdminExperiments").then((m) => ({ default: m.AdminExperiments })));
 const IntroLoader = lazy(() => import("@/components/landing/IntroLoader"));
+const FilmLoadingGate = lazy(() => import("@/components/FilmLoader").then((m) => ({ default: m.FilmLoadingGate })));
 
 type Tab = "today" | "studio" | "live" | "results" | "partners" | "library" | "docs" | "team";
 const TABS: [Tab, string, string][] = [
@@ -185,7 +186,9 @@ function summary(c: SiteConfig | null | undefined) {
   const intro = s.intro && s.intro.loader !== "none"
     ? `${describeLoader(s.intro.loader)} · ${s.intro.when === "always" ? "every visit" : s.intro.when === "first" ? "first visit only" : "once per visit"} · ${s.intro.end === "button" ? "waits for Enter" : "fades by itself"}`
     : "None";
-  return { home, intro, page: PAGE_LOADERS[s.pageLoader ?? "skeleton"] };
+  const f = s.filmLoader ?? DEFAULT_FILM_LOADER;
+  const film = `${f.designs.length} design${f.designs.length === 1 ? "" : "s"} in rotation · ${f.reveals.length ? `${f.reveals.length} reveal motion${f.reveals.length === 1 ? "" : "s"}` : "no reveal"}${s.filmLoader ? "" : " (Rowan's picks)"}`;
+  return { home, intro, page: PAGE_LOADERS[s.pageLoader ?? "skeleton"], film };
 }
 
 function Today({ site, go }: { site: ReturnType<typeof useSite>; go: (t: Tab) => void }) {
@@ -200,6 +203,7 @@ function Today({ site, go }: { site: ReturnType<typeof useSite>; go: (t: Tab) =>
             <dt className="text-muted-foreground">Homepage</dt><dd className="font-semibold">{s.home}</dd>
             <dt className="text-muted-foreground">Intro loading screen</dt><dd className="font-semibold">{s.intro}</dd>
             <dt className="text-muted-foreground">Page loading screen</dt><dd className="font-semibold">{s.page}</dd>
+            <dt className="text-muted-foreground">Video loading screen</dt><dd className="font-semibold">{s.film}</dd>
             <dt className="text-muted-foreground">Last change</dt>
             <dd>{last ? `${new Date(last.created_at).toLocaleString()} by ${last.published_by_email ?? "someone"}${last.note ? ` · “${last.note}”` : ""}` : "Nothing published from HQ yet (the site runs its built-in setup)."}</dd>
           </dl>
@@ -243,6 +247,7 @@ function GoLive({ site, setPending, openStudio }: { site: ReturnType<typeof useS
   const [intro, setIntro] = useState(start.intro ?? DEFAULT_SITE.intro!);
   const [pageLoader, setPageLoader] = useState(start.pageLoader ?? "skeleton");
   const [playing, setPlaying] = useState(false);
+  const [film, setFilm] = useState<FilmLoaderConfig>(start.filmLoader ?? DEFAULT_FILM_LOADER);
 
   // When the live config arrives after first render, start from it.
   useEffect(() => {
@@ -253,6 +258,7 @@ function GoLive({ site, setPending, openStudio }: { site: ReturnType<typeof useS
     if (l.home.mode === "test") setArms(l.home.arms.map((a) => pageToChoice(a.page)));
     if (l.intro) setIntro(l.intro);
     setPageLoader(l.pageLoader ?? "skeleton");
+    setFilm(l.filmLoader ?? DEFAULT_FILM_LOADER);
   }, [site.live?.published_id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const options = useMemo(() => [
@@ -285,14 +291,14 @@ function GoLive({ site, setPending, openStudio }: { site: ReturnType<typeof useS
       const same = start.home.mode === "test" && JSON.stringify(start.home.arms) === JSON.stringify(list);
       home = { mode: "test", key: same && start.home.mode === "test" ? start.home.key : `landing_hq_${new Date().toISOString().slice(0, 16).replace(/\D/g, "")}`, arms: list as SiteArm[] };
     }
-    return cleanConfig({ version: 2, home, intro, pageLoader });
+    return cleanConfig({ version: 2, home, intro, pageLoader, filmLoader: film });
   };
 
   const goLive = () => {
     const c = build();
     if (!c) { toast.error("Pick a page for every slot first."); return; }
     const s = summary(c);
-    setPending({ title: "Change the live website?", lines: [`Homepage → ${s.home}`, `Intro loading screen → ${s.intro}`, `Page loading screen → ${s.page}`], config: c });
+    setPending({ title: "Change the live website?", lines: [`Homepage → ${s.home}`, `Intro loading screen → ${s.intro}`, `Page loading screen → ${s.page}`, `Video loading screen → ${s.film}`], config: c });
   };
   const preview = (c: SiteConfig | null = build()) => {
     if (!c) { toast.error("Pick a page for every slot first."); return; }
@@ -379,6 +385,8 @@ function GoLive({ site, setPending, openStudio }: { site: ReturnType<typeof useS
         </div>
       </GlassCard>
 
+      <FilmLoaderPicker film={film} setFilm={setFilm} />
+
       <div className="sticky bottom-3 z-10 flex flex-wrap gap-2 rounded-2xl border border-white/10 bg-background/80 p-3 backdrop-blur-xl">
         <Button variant="outline" onClick={() => preview()}><Eye className="mr-1 h-4 w-4" /> Preview in a new tab</Button>
         <Button className="ml-auto bg-gradient-to-r from-green-500 to-yellow-400 font-bold text-black" onClick={goLive}><Rocket className="mr-1 h-4 w-4" /> Go live…</Button>
@@ -421,6 +429,92 @@ function GoLive({ site, setPending, openStudio }: { site: ReturnType<typeof useS
         </Suspense>
       )}
     </div>
+  );
+}
+
+/* ───────────── Video loading screens ───────────── */
+const FILM_LABS: [string, string, number][] = [["loading-screens", "Loading screens", 100], ["loading-experiences", "Loading experiences", 12]];
+const labelOfId = (id: string) => (id === "chameleon" ? "Chameleon Method (old)" : `${id.split(":")[1].replace("loading-", "")} #${Number(id.split(":")[2]) + 1}`);
+
+function FilmLoaderPicker({ film, setFilm }: { film: FilmLoaderConfig; setFilm: (f: FilmLoaderConfig) => void }) {
+  const [lab, setLab] = useState("loading-screens");
+  const [n, setN] = useState(0);
+  const [m, setM] = useState(0);
+  const [demo, setDemo] = useState<null | { ready: boolean; key: number }>(null);
+  const max = FILM_LABS.find(([k]) => k === lab)?.[2] ?? 1;
+  const cand = `lab:${lab}:${n}`;
+  const motion = `lab:loading-motion:${m}`;
+  const toggle = (key: "designs" | "reveals", id: string) =>
+    setFilm({ ...film, [key]: film[key].includes(id) ? film[key].filter((x) => x !== id) : [...film[key], id] });
+  const play = () => {
+    const k = Date.now();
+    setDemo({ ready: false, key: k });
+    setTimeout(() => setDemo((d) => (d && d.key === k ? { ...d, ready: true } : d)), 4500);
+    setTimeout(() => setDemo((d) => (d && d.key === k ? null : d)), 4500 + 2400);
+  };
+  return (
+    <GlassCard className="p-5 space-y-4">
+      <Eyebrow>4 · Video loading screens</Eyebrow>
+      <p className="text-sm text-muted-foreground">While a film's subtitles load, the player shows one of these (a different one each film), with the real progress as its caption. When the subtitles are ready, one “loading → playing” motion plays.</p>
+
+      <div className="space-y-2">
+        <p className="text-sm font-semibold">While loading · {film.designs.length} in rotation</p>
+        <div className="flex flex-wrap gap-1.5">
+          {film.designs.map((id) => (
+            <span key={id} className="inline-flex items-center gap-1 rounded-full bg-emerald-400/15 px-2.5 py-1 text-xs font-semibold text-emerald-200">
+              {labelOfId(id)}<button aria-label={`Remove ${labelOfId(id)}`} onClick={() => toggle("designs", id)}>✕</button>
+            </span>
+          ))}
+        </div>
+        <div className="grid gap-2 sm:grid-cols-[1fr_320px] items-start">
+          <div className="flex flex-wrap items-center gap-2">
+            {FILM_LABS.map(([k, name]) => <Chip key={k} on={lab === k} onClick={() => { setLab(k); setN(0); }}>{name}</Chip>)}
+            <Button size="sm" variant="outline" onClick={() => setN((n - 1 + max) % max)} aria-label="Previous design">◀</Button>
+            <span className="font-mono text-sm">#{n + 1} of {max}</span>
+            <Button size="sm" variant="outline" onClick={() => setN((n + 1) % max)} aria-label="Next design">▶</Button>
+            <Button size="sm" onClick={() => toggle("designs", cand)}>{film.designs.includes(cand) ? "✕ Remove" : "＋ Add to rotation"}</Button>
+            <Button size="sm" variant="ghost" onClick={() => toggle("designs", "chameleon")}>{film.designs.includes("chameleon") ? "✕ Old chameleon screen" : "＋ Old chameleon screen"}</Button>
+          </div>
+          <iframe key={cand} title="Loading design preview" src={`/brand/${lab}.html#only=${n}`} loading="lazy" className="h-[180px] w-full rounded-xl border border-white/10 bg-black" />
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <p className="text-sm font-semibold">When ready (loading → playing) · {film.reveals.length ? `${film.reveals.length} in rotation` : "none, straight in"}</p>
+        <div className="flex flex-wrap gap-1.5">
+          {film.reveals.map((id) => (
+            <span key={id} className="inline-flex items-center gap-1 rounded-full bg-amber-400/15 px-2.5 py-1 text-xs font-semibold text-amber-200">
+              motion #M{String(Number(id.split(":")[2]) + 1).padStart(2, "0")}<button aria-label="Remove motion" onClick={() => toggle("reveals", id)}>✕</button>
+            </span>
+          ))}
+        </div>
+        <div className="grid gap-2 sm:grid-cols-[1fr_320px] items-start">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button size="sm" variant="outline" onClick={() => setM((m + 29) % 30)} aria-label="Previous motion">◀</Button>
+            <span className="font-mono text-sm">#M{String(m + 1).padStart(2, "0")} of 30</span>
+            <Button size="sm" variant="outline" onClick={() => setM((m + 1) % 30)} aria-label="Next motion">▶</Button>
+            <Button size="sm" onClick={() => toggle("reveals", motion)}>{film.reveals.includes(motion) ? "✕ Remove" : "＋ Add to rotation"}</Button>
+          </div>
+          <iframe key={motion} title="Motion preview" src={`/brand/loading-motion.html#only=${m}`} loading="lazy" className="h-[180px] w-full rounded-xl border border-white/10 bg-black" />
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <Button size="sm" variant="outline" onClick={play} disabled={!film.designs.length}>▶ Try it like a real video</Button>
+        <Button size="sm" variant="ghost" onClick={() => setFilm(DEFAULT_FILM_LOADER)}>💛 Back to Rowan's picks</Button>
+      </div>
+      {demo && (
+        <div className="relative mx-auto w-full max-w-xl overflow-hidden rounded-xl border border-white/10 bg-black" style={{ aspectRatio: "16 / 9" }}>
+          <div className="absolute inset-0 grid place-items-center text-white/80 text-lg font-bold">▶ The film plays here</div>
+          <Suspense fallback={null}>
+            <FilmLoadingGate key={demo.key} config={film} ready={demo.ready} status={demo.ready ? "Ready" : "Downloading French & English captions…"} onComplete={() => {}} duration={60000}>
+              {null}
+            </FilmLoadingGate>
+          </Suspense>
+        </div>
+      )}
+      {!film.designs.length && <p className="text-sm text-amber-300">Add at least one design, or the player goes back to Rowan's picks.</p>}
+    </GlassCard>
   );
 }
 

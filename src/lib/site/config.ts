@@ -36,9 +36,34 @@ export type SiteConfig = {
   home: { mode: "builtin" } | { mode: "single"; page: SitePage } | { mode: "test"; key: string; arms: SiteArm[] };
   intro?: { loader: string; when: "session" | "first" | "always"; end: "auto" | "button" };
   pageLoader?: keyof typeof PAGE_LOADERS;
+  /** Video player while subtitles load: one design per film from `designs`,
+   * then one "loading → playing" motion from `reveals` (empty = straight in). */
+  filmLoader?: FilmLoaderConfig;
   published_id?: number;
   published_at?: string;
 };
+
+export type FilmLoaderConfig = { designs: string[]; reveals: string[] };
+/** Rowan's favourites (screenshots, Nov 2026): used until HQ publishes others. */
+export const DEFAULT_FILM_LOADER: FilmLoaderConfig = {
+  designs: [0, 1, 50, 51, 70, 71, 85, 86, 95, 96].map((n) => `lab:loading-screens:${n}`),
+  reveals: [7, 8, 9, 16, 17, 18].map((n) => `lab:loading-motion:${n}`),
+};
+export const isFilmDesign = (v: unknown): v is string =>
+  v === "chameleon" || (typeof v === "string" && /^lab:(loading-screens|loading-experiences):\d{1,3}$/.test(v));
+export const isFilmReveal = (v: unknown): v is string => typeof v === "string" && /^lab:loading-motion:\d{1,3}$/.test(v);
+function cleanFilm(f: any): FilmLoaderConfig | undefined {
+  if (!f || typeof f !== "object") return undefined;
+  const designs = (Array.isArray(f.designs) ? f.designs : []).filter(isFilmDesign).slice(0, 30);
+  const reveals = (Array.isArray(f.reveals) ? f.reveals : []).filter(isFilmReveal).slice(0, 30);
+  return designs.length ? { designs, reveals } : undefined;
+}
+/** What the video player uses now (cached config, else the defaults). */
+export function getFilmLoader(): FilmLoaderConfig {
+  const c = readCache();
+  if (!cacheIsFresh(c)) void fetchLiveSite().catch(() => {}); // next film uses the newest
+  return c?.config?.filmLoader ?? DEFAULT_FILM_LOADER;
+}
 
 export const isLoaderId = (v: unknown): v is string =>
   typeof v === "string" &&
@@ -65,7 +90,7 @@ export function cleanConfig(c: any): SiteConfig | null {
     when: ["session", "first", "always"].includes(c.intro.when) ? c.intro.when : "session",
     end: c.intro.end === "button" ? "button" : "auto",
   } : undefined;
-  return { ...c, intro, pageLoader: c.pageLoader === "brand" ? "brand" : "skeleton" } as SiteConfig;
+  return { ...c, intro, pageLoader: c.pageLoader === "brand" ? "brand" : "skeleton", filmLoader: cleanFilm(c.filmLoader) } as SiteConfig;
 }
 
 const CACHE = "ls.site.live.v1";
@@ -125,6 +150,7 @@ export const DEFAULT_SITE: SiteConfig = {
   home: { mode: "builtin" },
   intro: { loader: "none", when: "session", end: "auto" },
   pageLoader: "skeleton",
+  filmLoader: DEFAULT_FILM_LOADER,
 };
 
 /** Studio Builder state (theme + sections with on/off) → a publishable page. */
@@ -145,6 +171,7 @@ export function describePage(p: SitePage): string {
 }
 export function describeLoader(id: string | undefined): string {
   if (!id || id === "none") return "No intro";
+  if (id === "chameleon") return "Chameleon Method screen (old)";
   if (id in BUILT_IN_LOADERS) return BUILT_IN_LOADERS[id as keyof typeof BUILT_IN_LOADERS];
   const [, lab, n] = id.split(":");
   return `${lab.replace("loading-", "Loading ").replace("-", " ")} #${Number(n) + 1}`;

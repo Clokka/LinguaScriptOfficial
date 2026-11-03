@@ -18,7 +18,7 @@ import { getLanguageLabel, getLanguageFlag, stripLearningScript, stripNonLearnin
 import { spaceOutWords } from "@/lib/wordSegments";
 import { cn } from "@/lib/utils";
 import { fetchCaptionsFromBrowser } from "@/lib/browserCaptionFetcher";
-import { ChameleonLoader } from "@/components/ChameleonLoader";
+import { FilmLoadingGate } from "@/components/FilmLoader";
 import { PreTeachCard } from "@/components/PreTeachCard";
 import { ContentLockScreen } from "@/components/ContentLockScreen";
 import { ActiveLanguageBadge } from "@/components/ActiveLanguageBadge";
@@ -1493,7 +1493,8 @@ const Watch = () => {
         }
       >
         <div id="yt-player" className="absolute inset-0 w-full h-full" />
-        {!adDone && (subtitles.length ? (
+        {!adDone && (
+            <FilmLoadingGate ready={subtitles.length > 0} status={captionsStatus || undefined} onComplete={finishPreTeach} duration={captionsLoading ? 12000 : 5000}>
             <PreTeachCard
               lines={preTeachLines}
               language={film.language || learningLanguage || "fr"}
@@ -1503,7 +1504,8 @@ const Watch = () => {
               onComplete={finishPreTeach}
               onWords={handlePreTeachWords}
             />
-          ) : <ChameleonLoader onComplete={finishPreTeach} duration={captionsLoading ? 12000 : 5000} />)}
+            </FilmLoadingGate>
+          )}
         {cssFullscreen && (
           <Button
             variant="ghost"
@@ -1514,7 +1516,7 @@ const Watch = () => {
             <Minimize className="w-5 h-5" />
           </Button>
         )}
-        {captionsLoading && captionsStatus && (
+        {captionsLoading && captionsStatus && (adDone || subtitles.length > 0) && (
           <div className="absolute top-2 left-1/2 -translate-x-1/2 bg-black/70 text-white/80 text-xs px-3 py-1.5 rounded-lg flex items-center gap-2 z-[9999] max-w-[90%]">
             <Loader2 className="w-3 h-3 animate-spin shrink-0" />
             <span className="truncate">{captionsStatus}</span>
@@ -1695,7 +1697,8 @@ const Watch = () => {
           <div id="yt-player" className={cn("w-full", isFullscreen ? "h-full" : "h-full")} />
 
           {/* Pre-roll house ad — masks YT iframe load */}
-          {!adDone && (subtitles.length ? (
+          {!adDone && (
+            <FilmLoadingGate ready={subtitles.length > 0} status={captionsStatus || undefined} onComplete={finishPreTeach} duration={captionsLoading ? 12000 : 5000}>
             <PreTeachCard
               lines={preTeachLines}
               language={film.language || learningLanguage || "fr"}
@@ -1705,10 +1708,11 @@ const Watch = () => {
               onComplete={finishPreTeach}
               onWords={handlePreTeachWords}
             />
-          ) : <ChameleonLoader onComplete={finishPreTeach} duration={captionsLoading ? 12000 : 5000} />)}
+            </FilmLoadingGate>
+          )}
 
           {/* Loading status */}
-          {captionsLoading && captionsStatus && (
+          {captionsLoading && captionsStatus && (adDone || subtitles.length > 0) && (
             <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/70 text-white/80 text-sm px-4 py-2 rounded-lg flex items-center gap-2 z-[9999]">
               <Loader2 className="w-3 h-3 animate-spin" />
               {captionsStatus}
