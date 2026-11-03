@@ -1,4 +1,5 @@
 # Current work
+- [ ] Streamline Site Studio into distinct builder, name intro, before-film and streaming startup workspaces; retain confirmation before publishing.
 - [x] Repair missing HQ publishing setup; signed-in confirmation/cancel, version validation and public denial verified without changing the live website.
 - [x] Use only the lighter green for learned words (website, extension reader, Android bubble source).
 - [x] Replace blank route/auth startup and spinner-only website/Android startup with visible placeholders; daily word top-up no longer delays first card retrieval.
