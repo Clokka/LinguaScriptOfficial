@@ -24,11 +24,22 @@ export default function Credits() {
           <ArrowLeft className="w-4 h-4" /> Back
         </Button>
 
-        <h1 className="text-3xl font-bold text-foreground mb-2">3D Asset Credits</h1>
+        <h1 className="text-3xl font-bold text-foreground mb-2">Credits</h1>
         <p className="text-muted-foreground mb-8 text-sm">
           LinguaScript uses these Creative Commons-licensed 3D models. Thanks to
           every creator who shared their work.
         </p>
+
+        <section className="mb-8">
+          <h2 className="text-lg font-semibold text-foreground mb-3">Word lists</h2>
+          <p className="text-sm text-muted-foreground">
+            Instant word meanings use the most common words from{" "}
+            <a className="underline" href="https://github.com/hermitdave/FrequencyWords" target="_blank" rel="noopener noreferrer">FrequencyWords</a>{" "}
+            by Hermit Dave (OpenSubtitles 2018), licensed{" "}
+            <a className="underline" href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener noreferrer">CC BY-SA 4.0</a>.
+            Our word pack built from it (<a className="underline" href="/dict/fr-en.v1.json">fr-en.v1.json</a>) is shared under the same licence.
+          </p>
+        </section>
 
         <div className="space-y-8">
           {Object.entries(grouped).map(([category, items]) => (

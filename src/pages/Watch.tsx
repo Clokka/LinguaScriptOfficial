@@ -19,6 +19,7 @@ import { spaceOutWords } from "@/lib/wordSegments";
 import { cn } from "@/lib/utils";
 import { fetchCaptionsFromBrowser } from "@/lib/browserCaptionFetcher";
 import { FilmLoadingGate } from "@/components/FilmLoader";
+import { loadPack, prefetchVideo } from "@/lib/instantDict";
 import { PreTeachCard } from "@/components/PreTeachCard";
 import { ContentLockScreen } from "@/components/ContentLockScreen";
 import { ActiveLanguageBadge } from "@/components/ActiveLanguageBadge";
@@ -515,6 +516,17 @@ const Watch = () => {
   // be the video + the teaching cursor, never an ad.
   const [adDone, setAdDone] = useState(tourActive);
   const finishPreTeach = useCallback(() => setAdDone(true), []);
+
+  // Instant taps: load the built-in word pack as soon as the film is known,
+  // then get every word of this video's subtitles ready on the device.
+  const tapLang = film?.language || learningLanguage || "fr";
+  useEffect(() => { void loadPack(tapLang, nativeLanguage || "en"); }, [tapLang, nativeLanguage]);
+  useEffect(() => {
+    if (!subtitles.length) return;
+    const run = () => void prefetchVideo(subtitles, tapLang, nativeLanguage || "en");
+    const w = window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number };
+    if (w.requestIdleCallback) w.requestIdleCallback(run, { timeout: 1500 }); else setTimeout(run, 300);
+  }, [subtitles, tapLang, nativeLanguage]);
   // Rings: the pre-teach picks — the most frequent words in this video the
   // learner hasn't learned yet, as many as their daily goal. Without a
   // pre-teach (it found nothing, or was skipped) fall back to that many
