@@ -170,6 +170,56 @@ export type Database = {
         }
         Relationships: []
       }
+      commissions: {
+        Row: {
+          available_at: string
+          commission_amount: number
+          created_at: string
+          currency: string
+          gross_amount: number
+          id: string
+          partner_id: string
+          status: string
+          stripe_payment_intent: string | null
+          stripe_ref: string
+          user_id: string | null
+        }
+        Insert: {
+          available_at?: string
+          commission_amount: number
+          created_at?: string
+          currency?: string
+          gross_amount: number
+          id?: string
+          partner_id: string
+          status?: string
+          stripe_payment_intent?: string | null
+          stripe_ref: string
+          user_id?: string | null
+        }
+        Update: {
+          available_at?: string
+          commission_amount?: number
+          created_at?: string
+          currency?: string
+          gross_amount?: number
+          id?: string
+          partner_id?: string
+          status?: string
+          stripe_payment_intent?: string | null
+          stripe_ref?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "commissions_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       comprehension_snapshots: {
         Row: {
           created_at: string
@@ -906,6 +956,51 @@ export type Database = {
         }
         Relationships: []
       }
+      partners: {
+        Row: {
+          brand_logo_url: string | null
+          code: string
+          commission_months: number
+          commission_rate: number
+          created_at: string
+          display_name: string
+          id: string
+          logo_approved: boolean
+          payout_details: string | null
+          socials: Json
+          status: string
+          user_id: string | null
+        }
+        Insert: {
+          brand_logo_url?: string | null
+          code: string
+          commission_months?: number
+          commission_rate?: number
+          created_at?: string
+          display_name?: string
+          id?: string
+          logo_approved?: boolean
+          payout_details?: string | null
+          socials?: Json
+          status?: string
+          user_id?: string | null
+        }
+        Update: {
+          brand_logo_url?: string | null
+          code?: string
+          commission_months?: number
+          commission_rate?: number
+          created_at?: string
+          display_name?: string
+          id?: string
+          logo_approved?: boolean
+          payout_details?: string | null
+          socials?: Json
+          status?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       payment_plans: {
         Row: {
           enabled: boolean
@@ -935,6 +1030,44 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      payouts: {
+        Row: {
+          amount: number
+          created_at: string
+          currency: string
+          id: string
+          method: string
+          partner_id: string
+          reference: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          currency?: string
+          id?: string
+          method?: string
+          partner_id: string
+          reference?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          currency?: string
+          id?: string
+          method?: string
+          partner_id?: string
+          reference?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payouts_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       pet_collection: {
         Row: {
@@ -1316,6 +1449,76 @@ export type Database = {
         }
         Relationships: []
       }
+      referral_clicks: {
+        Row: {
+          channel: string
+          created_at: string
+          device: string | null
+          id: number
+          landing_path: string | null
+          partner_id: string
+          region: string | null
+          visitor_hash: string | null
+        }
+        Insert: {
+          channel?: string
+          created_at?: string
+          device?: string | null
+          id?: number
+          landing_path?: string | null
+          partner_id: string
+          region?: string | null
+          visitor_hash?: string | null
+        }
+        Update: {
+          channel?: string
+          created_at?: string
+          device?: string | null
+          id?: number
+          landing_path?: string | null
+          partner_id?: string
+          region?: string | null
+          visitor_hash?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referral_clicks_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      referrals: {
+        Row: {
+          channel: string
+          partner_id: string
+          signed_up_at: string
+          user_id: string
+        }
+        Insert: {
+          channel?: string
+          partner_id: string
+          signed_up_at?: string
+          user_id: string
+        }
+        Update: {
+          channel?: string
+          partner_id?: string
+          signed_up_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referrals_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       saved_words: {
         Row: {
           appearance_count: number | null
@@ -1627,7 +1830,7 @@ export type Database = {
             columns: ["updated_by"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
+            referencedColumns: ["user_id"]
           },
         ]
       }
@@ -1659,7 +1862,7 @@ export type Database = {
             columns: ["published_by"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
+            referencedColumns: ["user_id"]
           },
         ]
       }
@@ -2315,6 +2518,10 @@ export type Database = {
       accept_school_invite: { Args: { _token: string }; Returns: string }
       add_friend_by_code: { Args: { _code: string }; Returns: string }
       add_friend_by_user_id: { Args: { _target: string }; Returns: string }
+      admin_approve_logo: {
+        Args: { _ok: boolean; _partner_id: string }
+        Returns: boolean
+      }
       admin_fill_vocab_translations: { Args: { _rows: Json }; Returns: number }
       admin_grant_pro: {
         Args: { _days?: number; _user_id: string }
@@ -2344,6 +2551,14 @@ export type Database = {
           username: string
         }[]
       }
+      admin_mark_commissions_paid: {
+        Args: { _partner_id: string; _reference?: string }
+        Returns: number
+      }
+      admin_partner_payout_details: {
+        Args: { _partner_id: string }
+        Returns: string
+      }
       admin_revoke_pro: { Args: { _user_id: string }; Returns: boolean }
       admin_search_users: {
         Args: { _q: string }
@@ -2372,6 +2587,18 @@ export type Database = {
           roles: string[]
         }[]
       }
+      admin_upsert_partner: {
+        Args: {
+          _code: string
+          _display_name: string
+          _email: string
+          _months?: number
+          _rate?: number
+          _status?: string
+        }
+        Returns: string
+      }
+      approve_due_commissions: { Args: never; Returns: number }
       are_friends: { Args: { _a: string; _b: string }; Returns: boolean }
       bulk_invite_students: {
         Args: { _emails: string[]; _school_id: string }
@@ -2394,6 +2621,10 @@ export type Database = {
       claim_pet_milestones: { Args: never; Returns: string[] }
       claim_pro_chameleon_link: { Args: { _token: string }; Returns: Json }
       claim_pro_gift_link: { Args: { _token: string }; Returns: Json }
+      claim_referral: {
+        Args: { _channel?: string; _code: string }
+        Returns: boolean
+      }
       claim_return_gift: { Args: never; Returns: Json }
       create_daily_linguascript: {
         Args: {
@@ -2557,6 +2788,22 @@ export type Database = {
         }
         Returns: Json
       }
+      growth_partners_overview: {
+        Args: { _days?: number }
+        Returns: {
+          approved: number
+          clicks: number
+          code: string
+          commission_rate: number
+          display_name: string
+          id: string
+          paid: number
+          pending: number
+          sales: number
+          signups: number
+          status: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -2564,6 +2811,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_growth_team: { Args: { _uid: string }; Returns: boolean }
       is_school_staff: {
         Args: { _school_id: string; _user_id: string }
         Returns: boolean
@@ -2604,6 +2852,10 @@ export type Database = {
           slug: string
         }[]
       }
+      partner_dashboard: {
+        Args: { _days?: number; _partner_id?: string }
+        Returns: Json
+      }
       preview_pro_chameleon_link: { Args: { _token: string }; Returns: Json }
       preview_pro_gift_link: { Args: { _token: string }; Returns: Json }
       publish_site: { Args: { _config: Json; _note?: string }; Returns: number }
@@ -2628,6 +2880,17 @@ export type Database = {
       record_feed_event: {
         Args: { _interest_id: string; _kind: string; _language: string }
         Returns: undefined
+      }
+      record_referral_click: {
+        Args: {
+          _channel?: string
+          _code: string
+          _device?: string
+          _path?: string
+          _region?: string
+          _visitor?: string
+        }
+        Returns: boolean
       }
       record_watch_session: {
         Args: {
@@ -2685,6 +2948,15 @@ export type Database = {
         Returns: Json
       }
       update_email_prefs: { Args: { _prefs: Json }; Returns: Json }
+      update_my_partner_profile: {
+        Args: {
+          _brand_logo_url: string
+          _display_name: string
+          _payout_details: string
+          _socials: Json
+        }
+        Returns: boolean
+      }
       update_privacy_settings: {
         Args: { _discoverable: boolean; _show_on_leaderboard: boolean }
         Returns: undefined
