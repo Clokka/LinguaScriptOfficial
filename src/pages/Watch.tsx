@@ -527,7 +527,7 @@ const Watch = () => {
     if (!subtitles.length) return;
     const run = () => void prefetchVideo(subtitles, tapLang, nativeLanguage || "en");
     const w = window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number };
-    if (w.requestIdleCallback) w.requestIdleCallback(run, { timeout: 1500 }); else setTimeout(run, 300);
+    if (w.requestIdleCallback) w.requestIdleCallback(run, { timeout: 400 }); else setTimeout(run, 100);
   }, [subtitles, tapLang, nativeLanguage]);
   // Rings: the pre-teach picks — the most frequent words in this video the
   // learner hasn't learned yet, as many as their daily goal. Without a

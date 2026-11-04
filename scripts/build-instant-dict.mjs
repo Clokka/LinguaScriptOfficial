@@ -9,6 +9,7 @@
 // same list the seed-dictionary function uses. Meanings: Google Translate,
 // one word per line in batches (same as seed-dictionary).
 import { writeFileSync, mkdirSync } from "node:fs";
+import { OVERRIDES, englishWords } from "./instant-dict-fixes.mjs";
 
 const [from = "fr", to = "en", countArg = "15000"] = process.argv.slice(2);
 const COUNT = Number(countArg);
@@ -52,6 +53,7 @@ for (const line of raw.split("\n")) {
 }
 
 const out = {};
+const en = await englishWords();
 let echoed = 0;
 for (let i = 0; i < words.length; i += BATCH) {
   const batch = words.slice(i, i + BATCH);
@@ -67,12 +69,18 @@ for (let i = 0; i < words.length; i += BATCH) {
   }
   batch.forEach((w, j) => {
     const t = (got[j] || "").trim();
-    if (!t || flat(t) === flat(w)) { echoed++; return; } // no meaning is better than the word again
+    if (!t || flat(t) === flat(w)) {
+      // The same word back: keep it when it's a real look-alike (moment, question, téléphone→telephone), else skip.
+      const plain = w.normalize("NFD").replace(/\p{M}/gu, "");
+      if (en.has(w)) out[w] = w; else if (en.has(plain)) out[w] = plain; else echoed++;
+      return;
+    }
     out[w] = t;
   });
   if ((i / BATCH) % 20 === 0) process.stdout.write(`\r${Math.min(i + BATCH, words.length)} / ${words.length}`);
 }
 
+Object.assign(out, OVERRIDES[from] || {}); // hand-written glosses for tiny grammar words
 mkdirSync("public/dict", { recursive: true });
 const file = `public/dict/${from}-${to}.v1.json`;
 writeFileSync(file, JSON.stringify({
