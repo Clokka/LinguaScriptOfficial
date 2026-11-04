@@ -3055,6 +3055,7 @@ export type Database = {
               vocab_learned: number
             }[]
           }
+      valid_site_page: { Args: { _page: Json }; Returns: boolean }
     }
     Enums: {
       app_role:
