@@ -33,10 +33,12 @@ const TeamTools = lazy(() => import("@/components/partners/TeamTools"));
 const AdminExperiments = lazy(() => import("@/components/AdminExperiments").then((m) => ({ default: m.AdminExperiments })));
 const IntroLoader = lazy(() => import("@/components/landing/IntroLoader"));
 const FilmLoadingGate = lazy(() => import("@/components/FilmLoader").then((m) => ({ default: m.FilmLoadingGate })));
+const SchoolEnquiries = lazy(() => import("@/components/hq/SchoolEnquiries"));
 
-type Tab = "today" | "studio" | "live" | "results" | "partners" | "library" | "docs" | "team";
+type Tab = "today" | "schools" | "studio" | "live" | "results" | "partners" | "library" | "docs" | "team";
 const TABS: [Tab, string, string][] = [
   ["today", "🏠 Today", "What visitors see right now, and where to change it."],
+  ["schools", "🏫 Schools", "School requests received from the website. Follow up and track your quotes."],
   ["studio", "🎨 Studio", "Every design we've made. Star, mix, build a page, then press 🚀 Go live."],
   ["live", "🚀 Go live", "Pick the homepage, an A/B test and the loading screens. Nothing changes until you press OK."],
   ["results", "📊 Results", "Which homepage gets more people to start. Wait for 1,000+ views per version before calling it."],
@@ -151,9 +153,10 @@ function HQBody({ tab, setTab, visible, isAdmin, roleLabel }: {
 
       <Suspense fallback={<Skeleton className="h-64" />}>
         {tab === "today" && <Today site={site} go={setTab} />}
+        {tab === "schools" && <SchoolEnquiries />}
         {tab === "studio" && <StudioFrame site={site} />}
         {tab === "live" && <GoLive site={site} setPending={setPending} openStudio={() => setTab("studio")} />}
-        {tab === "results" && <GlassCard className="p-4"><AdminExperiments /></GlassCard>}
+        {tab === "results" && <GlassCard className="p-4"><AdminExperiments preferredKey={site.live?.home.mode === "test" ? site.live.home.key : undefined} /></GlassCard>}
         {tab === "partners" && (
           <TeamTools mode="team" isAdmin={isAdmin} days={days} setDays={setDays}
             onOpen={(id) => navigate(`/partners?view=${encodeURIComponent(id)}`)} />
@@ -209,6 +212,8 @@ function Today({ site, go }: { site: ReturnType<typeof useSite>; go: (t: Tab) =>
           </dl>
         )}
         <div className="flex flex-wrap gap-2">
+          <Button asChild variant="outline" size="sm"><a href="/for-schools" target="_blank" rel="noopener">Open the school sales page <ExternalLink className="ml-2 h-3.5 w-3.5" /></a></Button>
+          <Button variant="default" size="sm" onClick={() => go("schools")}>School enquiries</Button>
           <a href="/?sitepreview=live" target="_blank" rel="noopener"
             className="inline-flex items-center gap-1 rounded-full border border-white/10 px-3 py-1.5 text-sm">See the live site <ExternalLink className="h-3.5 w-3.5" /></a>
         </div>
