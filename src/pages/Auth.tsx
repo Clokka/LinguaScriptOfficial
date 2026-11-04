@@ -50,7 +50,10 @@ const Auth = () => {
   const { t } = useT();
   const [searchParams] = useSearchParams();
   const inviteToken = searchParams.get("invite");
-  const next = searchParams.get("next") || "/discover";
+  // Some pages send ?redirect= instead of ?next= (gift claims, HQ, partners):
+  // accept both, but only same-site paths so the link can't bounce elsewhere.
+  const wanted = searchParams.get("next") || searchParams.get("redirect") || "";
+  const next = wanted.startsWith("/") && !wanted.startsWith("//") ? wanted : "/discover";
   const { toast } = useToast();
 
   // Google sign-in via the project's own Google OAuth provider.
@@ -136,7 +139,8 @@ const Auth = () => {
           data: { display_name: displayName },
           emailRedirectTo:
             window.location.origin +
-            (inviteToken ? `/auth?invite=${inviteToken}` : "/discover"),
+            // Back to where they started (e.g. the gift or yearly checkout), not always /discover.
+            (inviteToken ? `/auth?invite=${inviteToken}` : next),
         },
       });
       if (error) {

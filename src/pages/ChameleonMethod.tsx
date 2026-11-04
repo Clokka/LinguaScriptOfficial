@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Check, GraduationCap, Eye, Layers, Repeat, Sparkles } from "lucide-react";
+import { Check, GraduationCap, Eye, Layers, Repeat, Sparkles, Bot, Crown, ArrowRight } from "lucide-react";
 import { LiveWordmark } from "@/components/landing/LiveWordmark";
 import { LinguaCursor } from "@/components/landing/LinguaCursor";
 import { PlatformLogos } from "@/components/landing/PlatformLogos";
@@ -12,6 +12,8 @@ import { FreeChameleonGift } from "@/components/landing/FreeChameleonGift";
 import { ChameleonMascot } from "@/components/ChameleonMascot";
 import { LandingChameleonDemo } from "@/components/LandingChameleonDemo";
 import { DECK } from "@/lib/deck-colors";
+import { useAuth } from "@/hooks/useAuth";
+import { track } from "@/lib/analytics";
 
 /**
  * The Chameleon Method — LinguaScript's front door.
@@ -22,8 +24,9 @@ import { DECK } from "@/lib/deck-colors";
  * set (glass-panel-strong / text-foreground / text-success), which resolves
  * against the indigo primary and shared no colour with the rest of the brand.
  *
- * Section order is the argument: name the method, hand over a gift, show the
- * mechanic working, then ask for anything.
+ * Section order is the funnel: name the method, hand over the free chameleon,
+ * then the four lesson steps (watch → review → practise with ChatGPT/Claude via
+ * MCP → yearly pass), then the detail for anyone who wants to read more.
  */
 
 const STEPS = [
@@ -71,6 +74,60 @@ const PRO_FEATURES = [
   "Every new feature, first",
 ];
 
+/**
+ * The funnel, in order: free chameleon → watch → review → practise with an AI
+ * (MCP, Pro) → yearly pass. Each step is a real button into that part of the
+ * app; the last one opens the yearly checkout (/pricing?plan=yearly).
+ */
+type FunnelStep = {
+  icon: typeof Eye;
+  colour: string;
+  title: string;
+  body: string;
+  cta: string;
+  to: (signedIn: boolean) => string;
+  id: string;
+};
+
+const FUNNEL: FunnelStep[] = [
+  {
+    id: "watch",
+    icon: Eye,
+    colour: DECK.red,
+    title: "Watch something you love",
+    body: "Pick a video about your hobby. Tap any word you don't know and it's saved as a red flashcard.",
+    cta: "Watch a video",
+    to: (signedIn) => (signedIn ? "/discover" : "/onboarding"),
+  },
+  {
+    id: "review",
+    icon: Repeat,
+    colour: DECK.orange,
+    title: "Review what you learned",
+    body: "A quick flashcard review straight after. Words move red → orange → green as they stick.",
+    cta: "Review my words",
+    to: (signedIn) => (signedIn ? "/flashcards" : "/auth?next=%2Fflashcards"),
+  },
+  {
+    id: "practise",
+    icon: Bot,
+    colour: DECK.green,
+    title: "Practise with ChatGPT or Claude",
+    body: "Connect your AI once. It quizzes your due words and writes mini-stories with your own red words.",
+    cta: "Practise with my AI",
+    to: () => "/ai?from=chameleon-method",
+  },
+  {
+    id: "level_up",
+    icon: Crown,
+    colour: "#F5C542",
+    title: "Level up with the yearly pass",
+    body: "Unlimited languages, flashcards and AI practice every day — with two months free.",
+    cta: "Get the yearly pass",
+    to: () => "/pricing?plan=yearly",
+  },
+];
+
 const reveal = {
   hidden: { opacity: 0, y: 22 },
   visible: (i = 0) => ({
@@ -96,7 +153,13 @@ const Section = ({
 
 export default function ChameleonMethod() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [requested, setRequested] = useState(false);
+
+  const go = (where: string, to: string) => {
+    track("cta_clicked", { where: "chameleon_method", cta: where });
+    navigate(to);
+  };
 
   return (
     <div className="min-h-screen bg-[#08080B] text-white antialiased overflow-x-hidden">
@@ -161,9 +224,72 @@ export default function ChameleonMethod() {
         </motion.p>
 
         <motion.div initial="hidden" animate="visible" custom={3} variants={reveal}>
+          <MagneticButton
+            onClick={() => {
+              track("cta_clicked", { where: "chameleon_method", cta: "hero_free_chameleon" });
+              document.getElementById("gift")?.scrollIntoView({ behavior: "smooth" });
+            }}
+            className="px-8 py-4 rounded-xl font-bold text-lg text-[#08080B] mb-6"
+            style={{ backgroundColor: DECK.green }}
+          >
+            Get your free chameleon 🦎
+          </MagneticButton>
           <StoreBadges className="mb-5" />
           <p className="text-xs text-white/35">Free to start · No card required</p>
         </motion.div>
+      </Section>
+
+      {/* ── 1. The gift: the free chameleon ── */}
+      <Section id="gift" className="py-24 border-t border-white/[0.06] scroll-mt-16">
+        <FreeChameleonGift />
+      </Section>
+
+      {/* ── 2. The path: watch → review → practise with AI → yearly pass ── */}
+      <Section id="path" className="py-24 border-t border-white/[0.06]">
+        <p className="text-xs font-semibold uppercase tracking-[0.35em] text-white/40 mb-5">
+          Your first lesson
+        </p>
+        <h2 className="text-3xl sm:text-5xl font-extrabold tracking-tight mb-4">
+          Watch. Review. Practise. Level up.
+        </h2>
+        <p className="text-white/45 max-w-xl mb-12">
+          Every lesson follows the same four steps. Start at step 1 — each one hands you to the next.
+        </p>
+        <ol className="grid gap-4">
+          {FUNNEL.map((step, i) => (
+            <motion.li
+              key={step.id}
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-60px" }}
+              custom={i}
+              variants={reveal}
+              className="flex flex-col sm:flex-row sm:items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.03] p-5 sm:p-6"
+            >
+              <div
+                className="w-11 h-11 shrink-0 rounded-xl flex items-center justify-center"
+                style={{ backgroundColor: `${step.colour}22`, border: `1px solid ${step.colour}55` }}
+              >
+                <step.icon className="w-5 h-5" style={{ color: step.colour }} />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-bold">
+                  <span className="text-white/30 mr-2">{i + 1}</span>
+                  {step.title}
+                </h3>
+                <p className="text-sm text-white/45 leading-relaxed mt-1">{step.body}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => go(step.id, step.to(!!user))}
+                className="inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-bold text-[#08080B] shrink-0"
+                style={{ backgroundColor: step.colour }}
+              >
+                {step.cta} <ArrowRight className="w-4 h-4" />
+              </button>
+            </motion.li>
+          ))}
+        </ol>
       </Section>
 
       <Section className="pb-24">
@@ -179,11 +305,6 @@ export default function ChameleonMethod() {
           </p>
         </div>
       </section>
-
-      {/* ── The gift ── */}
-      <Section className="py-24 border-t border-white/[0.06]">
-        <FreeChameleonGift />
-      </Section>
 
       {/* ── How it works ── */}
       <Section className="py-24 border-t border-white/[0.06]">
@@ -357,12 +478,19 @@ export default function ChameleonMethod() {
 
         <div className="flex flex-col items-center gap-4">
           <MagneticButton
-            onClick={() => navigate("/pricing")}
+            onClick={() => go("plans_yearly_pass", "/pricing?plan=yearly")}
             className="px-8 py-4 rounded-xl font-bold text-lg text-[#08080B]"
             style={{ backgroundColor: DECK.green }}
           >
-            See Pro plans
+            Get the yearly pass
           </MagneticButton>
+          <button
+            type="button"
+            onClick={() => go("plans_all", "/pricing")}
+            className="text-sm text-white/60 underline underline-offset-4 hover:text-white transition-colors"
+          >
+            See all plans
+          </button>
           <button
             type="button"
             onClick={() => navigate("/onboarding")}

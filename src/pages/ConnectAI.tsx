@@ -106,6 +106,28 @@ export default function ConnectAI() {
         cta={null}
       >
         <p>Available with <strong>LinguaScript Pro</strong>. MCP is a secure connection between your LinguaScript account and your chosen AI: it uses your own words and progress, not a separate deck.</p>
+        {!isPro && !loading && (
+          <div className="not-prose my-6 rounded-2xl border border-primary/40 bg-primary/10 p-5 text-foreground">
+            <p className="text-lg font-bold">Level up: practise with your AI every day</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              The yearly pass unlocks ChatGPT and Claude practice with your own words, plus unlimited
+              languages, flashcards and reviews.
+            </p>
+            <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+              <Button asChild size="lg" className="font-bold">
+                <Link
+                  to="/pricing?plan=yearly"
+                  onClick={() => track("cta_clicked", { where: "ai_page", cta: "yearly_pass" })}
+                >
+                  Get the yearly pass
+                </Link>
+              </Button>
+              <Link to="/pricing" className="text-sm text-muted-foreground underline underline-offset-4">
+                See all plans
+              </Link>
+            </div>
+          </div>
+        )}
         {!isPro && <><AIConnectionCards /><p>Already have Pro? <Link to="/auth" className="text-primary underline">Sign in</Link> to open the connection guide. Your ChatGPT or Claude account may also need an eligible plan.</p></>}
         {isPro && <>
         <H2>Connect in 3 steps</H2>

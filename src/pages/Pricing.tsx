@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { track } from "@/lib/analytics";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Check, ArrowLeft, CreditCard, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BrandMark } from "@/components/BrandMark";
@@ -61,6 +61,21 @@ export default function Pricing() {
     getEnabledFallbackPlans().then((p) => { if (alive) { setPlans(p); setLoadingPlans(false); } });
     return () => { alive = false; };
   }, []);
+
+  // /pricing?plan=yearly (from the Chameleon Method funnel, flashcards and /ai)
+  // skips the plan list and opens that plan's checkout. Signed-out visitors
+  // sign in first and come straight back here.
+  const [searchParams] = useSearchParams();
+  const wantedPlan = searchParams.get("plan") as StripePlanKey | null;
+  const signInPath = `/auth?next=${encodeURIComponent(wantedPlan ? `/pricing?plan=${wantedPlan}` : "/pricing")}`;
+  const autoOpened = useRef(false);
+  useEffect(() => {
+    if (!wantedPlan || autoOpened.current || loadingPlans || subLoading || !user || isPro) return;
+    const chosen = plans.find((p) => p.key === wantedPlan);
+    if (!chosen) return;
+    autoOpened.current = true;
+    setStripePriceId(chosen.priceId);
+  }, [wantedPlan, loadingPlans, subLoading, user, isPro, plans]);
 
   if (stripePriceId) {
     return (
@@ -166,7 +181,7 @@ export default function Pricing() {
                 <button
                   key={p.key}
                   onClick={() => {
-                    if (!user) { navigate("/auth?next=/pricing"); return; }
+                    if (!user) { navigate(signInPath); return; }
                     setStripePriceId(p.priceId);
                   }}
                   disabled={isPro}
@@ -222,7 +237,7 @@ export default function Pricing() {
             size="lg"
             className="w-full font-bold text-[#0a0f0d] hover:opacity-90"
             style={{ backgroundColor: GREEN }}
-            onClick={() => navigate("/auth?next=/pricing")}
+            onClick={() => navigate(signInPath)}
           >
             Sign in to upgrade
           </Button>

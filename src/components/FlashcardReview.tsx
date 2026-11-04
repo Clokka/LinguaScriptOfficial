@@ -16,6 +16,8 @@ import { toast } from "sonner";
 import { playDing } from "@/lib/sound";
 import { Image as ImageIcon, Type } from "lucide-react";
 import { track } from "@/lib/analytics";
+import { useNavigate } from "react-router-dom";
+import { Bot } from "lucide-react";
 
 type Direction = "learn-to-native" | "native-to-learn";
 const DIR_KEY = "flashcardDirection";
@@ -58,6 +60,7 @@ interface FlashcardReviewProps {
 
 export const FlashcardReview = ({ cards: initialCards, onClose, onCardReviewed, className }: FlashcardReviewProps) => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { award } = useXp();
   const { languageContext } = useLanguage();
   const sessionBonusFired = useRef(false);
@@ -346,6 +349,24 @@ export const FlashcardReview = ({ cards: initialCards, onClose, onCardReviewed, 
             <p className="text-xs text-muted-foreground">Accuracy</p>
           </div>
         </div>
+
+        {/* Chameleon Method funnel: watch → review → practise with an AI (MCP) → yearly pass.
+            /ai shows the connection guide to Pro and the yearly-pass offer to everyone else. */}
+        <button
+          type="button"
+          onClick={() => {
+            track("cta_clicked", { where: "review_complete", cta: "practise_with_ai" });
+            navigate("/ai?from=review");
+          }}
+          className="w-full mb-4 rounded-2xl border border-primary/30 bg-primary/10 p-4 text-left transition hover:border-primary/60"
+        >
+          <span className="flex items-center gap-2 font-semibold text-foreground">
+            <Bot className="w-4 h-4 text-primary" /> Next: practise these words with ChatGPT or Claude
+          </span>
+          <span className="mt-1 block text-sm text-muted-foreground">
+            Your AI quizzes you and writes short stories using your own red and orange words.
+          </span>
+        </button>
 
         <div className="flex gap-3">
           <Button data-tour="review-close" variant="outline" className="flex-1" onClick={handleClose}>
