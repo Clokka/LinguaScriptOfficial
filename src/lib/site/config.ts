@@ -44,13 +44,14 @@ export type SiteConfig = {
 };
 
 export type FilmLoaderConfig = { designs: string[]; reveals: string[] };
-/** Rowan's favourites (screenshots, Nov 2026): used until HQ publishes others. */
+/** Defaults until HQ publishes others. Reveals are Rowan's favourite loading → playing motions. */
 export const DEFAULT_FILM_LOADER: FilmLoaderConfig = {
-  designs: [0, 1, 50, 51, 70, 71, 85, 86, 95, 96].map((n) => `lab:loading-screens:${n}`),
+  // "Through the languages → LinguaScript" first, then the Chameleon Method screen, and round again.
+  designs: ["decode:languages", "chameleon"],
   reveals: [7, 8, 9, 16, 17, 18].map((n) => `lab:loading-motion:${n}`),
 };
 export const isFilmDesign = (v: unknown): v is string =>
-  v === "chameleon" || (typeof v === "string" && /^lab:(loading-screens|loading-experiences):\d{1,3}$/.test(v));
+  v === "chameleon" || (typeof v === "string" && /^decode:(languages|decode|alphabets|deck)$/.test(v)) || (typeof v === "string" && /^lab:(loading-screens|loading-experiences):\d{1,3}$/.test(v));
 export const isFilmReveal = (v: unknown): v is string => typeof v === "string" && /^lab:loading-motion:\d{1,3}$/.test(v);
 function cleanFilm(f: any): FilmLoaderConfig | undefined {
   if (!f || typeof f !== "object") return undefined;
@@ -148,7 +149,7 @@ export function routeForText(text: string): string | null {
 export const DEFAULT_SITE: SiteConfig = {
   version: 2,
   home: { mode: "builtin" },
-  intro: { loader: "none", when: "session", end: "auto" },
+  intro: { loader: "languages", when: "session", end: "auto" },
   pageLoader: "skeleton",
   filmLoader: DEFAULT_FILM_LOADER,
 };
@@ -171,7 +172,8 @@ export function describePage(p: SitePage): string {
 }
 export function describeLoader(id: string | undefined): string {
   if (!id || id === "none") return "No intro";
-  if (id === "chameleon") return "Chameleon Method screen (old)";
+  if (id === "chameleon") return "Chameleon Method screen";
+  if (id.startsWith("decode:")) return `Decode · ${id.slice(7)}`;
   if (id in BUILT_IN_LOADERS) return BUILT_IN_LOADERS[id as keyof typeof BUILT_IN_LOADERS];
   const [, lab, n] = id.split(":");
   return `${lab.replace("loading-", "Loading ").replace("-", " ")} #${Number(n) + 1}`;

@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { Volume2, Plus, Check, X } from "lucide-react";
 import { gradePreTeachVocab, type PreTeachItem } from "@/lib/preTeachVocab";
-import { ChameleonLoader, ChameleonMark } from "@/components/ChameleonLoader";
+import { ChameleonMark } from "@/components/ChameleonLoader";
+import { AlternatingLoader } from "@/components/FilmLoader";
 import { hasSpeechSynthesis, speakViaCloud } from "@/lib/cloudSpeech";
 
 interface Props {
@@ -74,7 +75,7 @@ export const PreTeachCard = ({ lines, language, level, goal, userId, onComplete,
     return { it, options: shuffle([answerText, ...others]) };
   }, [items, qi, pool]);
 
-  if (!pool) return <ChameleonLoader message="Finding the key words in this video…" />;
+  if (!pool) return <AlternatingLoader status="Finding the key words in this video…" />;
 
   if (stage === "warmup" && question) {
     const answer = (opt: string) => {

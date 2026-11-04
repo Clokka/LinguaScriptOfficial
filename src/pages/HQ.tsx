@@ -187,7 +187,7 @@ function summary(c: SiteConfig | null | undefined) {
     ? `${describeLoader(s.intro.loader)} · ${s.intro.when === "always" ? "every visit" : s.intro.when === "first" ? "first visit only" : "once per visit"} · ${s.intro.end === "button" ? "waits for Enter" : "fades by itself"}`
     : "None";
   const f = s.filmLoader ?? DEFAULT_FILM_LOADER;
-  const film = `${f.designs.length} design${f.designs.length === 1 ? "" : "s"} in rotation · ${f.reveals.length ? `${f.reveals.length} reveal motion${f.reveals.length === 1 ? "" : "s"}` : "no reveal"}${s.filmLoader ? "" : " (Rowan's picks)"}`;
+  const film = `${f.designs.length} design${f.designs.length === 1 ? "" : "s"} in rotation · ${f.reveals.length ? `${f.reveals.length} reveal motion${f.reveals.length === 1 ? "" : "s"}` : "no reveal"}${s.filmLoader ? "" : " (default)"}`;
   return { home, intro, page: PAGE_LOADERS[s.pageLoader ?? "skeleton"], film };
 }
 
@@ -434,7 +434,7 @@ function GoLive({ site, setPending, openStudio }: { site: ReturnType<typeof useS
 
 /* ───────────── Video loading screens ───────────── */
 const FILM_LABS: [string, string, number][] = [["loading-screens", "Loading screens", 100], ["loading-experiences", "Loading experiences", 12]];
-const labelOfId = (id: string) => (id === "chameleon" ? "Chameleon Method (old)" : `${id.split(":")[1].replace("loading-", "")} #${Number(id.split(":")[2]) + 1}`);
+const labelOfId = (id: string) => (id === "chameleon" ? "Chameleon Method screen" : id.startsWith("decode:") ? `Decode · ${id.slice(7)}` : `${id.split(":")[1].replace("loading-", "")} #${Number(id.split(":")[2]) + 1}`);
 
 function FilmLoaderPicker({ film, setFilm }: { film: FilmLoaderConfig; setFilm: (f: FilmLoaderConfig) => void }) {
   const [lab, setLab] = useState("loading-screens");
@@ -455,7 +455,7 @@ function FilmLoaderPicker({ film, setFilm }: { film: FilmLoaderConfig; setFilm: 
   return (
     <GlassCard className="p-5 space-y-4">
       <Eyebrow>4 · Video loading screens</Eyebrow>
-      <p className="text-sm text-muted-foreground">While a film's subtitles load, the player shows one of these (a different one each film), with the real progress as its caption. When the subtitles are ready, one “loading → playing” motion plays.</p>
+      <p className="text-sm text-muted-foreground">While a film's subtitles load, the player shows these one after another, round and round (default: the “Through the languages → LinguaScript” decoder, then the Chameleon Method screen). Lab designs show the real progress as their caption. When the subtitles are ready, one “loading → playing” motion plays.</p>
 
       <div className="space-y-2">
         <p className="text-sm font-semibold">While loading · {film.designs.length} in rotation</p>
@@ -473,7 +473,10 @@ function FilmLoaderPicker({ film, setFilm }: { film: FilmLoaderConfig; setFilm: 
             <span className="font-mono text-sm">#{n + 1} of {max}</span>
             <Button size="sm" variant="outline" onClick={() => setN((n + 1) % max)} aria-label="Next design">▶</Button>
             <Button size="sm" onClick={() => toggle("designs", cand)}>{film.designs.includes(cand) ? "✕ Remove" : "＋ Add to rotation"}</Button>
-            <Button size="sm" variant="ghost" onClick={() => toggle("designs", "chameleon")}>{film.designs.includes("chameleon") ? "✕ Old chameleon screen" : "＋ Old chameleon screen"}</Button>
+            <Button size="sm" variant="ghost" onClick={() => toggle("designs", "chameleon")}>{film.designs.includes("chameleon") ? "✕ Chameleon Method screen" : "＋ Chameleon Method screen"}</Button>
+            {(["languages", "decode", "alphabets", "deck"] as const).map((k) => (
+              <Button key={k} size="sm" variant="ghost" onClick={() => toggle("designs", `decode:${k}`)}>{film.designs.includes(`decode:${k}`) ? "✕" : "＋"} Decode · {k}</Button>
+            ))}
           </div>
           <iframe title="Loading design preview" src={`/brand/${lab}.html#only=${n}`} loading="lazy" className="h-[180px] w-full rounded-xl border border-white/10 bg-black" />
         </div>
@@ -501,7 +504,7 @@ function FilmLoaderPicker({ film, setFilm }: { film: FilmLoaderConfig; setFilm: 
 
       <div className="flex flex-wrap gap-2">
         <Button size="sm" variant="outline" onClick={play} disabled={!film.designs.length}>▶ Try it like a real video</Button>
-        <Button size="sm" variant="ghost" onClick={() => setFilm(DEFAULT_FILM_LOADER)}>💛 Back to Rowan's picks</Button>
+        <Button size="sm" variant="ghost" onClick={() => setFilm(DEFAULT_FILM_LOADER)}>↺ Back to the default</Button>
       </div>
       {demo && (
         <div className="relative mx-auto w-full max-w-xl overflow-hidden rounded-xl border border-white/10 bg-black" style={{ aspectRatio: "16 / 9" }}>
@@ -513,7 +516,7 @@ function FilmLoaderPicker({ film, setFilm }: { film: FilmLoaderConfig; setFilm: 
           </Suspense>
         </div>
       )}
-      {!film.designs.length && <p className="text-sm text-amber-300">Add at least one design, or the player goes back to Rowan's picks.</p>}
+      {!film.designs.length && <p className="text-sm text-amber-300">Add at least one design, or the player uses the default.</p>}
     </GlassCard>
   );
 }

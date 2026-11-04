@@ -4,7 +4,7 @@
 //    the built-in test, exactly as before
 //  · "single" → one page: a React landing page or a Studio-built page
 //  · "test"   → 2–4 arms, sticky per visitor (getVariant), views counted
-//  · intro loader → played once per session / first visit / every time
+//  · the app-opening loading screen now lives in SiteIntro (all pages)
 //
 // Speed: the config is cached on the device; a fresh cache (< 10 min) shows
 // instantly, otherwise we wait at most 900 ms. Every page is a lazy chunk
@@ -23,11 +23,8 @@ const LandingPage2 = lazy(() => import("@/pages/LandingPage2"));
 const LandingPage3 = lazy(() => import("@/pages/LandingPage3"));
 const LandingPage4 = lazy(() => import("@/pages/LandingPage4"));
 const StudioLanding = lazy(() => import("@/pages/landing/StudioLanding"));
-const IntroLoader = lazy(() => import("@/components/landing/IntroLoader"));
 
 const WAIT_MS = 900;
-const INTRO_SESSION = "ls.intro.seen";
-const INTRO_FIRST = "ls.intro.first";
 
 export function HomePage({ page }: { page: SitePage }) {
   if (page.kind === "studio") return <StudioLanding page={page} />;
@@ -40,19 +37,6 @@ export function HomePage({ page }: { page: SitePage }) {
     case "v4": return <LandingPage4 />;
     default: return <Landing5 />;
   }
-}
-
-function shouldPlayIntro(c: SiteConfig | null | undefined, preview: boolean) {
-  const i = c?.intro;
-  if (!i || i.loader === "none") return false;
-  if (preview || i.when === "always") return true;
-  try {
-    if (i.when === "first") return !localStorage.getItem(INTRO_FIRST);
-    return !sessionStorage.getItem(INTRO_SESSION);
-  } catch { return true; }
-}
-function markIntroSeen() {
-  try { sessionStorage.setItem(INTRO_SESSION, "1"); localStorage.setItem(INTRO_FIRST, "1"); } catch { /* ignore */ }
 }
 
 export default function LiveHome() {
@@ -75,10 +59,6 @@ export default function LiveHome() {
     return () => clearTimeout(t);
   }, [preview, lpPreview]);
 
-  const [introDone, setIntroDone] = useState(false);
-  const wantIntro = useMemo(() => site !== undefined && shouldPlayIntro(site, !!preview), [site, preview]);
-  const intro = wantIntro && !introDone;
-
   const arm = useMemo(() => {
     if (!site || site.home.mode !== "test") return null;
     const id = getVariant(site.home.key, site.home.arms.map((a) => a.id));
@@ -97,11 +77,6 @@ export default function LiveHome() {
       <Suspense fallback={<PageLoading />}>
         {page ? <HomePage page={page} /> : <LandingPageTest />}
       </Suspense>
-      {intro && site?.intro && (
-        <Suspense fallback={null}>
-          <IntroLoader loader={site.intro.loader} end={site.intro.end} onDone={() => { markIntroSeen(); setIntroDone(true); }} />
-        </Suspense>
-      )}
     </>
   );
 }

@@ -46,6 +46,7 @@ import { AppInbox } from "./components/AppInbox";
 import { SelectionSave } from "./components/SelectionSave";
 import { OverlayPermissionPrompt } from "./components/OverlayPermissionPrompt";
 import { CookieConsent } from "./components/CookieConsent";
+import { SiteIntro } from "@/components/SiteIntro";
 import Cookies from "./pages/Cookies";
 import Explain from "./pages/Explain";
 import Manual from "./pages/Manual";
@@ -140,6 +141,7 @@ const App = () => (
               <AppInbox />
               <SelectionSave />
               <OverlayPermissionPrompt />
+              <SiteIntro />
               <CookieConsent />
               <Suspense fallback={<RouteFallback />}>
               <Routes>
