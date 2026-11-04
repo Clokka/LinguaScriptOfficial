@@ -91,7 +91,7 @@ function client3(ctx) {
 var save_word_default = defineTool3({
   name: "save_word",
   title: "Save a flashcard",
-  description: "Save a word or phrase to the signed-in user's LinguaScript flashcards. Duplicates for the same word+language are skipped.",
+  description: "Save a word or phrase to the signed-in user's LinguaScript flashcards (red deck), so it shows up in their flashcards, the video player and their phone. Call it for EVERY new word or phrase you teach or the learner asks about \u2014 always with a translation in their native language and the example sentence as context. Duplicates for the same word+language are skipped, so it's safe to call.",
   inputSchema: {
     word: z2.string().min(1).describe("The word or phrase to save."),
     language: z2.string().min(2).describe("ISO language code of the word, e.g. 'fr'."),
@@ -328,10 +328,33 @@ function client7(ctx) {
     auth: { persistSession: false, autoRefreshToken: false }
   });
 }
+async function countReview(sb, uid, language) {
+  try {
+    const lang = language.toLowerCase();
+    const today = (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
+    const { data: row } = await sb.from("activity_log").select("id,words_reviewed").eq("user_id", uid).eq("date", today).eq("language", lang).maybeSingle();
+    if (row) {
+      const n = (row.words_reviewed ?? 0) + 1;
+      await sb.from("activity_log").update({ words_reviewed: n }).eq("id", row.id);
+      return n;
+    }
+    await sb.from("activity_log").insert({
+      user_id: uid,
+      date: today,
+      language: lang,
+      minutes_watched: 0,
+      videos_watched: 0,
+      words_reviewed: 1
+    });
+    return 1;
+  } catch {
+    return null;
+  }
+}
 var record_review_default = defineTool7({
   name: "record_review",
   title: "Record a review answer",
-  description: "Record whether the learner got a saved word right (in a quiz, or by using it correctly in their own sentence). Correct answers move the word red \u2192 orange \u2192 green and schedule its next review; wrong answers keep it where it is.",
+  description: "Record whether the learner got a saved word right (in a quiz, or by using it correctly in their own sentence). Correct answers move the word red \u2192 orange \u2192 green and schedule its next review; wrong answers keep it where it is. Every answer also counts toward today's daily goal and streak in LinguaScript, so call it after EVERY quiz answer and every time they use a saved word in their own sentence.",
   inputSchema: {
     word: z6.string().min(1).describe("The saved word, exactly as listed by get_due_reviews or list_saved_words."),
     language: z6.string().min(2).describe("ISO language code of the word, e.g. 'fr'."),
@@ -356,7 +379,8 @@ var record_review_default = defineTool7({
     if (next !== prev) patch.state_changed_at = (/* @__PURE__ */ new Date()).toISOString();
     const { error: upErr } = await sb.from("saved_words").update(patch).eq("id", row.id).eq("user_id", uid);
     if (upErr) return { content: [{ type: "text", text: upErr.message }], isError: true };
-    const result = { word, from: prev, to: next, next_review: patch.next_review };
+    const reviewedToday = await countReview(sb, uid, language);
+    const result = { word, from: prev, to: next, next_review: patch.next_review, reviewed_today: reviewedToday };
     return {
       content: [{ type: "text", text: next !== prev ? `${word}: ${prev} \u2192 ${next}` : `${word}: stays ${next}` }],
       structuredContent: result
@@ -421,9 +445,10 @@ var mcp_default = defineMcp({
     "You are the learner's LinguaScript language tutor, teaching the Chameleon Method (comprehensible input: watch, review, then use the words). Act as a tutor whenever LinguaScript is mentioned, even if the learner only says 'hi' or 'lesson'.",
     "LinguaScript is the learner's own vocabulary: every saved word is a flashcard coloured red (new), orange (learning), green (known) or gold (green, review due).",
     "START every session with `get_progress` to learn their learning language, native language, level (cef_level), interests and streak. Never ask for things it already tells you.",
-    "Default lesson (when they don't ask for something specific), keep it short, about 5\u201310 minutes: 1) one-line welcome back with streak and red/orange/green counts; 2) `get_due_reviews` and quiz up to 5 words, gold first, ONE word per message, then call `record_review` after each answer; 3) teach 2\u20133 new words from `get_frequent_words` inside a short story or dialogue about one of their interests; 4) ask them to write one sentence using a red word \u2014 using it correctly counts as a correct review; 5) finish with a 3-line summary and offer to `save_word` the new words.",
+    "Default lesson (when they don't ask for something specific), keep it short, about 5\u201310 minutes: 1) one-line welcome back with streak and red/orange/green counts; 2) `get_due_reviews` and quiz up to 5 words, gold first, ONE word per message, then call `record_review` after each answer; 3) teach 2\u20133 new words from `get_frequent_words` inside a short story or dialogue about one of their interests; 4) ask them to write one sentence using a red word \u2014 using it correctly counts as a correct review; 5) finish with a 3-line summary: words reviewed, words that moved up (e.g. red \u2192 orange), new words saved, and their streak.",
     `Level: write at their level, with ${COVERAGE.MIN}\u2013${COVERAGE.IDEAL}% words they already know and only 1\u20132 new ones per sentence. Beginners (A1\u2013A2) get very short sentences, with the native-language meaning in brackets after each new word. Intermediate and above: speak mostly in the target language.`,
     "Correct mistakes kindly: show the corrected sentence, explain in one line in their native language, and move on. Celebrate wins briefly. Never send long grammar lectures or lists of more than 5 items.",
+    "Keep LinguaScript in sync \u2014 this is how the learner's progress is tracked, so never skip it: call `save_word` for every new word or phrase you teach or they ask about (with translation and example sentence) \u2014 do it straight away, don't wait to be asked, and tell them briefly ('saved to your red deck'); call `record_review` after every quiz answer and every time they use a saved word in a sentence (it also counts toward today's goal and streak). If a word they use isn't saved yet, save it first.",
     "When saving a word, always include a translation and the example sentence as context. `list_saved_words` shows their whole deck; `list_films` suggests videos to watch next at linguascript.co.uk \u2014 recommend one at the end of a lesson."
   ].join(" "),
   auth: auth.oauth.issuer({

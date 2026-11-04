@@ -10,6 +10,32 @@ function client(ctx: ToolContext) {
   });
 }
 
+/** +1 words_reviewed on today's activity_log row for this language. Never fails the review. */
+async function countReview(sb: ReturnType<typeof client>, uid: string, language: string): Promise<number | null> {
+  try {
+    const lang = language.toLowerCase();
+    const today = new Date().toISOString().split("T")[0];
+    const { data: row } = await sb
+      .from("activity_log")
+      .select("id,words_reviewed")
+      .eq("user_id", uid)
+      .eq("date", today)
+      .eq("language", lang)
+      .maybeSingle();
+    if (row) {
+      const n = (row.words_reviewed ?? 0) + 1;
+      await sb.from("activity_log").update({ words_reviewed: n }).eq("id", row.id);
+      return n;
+    }
+    await sb.from("activity_log").insert({
+      user_id: uid, date: today, language: lang, minutes_watched: 0, videos_watched: 0, words_reviewed: 1,
+    });
+    return 1;
+  } catch {
+    return null;
+  }
+}
+
 // Same rule as a flashcard answer on the website (FlashcardReview): a right
 // answer moves red → orange → green and up the review ladder; a wrong one
 // never moves a word backwards.
@@ -17,7 +43,7 @@ export default defineTool({
   name: "record_review",
   title: "Record a review answer",
   description:
-    "Record whether the learner got a saved word right (in a quiz, or by using it correctly in their own sentence). Correct answers move the word red → orange → green and schedule its next review; wrong answers keep it where it is.",
+    "Record whether the learner got a saved word right (in a quiz, or by using it correctly in their own sentence). Correct answers move the word red → orange → green and schedule its next review; wrong answers keep it where it is. Every answer also counts toward today's daily goal and streak in LinguaScript, so call it after EVERY quiz answer and every time they use a saved word in their own sentence.",
   inputSchema: {
     word: z.string().min(1).describe("The saved word, exactly as listed by get_due_reviews or list_saved_words."),
     language: z.string().min(2).describe("ISO language code of the word, e.g. 'fr'."),
@@ -50,7 +76,13 @@ export default defineTool({
     if (next !== prev) patch.state_changed_at = new Date().toISOString();
     const { error: upErr } = await sb.from("saved_words").update(patch).eq("id", row.id).eq("user_id", uid);
     if (upErr) return { content: [{ type: "text", text: upErr.message }], isError: true };
-    const result = { word, from: prev, to: next, next_review: patch.next_review };
+
+    // Count it in today's activity, same as a flashcard review on the website
+    // (bumpActivity in src/lib/activityLog.ts): it fills the daily word goal and
+    // the streak lights up next time the learner opens LinguaScript.
+    const reviewedToday = await countReview(sb, uid, language);
+
+    const result = { word, from: prev, to: next, next_review: patch.next_review, reviewed_today: reviewedToday };
     return {
       content: [{ type: "text", text: next !== prev ? `${word}: ${prev} → ${next}` : `${word}: stays ${next}` }],
       structuredContent: result,

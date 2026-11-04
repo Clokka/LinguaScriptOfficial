@@ -13,7 +13,7 @@ export default defineTool({
   name: "save_word",
   title: "Save a flashcard",
   description:
-    "Save a word or phrase to the signed-in user's LinguaScript flashcards. Duplicates for the same word+language are skipped.",
+    "Save a word or phrase to the signed-in user's LinguaScript flashcards (red deck), so it shows up in their flashcards, the video player and their phone. Call it for EVERY new word or phrase you teach or the learner asks about — always with a translation in their native language and the example sentence as context. Duplicates for the same word+language are skipped, so it's safe to call.",
   inputSchema: {
     word: z.string().min(1).describe("The word or phrase to save."),
     language: z.string().min(2).describe("ISO language code of the word, e.g. 'fr'."),
