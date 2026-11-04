@@ -162,7 +162,7 @@ export default function Vocabulary() {
   }, [words, filter, search]);
 
   return (
-    <div className="ls-aurora min-h-screen bg-background">
+    <div className="ls-cinema min-h-screen bg-background">
       <PremiumHeader
         title="Your Vocabulary"
         onBack={() => navigate("/discover")}

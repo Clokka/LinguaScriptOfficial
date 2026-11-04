@@ -13,6 +13,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { PageLoading } from "@/components/PageLoading";
+import "@/components/premium/cinema.css";
 
 interface LeaderRow {
   user_id: string;
@@ -293,12 +295,11 @@ const Friends = () => {
 
 
   if (authLoading || !user) {
-    return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>;
+    return <PageLoading />;
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="absolute inset-0 bg-gradient-hero pointer-events-none" />
+    <div className="ls-cinema relative min-h-screen bg-background">
       <div className="relative z-10 max-w-3xl mx-auto px-6 py-10">
         <Button variant="glass" onClick={() => navigate("/discover")} className="mb-6 gap-2">
           <ArrowLeft className="w-4 h-4" /> Back

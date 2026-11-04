@@ -78,6 +78,8 @@
   .ls-cinema { background: hsl(var(--background)); }
   .ls-cinema .ls-glass,.ls-cinema .ls-teacher-stat { background: hsl(var(--card)); box-shadow: none; border-color: hsl(var(--border)); }
   .ls-cinema .ls-deck { box-shadow: none; }
+  .ls-cinema .glass-panel-strong { background: hsl(var(--card)); border-color: hsl(var(--border)); box-shadow: none; }
+  .ls-cinema .ls-glass::after,.ls-cinema .ls-shine::before { display: none; }
   .ls-caption-glass { background: hsl(var(--card)); padding-block: 16px; }
   .ls-experience-nav { scrollbar-width: thin; }
 }
