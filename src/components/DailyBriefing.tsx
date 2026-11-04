@@ -103,7 +103,7 @@ export const DailyBriefing = () => {
   };
 
   // Team tools (HQ, partners, admin) are work screens: the learner pop-up would cover the Studio.
-  const onTeamPage = /^\/(hq|partners|admin)(\/|$)/.test(location.pathname);
+  const onTeamPage = /^\/(hq|partners|admin|teacher|for-schools|schools)(\/|$)/.test(location.pathname);
   if (!open || onTeamPage || !profileChecked || wordGoal == null) return null;
 
   const remaining = Math.max(0, wordGoal - streak.wordsReviewed);

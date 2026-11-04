@@ -6,7 +6,7 @@ import { introToPlay, markIntroSeen } from "@/lib/site/intro";
 
 const IntroLoader = lazy(() => import("@/components/landing/IntroLoader"));
 // Pages where an intro would only get in the way.
-const SKIP = /^\/(hq|partners|r\/|reset-password|\.lovable|unsubscribe|overlay|brand)/;
+const SKIP = /^\/(hq|partners|teacher|for-schools|schools|r\/|reset-password|\.lovable|unsubscribe|overlay|brand)/;
 
 export function SiteIntro() {
   const { pathname } = useLocation();
