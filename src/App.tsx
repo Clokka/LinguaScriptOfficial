@@ -30,7 +30,6 @@ import {
   SpacedRepetitionPage,
   VsLanguageReactorPage,
   ChromeExtensionPage,
-  ForSchoolsPage,
   PolyglotPage,
   FamilyPage,
   LearningSciencePage,

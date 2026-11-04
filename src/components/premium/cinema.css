@@ -59,3 +59,7 @@
 @keyframes ls-bar-grow { from { transform: scaleY(.05); } to { transform: scaleY(1); } }
 @media (max-width: 640px) { .ls-scene { aspect-ratio: 4 / 3; } .ls-scene-captions { padding: 10px 6px; } .ls-school-bars { gap: 8px; } }
 @media (prefers-reduced-motion: reduce) { .ls-school-bars span,.ls-waveform-moving span { animation: none; } }
+
+.ls-tour-stage .ls-glass { background: var(--gradient-cinema-surface), hsl(var(--card) / .94); }
+.ls-teacher-stat { background: var(--gradient-cinema-surface), hsl(var(--card) / .8); }
+.ls-school-hero a { max-width: 100%; white-space: normal; height: auto; min-height: 48px; text-align: center; }
