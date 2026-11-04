@@ -1654,6 +1654,39 @@ export type Database = {
           },
         ]
       }
+      school_enquiries: {
+        Row: {
+          contact_name: string
+          created_at: string
+          email: string
+          id: string
+          needs: string
+          school_name: string
+          status: string
+          student_count: number | null
+        }
+        Insert: {
+          contact_name: string
+          created_at?: string
+          email: string
+          id?: string
+          needs: string
+          school_name: string
+          status?: string
+          student_count?: number | null
+        }
+        Update: {
+          contact_name?: string
+          created_at?: string
+          email?: string
+          id?: string
+          needs?: string
+          school_name?: string
+          status?: string
+          student_count?: number | null
+        }
+        Relationships: []
+      }
       school_invites: {
         Row: {
           accepted_at: string | null
@@ -2926,6 +2959,23 @@ export type Database = {
         Args: { p_linguascript_id: string; p_user_id: string }
         Returns: undefined
       }
+      school_class_progress: {
+        Args: { _school_id: string }
+        Returns: {
+          display_name: string
+          email: string
+          joined_at: string
+          last_active_at: string
+          learning_language: string
+          minutes_this_week: number
+          minutes_total: number
+          reviews_this_week: number
+          streak_count: number
+          user_id: string
+          words_learned: number
+          words_this_week: number
+        }[]
+      }
       seed_known_vocabulary:
         | { Args: { _language: string; _level: string }; Returns: number }
         | {
@@ -2942,6 +2992,16 @@ export type Database = {
           note: string
           published_by_email: string
         }[]
+      }
+      submit_school_enquiry: {
+        Args: {
+          _email: string
+          _name: string
+          _needs: string
+          _school: string
+          _students: number
+        }
+        Returns: string
       }
       touch_gold_word: {
         Args: { p_decay_at?: number; p_word_id: string }
