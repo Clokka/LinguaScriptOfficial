@@ -1,4 +1,5 @@
 # Current work
+- [x] Build film-style school conversion page and five connected watch, pronunciation, vocabulary, progress and teacher previews; desktop/phone tour interactions and email-draft handoff checked. Signed-in teacher/flashcards opened; school purchase remains a quote enquiry, not checkout. Microphone/audio output and populated class reporting remain unverified.
 - [x] Introduce premium motion/glass styling in shared surfaces, streaming hub, main product page and school page using existing brand/video assets; other homepage test arms and HQ-published pages remain unchanged.
 - [x] Add direct streaming-platform links and visible profile controls; explain Pro-only ChatGPT/Claude access and add central MCP enforcement with tests. New MCP revision requires republishing; hosted OAuth Pro call remains unverified.
 - [x] Reuse existing intro and set glass word-wall/skeleton fallback film designs; signed-in hub and desktop/phone pages checked without publishing. HQ-published loading choices retain priority.
@@ -13,7 +14,7 @@
 ## Scaling (30 Oct 2026)
 - [ ] Fix DNS for linguascript.co.uk (A record must be 185.158.133.1, turn off Cloudflare proxy) — blocked on owner
 - [x] /explain and /manual pages; /landingpage5 alias; no progress pop-up on homepage word demo
-- [ ] Teacher dashboard (classes, invite code, per-student words/reviews) — next build
+- [x] Teacher dashboard refreshed with shared film styling; existing school/invite/progress tools preserved. Signed-in school opened; no student invitations sent during checks.
 - [ ] Influencer plan + blog cluster
 - [ ] PostHog conversion read-back — needs PostHog personal API key
 

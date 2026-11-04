@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Card } from "@/components/ui/card";
+import { CountUp, PremiumHeader } from "@/components/premium";
+import { ExperienceNav, MovingWords } from "@/components/premium/ExperienceNav";
+import "@/components/premium/cinema.css";
 import { Loader2, Copy, GraduationCap, Plus, Users, Download } from "lucide-react";
 import { PageLoading } from "@/components/PageLoading";
 
@@ -138,29 +140,33 @@ export default function Teacher() {
   }
 
   return (
-    <div className="min-h-screen bg-background p-6 md:p-10">
-      <div className="max-w-6xl mx-auto space-y-8">
-        <header className="flex items-center gap-3">
-          <GraduationCap className="w-7 h-7 text-primary" />
+    <div className="min-h-screen ls-cinema text-foreground">
+      <PremiumHeader title="Teacher dashboard" onBack={() => navigate("/discover")} icon={<GraduationCap className="h-5 w-5 text-primary" />} right={<Button asChild variant="outline" size="sm"><Link to="/for-schools">Schools</Link></Button>} />
+      <div className="ls-teacher-content max-w-6xl mx-auto space-y-8 px-5 py-8 md:px-8">
+        <ExperienceNav />
+        <header className="flex items-center gap-4 py-3">
+          <img src="/logo.svg" alt="LinguaScript chameleon" width="52" height="52" className="ls-mascot-float" />
           <div>
-            <h1 className="text-2xl font-bold">Teacher dashboard</h1>
-            <p className="text-sm text-muted-foreground">Manage your school, students, and invites.</p>
+            <p className="mb-2 text-xs font-semibold text-warning">YOUR SCHOOL · YOUR STUDENTS</p>
+            <h2 className="text-3xl font-bold">See your class grow.</h2>
+            <p className="text-sm text-muted-foreground">Class vocabulary, learning activity and student invitations.</p>
           </div>
         </header>
+        <MovingWords />
 
         {schools.length === 0 && (
-          <Card className="p-6 space-y-4">
+          <section className="space-y-4">
             <h2 className="font-semibold">Create your school</h2>
-            <p className="text-sm text-muted-foreground">e.g. Truro College → slug: truro-college</p>
+            <p className="text-sm text-muted-foreground">Start with your school name and an address identifier, such as truro-college.</p>
             <div className="grid sm:grid-cols-2 gap-3">
-              <Input placeholder="School name" value={newName} onChange={(e) => setNewName(e.target.value)} />
-              <Input placeholder="slug (lowercase, hyphens)" value={newSlug}
+              <Input aria-label="School name" placeholder="School name" value={newName} onChange={(e) => setNewName(e.target.value)} />
+              <Input aria-label="School address identifier" placeholder="slug (lowercase, hyphens)" value={newSlug}
                 onChange={(e) => setNewSlug(e.target.value.toLowerCase())} />
             </div>
             <Button onClick={createSchool} disabled={busy}>
               {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Plus className="w-4 h-4 mr-2" />Create school</>}
             </Button>
-          </Card>
+          </section>
         )}
 
         {schools.length > 0 && (
@@ -177,17 +183,17 @@ export default function Teacher() {
 
             {selected && (
               <>
-                <Card className="p-6 space-y-4">
+                <section className="space-y-4">
                   <h2 className="font-semibold flex items-center gap-2"><Users className="w-4 h-4" /> Bulk invite students</h2>
                   <p className="text-sm text-muted-foreground">Paste student emails (comma, space, or newline separated).</p>
-                  <Textarea rows={5} value={emailList} onChange={(e) => setEmailList(e.target.value)}
+                  <Textarea aria-label="Student email addresses" rows={5} value={emailList} onChange={(e) => setEmailList(e.target.value)}
                     placeholder="student1@school.ac.uk, student2@school.ac.uk…" />
                   <Button onClick={sendInvites} disabled={busy || !emailList.trim()}>
                     {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : "Generate invite links"}
                   </Button>
-                </Card>
+                </section>
 
-                <Card className="p-6">
+                <section>
                   <h2 className="font-semibold mb-4">Pending invites ({invites.filter(i => i.status === "pending").length})</h2>
                   <div className="space-y-2 max-h-80 overflow-auto">
                     {invites.map((inv) => (
@@ -205,31 +211,32 @@ export default function Teacher() {
                     ))}
                     {invites.length === 0 && <p className="text-sm text-muted-foreground">No invites yet.</p>}
                   </div>
-                </Card>
+                </section>
 
                 {(() => {
                   const active = students.filter((st) => st.last_active_at && Date.now() - new Date(st.last_active_at).getTime() <= 7 * DAY).length;
                   const sum = (k: keyof Student) => students.reduce((a, st) => a + (Number(st[k]) || 0), 0);
+                  const weekly = (k: keyof Student) => students.some(st => st[k] == null) ? "–" : sum(k);
                   const stats = [
                     ["Students", students.length],
-                    ["Active this week", `${active}/${students.length}`],
-                    ["New words (7 days)", sum("words_this_week")],
-                    ["Reviews (7 days)", sum("reviews_this_week")],
-                    ["Minutes watched (7 days)", sum("minutes_this_week")],
+                    ["Active this week", students.some(st => st.last_active_at == null) ? "–" : `${active}/${students.length}`],
+                    ["New words (7 days)", weekly("words_this_week")],
+                    ["Reviews (7 days)", weekly("reviews_this_week")],
+                    ["Minutes watched (7 days)", weekly("minutes_this_week")],
                   ];
                   return (
                     <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                       {stats.map(([k, v]) => (
-                        <Card key={k as string} className="p-4">
-                          <div className="text-2xl font-bold">{v}</div>
+                        <section key={k as string} className="ls-teacher-stat">
+                          <div className="text-3xl font-bold text-primary">{typeof v === "number" ? <CountUp value={v} /> : v}</div>
                           <div className="text-xs text-muted-foreground">{k}</div>
-                        </Card>
+                        </section>
                       ))}
                     </div>
                   );
                 })()}
 
-                <Card className="p-6">
+                <section>
                   <div className="flex items-center justify-between mb-4 gap-2">
                     <h2 className="font-semibold">Class progress</h2>
                     <Button size="sm" variant="outline" disabled={!students.length} onClick={() => downloadCsv(selected.slug, students)}>
@@ -238,7 +245,7 @@ export default function Teacher() {
                   </div>
                   <p className="text-xs text-muted-foreground mb-3">Words learned counts only words the student turned green themselves, not words assumed from their starting level. Least active students are listed first.</p>
                   <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
+                    <table className="ls-teacher-table w-full text-sm">
                       <thead className="text-muted-foreground text-xs uppercase">
                         <tr>
                           <th className="text-left py-2 pr-3">Student</th>
@@ -276,7 +283,7 @@ export default function Teacher() {
                       </tbody>
                     </table>
                   </div>
-                </Card>
+                </section>
               </>
             )}
           </>

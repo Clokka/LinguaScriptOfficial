@@ -26,3 +26,45 @@
 @keyframes ls-brand-breathe { 50% { transform: translateY(-5px); } }
 @media (max-width: 640px) { .ls-section { padding: 40px 0; } .ls-hub-title { font-size: 32px; } .ls-hub-hero { padding-top: 20px; } }
 @media (prefers-reduced-motion: reduce) { .ls-marquee-line,.ls-mascot-float { animation: none; } .ls-platform:hover { transform: none; } }
+/* Schools and the connected film-inspired experience. */
+.ls-school-hero { background: var(--gradient-cinema), hsl(var(--background)); }
+.ls-school-header { position: sticky; top: 0; z-index: 30; border-bottom: 1px solid hsl(var(--border)); background: hsl(var(--background) / .88); backdrop-filter: blur(20px); }
+.ls-experience-nav { display: flex; gap: 6px; overflow-x: auto; padding: 8px 0; border-bottom: 1px solid hsl(var(--border)); }
+.ls-experience-nav a { flex-shrink: 0; }
+.ls-experience-nav .ls-nav-active { background: hsl(var(--primary) / .12); color: hsl(var(--primary)); }
+.ls-tour-stage { max-width: 1000px; margin-inline: auto; }
+.ls-scene { position: relative; overflow: hidden; aspect-ratio: 16 / 9; background: var(--gradient-cinema), hsl(var(--card)); border: 1px solid hsl(var(--border)); border-radius: 8px; }
+.ls-station-art { width: 100%; height: 100%; fill: none; stroke: hsl(var(--foreground) / .15); stroke-width: 3; }
+.ls-station-art text { fill: hsl(var(--warning)); stroke: none; font-size: 24px; font-family: inherit; }
+.ls-scene-captions { position: absolute; inset: auto 0 0; padding: 16px 10px; background: hsl(var(--background) / .9); }
+.ls-waveform { height: 64px; display: flex; align-items: center; justify-content: space-between; gap: 3px; color: hsl(var(--primary)); }
+.ls-waveform span { width: 5px; height: 12%; border-radius: 2px; background: currentColor; }
+.ls-waveform span:nth-child(3n) { height: 30%; }
+.ls-waveform span:nth-child(5n) { height: 64%; }
+.ls-waveform span:nth-child(7n) { height: 86%; }
+.ls-waveform-moving span { animation: ls-voice-pulse .8s ease-in-out infinite alternate; }
+.ls-waveform-moving span:nth-child(3n) { animation-delay: -.4s; }
+.ls-waveform-moving span:nth-child(5n) { animation-delay: -.6s; }
+.ls-school-bars { height: 180px; display: flex; gap: 12px; padding-top: 20px; }
+.ls-school-bars > div { display: flex; flex: 1; flex-direction: column; justify-content: flex-end; gap: 10px; text-align: center; }
+.ls-school-bars span { display: block; border-radius: 4px 4px 0 0; background: linear-gradient(0deg,hsl(var(--primary) / .55),hsl(var(--primary))); transform-origin: bottom; animation: ls-bar-grow 1s ease-out both; }
+.ls-school-bars small { color: hsl(var(--muted-foreground)); font-size: 10px; }
+.ls-bar-height-0 { height: 32%; } .ls-bar-height-1 { height: 48%; } .ls-bar-height-2 { height: 58%; } .ls-bar-height-3 { height: 44%; } .ls-bar-height-4 { height: 80%; } .ls-bar-height-5 { height: 66%; } .ls-bar-height-6 { height: 96%; }
+.ls-activity-dot { width: 7px; height: 7px; flex-shrink: 0; border-radius: 50%; background: hsl(var(--primary)); }
+.ls-teacher-content > section { border-top: 1px solid hsl(var(--border)); padding-top: 24px; }
+.ls-teacher-stat { background: var(--gradient-cinema-surface); border: 1px solid hsl(var(--border)); border-radius: 8px; padding: 20px; }
+.ls-teacher-table tbody tr { transition: background .2s; }
+.ls-teacher-table tbody tr:hover { background: hsl(var(--foreground) / .035); }
+@keyframes ls-voice-pulse { to { transform: scaleY(.3); } }
+@keyframes ls-bar-grow { from { transform: scaleY(.05); } to { transform: scaleY(1); } }
+@media (max-width: 640px) { .ls-scene { aspect-ratio: 4 / 3; } .ls-scene-captions { padding: 10px 6px; } .ls-school-bars { gap: 8px; } }
+@media (prefers-reduced-motion: reduce) { .ls-school-bars span,.ls-waveform-moving span { animation: none; } }
+
+.ls-tour-stage .ls-glass { background: var(--gradient-cinema-surface), hsl(var(--card) / .94); }
+.ls-teacher-stat { background: var(--gradient-cinema-surface), hsl(var(--card) / .8); }
+.ls-school-hero a { max-width: 100%; white-space: normal; height: auto; min-height: 48px; text-align: center; }
+.ls-cinema .ls-deck { background: var(--gradient-cinema-surface), hsl(var(--card)); border: 1px solid hsl(var(--border)); border-radius: 8px; color: hsl(var(--foreground)); }
+.ls-cinema .ls-deck .ls-orb { display: none; }
+.ls-cinema .ls-deck:nth-child(1) { border-top-color: hsl(var(--destructive)); }
+.ls-cinema .ls-deck:nth-child(2) { border-top-color: hsl(var(--accent)); }
+.ls-cinema .ls-deck:nth-child(3) { border-top-color: hsl(var(--primary)); }
