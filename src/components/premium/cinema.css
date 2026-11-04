@@ -68,3 +68,17 @@
 .ls-cinema .ls-deck:nth-child(1) { border-top-color: hsl(var(--destructive)); }
 .ls-cinema .ls-deck:nth-child(2) { border-top-color: hsl(var(--accent)); }
 .ls-cinema .ls-deck:nth-child(3) { border-top-color: hsl(var(--primary)); }
+.ls-deck-mascot { width: 84px; height: 57px; flex-shrink: 0; }
+.ls-chameleon-states { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; margin-bottom: 32px; text-align: center; }
+.ls-state-mascot { width: 100%; max-width: 170px; }
+.ls-state-red { color: hsl(var(--destructive)); } .ls-state-orange { color: hsl(var(--accent)); } .ls-state-green { color: hsl(var(--primary)); }
+.ls-goal-track { height: 10px; border-radius: 5px; background: hsl(var(--muted)); overflow: hidden; }
+.ls-goal-track span { display: block; width: 75%; height: 100%; background: hsl(var(--primary)); transform-origin: left; animation: ls-bar-grow 1s ease-out; }
+@media (max-width: 640px) {
+  .ls-cinema { background: hsl(var(--background)); }
+  .ls-cinema .ls-glass,.ls-cinema .ls-teacher-stat { background: hsl(var(--card)); box-shadow: none; border-color: hsl(var(--border)); }
+  .ls-cinema .ls-deck { box-shadow: none; }
+  .ls-caption-glass { background: hsl(var(--card)); padding-block: 16px; }
+  .ls-experience-nav { scrollbar-width: thin; }
+}
+@media (prefers-reduced-motion: reduce) { .ls-goal-track span { animation: none; } }
