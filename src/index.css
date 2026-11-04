@@ -10,6 +10,11 @@
        Orange #fb923c · Yellow #facc15 · Coral #f87171 */
 
     --background: 240 9% 4%;              /* #08080B — landing base */
+    --cinema-blue: 218 54% 32%;
+    --cinema-violet: 278 38% 30%;
+    --cinema-rose: 326 40% 26%;
+    --gradient-cinema: linear-gradient(125deg, hsl(var(--cinema-blue) / .65), hsl(var(--cinema-violet) / .4) 55%, hsl(var(--cinema-rose) / .32));
+    --gradient-cinema-surface: linear-gradient(150deg, hsl(var(--foreground) / .065), hsl(var(--foreground) / .015));
     --foreground: 210 40% 98%;
 
     --card: 240 7% 6%;                    /* #0E0E11 base card */
@@ -112,7 +117,8 @@
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: 'Avenir Next', 'Segoe UI', system-ui, sans-serif;
+    letter-spacing: 0;
   }
 }
 
@@ -346,7 +352,7 @@
     animation: ls-drift 22s ease-in-out infinite alternate;
   }
   .ls-glass {
-    position: relative; border-radius: 1.5rem;
+    position: relative; border-radius: .75rem;
     background: linear-gradient(160deg, hsl(0 0% 100% / 0.07), hsl(0 0% 100% / 0.02) 40%, hsl(0 0% 100% / 0.03));
     box-shadow: inset 0 1px 0 hsl(0 0% 100% / 0.10), 0 20px 50px -24px hsl(0 0% 0% / 0.8);
     backdrop-filter: blur(18px) saturate(140%); -webkit-backdrop-filter: blur(18px) saturate(140%);
