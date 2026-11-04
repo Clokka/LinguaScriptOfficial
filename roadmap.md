@@ -1,7 +1,7 @@
 # Current work
-- [ ] Unify premium motion/glass styling across the app shell, streaming hub and public school-focused product presentation using existing brand/video assets.
-- [ ] Add direct streaming-platform links and visible profile controls; explain and enforce Pro-only ChatGPT/Claude MCP access.
-- [ ] Reuse HQ-managed intro/caption loading designs; verify signed-in flows and desktop/phone layouts without publishing.
+- [x] Introduce premium motion/glass styling in shared surfaces, streaming hub, main product page and school page using existing brand/video assets; other homepage test arms and HQ-published pages remain unchanged.
+- [x] Add direct streaming-platform links and visible profile controls; explain Pro-only ChatGPT/Claude access and add central MCP enforcement with tests. New MCP revision requires republishing; hosted OAuth Pro call remains unverified.
+- [x] Reuse existing intro and set glass word-wall/skeleton fallback film designs; signed-in hub and desktop/phone pages checked without publishing. HQ-published loading choices retain priority.
 - [x] Streamline Site Studio into distinct builder, name intro, before-film and streaming startup workspaces; desktop/phone previews and signed-in HQ selections/cancel verified without publishing.
 - [x] Repair missing HQ publishing setup; signed-in confirmation/cancel, version validation and public denial verified without changing the live website.
 - [x] Use only the lighter green for learned words (website, extension reader, Android bubble source).
