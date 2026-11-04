@@ -1,0 +1,10 @@
+import assert from "node:assert/strict";
+import { hasActivePro } from "../src/lib/proAccess";
+const now = Date.parse("2026-11-04T06:17:00Z");
+assert.equal(hasActivePro({ is_pro: false }, now), false, "Free accounts cannot use Pro AI connections");
+assert.equal(hasActivePro(null, now), false, "Missing profiles fail closed");
+assert.equal(hasActivePro({ is_pro: true }, now), true, "Permanent Pro grants have access");
+assert.equal(hasActivePro({ is_pro: true, pro_expires_at: "2026-11-05T00:00:00Z" }, now), true, "Unexpired Pro grants have access");
+assert.equal(hasActivePro({ is_pro: true, pro_expires_at: "2026-11-03T00:00:00Z" }, now), false, "Expired Pro grants are denied");
+assert.equal(hasActivePro({ is_pro: true, pro_expires_at: "not-a-date" }, now), false, "Invalid expiry fails closed");
+console.log("Pro AI entitlement rules passed");
