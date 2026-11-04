@@ -14,7 +14,7 @@ export default function Landing5() {
     <Seo title="LinguaScript — Language learning through film" description="Watch films, learn new vocabulary and practise pronunciation. LinguaScript brings language learning to students, schools and teachers." path="/" rawTitle />
     <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-xl">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-5 py-4"><Link to="/" aria-label="LinguaScript home"><BrandMark variant="lockup" size={32} /></Link>
-        <nav className="flex items-center gap-2"><Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex"><Link to="/for-schools">For schools</Link></Button><Button asChild variant="ghost" size="sm"><Link to={user ? "/profile" : "/auth"}><UserRound className="mr-2 h-4 w-4" />{user ? "Profile" : "Sign in"}</Link></Button><Button asChild size="sm"><Link to={user ? "/browse" : "/onboarding"}>{user ? "Watch" : "Start free"}</Link></Button></nav>
+        <nav className="flex items-center gap-2"><Button asChild variant="ghost" size="sm" className="inline-flex"><Link to="/for-schools">For schools</Link></Button><Button asChild variant="ghost" size="sm"><Link to={user ? "/profile" : "/auth"}><UserRound className="mr-2 h-4 w-4" />{user ? "Profile" : "Sign in"}</Link></Button><Button asChild size="sm"><Link to={user ? "/browse" : "/onboarding"}>{user ? "Watch" : "Start free"}</Link></Button></nav>
       </div>
     </header>
     <main>

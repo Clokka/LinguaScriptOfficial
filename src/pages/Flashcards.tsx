@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Loader2, Sparkles, ChevronRight, RefreshCw } from "lucide-react";
+import { ExperienceNav, MovingWords } from "@/components/premium/ExperienceNav";
+import "@/components/premium/cinema.css";
 import { PageLoading } from "@/components/PageLoading";
 import { motion } from "framer-motion";
 import { GlassCard, CountUp } from "@/components/premium";
@@ -340,7 +342,7 @@ const Flashcards = () => {
   }
 
   return (
-    <div className="ls-aurora min-h-screen bg-background">
+    <div className="ls-cinema min-h-screen bg-background">
       <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-xl border-b border-border">
         <div className="flex items-center gap-3 px-6 py-3">
           <Button data-tour="page-back" variant="ghost" size="icon" onClick={() => navigate("/discover")}>
@@ -364,6 +366,9 @@ const Flashcards = () => {
       </header>
 
       <div className="max-w-5xl mx-auto px-6 py-8 space-y-10">
+        <ExperienceNav />
+        <div><p className="text-xs font-semibold text-warning">YOUR VOCABULARY</p><h2 className="mt-3 text-3xl font-bold">Meet it. Remember it.</h2></div>
+        <MovingWords />
         {loading ? (
           <PageLoading />
         ) : (
