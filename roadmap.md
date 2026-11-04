@@ -1,5 +1,5 @@
 # Current work
-- [ ] Match newer Gallery mobile references with charcoal surfaces, original coloured chameleons and connected goals/friends and Pro AI tour pages; preserve real school and learner data.
+- [x] Match newer Gallery mobile references with charcoal surfaces, original coloured chameleons and connected goals/friends and Pro AI tour pages; mobile interactions/layout checked and signed-in teacher opened. Native Android binary and audio remain unverified.
 - [x] Build film-style school conversion page and five connected watch, pronunciation, vocabulary, progress and teacher previews; desktop/phone tour interactions and email-draft handoff checked. Signed-in teacher/flashcards opened; school purchase remains a quote enquiry, not checkout. Microphone/audio output and populated class reporting remain unverified.
 - [x] Introduce premium motion/glass styling in shared surfaces, streaming hub, main product page and school page using existing brand/video assets; other homepage test arms and HQ-published pages remain unchanged.
 - [x] Add direct streaming-platform links and visible profile controls; explain Pro-only ChatGPT/Claude access and add central MCP enforcement with tests. New MCP revision requires republishing; hosted OAuth Pro call remains unverified.

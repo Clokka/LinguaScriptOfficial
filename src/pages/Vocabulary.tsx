@@ -14,6 +14,7 @@ import { DeckState, STATE_META, coerceDeckState } from "@/lib/vocab";
 import { getGuestWords } from "@/lib/guestWords";
 import { cn } from "@/lib/utils";
 import { GlassCard, CountUp, PremiumHeader, Eyebrow, Skeleton, type Accent } from "@/components/premium";
+import "@/components/premium/cinema.css";
 
 interface DeckWord {
   id: string;

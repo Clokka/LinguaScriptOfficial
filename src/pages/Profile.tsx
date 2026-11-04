@@ -39,6 +39,7 @@ import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { PageLoading } from "@/components/PageLoading";
 import { GlassCard, PremiumHeader } from "@/components/premium";
+import "@/components/premium/cinema.css";
 import { useSubscription } from "@/hooks/useSubscription";
 import { ManageBillingButton } from "@/components/ManageBillingButton";
 
