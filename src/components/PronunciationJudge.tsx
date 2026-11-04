@@ -9,6 +9,7 @@ interface Props {
   text: string;
   language: string; // short code e.g. "fr"
   className?: string;
+  awardProgress?: boolean;
 }
 
 // Short-code → BCP-47 for SpeechRecognition
@@ -60,7 +61,7 @@ function scoreMatch(target: string, spoken: string): number {
   return Math.max(0, Math.round((1 - dist / Math.max(t.length, s.length)) * 100));
 }
 
-export const PronunciationJudge = ({ text, language, className }: Props) => {
+export const PronunciationJudge = ({ text, language, className, awardProgress = true }: Props) => {
   const SR = getSpeechRecognition();
   const bcp47 = LANG_MAP[language?.toLowerCase()] || null;
   const recRef = useRef<any>(null);
@@ -100,7 +101,7 @@ export const PronunciationJudge = ({ text, language, className }: Props) => {
       for (const a of alts) { const p = scoreMatch(text, a); if (p > pct) { pct = p; spoken = a; } }
       const band: "excellent" | "good" | "keep" = pct >= 90 ? "excellent" : pct >= 60 ? "good" : "keep";
       setResult({ pct, band, spoken });
-      try { award("review_card" as any, { correct: band !== "keep" }); } catch {}
+      if (awardProgress) try { award("review_card" as any, { correct: band !== "keep" }); } catch {}
       if (band !== "keep") {
         playDing("success");
         try { triggerReaction("happy"); } catch {}

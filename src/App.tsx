@@ -90,6 +90,8 @@ const Privacy = lazy(() => import("./pages/Privacy"));
 const PrivacyExtension = lazy(() => import("./pages/PrivacyExtension"));
 const Terms = lazy(() => import("./pages/Terms"));
 const Teacher = lazy(() => import("./pages/Teacher"));
+const Schools = lazy(() => import("./pages/Schools"));
+const SchoolTour = lazy(() => import("./pages/SchoolTour"));
 const Progress = lazy(() => import("./pages/Progress"));
 const GiftClaim = lazy(() => import("./pages/GiftClaim"));
 const MieoFrames = lazy(() => import("./pages/MieoFrames"));
@@ -218,7 +220,9 @@ const App = () => (
                 <Route path="/vs/language-reactor" element={<VsLanguageReactorPage />} />
                 <Route path="/chrome-extension" element={<ChromeExtensionPage />} />
                 <Route path="/language-learning-psychology" element={<LearningSciencePage />} />
-                <Route path="/for-schools" element={<ForSchoolsPage />} />
+                <Route path="/for-schools" element={<Schools />} />
+                <Route path="/schools" element={<Navigate to="/for-schools" replace />} />
+                <Route path="/schools/tour/:experience" element={<SchoolTour />} />
                 <Route path="/polyglot" element={<PolyglotPage />} />
                 <Route path="/family" element={<FamilyPage />} />
                 <Route path="/lingoscript" element={<Navigate to="/the-chameleon-method" replace />} />
