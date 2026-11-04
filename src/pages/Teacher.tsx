@@ -26,20 +26,25 @@ const DAY = 86400000;
 function activity(st: Student): { label: string; tone: string } {
   if (!st.last_active_at) return { label: "Not started", tone: "bg-destructive/15 text-destructive" };
   const days = Math.floor((Date.now() - new Date(st.last_active_at).getTime()) / DAY);
-  if (days <= 1) return { label: "Active today", tone: "bg-primary/15 text-primary" };
+  if (days === 0) return { label: "Active today", tone: "bg-primary/15 text-primary" };
   if (days <= 7) return { label: `${days} days ago`, tone: "bg-secondary text-secondary-foreground" };
   return { label: `Inactive ${days}d`, tone: "bg-destructive/15 text-destructive" };
 }
 
 function downloadCsv(name: string, rows: Student[]) {
-  const head = ["Name", "Email", "Language", "Streak", "Words learned", "New words (7d)", "Reviews (7d)", "Minutes (7d)", "Minutes total", "Last active"];
-  const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  const head = ["Name", "Email", "Language", "Streak", "Known words (reviewed)", "Words added (7d)", "Reviews (7d)", "Minutes (7d)", "Minutes total", "Last active"];
+  const esc = (v: unknown) => {
+    const text = String(v ?? "");
+    const safe = /^[=+@\-\t\r]/.test(text) ? `'${text}` : text;
+    return `"${safe.replace(/"/g, '""')}"`;
+  };
   const body = rows.map((r) => [r.display_name, r.email, r.learning_language, r.streak_count, r.words_learned, r.words_this_week, r.reviews_this_week, r.minutes_this_week, r.minutes_total, r.last_active_at?.slice(0, 10)].map(esc).join(","));
   const blob = new Blob([[head.join(","), ...body].join("\n")], { type: "text/csv" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
   a.download = `${name}-progress.csv`;
   a.click();
+  URL.revokeObjectURL(a.href);
 }
 interface Invite { id: string; email: string; token: string; status: string; created_at: string; }
 
@@ -227,8 +232,8 @@ export default function Teacher() {
                   const weekly = (k: keyof Student) => students.some(st => st[k] == null) ? "–" : sum(k);
                   const stats = [
                     ["Students", students.length],
-                    ["Active this week", students.some(st => st.last_active_at == null) ? "–" : `${active}/${students.length}`],
-                    ["New words (7 days)", weekly("words_this_week")],
+                    ["Active this week", `${active}/${students.length}`],
+                    ["Words added (7 days)", weekly("words_this_week")],
                     ["Reviews (7 days)", weekly("reviews_this_week")],
                     ["Minutes watched (7 days)", weekly("minutes_this_week")],
                   ];
@@ -259,8 +264,8 @@ export default function Teacher() {
                           <th className="text-left py-2 pr-3">Student</th>
                           <th className="text-left py-2 pr-3">Activity</th>
                           <th className="text-right py-2 pr-3">Streak</th>
-                          <th className="text-right py-2 pr-3">Words learned</th>
-                          <th className="text-right py-2 pr-3">New (7d)</th>
+                          <th className="text-right py-2 pr-3">Known (reviewed)</th>
+                          <th className="text-right py-2 pr-3">Added (7d)</th>
                           <th className="text-right py-2 pr-3">Reviews (7d)</th>
                           <th className="text-right py-2 pr-3">Min (7d)</th>
                         </tr>
