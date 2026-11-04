@@ -5,6 +5,8 @@
 // End "button" waits for "Enter LinguaScript" instead of fading by itself.
 import { useEffect, useRef, useState } from "react";
 import { loadKit } from "@/lib/site/kit";
+import { Button } from "@/components/ui/button";
+import "@/components/premium/cinema.css";
 
 const MAX_MS = 5200;
 
@@ -43,30 +45,29 @@ export default function IntroLoader({ loader, end, onDone }: { loader: string; e
   const [, lab, n] = isLab ? loader.split(":") : [];
   return (
     <div
-      className="lsk"
+      className={`lsk ls-intro-shell ${leaving ? "ls-intro-leaving" : ""}`}
       role="dialog"
       aria-label="Loading LinguaScript"
-      style={{ position: "fixed", inset: 0, zIndex: 100, background: "#050607", transition: "opacity .45s", opacity: leaving ? 0 : 1 }}
     >
       {isLab ? (
         <iframe title="Loading" src={`/brand/${lab}.html#only=${Number(n) | 0}&fit=1`} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: 0 }} />
       ) : (
         <div ref={host} className="ldr" style={{ position: "absolute", inset: 0 }} />
       )}
-      <button
+      <Button variant="outline"
         onClick={() => finish.current()}
-        style={{ position: "absolute", top: 16, right: 16, zIndex: 60, background: "#ffffff1a", color: "#fff", border: "1px solid #ffffff33", borderRadius: 999, padding: "8px 16px", font: "600 14px Inter, system-ui, sans-serif" }}
+        className="absolute right-4 top-4 z-[60]"
       >
         Skip
-      </button>
+      </Button>
       {showEnter && (
-        <button
+        <Button size="lg"
           onClick={() => finish.current()}
           autoFocus
-          style={{ position: "absolute", left: "50%", top: "calc(50% + 110px)", transform: "translateX(-50%)", zIndex: 60, background: "#34C759", color: "#04130a", border: 0, borderRadius: 999, padding: "16px 30px", font: "800 18px Inter, system-ui, sans-serif", boxShadow: "0 12px 40px #34c75955" }}
+          className="absolute left-1/2 top-[calc(50%+110px)] z-[60] -translate-x-1/2"
         >
           Enter LinguaScript →
-        </button>
+        </Button>
       )}
     </div>
   );

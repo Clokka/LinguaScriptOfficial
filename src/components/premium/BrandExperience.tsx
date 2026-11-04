@@ -1,4 +1,5 @@
 import { useState } from "react";
+import "./cinema.css";
 import { Link } from "react-router-dom";
 import { ArrowUpRight, BookOpen, GraduationCap, Lock, Play, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";

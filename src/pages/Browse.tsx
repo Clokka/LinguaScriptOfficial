@@ -59,6 +59,8 @@ import { DailyGoalTally } from "@/components/DailyGoalTally";
 import { ProLockDialog } from "@/components/ProLockDialog";
 import { useDailyWordGoal } from "@/hooks/useDailyWordGoal";
 import { bumpActivity, mergeActivityByDate } from "@/lib/activityLog";
+import StreamingHubHeader from "@/components/premium/StreamingHubHeader";
+import { AIConnectionCards } from "@/components/premium/BrandExperience";
 
 const INTERESTS_BY_ID: Record<string, Interest> = Object.fromEntries(
   INTERESTS.map((i) => [i.id, i]),
@@ -452,10 +454,10 @@ const Browse = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex">
+    <div className="min-h-screen ls-cinema flex">
       <ProLockDialog open={proLockOpen} onOpenChange={setProLockOpen} />
       {/* Sidebar */}
-      <aside className="hidden md:flex flex-col w-52 bg-card border-r border-border py-6 shrink-0">
+      <aside className="hidden md:flex flex-col w-52 bg-card/70 backdrop-blur-xl border-r border-border py-6 shrink-0">
           <button onClick={() => navigate("/")} className="flex items-center px-5 mb-8" aria-label="LinguaScript home">
            <BrandMark variant="lockup" size={34} />
         </button>
@@ -478,6 +480,11 @@ const Browse = () => {
             </button>
           ))}
         </nav>
+        <div className="mx-3 mt-5 space-y-2 border-t border-border pt-4">
+          <Button variant="ghost" className="w-full justify-start" onClick={() => navigate("/ai")}>AI connections <Lock className="ml-auto h-4 w-4 text-warning" /></Button>
+          <Button variant="ghost" className="w-full justify-start" onClick={() => navigate("/teacher")}>For teachers</Button>
+          <Button variant="outline" className="w-full" onClick={() => navigate("/profile")}>My profile</Button>
+        </div>
 
         {currentStreak > 0 && (
           <div className="mx-3 mt-auto p-3 rounded-xl bg-accent/10 border border-accent/20">
@@ -493,13 +500,14 @@ const Browse = () => {
       <main className="flex-1 min-w-0 overflow-y-auto">
         {/* Top bar */}
         <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-xl border-b border-border">
-          <div className="flex items-center justify-between px-6 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 sm:px-6">
             <BrandMark variant="pin" size={26} className="mr-3 shrink-0 md:hidden" />
             {/* Mobile tabs */}
-            <div className="flex md:hidden gap-1">
+            <div className="flex md:hidden gap-0">
               {SIDEBAR_ITEMS.map(({ icon: Icon, key }) => (
                 <button
                   key={key}
+                  aria-label={key}
                   data-tour={`nav-${key}`}
                   onClick={() => ROUTE_KEYS[key] ? navigate(ROUTE_KEYS[key]) : setActiveTab(key as TabKey)}
                   className={cn(
@@ -513,7 +521,7 @@ const Browse = () => {
             </div>
             <div className="flex-1" />
             <div className="flex items-center gap-3">
-              <LevelBadge />
+              <span className="hidden sm:inline-flex"><LevelBadge /></span>
               <ActiveLanguageBadge />
               {user ? (
                 <Button variant="ghost" size="sm" onClick={() => navigate("/profile")} className="text-muted-foreground">
@@ -526,7 +534,8 @@ const Browse = () => {
           </div>
         </header>
 
-        <div className="px-6 py-6">
+        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-8">
+          {activeTab === "home" && <StreamingHubHeader />}
           {/* Show LinguaScript session if active */}
           {showLinguaScriptSession && linguaScriptStatus?.linguascriptsDueIds ? (
             <LinguaScriptSessionFlow
@@ -752,7 +761,7 @@ const HomeTab = ({
       <PersonalizedRails interests={interests} nativeLanguage={nativeLanguage} onWatch={isPro ? onWatchYoutube : async () => { onLocked(); }} importing={creating} />
 
       {/* Paste YouTube Link — shown locked to free learners; a tap opens the Pro lock. */}
-      <div className="glass-panel-strong p-6 rounded-2xl relative">
+      <div className="glass-panel-strong p-5 rounded-xl relative">
         {!isPro && (
           <button
             type="button"
@@ -784,10 +793,10 @@ const HomeTab = ({
           <Button
             onClick={createLesson}
             disabled={creating || !pasteUrl.trim()}
-            className="h-12 px-6 rounded-xl bg-gradient-to-r from-primary to-[hsl(280,100%,60%)] text-primary-foreground font-semibold gap-2"
+            className="h-12 px-4 rounded-lg text-primary-foreground font-semibold gap-2"
           >
             {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
-            Create Lesson
+            Watch
           </Button>
         </div>
       </div>
@@ -796,6 +805,8 @@ const HomeTab = ({
       {interests.length === 0 && <HomeCatalogRows />}
       </div>
       </div>
+
+      <section className="border-t border-border pt-8"><div className="mb-5 flex items-center justify-between gap-3"><h2 className="text-xl font-bold">Your words. Your AI practice.</h2><Button variant="ghost" onClick={() => navigate("/ai")}>How it works</Button></div><AIConnectionCards isPro={isPro} /></section>
 
       {/* Subtle entry to the full analytics page. */}
       <div className="pt-4">
