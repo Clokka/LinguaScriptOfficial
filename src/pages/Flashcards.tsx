@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Loader2, Sparkles, ChevronRight, RefreshCw } from "lucide-react";
 import { ExperienceNav, MovingWords } from "@/components/premium/ExperienceNav";
+import { ChameleonMascot } from "@/components/ChameleonMascot";
 import "@/components/premium/cinema.css";
 import { PageLoading } from "@/components/PageLoading";
 import { motion } from "framer-motion";
@@ -418,7 +419,7 @@ const Flashcards = () => {
                   if (disabled) {
                     return (
                       <GlassCard key={key} data-tour={`deck-${key}`} accent={key} className="flex min-h-[200px] flex-col gap-3 p-7" aria-label={`${cfg.label}: no cards yet`}>
-                        <span className="h-9 w-9 rounded-full" style={{ background: `radial-gradient(circle at 35% 30%, #fff8, ${a} 45%, ${b})`, boxShadow: `0 0 24px -4px ${a}` }} />
+                        <ChameleonMascot tier={key} className="ls-deck-mascot" />
                         <div className="text-xs font-bold tracking-[0.2em]" style={{ color: a }}>{cfg.label}</div>
                         <div className="text-5xl font-black leading-none text-foreground">0</div>
                         <div className="text-sm text-muted-foreground">{cfg.subtitle}</div>
@@ -438,7 +439,7 @@ const Flashcards = () => {
                       style={{ ["--deck-a" as string]: a, ["--deck-b" as string]: b }}
                     >
                       <span className="ls-orb" aria-hidden />
-                      <span className="relative h-9 w-9 rounded-full" style={{ background: `radial-gradient(circle at 35% 30%, #fff, ${a} 55%)`, boxShadow: "0 4px 14px rgba(0,0,0,.25)" }} />
+                      <ChameleonMascot tier={key} className="ls-deck-mascot" />
                       <div className="relative text-xs font-bold tracking-[0.2em] opacity-90">{cfg.label}</div>
                       <div className="relative text-5xl font-black leading-none drop-shadow-sm"><CountUp value={n} /></div>
                       <div className="relative text-sm opacity-90">{cfg.subtitle}</div>

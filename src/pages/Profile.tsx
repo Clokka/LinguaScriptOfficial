@@ -39,6 +39,7 @@ import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { PageLoading } from "@/components/PageLoading";
 import { GlassCard, PremiumHeader } from "@/components/premium";
+import "@/components/premium/cinema.css";
 import { useSubscription } from "@/hooks/useSubscription";
 import { ManageBillingButton } from "@/components/ManageBillingButton";
 
@@ -294,7 +295,7 @@ const Profile = () => {
 
   return (
     <>
-    <div className="ls-aurora min-h-screen bg-background relative">
+    <div className="ls-cinema min-h-screen bg-background relative">
       <PremiumHeader title="Your Profile" onBack={() => navigate("/")} />
       <div className="relative z-10 max-w-xl mx-auto px-4 sm:px-6 pt-6 pb-28 sm:py-10">
         {/* Hero: photo with a glowing ring, name, email */}

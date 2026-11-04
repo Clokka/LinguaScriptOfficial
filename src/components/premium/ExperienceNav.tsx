@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { BarChart3, BookOpen, GraduationCap, Play, Users, Volume2 } from "lucide-react";
+import { BarChart3, BookOpen, GraduationCap, Play, Users, Volume2, Flame, Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export const SCHOOL_EXPERIENCES = [
@@ -8,6 +8,8 @@ export const SCHOOL_EXPERIENCES = [
   { slug: "vocabulary", label: "Vocabulary", icon: BookOpen },
   { slug: "progress", label: "Progress", icon: BarChart3 },
   { slug: "teachers", label: "Teacher dashboard", icon: Users },
+  { slug: "habits", label: "Goals & friends", icon: Flame },
+  { slug: "connections", label: "AI connections", icon: Link2 },
 ] as const;
 
 export function ExperienceNav({ tour = false }: { tour?: boolean }) {
