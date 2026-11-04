@@ -1,4 +1,5 @@
 # Current work
+- [ ] Build film-style school conversion page and connected watch, pronunciation, vocabulary, progress and teacher previews; refresh the real teacher dashboard and learner surfaces without changing learning rules.
 - [x] Introduce premium motion/glass styling in shared surfaces, streaming hub, main product page and school page using existing brand/video assets; other homepage test arms and HQ-published pages remain unchanged.
 - [x] Add direct streaming-platform links and visible profile controls; explain Pro-only ChatGPT/Claude access and add central MCP enforcement with tests. New MCP revision requires republishing; hosted OAuth Pro call remains unverified.
 - [x] Reuse existing intro and set glass word-wall/skeleton fallback film designs; signed-in hub and desktop/phone pages checked without publishing. HQ-published loading choices retain priority.
