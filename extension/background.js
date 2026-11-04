@@ -352,6 +352,34 @@ async function gtxTranslate(text, sl, tl, ms = 4000) {
   return tr && tr.toLowerCase() !== text.toLowerCase() ? tr : null;
 }
 
+// ─── Instant meanings: the built-in French→English word pack (no network) ─────
+// extension/dict/fr-en.v1.json is the same 11,000+ word pack the website player
+// and the Android bubble use (scripts/sync-instant-dict.mjs). A tapped French word
+// is answered from memory in a couple of milliseconds; anything else goes to Google.
+let _pack = null;
+function loadPack() {
+  if (!_pack) {
+    _pack = fetch(chrome.runtime.getURL('dict/fr-en.v1.json'))
+      .then((r) => r.json())
+      .then((j) => new Map(Object.entries(j.words || {})))
+      .catch(() => { _pack = null; return null; });
+  }
+  return _pack;
+}
+const packKey = (w) => String(w || '').toLowerCase()
+  .replace(/[.,!?;:"'`«»()\[\]…，。、！？；：「」『』（）《》〈〉“”‘’]/g, '').trim();
+async function instantMeaning(text, sl, tl) {
+  if (sl !== 'fr' || tl !== 'en' || /\s/.test(String(text || '').trim())) return null;
+  const pack = await loadPack();
+  if (!pack) return null;
+  const hit = pack.get(packKey(text));
+  if (hit) return hit;
+  const raw = String(text).toLowerCase().replace(/’/g, "'").replace(/[.,!?;:"`«»()\[\]…]/g, '').trim();
+  const m = raw.match(/^(c|j|l|d|n|s|m|t|qu|jusqu|lorsqu|puisqu)'(.+)$/);
+  return m ? (pack.get(packKey(m[2])) || null) : null;
+}
+loadPack(); // warm it when the service worker starts
+
 // ─── Ringed words: the app's common-words list ───────────────────────────────
 // core_vocabulary ranked by frequency is what the app's Common Words decks
 // (Top 50, 100, 150…) are built from. The extension rings this list's words,
@@ -491,7 +519,8 @@ async function saveWordOnce(msg) {
 
   let translation = (msg.translation || '').trim();
   if (!translation) {
-    translation = (await gtxTranslate(word, lang, profile.nativeLanguage || 'en').catch(() => null)) || '';
+    translation = (await instantMeaning(word, lang, profile.nativeLanguage || 'en'))
+      || (await gtxTranslate(word, lang, profile.nativeLanguage || 'en').catch(() => null)) || '';
   }
 
   const row = {
@@ -610,7 +639,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     case 'TRANSLATE':
       return reply((async () => {
         const sl = msg.sourceLang && msg.sourceLang !== 'auto' ? msg.sourceLang : 'auto';
-        const translation = await gtxTranslate(msg.text, sl, msg.targetLang).catch(() => null);
+        const translation = (await instantMeaning(msg.text, sl, msg.targetLang))
+          || (await gtxTranslate(msg.text, sl, msg.targetLang).catch(() => null));
         return { ok: !!translation, translation };
       })(), sendResponse);
 
