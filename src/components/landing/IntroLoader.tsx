@@ -30,7 +30,7 @@ export default function IntroLoader({ loader, end, onDone }: { loader: string; e
     } else {
       loadKit().then((kit) => {
         if (!host.current) return;
-        kit.playLoader(host.current, loader, { steps: false, autoHide: false });
+        kit.playLoader(host.current, loader, { steps: true, autoHide: false });
         timer = window.setTimeout(done, loader === "languages" ? MAX_MS : 3800);
       }).catch(() => onDone());
     }
