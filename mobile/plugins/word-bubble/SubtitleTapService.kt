@@ -144,6 +144,7 @@ class SubtitleTapService : Service() {
   override fun onCreate() {
     super.onCreate()
     instance = this
+    InstantDict.preload(applicationContext)
     wm = getSystemService(WINDOW_SERVICE) as WindowManager
     audio = getSystemService(AUDIO_SERVICE) as AudioManager
     goForeground(capturing = false)
