@@ -59,7 +59,12 @@ const Privacy = () => (
           <li><b>Subscription</b> — your plan status, and subscription/customer identifiers from
             our payment providers. We never see or store your card details.</li>
           <li><b>Schools</b> — if you join a school or class, your membership and role in that
-            school, so teachers can see class progress.</li>
+            school. Authorised school staff can see joined students' display names, email addresses,
+            active learning language, vocabulary and recorded viewing/review activity, and export
+            this class report. These records are not exam grades. Only join a school you recognise.</li>
+          <li><b>School enquiries</b> — the school name, contact name, contact email, optional student
+            count and needs you submit are saved for the LinguaScript team to respond to your request.
+            They do not enrol pupils or subscribe you to marketing.</li>
           <li><b>Email sign-ups</b> — if you submit your email on our landing page before making
             an account, we store that email address so we can contact you about LinguaScript.</li>
         </ul>

@@ -19,7 +19,7 @@ const DIMENSIONS = [
 
 const pct = (a: number, b: number) => (b ? `${((a / b) * 100).toFixed(1)}%` : "–");
 
-export const AdminExperiments = () => {
+export const AdminExperiments = ({ preferredKey }: { preferredKey?: string }) => {
   const [experiments, setExperiments] = useState<Experiment[]>([]);
   const [active, setActive] = useState<string>("");
   const [dim, setDim] = useState("all");
@@ -28,11 +28,12 @@ export const AdminExperiments = () => {
   const [summarising, setSummarising] = useState(false);
 
   useEffect(() => {
-    (supabase as any).from("experiments").select("*").order("created_at").then(({ data }: any) => {
+    (supabase as any).from("experiments").select("*").order("created_at", { ascending: false }).then(({ data, error }: any) => {
+      if (error) { setError("Tests couldn't load. Please try again."); return; }
       setExperiments(data || []);
-      if (data?.[0]) setActive(data[0].key);
+      if (data?.[0]) setActive(data.some((e: Experiment) => e.key === preferredKey) ? preferredKey || data[0].key : data[0].key);
     });
-  }, []);
+  }, [preferredKey]);
 
   const load = useCallback(async () => {
     if (!active) return;
@@ -64,7 +65,7 @@ export const AdminExperiments = () => {
         <FlaskConical className="w-5 h-5 text-primary" /> A/B tests
       </h2>
       <p className="text-sm text-muted-foreground mb-4">
-        Each visitor stays in one version. A winner needs {MIN_SAMPLE.toLocaleString()} visitors per version and 95% confidence.
+        A winner needs {MIN_SAMPLE.toLocaleString()} recorded views per version and 95% confidence on sign-ups. These tests do not measure school purchases. Low traffic is not evidence of a winning design.
       </p>
       {error && <p className="text-sm text-destructive mb-3">{error === "not_admin" ? "Sign in as an admin to see results." : error}</p>}
 
@@ -82,18 +83,19 @@ export const AdminExperiments = () => {
       {segments.length === 0 && !error && <p className="text-sm text-muted-foreground">No visitors yet.</p>}
       {segments.map((seg) => {
         const segRows = rows.filter((r) => r.segment_value === seg);
-        const control = segRows.find((r) => r.variant === "control");
+        const baseline = exp?.variants.includes("control") ? "control" : exp?.variants[0];
+        const control = segRows.find((r) => r.variant === baseline);
         return (
           <div key={seg} className="mb-5">
             {dim !== "all" && <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">{seg}</p>}
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="text-muted-foreground text-left">
-                  <tr><th className="py-1">Version</th><th>Visitors</th><th>Clicked sign up</th><th>Signed up</th><th>vs control</th></tr>
+                  <tr><th className="py-1">Version</th><th>Recorded views</th><th>Clicked sign up</th><th>Signed up</th><th>vs {baseline || "baseline"}</th></tr>
                 </thead>
                 <tbody>
                   {segRows.map((r) => {
-                    const cmp = control && r.variant !== "control" ? compare(control.signups, control.views, r.signups, r.views) : null;
+                    const cmp = control && r.variant !== baseline ? compare(control.signups, control.views, r.signups, r.views) : null;
                     const enough = control && r.views >= MIN_SAMPLE && control.views >= MIN_SAMPLE;
                     const wins = cmp && enough && cmp.confidence >= 0.95 && cmp.lift > 0;
                     return (
