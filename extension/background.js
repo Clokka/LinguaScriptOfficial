@@ -368,8 +368,10 @@ function loadPack() {
 }
 const packKey = (w) => String(w || '').toLowerCase()
   .replace(/[.,!?;:"'`«»()\[\]…，。、！？；：「」『』（）《》〈〉“”‘’]/g, '').trim();
+// 'fr-FR' / 'en-GB' / 'EN' all count: only the base language decides the pack.
+const baseLang = (c) => String(c || '').toLowerCase().split(/[-_]/)[0];
 async function instantMeaning(text, sl, tl) {
-  if (sl !== 'fr' || tl !== 'en' || /\s/.test(String(text || '').trim())) return null;
+  if (baseLang(sl) !== 'fr' || baseLang(tl) !== 'en' || /\s/.test(String(text || '').trim())) return null;
   const pack = await loadPack();
   if (!pack) return null;
   const hit = pack.get(packKey(text));
@@ -634,6 +636,14 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           }
         }
         return { ok: true, translation, synonymGroups, examples };
+      })(), sendResponse);
+
+    // Memory only, never the network: the tap card asks this first so a known
+    // French word shows its meaning at once (see ls-core.js instant()).
+    case 'INSTANT_MEANING':
+      return reply((async () => {
+        const translation = await instantMeaning(msg.text, msg.sourceLang, msg.targetLang);
+        return { ok: !!translation, translation };
       })(), sendResponse);
 
     case 'TRANSLATE':

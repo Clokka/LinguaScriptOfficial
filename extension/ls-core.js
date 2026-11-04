@@ -163,9 +163,22 @@
   });
   const log = (...a) => { if (DEBUG) console.log('[LinguaScript]', ...a); };
 
-  // ── Translation (GTX direct → background chain) ─────────────────────────────
+  // ── Instant meaning: the built-in word pack in the background (no network) ──
+  // Answers a known French word in a few milliseconds. Capped at 400 ms so a
+  // sleeping service worker can never make a tap slower than before.
+  function instant(text, sourceLang, targetLang) {
+    if (!text || /\s/.test(String(text).trim())) return Promise.resolve(null);
+    return Promise.race([
+      send({ type: 'INSTANT_MEANING', text, sourceLang, targetLang }).then((r) => r?.translation || null),
+      new Promise((r) => setTimeout(() => r(null), 400)),
+    ]);
+  }
+
+  // ── Translation (instant pack → GTX direct → background chain) ──────────────
   async function translate(text, targetLang, sourceLang = 'auto') {
     const sl = sourceLang && sourceLang !== 'auto' ? sourceLang : learningLang;
+    const known = await instant(text, sl, targetLang);
+    if (known) return known;
     const timeout = (ms) => new Promise((_, r) => setTimeout(() => r(new Error('timeout')), ms));
     try {
       const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${sl}&tl=${encodeURIComponent(targetLang)}&dt=t&q=${encodeURIComponent(text)}`;
@@ -443,13 +456,26 @@
     setTimeout(() => { if (activeCard === card) document.addEventListener('click', onDocClick); }, 0);
 
     let resolvedTranslation = '';
+    // 1) Instant: the meaning from the built-in pack, shown straight away.
+    // 2) WORD_DETAIL (Google, network) then adds synonyms and examples below it.
+    let instantShown = false;
+    if (!wrongScript) instant(clean, learningLang, nativeLang).then((tr) => {
+      if (!tr || activeCard !== card || resolvedTranslation) return;
+      resolvedTranslation = tr;
+      instantShown = true;
+      const transEl = card.querySelector('#ls-card-trans');
+      if (transEl) { transEl.style.cssText = 'font-size:17px;font-weight:700;color:#fff;margin-bottom:10px;'; transEl.textContent = tr; }
+    });
     send({ type: 'WORD_DETAIL', word: clean, sourceLang: wrongScript ? 'auto' : learningLang, targetLang: nativeLang }).then((detail) => {
       if (!activeCard) return;
       const transEl = card.querySelector('#ls-card-trans');
       const bodyEl = card.querySelector('#ls-card-body');
       if (detail?.ok && detail.translation) {
-        resolvedTranslation = detail.translation;
-        if (transEl) { transEl.style.cssText = 'font-size:17px;font-weight:700;color:#fff;margin-bottom:10px;'; transEl.textContent = detail.translation; }
+        // Keep the instant meaning if it's already showing (no flicker).
+        if (!instantShown) {
+          resolvedTranslation = detail.translation;
+          if (transEl) { transEl.style.cssText = 'font-size:17px;font-weight:700;color:#fff;margin-bottom:10px;'; transEl.textContent = detail.translation; }
+        }
         let bodyHTML = '';
         if (detail.synonymGroups?.length) {
           const chips = detail.synonymGroups.flatMap((g) => g.words).slice(0, 10).map((w) => `<span class="ls-card-syn-chip">${escapeHtml(w)}</span>`).join('');
@@ -473,8 +499,9 @@
         }
         if (examples.length) bodyHTML += `<div class="ls-card-section-label">Examples</div><div class="ls-card-examples">${examples.join('')}</div>`;
         if (bodyEl) bodyEl.innerHTML = bodyHTML;
-      } else {
+      } else if (!instantShown) {
         translate(clean, nativeLang, learningLang).then((tr) => {
+          if (instantShown) return;
           resolvedTranslation = tr || '';
           if (transEl) { transEl.style.cssText = 'font-size:15px;color:#e5e5e5;margin-bottom:12px;'; transEl.textContent = tr || 'Translation unavailable'; }
         });

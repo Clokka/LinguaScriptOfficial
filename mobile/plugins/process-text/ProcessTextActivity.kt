@@ -277,8 +277,14 @@ class ProcessTextActivity : Activity() {
 
   private fun translate() {
     // Instant: a French word comes straight from the built-in pack, no internet at all.
-    if (knownLanguage == "fr" && native == "en") {
+    // Codes are compared by base language ("en-GB" = "en"). From the text menu the
+    // language isn't known, so assume the one they're learning — but a look-alike
+    // (moment → moment) could be English, so that case still asks the translator.
+    val base = { c: String -> c.lowercase(Locale.ROOT).substringBefore('-').substringBefore('_') }
+    val from = base(knownLanguage.ifEmpty { learning })
+    if (from == "fr" && base(native) == "en") {
       val quick = InstantDict.lookup(this, selected, "fr", "en")
+        ?.takeIf { knownLanguage.isNotEmpty() || !it.trim().equals(selected.trim(), ignoreCase = true) }
       if (quick != null) {
         translation = quick
         detected = "fr"
