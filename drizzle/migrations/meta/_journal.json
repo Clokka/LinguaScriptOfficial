@@ -92,6 +92,27 @@
       "when": 1793730988128,
       "tag": "0012_site_team_fk_user_id",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1793790722193,
+      "tag": "0013_school_sales_readiness",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1793790939395,
+      "tag": "0014_hq_publishing_guard",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1793791021215,
+      "tag": "0015_school_recent_vocabulary_counts",
+      "breakpoints": true
     }
   ]
 }

@@ -48,7 +48,7 @@ export function useSite() {
       return false;
     }
     writeCache(clean); // this device sees it straight away
-    toast.success("Live! Visitors get it from their next page load.");
+    toast.success("Published. Returning visitors may see the previous setup for up to 10 minutes.");
     await reload();
     return true;
   };

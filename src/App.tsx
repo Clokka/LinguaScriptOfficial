@@ -147,6 +147,7 @@ const App = () => (
               <Suspense fallback={<RouteFallback />}>
               <Routes>
                 <Route path="/" element={<Index />} />
+                <Route path="/index" element={<Navigate to="/" replace />} />
                 <Route path="/landing" element={<Landing />} />
                 <Route path="/landingpage2" element={<LandingPage2 />} />
                 <Route path="/landingpage3" element={<LandingPage3 />} />

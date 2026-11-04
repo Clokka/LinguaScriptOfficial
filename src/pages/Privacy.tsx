@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
   <section className="mb-8">
     <h2 className="text-xl font-semibold mb-2">{title}</h2>
-    <div className="text-muted-foreground space-y-2 leading-relaxed">{children}</div>
+    <div className="text-muted-foreground space-y-2 leading-relaxed break-words [overflow-wrap:anywhere]">{children}</div>
   </section>
 );
 
@@ -20,7 +20,7 @@ const Privacy = () => (
     </header>
     <main className="max-w-3xl mx-auto px-6 py-10">
       <h1 className="text-3xl font-bold mb-2">Privacy Policy</h1>
-      <p className="text-sm text-muted-foreground mb-8">Last updated: 1 November 2026</p>
+      <p className="text-sm text-muted-foreground mb-8">Last updated: 4 November 2026</p>
 
       <Section title="1. Who we are">
         <p>
@@ -59,7 +59,12 @@ const Privacy = () => (
           <li><b>Subscription</b> — your plan status, and subscription/customer identifiers from
             our payment providers. We never see or store your card details.</li>
           <li><b>Schools</b> — if you join a school or class, your membership and role in that
-            school, so teachers can see class progress.</li>
+            school. Authorised school staff can see joined students' display names, email addresses,
+            active learning language, vocabulary and recorded viewing/review activity, and export
+            this class report. These records are not exam grades. Only join a school you recognise.</li>
+          <li><b>School enquiries</b> — the school name, contact name, contact email, optional student
+            count and needs you submit are saved for the LinguaScript team to respond to your request.
+            They do not enrol pupils or subscribe you to marketing.</li>
           <li><b>Email sign-ups</b> — if you submit your email on our landing page before making
             an account, we store that email address so we can contact you about LinguaScript.</li>
         </ul>

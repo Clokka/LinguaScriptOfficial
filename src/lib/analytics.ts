@@ -22,6 +22,7 @@ import { posthogStarted, withPosthog } from "@/lib/posthog";
 import { captureAttribution, segment } from "@/lib/experiments";
 
 export type AnalyticsEvent =
+  | "school_enquiry_submitted"
   | "cta_clicked"
   | "signup_started"
   | "signed_up"
