@@ -4,6 +4,8 @@ import { cn } from "@/lib/utils";
 import { useXp } from "@/contexts/XpContext";
 import { usePet } from "@/contexts/PetContext";
 import { playDing } from "@/lib/sound";
+import { shouldAwardPracticeProgress } from "@/lib/practiceProgress";
+import { Button } from "@/components/ui/button";
 
 interface Props {
   text: string;
@@ -101,7 +103,7 @@ export const PronunciationJudge = ({ text, language, className, awardProgress = 
       for (const a of alts) { const p = scoreMatch(text, a); if (p > pct) { pct = p; spoken = a; } }
       const band: "excellent" | "good" | "keep" = pct >= 90 ? "excellent" : pct >= 60 ? "good" : "keep";
       setResult({ pct, band, spoken });
-      if (awardProgress) try { award("review_card" as any, { correct: band !== "keep" }); } catch {}
+      if (shouldAwardPracticeProgress(awardProgress)) try { award("review_card" as any, { correct: band !== "keep" }); } catch {}
       if (band !== "keep") {
         playDing("success");
         try { triggerReaction("happy"); } catch {}
@@ -122,9 +124,9 @@ export const PronunciationJudge = ({ text, language, className, awardProgress = 
   };
 
   const bandColor =
-    result?.band === "excellent" ? "text-emerald-300 bg-emerald-500/15 border-emerald-500/40"
-    : result?.band === "good" ? "text-orange-300 bg-orange-500/15 border-orange-500/40"
-    : result ? "text-red-300 bg-red-500/15 border-red-500/40" : "";
+    result?.band === "excellent" ? "text-primary bg-primary/15 border-primary/40"
+    : result?.band === "good" ? "text-accent bg-accent/15 border-accent/40"
+    : result ? "text-destructive bg-destructive/15 border-destructive/40" : "";
   const bandLabel =
     result?.band === "excellent" ? "Excellent"
     : result?.band === "good" ? "Good Try"
@@ -132,23 +134,25 @@ export const PronunciationJudge = ({ text, language, className, awardProgress = 
 
   return (
     <div className={cn("flex items-center gap-2", className)}>
-      <button
+      <Button
+        variant="outline"
+        size="icon"
         type="button"
         onClick={start}
         title={recording ? "Stop recording" : "Say this line"}
         aria-label={recording ? "Stop recording" : "Say this line"}
         className={cn(
-          "relative shrink-0 rounded-full p-1.5 border transition-colors",
+          "relative h-9 w-9 shrink-0 rounded-full border transition-colors",
           recording
-            ? "bg-red-500/20 border-red-400/60 text-red-300"
-            : "bg-white/5 border-white/15 text-white/80 hover:bg-white/10",
+            ? "bg-destructive/20 border-destructive/60 text-destructive"
+            : "bg-foreground/5 border-foreground/15 text-foreground/80 hover:bg-foreground/10",
         )}
       >
         {recording ? <Square className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
         {recording && (
-          <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+          <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-destructive animate-pulse" />
         )}
-      </button>
+      </Button>
       {result && (
         <span className={cn("text-[11px] font-semibold px-2 py-0.5 rounded-full border", bandColor)}>
           {result.pct}% · {bandLabel}

@@ -2,6 +2,8 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, Loader2, Download, Maximize, Minimize, Play, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { PageLoading } from "@/components/PageLoading";
+import "@/components/premium/cinema.css";
 import { SubtitleOverlay } from "@/components/SubtitleOverlay";
 import { GapFillChallenge } from "@/components/GapFillChallenge";
 import { loadDeckIndex, normalizeToken, SavedWordLite, DeckState, coerceDeckState, maxState, bestStateForLemma } from "@/lib/vocab";
@@ -1410,11 +1412,7 @@ const Watch = () => {
   }, []);
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
+    return <PageLoading />;
   }
 
   if (!film) {
@@ -1583,7 +1581,7 @@ const Watch = () => {
     // One stable tree for portrait AND landscape: rotating the phone must
     // never unmount the YouTube player (that was killing playback sideways).
     return (
-      <div className={cn("bg-black flex flex-col", isLandscape ? "h-[100dvh] overflow-hidden" : "min-h-screen")}>
+      <div className={cn("ls-cinema bg-background text-foreground flex flex-col", isLandscape ? "h-[100dvh] overflow-hidden" : "min-h-screen")}>
         {!isLandscape && header}
         <div className={cn("flex w-full", isLandscape ? "flex-1 flex-row min-h-0" : "flex-col")}>
           <div
@@ -1641,7 +1639,7 @@ const Watch = () => {
 
 
   return (
-    <div className="min-h-screen bg-black flex flex-col">
+    <div className="ls-cinema min-h-screen bg-background text-foreground flex flex-col">
       {user && <WatchGoalGate goal={dailyGoal.goal} playerRef={playerRef} savedToday={dailyGoal.savedToday} language={film.language || learningLanguage || ""} />}
       <div className="flex items-center gap-3 p-4 bg-black/80 backdrop-blur z-20">
         <Button data-tour="page-back" variant="ghost" size="icon" onClick={() => navigate("/discover")} className="text-white hover:bg-white/10">
