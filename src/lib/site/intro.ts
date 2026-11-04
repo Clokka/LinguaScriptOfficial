@@ -13,7 +13,7 @@ export type Intro = NonNullable<SiteConfig["intro"]>;
 export function introToPlay(): { intro: Intro; preview: boolean } | null {
   const preview = readPreview();
   const cfg = preview ?? readCache()?.config ?? null;
-  const intro = cfg?.intro ?? DEFAULT_SITE.intro!;
+  const intro = cfg?.intro ?? DEFAULT_SITE.intro;
   if (!intro || intro.loader === "none") return null;
   if (preview || intro.when === "always") return { intro, preview: !!preview };
   try {

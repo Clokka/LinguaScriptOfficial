@@ -5,6 +5,9 @@ import { Seo } from "@/components/Seo";
 import { MarketingLayout, H2 } from "@/components/marketing/MarketingLayout";
 import { Button } from "@/components/ui/button";
 import { track } from "@/lib/analytics";
+import { Link } from "react-router-dom";
+import { useSubscription } from "@/hooks/useSubscription";
+import { AIConnectionCards } from "@/components/premium/BrandExperience";
 
 /** The LinguaScript MCP server (src/lib/mcp → supabase/functions/mcp). See docs/MCP.md. */
 export const MCP_URL = "https://ffephracinqeylfhqkiz.supabase.co/functions/v1/mcp";
@@ -68,10 +71,12 @@ function CopyButton({ text, label = "Copy" }: { text: string; label?: string }) 
 }
 
 export default function ConnectAI() {
-  const [app, setApp] = useState<AppKey>("claude");
+  const { isPro, loading } = useSubscription();
+  const [app, setApp] = useState<AppKey>(() => new URLSearchParams(window.location.search).get("app") === "chatgpt" ? "chatgpt" : "claude");
   const a = APPS[app];
 
   const copyAndOpen = async () => {
+    if (!isPro || loading) return;
     // Start the copy and open the tab in the same tap — opening after an
     // await gets the new tab blocked on phones.
     const copied = copy(MCP_URL);
@@ -98,14 +103,17 @@ export default function ConnectAI() {
             lands in your flashcards — red, orange, green, the same deck as everywhere else.
           </>
         }
-        cta={{ label: "Create a free account first", to: "/auth" }}
+        cta={null}
       >
+        <p>Available with <strong>LinguaScript Pro</strong>. MCP is a secure connection between your LinguaScript account and your chosen AI: it uses your own words and progress, not a separate deck.</p>
+        {!isPro && <><AIConnectionCards /><p>Already have Pro? <Link to="/auth" className="text-primary underline">Sign in</Link> to open the connection guide. Your ChatGPT or Claude account may also need an eligible plan.</p></>}
+        {isPro && <>
         <H2>Connect in 3 steps</H2>
 
         <div className="not-prose rounded-2xl border border-border bg-card p-5 space-y-5 text-foreground">
           <div className="grid grid-cols-2 gap-2" role="tablist" aria-label="Which AI">
             {(Object.keys(APPS) as AppKey[]).map((k) => (
-              <button
+              <Button variant={app === k ? "secondary" : "outline"}
                 key={k}
                 role="tab"
                 aria-selected={app === k}
@@ -113,7 +121,7 @@ export default function ConnectAI() {
                 className={`h-11 rounded-xl border font-semibold ${app === k ? "border-primary bg-primary/10" : "border-border"}`}
               >
                 {APPS[k].name}
-              </button>
+              </Button>
             ))}
           </div>
 
@@ -165,12 +173,13 @@ export default function ConnectAI() {
         <p>
           In Claude: Settings → Connectors → Add custom connector. In ChatGPT: Settings → Apps &amp;
           Connectors → Advanced → Developer mode, then Create. Paste the link and sign in. ChatGPT only
-          allows custom connectors on some plans; Claude allows one on the free plan.
+          offers custom connectors only on eligible plans; availability in either service depends on its current account settings.
         </p>
         <p>
           Using Claude Code? Run{" "}
           <code className="break-all text-foreground">claude mcp add --transport http linguascript {MCP_URL}</code>
         </p>
+        </>}
 
         <H2>What the AI can do with LinguaScript</H2>
         <ul className="list-disc space-y-2 pl-6">

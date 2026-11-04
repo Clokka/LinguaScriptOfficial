@@ -47,7 +47,7 @@ export type FilmLoaderConfig = { designs: string[]; reveals: string[] };
 /** Defaults until HQ publishes others. Reveals are Rowan's favourite loading → playing motions. */
 export const DEFAULT_FILM_LOADER: FilmLoaderConfig = {
   // "Through the languages → LinguaScript" first, then the Chameleon Method screen, and round again.
-  designs: ["decode:languages", "chameleon"],
+  designs: ["lab:loading-screens:86", "lab:loading-screens:96", "decode:languages", "chameleon"],
   reveals: [7, 8, 9, 16, 17, 18].map((n) => `lab:loading-motion:${n}`),
 };
 export const isFilmDesign = (v: unknown): v is string =>
