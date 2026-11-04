@@ -1,4 +1,5 @@
 .ls-cinema { background: var(--gradient-cinema), hsl(var(--background)); }
+.ls-product-page { overflow-x: clip; }
 .ls-section { padding: 64px 0; }
 .ls-film-stage { aspect-ratio: 16/9; width: 100%; overflow: hidden; border-radius: 12px; border: 1px solid hsl(var(--border)); background: var(--gradient-cinema-surface), hsl(var(--card)); box-shadow: var(--shadow-card); }
 .ls-platform { background: var(--gradient-cinema-surface); border-color: hsl(var(--foreground) / .13); border-radius: 8px; transition: transform .2s, border-color .2s; }

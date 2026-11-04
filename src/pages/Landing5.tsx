@@ -10,7 +10,7 @@ import { AIConnectionCards, LearningSteps, PlatformLinks, SchoolSection, VideoSh
 export default function Landing5() {
   const { user } = useAuth();
   const { isPro } = useLanguage();
-  return <div className="min-h-screen bg-background text-foreground">
+  return <div className="ls-product-page min-h-screen bg-background text-foreground">
     <Seo title="LinguaScript — Language learning through film" description="Watch films, learn new vocabulary and practise pronunciation. LinguaScript brings language learning to students, schools and teachers." path="/" rawTitle />
     <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-xl">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-5 py-4"><Link to="/" aria-label="LinguaScript home"><BrandMark variant="lockup" size={32} /></Link>
