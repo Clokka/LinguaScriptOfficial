@@ -13,7 +13,7 @@ const projectRef = import.meta.env.VITE_SUPABASE_PROJECT_ID ?? "project-ref-unse
 
 export default defineMcp({
   name: "lingua-script",
-  title: "Lingua Script",
+  title: "LinguaScript",
   version: "0.2.0",
   // The built-in teacher. Claude reads these server instructions automatically;
   // ChatGPT leans on tool descriptions, so get_progress repeats the "start here"
@@ -30,6 +30,10 @@ export default defineMcp({
   auth: auth.oauth.issuer({
     issuer: `https://${projectRef}.supabase.co/auth/v1`,
     acceptedAudiences: "authenticated",
+    // Shown by ChatGPT/Claude when they ask the learner to sign in, instead of
+    // the raw supabase.co address.
+    resourceName: "LinguaScript",
+    resourceDocumentation: "https://linguascript.co.uk/ai",
   }),
   tools: [proOnly(getProgress), proOnly(getFrequentWords), proOnly(getDueReviews), proOnly(recordReview), proOnly(saveWord), proOnly(listSavedWords), proOnly(listFilms)],
 });

@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Layers, Shield, Check, X } from "lucide-react";
+import { BrandMark } from "@/components/BrandMark";
+import { Shield, Check, X } from "lucide-react";
 
 type AuthorizationDetails = {
   client?: { name?: string; client_name?: string; redirect_uris?: string[] };
@@ -104,8 +105,8 @@ export default function OAuthConsent() {
       <div className="absolute inset-0 bg-gradient-hero pointer-events-none" />
       <div className="relative z-10 w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-primary flex items-center justify-center shadow-glow-primary mx-auto mb-4">
-            <Layers className="w-7 h-7 text-primary-foreground" />
+          <div className="flex justify-center mb-4">
+            <BrandMark size={56} />
           </div>
           <h1 className="text-2xl font-bold text-foreground">
             Connect {clientName} to LinguaScript

@@ -412,7 +412,7 @@ var COVERAGE = { IDEAL: 98, MIN: 95, STRETCH: 90 };
 var projectRef = "ffephracinqeylfhqkiz";
 var mcp_default = defineMcp({
   name: "lingua-script",
-  title: "Lingua Script",
+  title: "LinguaScript",
   version: "0.2.0",
   // The built-in teacher. Claude reads these server instructions automatically;
   // ChatGPT leans on tool descriptions, so get_progress repeats the "start here"
@@ -428,7 +428,11 @@ var mcp_default = defineMcp({
   ].join(" "),
   auth: auth.oauth.issuer({
     issuer: `https://${projectRef}.supabase.co/auth/v1`,
-    acceptedAudiences: "authenticated"
+    acceptedAudiences: "authenticated",
+    // Shown by ChatGPT/Claude when they ask the learner to sign in, instead of
+    // the raw supabase.co address.
+    resourceName: "LinguaScript",
+    resourceDocumentation: "https://linguascript.co.uk/ai"
   }),
   tools: [proOnly(get_progress_default), proOnly(get_frequent_words_default), proOnly(get_due_reviews_default), proOnly(record_review_default), proOnly(save_word_default), proOnly(list_saved_words_default), proOnly(list_films_default)]
 });

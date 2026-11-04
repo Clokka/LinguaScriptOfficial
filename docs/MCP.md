@@ -38,6 +38,21 @@ Source: `src/lib/mcp/` (one file per tool). `npx vite build` regenerates
 `supabase/functions/mcp/index.ts` — don't edit that file by hand. Deploy the
 `mcp` edge function after changing tools.
 
+## Name and logo in ChatGPT / Claude
+
+- **Name:** `title` and `auth.resourceName` in `src/lib/mcp/index.ts` are both
+  `LinguaScript`; that's what the apps show instead of the supabase.co address.
+- **Logo:** custom connectors show the favicon of the server URL's domain. Ours
+  is `*.supabase.co`, so they show the Supabase logo. The MCP library has no
+  "icon" setting. Two ways to get the chameleon:
+  1. **Get listed** (below): both directories take an uploaded logo
+     (`public/logo.svg`, PNG export if they ask).
+  2. **Supabase custom domain** (paid add-on, Supabase dashboard → Settings →
+     Custom Domains), e.g. `api.linguascript.co.uk` → the server URL becomes
+     `https://api.linguascript.co.uk/functions/v1/mcp`. Then update `MCP_URL` in
+     `src/pages/ConnectAI.tsx` and the URL at the top of this file. Existing
+     connections must reconnect with the new link.
+
 ## Getting listed (so users skip the "custom connector" screen)
 
 Custom connectors show Claude's / ChatGPT's technical sign-in settings; we
