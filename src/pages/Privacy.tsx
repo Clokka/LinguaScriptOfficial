@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
   <section className="mb-8">
     <h2 className="text-xl font-semibold mb-2">{title}</h2>
-    <div className="text-muted-foreground space-y-2 leading-relaxed">{children}</div>
+    <div className="text-muted-foreground space-y-2 leading-relaxed break-words [overflow-wrap:anywhere]">{children}</div>
   </section>
 );
 
@@ -20,7 +20,7 @@ const Privacy = () => (
     </header>
     <main className="max-w-3xl mx-auto px-6 py-10">
       <h1 className="text-3xl font-bold mb-2">Privacy Policy</h1>
-      <p className="text-sm text-muted-foreground mb-8">Last updated: 1 November 2026</p>
+      <p className="text-sm text-muted-foreground mb-8">Last updated: 4 November 2026</p>
 
       <Section title="1. Who we are">
         <p>

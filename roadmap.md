@@ -1,5 +1,5 @@
 # Current work
-- [ ] Audit school sales, public pages, HQ and live payment readiness; fix enquiry capture, reporting failures and results visibility; verify the working flows and deliver an honest launch report.
+- [x] Audit school sales, public pages, HQ and payment readiness; repair saved enquiries/HQ inbox, missing active-language reporting, email-bound invite redemption, test baselines and publish validation; check public/mobile pages and signed-in HQ/teacher. Populated class and payment fulfilment are not verified: no pupils joined and Stripe live approval is pending.
 - [x] Match the video-frame typography and staggered caption, waveform and class-chart motion on the connected school tour, preserving the black/green theme.
 - [x] Match newer Gallery mobile references with charcoal surfaces, original coloured chameleons and connected goals/friends and Pro AI tour pages; mobile interactions/layout checked and signed-in teacher opened. Native Android binary and audio remain unverified.
 - [x] Build film-style school conversion page and five connected watch, pronunciation, vocabulary, progress and teacher previews; desktop/phone tour interactions and email-draft handoff checked. Signed-in teacher/flashcards opened; school purchase remains a quote enquiry, not checkout. Microphone/audio output and populated class reporting remain unverified.
