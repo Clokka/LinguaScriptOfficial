@@ -1,0 +1,28 @@
+.ls-cinema { background: var(--gradient-cinema), hsl(var(--background)); }
+.ls-product-page { overflow-x: clip; }
+.ls-section { padding: 64px 0; }
+.ls-film-stage { aspect-ratio: 16/9; width: 100%; overflow: hidden; border-radius: 12px; border: 1px solid hsl(var(--border)); background: var(--gradient-cinema-surface), hsl(var(--card)); box-shadow: var(--shadow-card); }
+.ls-platform { background: var(--gradient-cinema-surface); border-color: hsl(var(--foreground) / .13); border-radius: 8px; transition: transform .2s, border-color .2s; }
+.ls-platform:hover { transform: translateY(-2px); border-color: hsl(var(--primary) / .5); }
+.ls-platform-logo { width: 24px; height: 24px; object-fit: contain; flex-shrink: 0; }
+.ls-logo-tv5monde { width: 44px; }
+.ls-logo-youtube,.ls-logo-netflix { filter: invert(25%) sepia(98%) saturate(5100%) hue-rotate(349deg) brightness(101%); }
+.ls-logo-crunchyroll,.ls-logo-claude { filter: invert(64%) sepia(76%) saturate(1500%) hue-rotate(341deg); }
+.ls-logo-chatgpt { filter: invert(100%); }
+.ls-ai-logo { object-fit: contain; }
+.ls-hub-hero { padding: 32px 0 36px; }
+.ls-hub-title { font-size: 44px; line-height: 1.12; font-weight: 750; }
+.ls-marquee { overflow: hidden; white-space: nowrap; mask-image: linear-gradient(90deg, transparent, hsl(var(--foreground)) 10%, hsl(var(--foreground)) 90%, transparent); }
+.ls-marquee-line { display: inline-flex; gap: 28px; animation: ls-word-travel 25s linear infinite; font-size: 22px; font-weight: 600; }
+.ls-marquee-line span:nth-child(4n+1) { color: hsl(var(--primary)); }
+.ls-marquee-line span:nth-child(4n+2) { color: hsl(var(--accent)); }
+.ls-marquee-line span:nth-child(4n+3) { color: hsl(var(--destructive)); }
+.ls-marquee-line span:nth-child(4n) { color: hsl(var(--warning)); }
+.ls-caption-glass { padding: 22px 0; border-top: 1px solid hsl(var(--foreground) / .12); border-bottom: 1px solid hsl(var(--foreground) / .12); background: var(--gradient-cinema-surface); }
+.ls-mascot-float { animation: ls-brand-breathe 5s ease-in-out infinite; }
+.ls-intro-shell { position: fixed; inset: 0; z-index: 100; background: hsl(var(--background)); transition: opacity .45s; }
+.ls-intro-shell.ls-intro-leaving { opacity: 0; }
+@keyframes ls-word-travel { to { transform: translateX(-50%); } }
+@keyframes ls-brand-breathe { 50% { transform: translateY(-5px); } }
+@media (max-width: 640px) { .ls-section { padding: 40px 0; } .ls-hub-title { font-size: 32px; } .ls-hub-hero { padding-top: 20px; } }
+@media (prefers-reduced-motion: reduce) { .ls-marquee-line,.ls-mascot-float { animation: none; } .ls-platform:hover { transform: none; } }

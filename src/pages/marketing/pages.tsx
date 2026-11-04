@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { Seo, SITE_URL } from "@/components/Seo";
 import { MarketingLayout, H2, H3 } from "@/components/marketing/MarketingLayout";
+import { LearningSteps, VideoShowcase } from "@/components/premium/BrandExperience";
 
 /**
  * Public, indexable landing pages. Each targets one search intent, owns its
@@ -420,13 +421,13 @@ export const ForSchoolsPage = make({
   path: "/for-schools",
   title: "LinguaScript for schools — teacher dashboard and school sign-in",
   description:
-    "Give a whole class immersion that you can see. School sign-in, a teacher dashboard with per-student vocabulary and comprehension, and content aligned to A-Level and GCSE study.",
+    "Help students build vocabulary and practise pronunciation through films, with class activity and vocabulary progress for teachers.",
   eyebrow: "For schools",
-  heading: "School sign-in and the teacher dashboard",
+  heading: "Language learning through film, for schools and teachers",
   intro: (
     <>
-      Language departments already use video. LinguaScript turns that watching into measurable
-      vocabulary growth you can see per student, per week.
+      Bring real language into the classroom. Students follow films, save new words and practise
+      pronunciation, while teachers follow their class activity and vocabulary progress.
     </>
   ),
   jsonLd: {
@@ -438,12 +439,14 @@ export const ForSchoolsPage = make({
   },
   body: (
     <>
+      <VideoShowcase schoolOnly />
+      <LearningSteps />
       <H2>What teachers get</H2>
       <ul className="list-disc space-y-2 pl-6">
-        <li>Invite students by link — no personal email addresses required to get started.</li>
-        <li>Per-student words saved, words mastered and estimated comprehension.</li>
-        <li>Exam-track mode that advances students through CEFR levels A1 to C2.</li>
-        <li>Fluency mode for trips and enrichment, focused on the highest-frequency vocabulary.</li>
+        <li>Class invitations and a shared teacher dashboard.</li>
+        <li>Per-student vocabulary progress and recent learning activity.</li>
+        <li>Pronunciation practice using words and phrases from films.</li>
+        <li>Frequent-word flashcards alongside videos matched to students' interests.</li>
       </ul>
       <H2>Built with A-Level French in mind</H2>
       <p>

@@ -21,13 +21,14 @@ export function MarketingLayout({
   cta?: { label: string; to: string } | null;
 }) {
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen ls-cinema text-foreground">
       <header className="border-b border-border/60">
-        <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-4">
+        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-5 py-4">
           <Link to="/" aria-label="LinguaScript home">
-            <BrandMark size={32} />
+            <BrandMark variant="lockup" size={32} />
           </Link>
           <nav className="flex items-center gap-4 text-sm text-muted-foreground">
+            <Link to="/for-schools" className="hover:text-foreground">Schools</Link>
             <Link to="/blog" className="hover:text-foreground">
               Blog
             </Link>
@@ -55,7 +56,7 @@ export function MarketingLayout({
         </div>
 
         {cta && (
-          <div className="mt-14 rounded-2xl border border-border/60 bg-secondary/30 p-8 text-center">
+          <div className="mt-14 border-t border-border/60 py-8 text-center">
             <p className="mb-4 text-lg font-semibold text-foreground">
               Turn everything you watch green.
             </p>

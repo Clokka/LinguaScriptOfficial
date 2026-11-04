@@ -11,9 +11,9 @@
   },
   "mcp": {
     "server": {
-      "name": "linguascript-mcp",
+      "name": "lingua-script",
       "version": "0.2.0",
-      "title": "LinguaScript"
+      "title": "Lingua Script"
     },
     "tools": [
       {

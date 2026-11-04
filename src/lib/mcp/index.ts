@@ -6,12 +6,13 @@ import listFilms from "./tools/list-films";
 import getFrequentWords from "./tools/get-frequent-words";
 import getDueReviews from "./tools/get-due-reviews";
 import recordReview from "./tools/record-review";
+import { proOnly } from "./pro";
 
 const projectRef = import.meta.env.VITE_SUPABASE_PROJECT_ID ?? "project-ref-unset";
 
 export default defineMcp({
-  name: "linguascript-mcp",
-  title: "LinguaScript",
+  name: "lingua-script",
+  title: "Lingua Script",
   version: "0.2.0",
   instructions: [
     "LinguaScript is the learner's own vocabulary: every word they save is a flashcard coloured red (new), orange (learning), green (known) or gold (green, review due).",
@@ -24,5 +25,5 @@ export default defineMcp({
     issuer: `https://${projectRef}.supabase.co/auth/v1`,
     acceptedAudiences: "authenticated",
   }),
-  tools: [getProgress, getFrequentWords, getDueReviews, recordReview, saveWord, listSavedWords, listFilms],
+  tools: [proOnly(getProgress), proOnly(getFrequentWords), proOnly(getDueReviews), proOnly(recordReview), proOnly(saveWord), proOnly(listSavedWords), proOnly(listFilms)],
 });

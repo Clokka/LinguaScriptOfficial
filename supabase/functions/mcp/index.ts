@@ -364,11 +364,52 @@ var record_review_default = defineTool7({
   }
 });
 
+// src/lib/mcp/pro.ts
+import { createClient as createClient8 } from "npm:@supabase/supabase-js@^2.100.1";
+
+// src/lib/proAccess.ts
+function hasActivePro(profile, now = Date.now()) {
+  if (profile?.is_pro !== true) return false;
+  if (!profile.pro_expires_at) return true;
+  const expiry = Date.parse(profile.pro_expires_at);
+  return Number.isFinite(expiry) && expiry > now;
+}
+
+// src/lib/mcp/pro.ts
+var denied = (text) => ({ content: [{ type: "text", text }], isError: true });
+function proOnly(tool) {
+  return {
+    ...tool,
+    handler: async (args, ctx) => {
+      const uid = ctx.getUserId();
+      const token = ctx.getToken();
+      if (!ctx.isAuthenticated() || !uid || !token) return denied("Sign in to LinguaScript to connect your account.");
+      try {
+        const runtime = globalThis;
+        const env = (key2) => runtime.Deno?.env.get(key2) ?? (typeof process !== "undefined" ? process.env[key2] : void 0);
+        const url = env("SUPABASE_URL") ?? "https://ffephracinqeylfhqkiz.supabase.co";
+        const key = env("SUPABASE_PUBLISHABLE_KEY") ?? env("SUPABASE_ANON_KEY") ?? "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZmZXBocmFjaW5xZXlsZmhxa2l6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2MTc4MDgsImV4cCI6MjA5MDE5MzgwOH0.CzCejyUYY1i6-T_gCxkLqq_Cmc1OSRlXAhmPC-Ud4zA";
+        if (!url || !key) return denied("Unable to check your LinguaScript Pro access. Please try again later.");
+        const sb = createClient8(url, key, {
+          global: { headers: { Authorization: `Bearer ${token}` } },
+          auth: { persistSession: false, autoRefreshToken: false }
+        });
+        const { data, error } = await sb.from("profiles").select("is_pro,pro_expires_at").eq("user_id", uid).maybeSingle();
+        if (error) return denied("Unable to check your LinguaScript Pro access. Please try again later.");
+        if (!hasActivePro(data)) return denied("ChatGPT and Claude connections require LinguaScript Pro. Upgrade at linguascript.co.uk/pricing.");
+        return await tool.handler(args, ctx);
+      } catch {
+        return denied("Unable to check your LinguaScript Pro access. Please try again later.");
+      }
+    }
+  };
+}
+
 // src/lib/mcp/index.ts
 var projectRef = "ffephracinqeylfhqkiz";
 var mcp_default = defineMcp({
-  name: "linguascript-mcp",
-  title: "LinguaScript",
+  name: "lingua-script",
+  title: "Lingua Script",
   version: "0.2.0",
   instructions: [
     "LinguaScript is the learner's own vocabulary: every word they save is a flashcard coloured red (new), orange (learning), green (known) or gold (green, review due).",
@@ -381,7 +422,7 @@ var mcp_default = defineMcp({
     issuer: `https://${projectRef}.supabase.co/auth/v1`,
     acceptedAudiences: "authenticated"
   }),
-  tools: [get_progress_default, get_frequent_words_default, get_due_reviews_default, record_review_default, save_word_default, list_saved_words_default, list_films_default]
+  tools: [proOnly(get_progress_default), proOnly(get_frequent_words_default), proOnly(get_due_reviews_default), proOnly(record_review_default), proOnly(save_word_default), proOnly(list_saved_words_default), proOnly(list_films_default)]
 });
 
 // lovable-mcp-supabase-entry.ts

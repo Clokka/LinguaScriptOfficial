@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { getStripeEnvironment, isPaymentsConfigured } from "@/lib/stripe";
+import { hasActivePro } from "@/lib/proAccess";
 
 export interface ProStatus {
   isPro: boolean;
@@ -110,9 +111,7 @@ export function useSubscription(): ProStatus {
     };
   }, [user?.id, refresh]);
 
-  const notExpired =
-    !profileRow?.pro_expires_at || new Date(profileRow.pro_expires_at) > new Date();
-  const isPro = !!profileRow?.is_pro && notExpired;
+  const isPro = hasActivePro(profileRow);
 
   const source: ProStatus["source"] = !isPro
     ? "none"

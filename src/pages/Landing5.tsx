@@ -1,278 +1,41 @@
-import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
+import { Link } from "react-router-dom";
+import { ArrowRight, GraduationCap, Play, UserRound } from "lucide-react";
 import { Seo } from "@/components/Seo";
-import { StoreBadges } from "@/components/landing/StoreBadges";
-import { GreenMoment } from "@/components/landing/GreenMoment";
-import { MagneticButton } from "@/components/landing/MagneticButton";
-import { LinguaCursor } from "@/components/landing/LinguaCursor";
-import { Chameleon3D } from "@/components/landing/Chameleon3D";
-import { ChameleonMascot } from "@/components/ChameleonMascot";
-import { HeroWordmarkBlast } from "@/components/landing/HeroWordmarkBlast";
-import { LinguaScriptsDemo } from "@/components/landing/LinguaScriptsDemo";
-import { LineBlastDemo } from "@/components/LineBlastDemo";
-import { PlatformLogos } from "@/components/landing/PlatformLogos";
-import { DeckCards } from "@/components/landing/DeckCards";
-import { DECK } from "@/lib/deck-colors";
+import { Button } from "@/components/ui/button";
 import { BrandMark } from "@/components/BrandMark";
-import { HeadlineTest } from "@/components/landing/HeadlineTest";
-import { trackAll } from "@/lib/experiments";
-import quizletLogo from "@/assets/brand/quizlet.png.asset.json";
-import ankiLogo from "@/assets/brand/anki.png.asset.json";
+import { useAuth } from "@/hooks/useAuth";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { AIConnectionCards, LearningSteps, PlatformLinks, SchoolSection, VideoShowcase } from "@/components/premium/BrandExperience";
 
-/**
- * The Chameleon Method — LinguaScript's landing page.
- *
- * Every section on this page is the product, running live. No screenshots, no
- * looping screen recordings: the hero blast, the Line Blast and the
- * LinguaScripts exercise all import the same code the app ships, so nothing
- * here can promise something the app does not do.
- */
-
-const Wordmark = ({ className = "" }: { className?: string }) => (
-  <span className={`font-extrabold tracking-tight ${className}`}>
-    <span className="text-white">Lingua</span>
-    <span style={{ color: DECK.green }}>Script</span>
-  </span>
-);
-
-const reveal = {
-  hidden: { opacity: 0, y: 22 },
-  visible: (i = 0) => ({
-    opacity: 1,
-    y: 0,
-    transition: { delay: i * 0.07, duration: 0.6, ease: [0.22, 1, 0.36, 1] as const },
-  }),
-};
-
-const Section = ({
-  children,
-  className = "",
-  id,
-}: {
-  children: React.ReactNode;
-  className?: string;
-  id?: string;
-}) => (
-  <section id={id} className={`relative max-w-5xl mx-auto px-6 ${className}`}>
-    {children}
-  </section>
-);
-
-const Eyebrow = ({ children }: { children: React.ReactNode }) => (
-  <p className="text-xs font-semibold uppercase tracking-[0.35em] text-white/40 mb-5">
-    {children}
-  </p>
-);
-
-const Landing5 = () => {
-  const navigate = useNavigate();
-
-  return (
-    <div className="min-h-screen bg-[#08080B] text-white antialiased overflow-x-hidden">
-      <Seo
-        title="LinguaScript — The Chameleon Method for learning languages"
-        description="Learn a language by watching what you already love. Dual subtitles, click-to-translate and spaced repetition that turns every word you know green."
-        path="/"
-        rawTitle
-      />
-      <LinguaCursor />
-
-
-      {/* ── Nav ── */}
-      <nav className="sticky top-0 z-50 border-b border-white/[0.06] bg-[#08080B]/85 backdrop-blur-xl">
-        <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
-          <Wordmark className="text-lg" />
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => navigate("/auth")}
-              className="px-3 py-2 text-sm text-white/60 hover:text-white transition-colors"
-            >
-              Sign in
-            </button>
-            <button
-              onClick={() => { trackAll("cta"); navigate("/onboarding"); }}
-              className="px-4 py-2 text-sm font-semibold rounded-lg bg-white text-[#08080B] hover:bg-white/90 transition-colors"
-            >
-              Sign up free
-            </button>
-          </div>
+export default function Landing5() {
+  const { user } = useAuth();
+  const { isPro } = useLanguage();
+  return <div className="ls-product-page min-h-screen bg-background text-foreground">
+    <Seo title="LinguaScript — Language learning through film" description="Watch films, learn new vocabulary and practise pronunciation. LinguaScript brings language learning to students, schools and teachers." path="/" rawTitle />
+    <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-xl">
+      <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-5 py-4"><Link to="/" aria-label="LinguaScript home"><BrandMark variant="lockup" size={32} /></Link>
+        <nav className="flex items-center gap-2"><Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex"><Link to="/for-schools">For schools</Link></Button><Button asChild variant="ghost" size="sm"><Link to={user ? "/profile" : "/auth"}><UserRound className="mr-2 h-4 w-4" />{user ? "Profile" : "Sign in"}</Link></Button><Button asChild size="sm"><Link to={user ? "/browse" : "/onboarding"}>{user ? "Watch" : "Start free"}</Link></Button></nav>
+      </div>
+    </header>
+    <main>
+      <section className="ls-cinema border-b border-border">
+        <div className="mx-auto max-w-6xl px-5 pb-12 pt-12 sm:px-8 sm:pt-16">
+          <div className="mb-5 flex items-center gap-2 text-sm text-warning"><GraduationCap className="h-4 w-4" />For learners, schools & teachers</div>
+          <h1 className="text-5xl font-bold leading-[1.08] sm:text-7xl">LinguaScript</h1>
+          <h2 className="mt-4 text-3xl font-semibold leading-tight sm:text-4xl">Watch what you love.<br /><span className="text-primary">Make the language yours.</span></h2>
+          <p className="mt-5 max-w-xl text-base leading-relaxed text-muted-foreground">Films become vocabulary practice. Listen to real language, save new words and practise pronunciation — with progress you and your teacher can see.</p>
+          <div className="mt-7 flex flex-wrap gap-3"><Button size="lg" asChild><Link to={user ? "/browse" : "/onboarding"}><Play className="mr-2 h-4 w-4" />Start watching</Link></Button><Button size="lg" variant="outline" asChild><Link to="/chrome-extension">Get the Chrome extension<ArrowRight className="ml-2 h-4 w-4" /></Link></Button><Button size="lg" variant="ghost" asChild><Link to="/explain">How it works</Link></Button></div>
+          <div className="ls-caption-glass mt-10"><div className="ls-marquee" aria-hidden="true" translate="no"><div className="ls-marquee-line">{[...Array(4)].flatMap((_, i) => ["bonjour", "cinéma", "voyage", "demain", "ensemble", "apprendre"].map(w => <span key={`${i}-${w}`}>{w}</span>))}</div></div></div>
+          <div className="mt-8"><PlatformLinks /></div><p className="mt-3 text-xs text-muted-foreground">Learn on external sites with the Chrome extension. Subtitle support varies by title and player; platform subscriptions are separate.</p>
         </div>
-      </nav>
-
-      {/* ── 1. The wordmark is the product ── */}
-      <Section className="pt-16 pb-14 text-center">
-        <motion.p
-          initial="hidden"
-          animate="visible"
-          variants={reveal}
-          className="text-xs font-semibold uppercase tracking-[0.35em] text-white/40 mb-8"
-        >
-          The Chameleon Method
-        </motion.p>
-
-        <HeroWordmarkBlast />
-        <HeadlineTest />
-
-        <motion.div initial="hidden" animate="visible" custom={3} variants={reveal}>
-          {/* A working button above the fold: the store badges stay disabled until real links exist. */}
-          <button
-            onClick={() => { trackAll("cta"); navigate("/onboarding"); }}
-            className="mt-9 px-8 py-4 rounded-xl font-bold text-lg text-[#08080B] hover:brightness-110 transition"
-            style={{ backgroundColor: DECK.green }}
-          >
-            Start learning free
-          </button>
-          <StoreBadges className="mt-6" />
-        </motion.div>
-      </Section>
-
-      {/* ── 2. Line Blast — the first real thing you touch ── */}
-      <Section className="py-20 border-t border-white/[0.06]">
-        <Eyebrow>Line Blast</Eyebrow>
-        <h2 className="text-3xl sm:text-5xl font-extrabold tracking-tight leading-[1.08] mb-12">
-          Finish the line.
-          <br />
-          <span style={{ color: DECK.green }}>Watch it go green.</span>
-        </h2>
-
-        <div data-cursor="hot">
-          <LineBlastDemo />
-        </div>
-      </Section>
-
-      {/* ── 3. Your companion ── */}
-      <Section className="py-24 border-t border-white/[0.06]">
-        <div className="grid gap-12 md:grid-cols-2 md:items-center">
-          <div>
-            <Eyebrow>Your companion</Eyebrow>
-            <h2 className="text-3xl sm:text-5xl font-extrabold tracking-tight leading-[1.08]">
-              It changes colour
-              <br />
-              because you did.
-            </h2>
-          </div>
-          <div className="flex justify-center" data-cursor="hot">
-            <Chameleon3D tier="green" size={360} />
-          </div>
-        </div>
-      </Section>
-
-      {/* ── 4. Scroll to turn the LinguaScript green ── */}
-      <GreenMoment />
-
-      {/* ── 5. LinguaScripts, live ── */}
-      <Section className="py-24 border-t border-white/[0.06]">
-        <Eyebrow>LinguaScripts</Eyebrow>
-        <h2 className="text-3xl sm:text-5xl font-extrabold tracking-tight leading-[1.08] mb-12">
-          Your words come back
-          <br />
-          as sentences.
-        </h2>
-
-        <LinguaScriptsDemo />
-      </Section>
-
-      {/* ── 6. Three colours ── */}
-      <Section className="py-24 border-t border-white/[0.06]">
-        <h2 className="text-3xl sm:text-5xl font-extrabold tracking-tight mb-14">
-          Three colours.
-        </h2>
-        <div className="grid gap-8 sm:grid-cols-3">
-          {[
-            { c: DECK.red, tier: "red" as const, label: "Unknown" },
-            { c: DECK.orange, tier: "orange" as const, label: "Learning" },
-            { c: DECK.green, tier: "green" as const, label: "Known" },
-          ].map((s, i) => (
-            <motion.div
-              key={s.label}
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true, margin: "-80px" }}
-              custom={i}
-              variants={reveal}
-            >
-              <div className="w-24 mb-5">
-                <ChameleonMascot tier={s.tier} />
-              </div>
-              <p className="text-sm font-bold uppercase tracking-[0.2em]" style={{ color: s.c }}>
-                {s.label}
-              </p>
-            </motion.div>
-          ))}
-        </div>
-      </Section>
-
-      {/* ── 7. Where it runs ── */}
-      <Section className="py-20 border-t border-white/[0.06]">
-        <PlatformLogos />
-      </Section>
-
-      {/* ── 8. A number, not a test ── */}
-      <Section className="py-24 border-t border-white/[0.06]">
-        <h2 className="text-3xl sm:text-5xl font-extrabold tracking-tight mb-12">
-          A number, not a test.
-        </h2>
-        <DeckCards />
-        <p className="mt-6 text-xs text-white/35">
-          One learner's vocabulary after a term of watching. Yours will look different.
-        </p>
-      </Section>
-
-      {/* ── 10. CTA ── */}
-      <Section className="py-28 border-t border-white/[0.06] text-center">
-        <div className="w-36 mx-auto mb-8">
-          <ChameleonMascot tier="green" party />
-        </div>
-        <h2 className="text-4xl sm:text-6xl font-extrabold tracking-tight leading-[1.05] mb-10">
-          Start with tonight's episode.
-        </h2>
-
-        <MagneticButton
-          onClick={() => { trackAll("cta"); navigate("/onboarding"); }}
-          className="px-8 py-4 rounded-xl font-bold text-[#08080B] text-lg"
-          style={{ backgroundColor: DECK.green }}
-        >
-          I want to start watching
-        </MagneticButton>
-
-        <div className="mt-10">
-          <StoreBadges />
-        </div>
-      </Section>
-
-      <footer className="border-t border-white/[0.06] py-10">
-        <div className="max-w-5xl mx-auto px-6 space-y-6">
-          <div className="flex items-center gap-3 text-xs text-white/30">
-            <span>Your words export to</span>
-            <img
-              src={quizletLogo.url}
-              alt="Quizlet"
-              className="h-5 w-5 rounded opacity-60 hover:opacity-100 transition-opacity"
-              loading="lazy"
-            />
-            <span className="text-white/40">Quizlet</span>
-            <span className="text-white/15">·</span>
-            <img
-              src={ankiLogo.url}
-              alt="Anki"
-              className="h-5 w-5 rounded opacity-60 hover:opacity-100 transition-opacity"
-              loading="lazy"
-            />
-            <span className="text-white/40">Anki</span>
-          </div>
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <BrandMark size={28} className="opacity-80" />
-            <div className="flex flex-wrap items-center gap-4 text-xs text-white/40">
-              <a href="/privacy" className="hover:text-white/80 transition-colors">Privacy Policy</a>
-              <a href="/terms" className="hover:text-white/80 transition-colors">Terms of Service</a>
-              <a href="mailto:rowan@linguascript.co.uk" className="hover:text-white/80 transition-colors">Contact</a>
-              <span className="text-white/30">© {new Date().getFullYear()} LinguaScript</span>
-            </div>
-          </div>
-        </div>
-      </footer>
-    </div>
-  );
-};
-
-export default Landing5;
+      </section>
+      <div className="mx-auto max-w-6xl px-5 sm:px-8">
+        <section className="ls-section"><div className="mb-9 flex flex-wrap items-end justify-between gap-4"><div><p className="mb-3 text-xs font-semibold text-warning">THE CHAMELEON METHOD</p><h2 className="text-3xl font-bold sm:text-4xl">A scene. A word. A little progress.</h2></div><Button variant="ghost" asChild><Link to="/manual">Read the manual<ArrowRight className="ml-2 h-4 w-4" /></Link></Button></div><LearningSteps /></section>
+        <section className="ls-section border-t border-border"><h2 className="mb-7 text-3xl font-bold">See LinguaScript in motion.</h2><VideoShowcase /></section>
+        <SchoolSection />
+        <section className="ls-section border-t border-border"><div className="mb-8 flex flex-wrap items-end justify-between gap-4"><div><p className="mb-3 text-xs font-semibold text-warning">LINGUASCRIPT PRO</p><h2 className="text-3xl font-bold">Your vocabulary, inside your AI.</h2><p className="mt-4 max-w-xl text-muted-foreground">MCP connects your own saved words and learning progress to ChatGPT or Claude. Sign in, grant access and practise with the vocabulary you actually need.</p></div><Button asChild variant="outline"><Link to="/ai">Connection guide<ArrowRight className="ml-2 h-4 w-4" /></Link></Button></div><AIConnectionCards isPro={isPro} /><p className="mt-4 text-xs text-muted-foreground">Requires LinguaScript Pro and an eligible account with your chosen AI service. User-configured connections; no official partnership.</p></section>
+      </div>
+    </main>
+    <footer className="border-t border-border py-8"><div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-5 px-5 text-sm text-muted-foreground"><BrandMark size={28} /><div className="flex flex-wrap gap-5">{[["/for-schools","Schools"],["/pricing","Pricing"],["/explain","Product"],["/privacy","Privacy"],["/terms","Terms"]].map(([to,label])=><Link key={to} to={to}>{label}</Link>)}</div><span>© {new Date().getFullYear()} LinguaScript</span></div></footer>
+  </div>;
+}
