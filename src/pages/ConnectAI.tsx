@@ -36,7 +36,18 @@ const APPS = {
 } as const;
 type AppKey = keyof typeof APPS;
 
+// One tap opens the AI with today's lesson already typed in (claude.ai/new?q=
+// and chatgpt.com/?q= prefill the message). The MCP server instructions do the
+// rest, so the learner never writes a prompt.
+const LESSON_PROMPT =
+  "Use LinguaScript to give me today's language lesson: check my progress, quiz my due words one at a time, then teach me a few new frequent words in a short story about my hobby.";
+const LESSON_LINKS: Record<AppKey, string> = {
+  claude: `https://claude.ai/new?q=${encodeURIComponent(LESSON_PROMPT)}`,
+  chatgpt: `https://chatgpt.com/?q=${encodeURIComponent(LESSON_PROMPT)}`,
+};
+
 const PROMPTS = [
+  LESSON_PROMPT,
   "Teach me the 5 most common words in my language that I don't know yet, then save them to LinguaScript.",
   "Quiz me on my due LinguaScript reviews, one word at a time.",
   "Write a short story about my hobby using my red LinguaScript words.",
@@ -130,6 +141,28 @@ export default function ConnectAI() {
         )}
         {!isPro && <><AIConnectionCards /><p>Already have Pro? <Link to="/auth" className="text-primary underline">Sign in</Link> to open the connection guide. Your ChatGPT or Claude account may also need an eligible plan.</p></>}
         {isPro && <>
+        <div className="not-prose my-6 rounded-2xl border border-primary/40 bg-primary/10 p-5 text-foreground">
+          <p className="text-lg font-bold">Already connected? Start today's lesson</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Opens your AI with the lesson already typed in. It checks your words, quizzes what's due
+            and teaches you new ones at your level. No prompt writing needed.
+          </p>
+          <div className="mt-4 grid gap-2 sm:grid-cols-2">
+            {(Object.keys(APPS) as AppKey[]).map((k) => (
+              <Button key={k} asChild size="lg" variant={k === app ? "default" : "outline"} className="font-bold">
+                <a
+                  href={LESSON_LINKS[k]}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => track("cta_clicked", { where: "ai_page", cta: "start_lesson", app: k })}
+                >
+                  <ExternalLink className="w-4 h-4 mr-2" /> Start my lesson in {APPS[k].name}
+                </a>
+              </Button>
+            ))}
+          </div>
+        </div>
+
         <H2>Connect in 3 steps</H2>
 
         <div className="not-prose rounded-2xl border border-border bg-card p-5 space-y-5 text-foreground">

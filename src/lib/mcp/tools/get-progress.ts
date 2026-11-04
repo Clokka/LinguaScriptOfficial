@@ -13,7 +13,7 @@ export default defineTool({
   name: "get_progress",
   title: "Get learning progress",
   description:
-    "Return the signed-in user's LinguaScript profile: learning language, native language, XP, streak, level, and counts of saved words per SRS state.",
+    "START HERE: call this first in every LinguaScript session. Returns the signed-in user's profile (learning language, native language, level, interests, XP, streak) and counts of saved words per state. Then run a short tutor lesson: quiz due words (get_due_reviews + record_review, one word at a time), teach 2–3 new frequent words in a mini-story about their interests at their level, ask them to use a red word in a sentence, and end with a short summary.",
   inputSchema: {},
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: async (_input, ctx) => {
