@@ -63,3 +63,8 @@
 .ls-tour-stage .ls-glass { background: var(--gradient-cinema-surface), hsl(var(--card) / .94); }
 .ls-teacher-stat { background: var(--gradient-cinema-surface), hsl(var(--card) / .8); }
 .ls-school-hero a { max-width: 100%; white-space: normal; height: auto; min-height: 48px; text-align: center; }
+.ls-cinema .ls-deck { background: var(--gradient-cinema-surface), hsl(var(--card)); border: 1px solid hsl(var(--border)); border-radius: 8px; color: hsl(var(--foreground)); }
+.ls-cinema .ls-deck .ls-orb { display: none; }
+.ls-cinema .ls-deck:nth-child(1) { border-top-color: hsl(var(--destructive)); }
+.ls-cinema .ls-deck:nth-child(2) { border-top-color: hsl(var(--accent)); }
+.ls-cinema .ls-deck:nth-child(3) { border-top-color: hsl(var(--primary)); }
