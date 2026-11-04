@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { hasActivePro } from "@/lib/proAccess";
 import { hasSpeechSynthesis, speakViaCloud } from "@/lib/cloudSpeech";
 import {
   addLanguageProfile,
@@ -127,7 +128,7 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
     setReady(false);
     supabase
       .from("profiles")
-      .select("learning_language, is_pro, cef_level")
+      .select("learning_language, is_pro, pro_expires_at, cef_level")
       .eq("user_id", user.id)
       .maybeSingle()
       .then(({ data }) => {
@@ -159,7 +160,7 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
             ensureLanguageProfile(user.id, lang, level);
           }
         }
-        setIsPro(!!(data as any)?.is_pro);
+        setIsPro(hasActivePro(data));
         setReady(true);
       });
   }, [user]);
