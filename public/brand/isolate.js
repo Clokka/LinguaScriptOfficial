@@ -20,7 +20,7 @@
   }
   function post() {
     if (!cur) return;
-    try { parent.postMessage({ lsSolo: location.hash, h: Math.ceil(cur.getBoundingClientRect().height) }, "*"); } catch (e) {}
+    try { parent.postMessage({ lsSolo: location.hash, h: Math.ceil(cur.getBoundingClientRect().height), hold: cur.querySelector(".steps") ? 6600 : 0 }, "*"); } catch (e) {}
   }
   function applyCap() {
     var c = cur && cur.querySelector(".cap");
@@ -84,6 +84,7 @@
   // parent as {lsCap: "..."} (same origin only, plain text only). The lab may
   // redraw the tile, so the caption is found again and re-applied each time.
   if (/[#&]live=1/.test(location.hash)) {
+    root.classList.add("ls-live");
     addEventListener("message", function (e) {
       if (e.origin === location.origin && e.data && typeof e.data.lsCap === "string") { capText = e.data.lsCap.slice(0, 120); applyCap(); }
     });
