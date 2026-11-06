@@ -91,6 +91,19 @@ export function PhoneBubbleSetting() {
           onCheckedChange={(v) => { save({ on: v, style }); track(v ? "phone_colour_enabled" : "phone_colour_disabled", { style }); }}
         />
       </div>
+      {/* The switch only remembers its last position, so after a restart it can say "on" while the
+          bubble is gone. This button always sends "start" again. */}
+      <div className="flex items-center gap-3">
+        <Button
+          size="sm"
+          onClick={() => { save({ on: true, style }); track("phone_colour_enabled", { style }); }}
+        >
+          Show the bubble now
+        </Button>
+        <p className="flex-1 text-xs text-muted-foreground">
+          Bubble missing? Tap here. If Android asks, allow “Display over other apps” for LinguaScript.
+        </p>
+      </div>
       <p className="text-sm text-muted-foreground">Word style: colour the words red, orange, green and gold, draw rings around them, or colour them and ring the common words you haven't saved yet.</p>
       {(
         <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Word style">
