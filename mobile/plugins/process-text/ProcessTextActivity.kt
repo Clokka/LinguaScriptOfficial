@@ -339,12 +339,18 @@ class ProcessTextActivity : Activity() {
     }
   }
 
+  // Opens a page of the site INSIDE the app. A plain https://linguascript.co.uk/...
+  // link is only claimed by the app for /gift and /friends, so Android handed it to
+  // Chrome and the learner landed on a separate website. linguascript://open/... is
+  // the app's own link (app/index.tsx turns it into the site page), the same one the
+  // widget and the gold-word card use.
   private fun openApp(path: String) {
-    val launch = packageManager.getLaunchIntentForPackage(packageName) ?: return finish()
-    launch.action = Intent.ACTION_VIEW
-    launch.data = Uri.parse("https://linguascript.co.uk$path")
-    launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-    startActivity(launch)
+    val launch = Intent(Intent.ACTION_VIEW, Uri.parse("linguascript://open$path"))
+      .setPackage(packageName)
+      .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    try { startActivity(launch) } catch (_: Exception) {
+      packageManager.getLaunchIntentForPackage(packageName)?.let { startActivity(it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+    }
     finish()
   }
 
