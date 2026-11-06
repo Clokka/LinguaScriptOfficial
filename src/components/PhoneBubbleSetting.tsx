@@ -129,6 +129,16 @@ export function PhoneBubbleSetting() {
         </div>
       )}
 
+      {/* The LinguaScript button in the swipe-down panel: brings the 🦎 back when it has gone. */}
+      <div className="flex items-center gap-3 border-t border-border pt-3">
+        <span className="text-2xl" aria-hidden>🦎</span>
+        <p className="flex-1">
+          <span className="block font-semibold">LinguaScript button in quick settings</span>
+          <span className="block text-sm text-muted-foreground">Swipe down from the top, tap LinguaScript, and the 🦎 comes back. One tap to add it.</span>
+        </p>
+        <Button size="sm" variant="outline" onClick={() => { toApp({ type: "tile" }); track("phone_widget_requested", { kind: "tile" }); }}>Add</Button>
+      </div>
+
       {/* ✨ Lock screen: only GOLD words — reviews of words you already know (GoldWords.kt). */}
       <div className="flex items-center gap-3 border-t border-border pt-3">
         <span className="text-2xl" aria-hidden>✨</span>

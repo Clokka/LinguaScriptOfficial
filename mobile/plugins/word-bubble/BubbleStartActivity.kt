@@ -9,6 +9,7 @@ package __PACKAGE__
 //                                                 starts the bubble first if it's off
 //   linguascriptbubble://gold?on=1|0            → gold word on the lock screen (GoldWords.kt)
 //   linguascriptbubble://widget                 → "add the widget to your home screen?"
+//   linguascriptbubble://tile                   → "add the LinguaScript button to quick settings?" (Android 13+)
 //   linguascriptbubble://subtitles?on=1|0       → tap subtitle words in YouTube (SubtitleTapService);
 //                                                 asks for "display over other apps", then the
 //                                                 one-time "share your screen?" yes
@@ -20,6 +21,9 @@ package __PACKAGE__
 
 import android.Manifest
 import android.app.Activity
+import android.app.StatusBarManager
+import android.content.ComponentName
+import android.graphics.drawable.Icon
 import android.content.pm.PackageManager
 import android.content.Intent
 import android.media.projection.MediaProjectionConfig
@@ -73,6 +77,7 @@ class BubbleStartActivity : Activity() {
         }
         finish()
       }
+      "tile" -> addTile()
       "subtitles" -> if (uri?.getQueryParameter("on") == "1") startSubtitles() else {
         prefs.edit().putBoolean("subtitles_on", false).apply()
         stopService(Intent(this, SubtitleTapService::class.java))
@@ -80,6 +85,36 @@ class BubbleStartActivity : Activity() {
       }
       "stop" -> { stopService(Intent(this, BubbleService::class.java)); prefs.edit().putBoolean("on", false).apply(); finish() }
       else -> finish()
+    }
+  }
+
+  /**
+   * One tap to put "LinguaScript" in the quick-settings panel (swipe down from the top), so the
+   * 🦎 bubble can be switched back on from anywhere. Android 13+ shows its own "Add tile?" box;
+   * older phones are told where to drag it from.
+   */
+  private fun addTile() {
+    if (Build.VERSION.SDK_INT >= 33) {
+      val sbm = getSystemService(StatusBarManager::class.java)
+      sbm.requestAddTileService(
+        ComponentName(this, LinguaTileService::class.java),
+        "LinguaScript",
+        Icon.createWithResource(this, R.drawable.ls_tile),
+        mainExecutor,
+      ) { result ->
+        val added = result == StatusBarManager.TILE_ADD_REQUEST_RESULT_TILE_ADDED ||
+          result == StatusBarManager.TILE_ADD_REQUEST_RESULT_TILE_ALREADY_ADDED
+        Toast.makeText(
+          this,
+          if (added) "LinguaScript is in your quick settings. Tap it any time to bring the 🦎 back."
+          else "Swipe down twice, tap the pencil, and drag LinguaScript into your top tiles.",
+          Toast.LENGTH_LONG,
+        ).show()
+        finish()
+      }
+    } else {
+      Toast.makeText(this, "Swipe down twice, tap the pencil, and drag LinguaScript into your top tiles.", Toast.LENGTH_LONG).show()
+      finish()
     }
   }
 
