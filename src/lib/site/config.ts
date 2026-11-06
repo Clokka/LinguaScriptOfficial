@@ -21,7 +21,6 @@ export const BUILT_IN_LOADERS = {
   none: "No intro",
   languages: "Through the languages → LinguaScript",
   decode: "Decoding text",
-  alphabets: "Every alphabet → LinguaScript",
   deck: "Deck colours drop in",
 } as const;
 export const LOADER_LABS = ["loading-experiences", "loading-screens", "loading-motion"] as const;
@@ -51,7 +50,7 @@ export const DEFAULT_FILM_LOADER: FilmLoaderConfig = {
   reveals: [7, 8, 9, 16, 17, 18].map((n) => `lab:loading-motion:${n}`),
 };
 export const isFilmDesign = (v: unknown): v is string =>
-  v === "chameleon" || (typeof v === "string" && /^decode:(languages|decode|alphabets|deck)$/.test(v)) || (typeof v === "string" && /^lab:(loading-screens|loading-experiences):\d{1,3}$/.test(v));
+  v === "chameleon" || (typeof v === "string" && /^decode:(languages|decode|deck)$/.test(v)) || (typeof v === "string" && /^lab:(loading-screens|loading-experiences):\d{1,3}$/.test(v));
 export const isFilmReveal = (v: unknown): v is string => typeof v === "string" && /^lab:loading-motion:\d{1,3}$/.test(v);
 function cleanFilm(f: any): FilmLoaderConfig | undefined {
   if (!f || typeof f !== "object") return undefined;

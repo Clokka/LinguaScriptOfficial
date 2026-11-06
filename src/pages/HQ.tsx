@@ -479,7 +479,7 @@ function FilmLoaderPicker({ film, setFilm }: { film: FilmLoaderConfig; setFilm: 
             <Button size="sm" variant="outline" onClick={() => setN((n + 1) % max)} aria-label="Next design">▶</Button>
             <Button size="sm" onClick={() => toggle("designs", cand)}>{film.designs.includes(cand) ? "✕ Remove" : "＋ Add to rotation"}</Button>
             <Button size="sm" variant="ghost" onClick={() => toggle("designs", "chameleon")}>{film.designs.includes("chameleon") ? "✕ Chameleon Method screen" : "＋ Chameleon Method screen"}</Button>
-            {(["languages", "decode", "alphabets", "deck"] as const).map((k) => (
+            {(["languages", "decode", "deck"] as const).map((k) => (
               <Button key={k} size="sm" variant="ghost" onClick={() => toggle("designs", `decode:${k}`)}>{film.designs.includes(`decode:${k}`) ? "✕" : "＋"} Decode · {k}</Button>
             ))}
           </div>

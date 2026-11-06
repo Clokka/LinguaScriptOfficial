@@ -61,7 +61,7 @@ const META={hero:["Hero",{cinema:"Subtitle cinema",kinetic:"Kinetic headline",ta
  social:["Community & app",{leaderboard:"Challenge + leaderboard",phone:"Phone + widget"}],
  cta:["Final call",{cta:"Big start-free",trust:"Trust + start free"}]};
 const THEMES=[["obsidian","Obsidian","#070809"],["glassdark","Glass dark","#2f8f4e"],["glasslight","Glass light","#eef1f5"],["gold","Black & gold","#FFD60A"],["forest","Forest","#0b2416"],["aurora","Aurora","#5b3a8a"],["violet","Midnight violet","#16122a"],["split","Split B/W","#ffffff"],["neon","Neon terminal","#39ff7a"],["paper","Paper","#f3eee3"]];
-const LOADERS={languages:"Through the languages → LinguaScript",decode:"Decoding text",alphabets:"Every alphabet → LinguaScript",deck:"Deck colours drop in",none:"No loader"};
+const LOADERS={languages:"Through the languages → LinguaScript",decode:"Decoding text",deck:"Deck colours drop in",none:"No loader"};
 let timers=[];const every=(fn,ms)=>timers.push(setInterval(fn,ms));
 function live(root){
   const k=root.querySelector('[data-kin]');if(k){const C=[["red","#FF453A"],["orange","#FF9F0A"],["green","#34C759"],["gold","#FFD60A"]];let i=1;every(()=>{i=(i+1)%4;k.textContent=C[i][0];k.style.color=C[i][1];k.style.background=C[i][1]+'22';k.style.boxShadow=`0 0 40px ${C[i][1]}44`},1500);k.style.color=C[1][1];k.style.background=C[1][1]+'22'}
@@ -77,6 +77,7 @@ let runId=0;
 function playLoader(host,variant,opts={}){
   const id=++runId,speed=opts.speed||1,word=opts.word||'LinguaScript';const alive=()=>id===runId;
   if(variant==='none'){host.classList.add('out');return}
+  if(!['languages','decode','deck'].includes(variant)&&!variant.startsWith('lab:'))variant='languages';
   if(variant.startsWith('lab:')){const [,lab,n]=variant.split(':');host.style.background='#050607';host.classList.remove('out');host.innerHTML=`<iframe title="Loading screen" src="${labSrc(lab,+n)}"></iframe>`;setTimeout(()=>{if(alive()&&opts.autoHide!==false)host.classList.add('out')},4200*speed);return}
   const light=opts.light;host.style.background=light?'#f3f5f4':'#050607';host.style.color=light?'#0b0d10':'#fff';
   host.classList.remove('out');
@@ -99,9 +100,6 @@ function playLoader(host,variant,opts={}){
       Lb.textContent='';await scramble(word,700,POOLS.mix,(j,done)=>done?fc[j]:['#FF453A','#FF9F0A','#34C759','#FFD60A'][j%4]);
     }else if(variant==='decode'){
       Lb.textContent='Decoding';step(1);await scramble(word,1600,POOLS.latin,(j,done)=>done?fc[j]:(light?'#0b0d1066':'#ffffff55'));step(2);
-    }else if(variant==='alphabets'){
-      const T=[...word];const t0=performance.now();Lb.textContent='Every alphabet';
-      while(alive()){const p=(performance.now()-t0)/(2400*speed);if(p>=1)break;const k=Math.floor(Math.max(0,(p-.35)/.65)*T.length*1.1);paint(T.map((c,i)=>i<k?c:rnd(POOLS.mix)),T.map((c,i)=>i<k?fc[i]:['#FF453A','#FF9F0A','#34C759','#FFD60A'][(i+Math.floor(p*20))%4]));step(Math.floor(p*3));await new Promise(r=>setTimeout(r,55))}
     }else if(variant==='deck'){
       const T=[...word];Lb.textContent='New → learning → known → gold';
       for(let k=1;k<=T.length&&alive();k++){paint(T.slice(0,k),T.slice(0,k).map((c,i)=>i==k-1?'#FF453A':['#FF9F0A','#34C759','#FFD60A'][(k-i)%3]));step(Math.floor(k/T.length*3));await sleep(110)}
