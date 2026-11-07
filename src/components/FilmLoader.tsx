@@ -20,7 +20,10 @@ const srcOf = (id: string) => {
 };
 
 /** How long each design shows before the next one takes over (ms). */
-const showFor = (id: string) => (id === "chameleon" ? 3600 : id.startsWith("decode:") ? (id === "decode:languages" ? 5600 : 4200) : 4600);
+// A design with the three "Finding subtitles / Translating / Colouring your words" bubbles
+// must stay until all three are loaded, so those get longer: "decode:languages" finishes its
+// third step and its colour change at ~6 s, and a lab design with steps tells us (see `hold`).
+const showFor = (id: string) => (id === "chameleon" ? 3600 : id.startsWith("decode:") ? (id === "decode:languages" ? 6800 : 4200) : 4600);
 
 /** The decoding loaders (Studio kit): "Through the languages → LinguaScript" with the three steps under it. */
 function DecodeScreen({ variant }: { variant: string }) {
@@ -40,13 +43,17 @@ function DecodeScreen({ variant }: { variant: string }) {
 }
 
 /** One design, framed to fill the player. Sends the real status as its caption. */
-export function FilmLoaderScreen({ id, status }: { id: string; status?: string }) {
+export function FilmLoaderScreen({ id, status, onHold }: { id: string; status?: string; onHold?: (ms: number) => void }) {
   const frame = useRef<HTMLIFrameElement>(null);
   const send = () => { if (status) frame.current?.contentWindow?.postMessage({ lsCap: status }, window.location.origin); };
   useEffect(send); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     const onMsg = (e: MessageEvent) => {
-      if (e.origin === window.location.origin && e.source === frame.current?.contentWindow && e.data?.lsCapReady) send();
+      if (e.origin === window.location.origin && e.source === frame.current?.contentWindow) {
+        if (e.data?.lsCapReady) send();
+        // A lab design with the three steps says how long it needs before it may be swapped out.
+        if (typeof e.data?.hold === "number" && e.data.hold > 0) onHold?.(Math.min(e.data.hold, 10000));
+      }
     };
     window.addEventListener("message", onMsg);
     return () => window.removeEventListener("message", onMsg);
@@ -72,13 +79,17 @@ export function AlternatingLoader({ status, config }: { status?: string; config?
   }, [config]);
   const [i, setI] = useState(0);
   const [round, setRound] = useState(0); // remounts a design that comes round again so it replays
+  const [hold, setHold] = useState(0); // ms this design must stay (its steps must finish first)
+  const shownAt = useRef(Date.now());
   const id = designs[i % designs.length];
+  useEffect(() => { shownAt.current = Date.now(); setHold(0); }, [i, round]);
   useEffect(() => {
     if (designs.length < 2) return;
-    const t = setTimeout(() => { setI((n) => (n + 1) % designs.length); setRound((r) => r + 1); }, showFor(id));
+    const wait = Math.max(showFor(id), hold) - (Date.now() - shownAt.current);
+    const t = setTimeout(() => { setI((n) => (n + 1) % designs.length); setRound((r) => r + 1); }, Math.max(0, wait));
     return () => clearTimeout(t);
-  }, [i, id, designs.length]);
-  return <FilmLoaderScreen key={`${id}-${round}`} id={id} status={status} />;
+  }, [i, id, designs.length, hold]);
+  return <FilmLoaderScreen key={`${id}-${round}`} id={id} status={status} onHold={setHold} />;
 }
 
 /**
