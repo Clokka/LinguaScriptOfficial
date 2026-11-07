@@ -19,6 +19,7 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
+import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.PixelFormat
@@ -169,10 +170,8 @@ class BubbleService : Service() {
       PixelFormat.TRANSLUCENT,
     ).apply {
       gravity = Gravity.TOP or Gravity.START
-      val prefs = getSharedPreferences("ls-bubble", MODE_PRIVATE)
-      x = prefs.getInt("x", resources.displayMetrics.widthPixels - size - dp(4))
-      y = prefs.getInt("y", resources.displayMetrics.heightPixels / 2)
     }
+    placeOnScreen(params)
 
     // Drag to move (snaps to the nearest edge), tap to colour, long-press to open the app.
     // While dragging, a ✕ shows at the bottom: drop the bubble on it to turn it off.
@@ -199,10 +198,10 @@ class BubbleService : Service() {
           if (dismiss) {
             turnOff()
           } else if (moved) {
-            val w = resources.displayMetrics.widthPixels
-            params.x = if (params.x + size / 2 < w / 2) dp(4) else w - size - dp(4)
+            val left = params.x + size / 2 < resources.displayMetrics.widthPixels / 2
+            getSharedPreferences("ls-bubble", MODE_PRIVATE).edit().putBoolean("left", left).putInt("y", params.y).apply()
+            placeOnScreen(params)
             runCatching { wm.updateViewLayout(view, params) }
-            getSharedPreferences("ls-bubble", MODE_PRIVATE).edit().putInt("x", params.x).putInt("y", params.y).apply()
           } else if (SystemClock.uptimeMillis() - downAt > 600) {
             openApp()
           } else {
@@ -215,6 +214,35 @@ class BubbleService : Service() {
     wm.addView(view, params)
     bubble = view
     bubbleParams = params
+  }
+
+  /**
+   * Put the bubble on its saved side (left/right) at its saved height, kept inside
+   * the CURRENT screen. Positions are pixels, so a spot saved upright can be below
+   * the bottom edge once a video app turns the phone sideways — and the window is
+   * FLAG_LAYOUT_NO_LIMITS, so Android doesn't pull it back: the bubble "vanished".
+   */
+  private fun placeOnScreen(p: WindowManager.LayoutParams) {
+    val size = dp(56)
+    val m = resources.displayMetrics
+    val prefs = getSharedPreferences("ls-bubble", MODE_PRIVATE)
+    // Older versions saved only an x in pixels: a small x meant the left edge.
+    val left = prefs.getBoolean("left", prefs.getInt("x", Int.MAX_VALUE) < dp(60))
+    p.x = if (left) dp(4) else m.widthPixels - size - dp(4)
+    val top = dp(24)
+    val bottom = maxOf(top, m.heightPixels - size - dp(24))
+    p.y = prefs.getInt("y", m.heightPixels / 2).coerceIn(top, bottom)
+  }
+
+  /** Screen turned (e.g. a film went full screen sideways): bring the bubble back on screen. */
+  override fun onConfigurationChanged(newConfig: Configuration) {
+    super.onConfigurationChanged(newConfig)
+    // Coloured words were drawn for the old screen shape, so they'd be in the wrong place now.
+    closeOverlay()
+    val view = bubble ?: return
+    val p = bubbleParams ?: return
+    placeOnScreen(p)
+    runCatching { wm.updateViewLayout(view, p) }
   }
 
   /** Quick-settings tile: wait for the panel to slide away, then read the screen. */
