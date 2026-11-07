@@ -52,7 +52,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 /* ---------- MOTIFS (sized relative to tile via cqi) ---------- */
 .m{font-size:clamp(10px,4cqi,18px)}
 .logo{width:9em;height:4.45em}
-.c-hue{animation:hue 3s linear infinite}@keyframes hue{to{filter:hue-rotate(360deg)}}
+.c-hue{animation:hue 3.6s ease-in-out infinite}@keyframes hue{0%,8%{filter:hue-rotate(-110deg) saturate(1.6)}33%,41%{filter:hue-rotate(-80deg) saturate(1.5)}66%,80%{filter:none}100%{filter:hue-rotate(-110deg) saturate(1.6)}}/* brand colours only: red, orange, green (not the whole rainbow) */
 .c-walk{animation:walk 2.4s ease-in-out infinite}@keyframes walk{0%{transform:translateX(-3em)}50%{transform:translateX(3em)}100%{transform:translateX(-3em) scaleX(1)}}
 .branch{width:18em;height:.35em;border-radius:1em;background:#5b4332;margin-top:-.4em}
 .tongue{position:relative;width:16em;height:5em}
