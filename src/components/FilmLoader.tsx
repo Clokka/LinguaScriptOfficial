@@ -7,6 +7,10 @@
 //  · When the subtitles are ready: one short "loading → playing" motion
 //    (loading-motion lab), then the video. Reduced motion → no reveal.
 // The same alternating screen is used while the pre-teach card finds the key words.
+//
+// No blank gaps: a lab design is an iframe that needs a second or two to load, so the next design is
+// loaded UNDER the current one and only fades in once it says it is ready (the old one stays until then).
+// The reveal (the "curtain") is layered over the loader the same way.
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ChameleonLoader } from "@/components/ChameleonLoader";
 import { loadKit } from "@/lib/site/kit";
@@ -26,12 +30,12 @@ const srcOf = (id: string) => {
 const showFor = (id: string) => (id === "chameleon" ? 3600 : id.startsWith("decode:") ? (id === "decode:languages" ? 6800 : 4200) : 4600);
 
 /** The decoding loaders (Studio kit): "Through the languages → LinguaScript" with the three steps under it. */
-function DecodeScreen({ variant }: { variant: string }) {
+function DecodeScreen({ variant, onReady }: { variant: string; onReady?: () => void }) {
   const host = useRef<HTMLDivElement>(null);
   useEffect(() => {
     let alive = true;
     loadKit().then((kit) => {
-      if (alive && host.current) kit.playLoader(host.current, variant, { steps: true, autoHide: false });
+      if (alive && host.current) { kit.playLoader(host.current, variant, { steps: true, autoHide: false }); onReady?.(); }
     }).catch(() => {});
     return () => { alive = false; window.LSKit?.stopLive(); };
   }, [variant]);
@@ -43,14 +47,24 @@ function DecodeScreen({ variant }: { variant: string }) {
 }
 
 /** One design, framed to fill the player. Sends the real status as its caption. */
-export function FilmLoaderScreen({ id, status, onHold }: { id: string; status?: string; onHold?: (ms: number) => void }) {
+export function FilmLoaderScreen({ id, status, onHold, onReady }: { id: string; status?: string; onHold?: (ms: number) => void; onReady?: () => void }) {
   const frame = useRef<HTMLIFrameElement>(null);
+  const said = useRef(false);
+  const ready = () => { if (!said.current) { said.current = true; onReady?.(); } };
+  // The built-in screens are ready at once; a lab design says so when it has drawn (or after 3.5 s at most, so we never wait forever).
+  useEffect(() => {
+    if (id === "chameleon") { ready(); return; }
+    if (id.startsWith("decode:")) return; // DecodeScreen tells us
+    const t = setTimeout(ready, 3500);
+    return () => clearTimeout(t);
+  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
   const send = () => { if (status) frame.current?.contentWindow?.postMessage({ lsCap: status }, window.location.origin); };
   useEffect(send); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     const onMsg = (e: MessageEvent) => {
       if (e.origin === window.location.origin && e.source === frame.current?.contentWindow) {
         if (e.data?.lsCapReady) send();
+        if (e.data?.lsSolo) ready();
         // A lab design with the three steps says how long it needs before it may be swapped out.
         if (typeof e.data?.hold === "number" && e.data.hold > 0) onHold?.(Math.min(e.data.hold, 10000));
       }
@@ -59,7 +73,7 @@ export function FilmLoaderScreen({ id, status, onHold }: { id: string; status?: 
     return () => window.removeEventListener("message", onMsg);
   });
   if (id === "chameleon") return <ChameleonLoader message={status || "Getting your video ready…"} />;
-  if (id.startsWith("decode:")) return <DecodeScreen variant={id.slice(7)} />;
+  if (id.startsWith("decode:")) return <DecodeScreen variant={id.slice(7)} onReady={ready} />;
   return (
     <div className="absolute inset-0 z-30 overflow-hidden bg-[#050607]" aria-busy="true" aria-label={status || "Loading the video"}>
       <iframe ref={frame} key={id} title="Loading" src={srcOf(id)} tabIndex={-1}
@@ -72,24 +86,56 @@ export function FilmLoaderScreen({ id, status, onHold }: { id: string; status?: 
  * Shows the designs one after another, round and round, until the parent swaps
  * it for something else. One design just stays on screen.
  */
+type Layer = { key: string; id: string; ready: boolean };
+
 export function AlternatingLoader({ status, config }: { status?: string; config?: FilmLoaderConfig }) {
   const designs = useMemo(() => {
     const d = (config ?? getFilmLoader()).designs;
-    return d.length ? d : ["decode:languages", "chameleon"];
+    return d.length ? d : ["lab:loading-screens:51", "lab:loading-screens:71", "lab:loading-screens:1"];
   }, [config]);
-  const [i, setI] = useState(0);
-  const [round, setRound] = useState(0); // remounts a design that comes round again so it replays
-  const [hold, setHold] = useState(0); // ms this design must stay (its steps must finish first)
+  // Layers stack up: the newest is on top and fades in once it has drawn itself. Each layer keeps its own
+  // element for its whole life (keyed), so the one underneath is never reloaded and nothing flashes black.
+  const [layers, setLayers] = useState<Layer[]>(() => [{ key: "0", id: designs[0], ready: false }]);
+  const [hold, setHold] = useState(0); // ms the top design must stay (its steps must finish first)
+  const counter = useRef(1);
   const shownAt = useRef(Date.now());
-  const id = designs[i % designs.length];
-  useEffect(() => { shownAt.current = Date.now(); setHold(0); }, [i, round]);
+  const top = layers[layers.length - 1];
+  const topReady = top.ready;
+  const topKey = top.key;
+  const topId = top.id;
+  const onReady = (key: string) => setLayers((ls) => ls.map((l) => (l.key === key ? { ...l, ready: true } : l)));
+  useEffect(() => { if (topReady) shownAt.current = Date.now(); }, [topReady, topKey]);
+  // Once the top layer is up, drop everything under it.
   useEffect(() => {
-    if (designs.length < 2) return;
-    const wait = Math.max(showFor(id), hold) - (Date.now() - shownAt.current);
-    const t = setTimeout(() => { setI((n) => (n + 1) % designs.length); setRound((r) => r + 1); }, Math.max(0, wait));
+    if (!topReady || layers.length < 2) return;
+    const t = setTimeout(() => setLayers((ls) => ls.slice(-1)), 700);
     return () => clearTimeout(t);
-  }, [i, id, designs.length, hold]);
-  return <FilmLoaderScreen key={`${id}-${round}`} id={id} status={status} onHold={setHold} />;
+  }, [topReady, layers.length]);
+  // Add the next design a while after THIS one became visible (not after it started loading).
+  useEffect(() => {
+    if (designs.length < 2 || !topReady) return;
+    const wait = Math.max(showFor(topId), hold) - (Date.now() - shownAt.current);
+    const t = setTimeout(() => {
+      const n = counter.current++;
+      const idx = (designs.indexOf(topId) + 1) % designs.length;
+      setHold(0);
+      setLayers((ls) => [...ls, { key: String(n), id: designs[idx], ready: false }]);
+    }, Math.max(0, wait));
+    return () => clearTimeout(t);
+  }, [topReady, topKey, topId, designs, hold]);
+  return (
+    <div className="absolute inset-0 z-30 overflow-hidden bg-[#050607]">
+      {/* Only while the very first design is still loading: the chameleon, so the first second is never empty. */}
+      {layers.length === 1 && !layers[0].ready && (
+        <img src="/logo.svg" alt="" className="absolute left-1/2 top-1/2 h-14 w-auto -translate-x-1/2 -translate-y-1/2 animate-pulse" style={{ zIndex: 0 }} />
+      )}
+      {layers.map((l, n) => (
+        <div key={l.key} className="absolute inset-0 transition-opacity duration-500" style={{ zIndex: n + 1, opacity: l.ready ? 1 : 0 }}>
+          <FilmLoaderScreen id={l.id} status={status} onHold={n === layers.length - 1 ? setHold : undefined} onReady={() => onReady(l.key)} />
+        </div>
+      ))}
+    </div>
+  );
 }
 
 /**
@@ -106,6 +152,7 @@ export function FilmLoadingGate({ ready, status, onComplete, duration, children,
     [cfg],
   );
   const [phase, setPhase] = useState<"loading" | "reveal" | "done">(ready ? "done" : "loading");
+  const [revealUp, setRevealUp] = useState(false); // the reveal has drawn itself over the loader
 
   useEffect(() => {
     if (!ready || phase !== "loading") return;
@@ -114,9 +161,10 @@ export function FilmLoadingGate({ ready, status, onComplete, duration, children,
   }, [ready, phase, reveal]);
   useEffect(() => {
     if (phase !== "reveal") return;
-    const t = setTimeout(() => setPhase("done"), REVEAL_MS);
+    // The reveal's clock starts when it is visible; if it never says so, don't hold the video back for long.
+    const t = setTimeout(() => setPhase("done"), revealUp ? REVEAL_MS : 4500);
     return () => clearTimeout(t);
-  }, [phase]);
+  }, [phase, revealUp]);
   useEffect(() => {
     if (phase !== "loading") return;
     const t = setTimeout(onComplete, duration);
@@ -124,6 +172,16 @@ export function FilmLoadingGate({ ready, status, onComplete, duration, children,
   }, [phase, duration, onComplete]);
 
   if (phase === "done") return <>{children}</>;
-  if (phase === "reveal" && reveal) return <FilmLoaderScreen id={reveal} />;
+  if (phase === "reveal" && reveal) {
+    // Keep the loader on screen until the reveal is ready, then let it sweep over the top: no blank in between.
+    return (
+      <>
+        <AlternatingLoader status={status} config={cfg} />
+        <div className="absolute inset-0 z-40 transition-opacity duration-300" style={{ opacity: revealUp ? 1 : 0 }}>
+          <FilmLoaderScreen id={reveal} onReady={() => setRevealUp(true)} />
+        </div>
+      </>
+    );
+  }
   return <AlternatingLoader status={status} config={cfg} />;
 }
