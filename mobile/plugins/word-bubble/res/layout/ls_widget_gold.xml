@@ -1,38 +1,71 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- ✨ Gold widget (GoldWidget.kt): one gold word, Show meaning → Next. -->
+<!-- ✨ Gold / lock-screen widget (GoldWidget.kt): one gold word.
+     Show meaning → "I knew it ✓" / "Not yet" (saved, sent to your account when the app opens) or Next. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/ls_gw_root"
     android:layout_width="match_parent" android:layout_height="match_parent"
-    android:orientation="vertical" android:gravity="center"
-    android:background="@drawable/ls_widget_gold_bg" android:padding="12dp">
+    android:orientation="vertical" android:gravity="center_vertical"
+    android:background="@drawable/ls_widget_gold_bg"
+    android:paddingStart="16dp" android:paddingEnd="16dp"
+    android:paddingTop="12dp" android:paddingBottom="12dp">
+
+  <LinearLayout
+      android:layout_width="match_parent" android:layout_height="wrap_content"
+      android:orientation="horizontal" android:gravity="center_vertical">
+    <ImageView
+        android:layout_width="44dp" android:layout_height="22dp"
+        android:src="@drawable/ls_cham_gold"
+        android:contentDescription="Gold chameleon" />
+    <TextView
+        android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+        android:layout_marginStart="8dp" android:text="GOLD WORD" android:letterSpacing="0.08"
+        android:textColor="#FFF5C542" android:textSize="11sp" android:textStyle="bold" />
+    <TextView
+        android:id="@+id/ls_gw_count"
+        android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:textColor="#FF9AA3B2" android:textSize="11sp" />
+  </LinearLayout>
 
   <TextView
       android:id="@+id/ls_gw_word"
       android:layout_width="match_parent" android:layout_height="wrap_content"
-      android:gravity="center" android:maxLines="1" android:ellipsize="end"
-      android:text="✨ Gold words"
-      android:textColor="#FFFFD54A" android:textSize="26sp" android:textStyle="bold"
-      android:shadowColor="#99FFC83C" android:shadowRadius="12" />
+      android:layout_marginTop="6dp" android:maxLines="1" android:ellipsize="end"
+      android:text="Gold words"
+      android:textColor="#FFF4F5F7" android:textSize="24sp" android:textStyle="bold" />
 
   <TextView
       android:id="@+id/ls_gw_meaning"
       android:layout_width="match_parent" android:layout_height="wrap_content"
-      android:layout_marginTop="2dp" android:gravity="center"
-      android:maxLines="2" android:ellipsize="end"
-      android:textColor="#FFF5F5F7" android:textSize="15sp" android:visibility="invisible" />
+      android:layout_marginTop="2dp" android:maxLines="2" android:ellipsize="end"
+      android:text="Do you know it? Tap to check."
+      android:textColor="#FF9AA3B2" android:textSize="14sp" />
+
+  <LinearLayout
+      android:id="@+id/ls_gw_buttons"
+      android:layout_width="match_parent" android:layout_height="wrap_content"
+      android:layout_marginTop="10dp" android:orientation="horizontal">
+    <TextView
+        android:id="@+id/ls_gw_button"
+        android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+        android:layout_marginEnd="4dp" android:background="@drawable/ls_pill_gold"
+        android:gravity="center" android:maxLines="1"
+        android:paddingTop="8dp" android:paddingBottom="8dp"
+        android:text="Show meaning"
+        android:textColor="#FF2B2000" android:textSize="13sp" android:textStyle="bold" />
+    <TextView
+        android:id="@+id/ls_gw_button2"
+        android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+        android:layout_marginStart="4dp" android:background="@drawable/ls_pill_dark"
+        android:gravity="center" android:maxLines="1"
+        android:paddingTop="8dp" android:paddingBottom="8dp"
+        android:text="Next"
+        android:textColor="#FFF4F5F7" android:textSize="13sp" android:textStyle="bold" />
+  </LinearLayout>
 
   <TextView
-      android:id="@+id/ls_gw_button"
-      android:layout_width="wrap_content" android:layout_height="wrap_content"
-      android:layout_marginTop="8dp" android:background="@drawable/ls_gold_bar"
-      android:paddingTop="5dp" android:paddingBottom="5dp"
-      android:paddingStart="16dp" android:paddingEnd="16dp"
-      android:text="Show meaning"
-      android:textColor="#FF3A2A00" android:textSize="13sp" android:textStyle="bold" />
-
-  <TextView
-      android:id="@+id/ls_gw_count"
-      android:layout_width="wrap_content" android:layout_height="wrap_content"
-      android:layout_marginTop="4dp"
-      android:textColor="#99F5F5F7" android:textSize="10sp" />
+      android:id="@+id/ls_gw_hint"
+      android:layout_width="match_parent" android:layout_height="wrap_content"
+      android:layout_marginTop="6dp" android:maxLines="1" android:ellipsize="end"
+      android:text="Got it right? It moves towards blue."
+      android:textColor="#FFC9D6EE" android:textSize="11sp" />
 </LinearLayout>

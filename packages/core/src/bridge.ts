@@ -18,10 +18,14 @@ export interface InboxItem {
   context?: string;
   /** When it was saved (ms). Also its id: the site sends it back in "inbox-saved". */
   at: number;
+  /** "review": an answer from the lock-screen gold widget ("I knew it" / "Not yet"), not a new word. */
+  kind?: "review";
+  /** With kind "review": did the learner know it? */
+  correct?: boolean;
 }
 
-/** The 🦎 bubble's copy of the deck: normalised word → [deck, review due (ms, 0 = none), tapped in a video (ms, 0 = never)]. */
-export type BubbleDeckWords = Record<string, [DeckState, number, number]>;
+/** The 🦎 bubble's copy of the deck: normalised word → [deck, review due (ms, 0 = none), tapped in a video (ms, 0 = never), blue (1 = 100% known)]. */
+export type BubbleDeckWords = Record<string, [DeckState, number, number, (0 | 1)?]>;
 
 /** Messages the website sends to the app. */
 export type SiteToAppMessage =

@@ -262,6 +262,7 @@ function isDueGold(w, now = Date.now()) {
   const tapped = w?.green_revealed_at ? Date.parse(w.green_revealed_at) : 0;
   return !(tapped >= at);
 }
+var BLUE_AFTER_DAYS = REVIEW_LADDER_DAYS[REVIEW_LADDER_DAYS.length - 1];
 function displayState(w, now = Date.now()) {
   return isDueGold(w, now) ? "gold" : coerceDeckState(w.state);
 }

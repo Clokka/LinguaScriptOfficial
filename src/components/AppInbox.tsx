@@ -1,11 +1,11 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useXp } from "@/contexts/XpContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { focusRingWords } from "@/lib/focusDeck";
-import { loadDeckIndex, normalizeToken, reviewDueAt } from "@/lib/vocab";
+import { applySrsReview, coerceDeckState, isBlue, loadDeckIndex, normalizeToken, promote, reviewDueAt } from "@/lib/vocab";
 import { track } from "@/lib/analytics";
 import type { BubbleDeckWords, InboxItem, SiteToAppMessage } from "@linguascript/core/bridge";
 
@@ -30,6 +30,8 @@ export function AppInbox() {
   const { user } = useAuth();
   const { award } = useXp();
   const busy = useRef(false);
+  // Bumped after lock-screen reviews are saved, so the phone gets a fresh deck.
+  const [deckBump, setDeckBump] = useState(0);
   const awardRef = useRef(award);
   awardRef.current = award;
   const userId = user?.id;
@@ -64,9 +66,40 @@ export function AppInbox() {
         const { learning, native, list } = await languagesOf(userId);
         const done: number[] = [];
         let saved = 0;
+        let reviewed = 0;
         for (const it of items) {
           const word = normalizeToken(String(it.word || "")).slice(0, 120);
           if (!word) { done.push(it.at); continue; }
+          // ✨ An answer from the lock-screen gold widget: same rule as a
+          // flashcard answer (promote + applySrsReview from review.ts).
+          if (it.kind === "review") {
+            const lang = String(it.language || learning).toLowerCase().split("-")[0];
+            const { data: row, error } = await supabase
+              .from("saved_words")
+              .select("id,state,times_correct,ease_factor,interval_days,review_count")
+              .eq("user_id", userId!)
+              .eq("language", lang)
+              .ilike("word", word.replace(/[%_\\]/g, "\\$&"))
+              .limit(1)
+              .maybeSingle();
+            if (error) { console.error("[AppInbox] review lookup failed", error); continue; } // retried next open
+            if (row) {
+              const correct = it.correct === true;
+              const prev = coerceDeckState(row.state);
+              const next = promote(prev, correct);
+              const patch: Record<string, unknown> = {
+                state: next,
+                times_correct: (row.times_correct ?? 0) + (correct ? 1 : 0),
+                ...applySrsReview(row, correct, { wasGreen: prev === "green", isGreen: next === "green" }),
+              };
+              if (next !== prev) patch.state_changed_at = new Date().toISOString();
+              const { error: upErr } = await supabase.from("saved_words").update(patch as never).eq("id", row.id).eq("user_id", userId!);
+              if (upErr) { console.error("[AppInbox] review save failed", upErr); continue; }
+              reviewed++;
+            }
+            done.push(it.at);
+            continue;
+          }
           // Detected language first if it's one you learn; otherwise your
           // learning language. Text in your own language is skipped.
           const detected = String(it.language || "").toLowerCase().split("-")[0];
@@ -98,6 +131,11 @@ export function AppInbox() {
           done.push(it.at);
         }
         if (done.length) toApp({ type: "inbox-saved", ats: done });
+        if (reviewed && alive) {
+          toast.success(`✨ ${reviewed} review${reviewed === 1 ? "" : "s"} from your lock screen`);
+          // The deck changed: send the phone a fresh copy so the widgets update.
+          setDeckBump((n) => n + 1);
+        }
         if (saved && alive) toast.success(`🔴 ${saved} word${saved === 1 ? "" : "s"} saved from your phone`);
       } finally {
         busy.current = false;
@@ -124,7 +162,7 @@ export function AppInbox() {
       deck.forEach((w, key) => {
         const due = reviewDueAt(w as any) ?? 0;
         const tapped = (w as any).green_revealed_at ? Date.parse((w as any).green_revealed_at) : 0;
-        words[key] = [w.state, due, tapped];
+        words[key] = [w.state, due, tapped, isBlue(w as any) ? 1 : 0];
       });
       // Unlearned words from the current Top-N block, ringed in "Common words" style.
       const common = (await focusRingWords(userId!, learning).catch(() => [] as string[])).filter((w) => !words[w]);
@@ -156,7 +194,7 @@ export function AppInbox() {
       .catch(() => {});
 
     return () => { current = false; };
-  }, [userId, learningNow]);
+  }, [userId, learningNow, deckBump]);
 
   return null;
 }

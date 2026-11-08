@@ -22,6 +22,11 @@ const RESOURCES = [
   'drawable/ls_widget_bg.xml', 'drawable/ls_sq_red.xml', 'drawable/ls_sq_orange.xml', 'drawable/ls_sq_green.xml',
   'drawable/ls_gold_bar.xml', 'drawable/ls_tile.xml', 'layout/ls_widget_deck.xml', 'xml/ls_widget_deck_info.xml',
   'drawable/ls_widget_gold_bg.xml', 'layout/ls_widget_gold.xml', 'xml/ls_widget_gold_info.xml',
+  // The five chameleons (red → orange → green → gold → blue) and the widget pieces.
+  'drawable/ls_cham_red.xml', 'drawable/ls_cham_orange.xml', 'drawable/ls_cham_green.xml',
+  'drawable/ls_cham_gold.xml', 'drawable/ls_cham_blue.xml',
+  'drawable/ls_pill_gold.xml', 'drawable/ls_pill_dark.xml', 'drawable/ls_cell_bg.xml',
+  'drawable/ls_cell_gold.xml', 'drawable/ls_progress_blue.xml',
 ];
 
 const PERMISSIONS = [

@@ -136,6 +136,16 @@ export function isDueGold(w: ReviewFields | null | undefined, now = Date.now()):
   return !(tapped >= at);
 }
 
+/**
+ * BLUE = 100% known: a green word the learner got right at its 30-day review
+ * (the last rung), so its interval has climbed past it. Blue words leave the
+ * phone's gold reviews (widgets, lock screen); in the app the ladder goes on.
+ */
+export const BLUE_AFTER_DAYS = REVIEW_LADDER_DAYS[REVIEW_LADDER_DAYS.length - 1];
+export function isBlue(w: ReviewFields | null | undefined): boolean {
+  return !!w && w.state === "green" && (w.interval_days ?? 0) > BLUE_AFTER_DAYS;
+}
+
 /** red / orange / green / gold — what colour a word shows right now. */
 export function displayState(w: ReviewFields, now = Date.now()): DisplayState {
   return isDueGold(w, now) ? "gold" : coerceDeckState(w.state);

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 🦎 Green chameleon (known). Same art as public/logo.svg, with skin spots. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="74dp" android:height="37dp"
+    android:viewportWidth="372" android:viewportHeight="184">
+  <group android:translateX="-14" android:translateY="-76">
+    <path android:fillColor="#5B4332" android:pathData="M20,236 Q200,222 380,240 L380,254 Q200,236 20,250 Z" />
+    <path android:strokeColor="#26A047" android:strokeWidth="15" android:strokeLineCap="round" android:pathData="M272,176 C322,168 348,190 344,214 C340,236 316,242 304,230 C295,220 302,206 314,207" />
+    <path android:fillColor="#26A047" android:pathData="M233,203.5 A7.5,7.5 0 0 1 248,203.5 L248,226.5 A7.5,7.5 0 0 1 233,226.5 Z" />
+    <path android:fillColor="#34C759" android:pathData="M136,196 Q128,118 205,106 Q276,96 285,160 Q290,202 244,208 L164,210 Q140,208 136,196 Z" />
+    <path android:fillColor="#26A047" android:fillAlpha="0.45" android:pathData="M204,142 a8,8 0 1,0 16,0 a8,8 0 1,0 -16,0 M236,152 a6,6 0 1,0 12,0 a6,6 0 1,0 -12,0 M180,150 a6,6 0 1,0 12,0 a6,6 0 1,0 -12,0 M253,178 a5,5 0 1,0 10,0 a5,5 0 1,0 -10,0" />
+    <path android:fillColor="#1B7A35" android:pathData="M158,130 q7,-14 14,0 q7,-14 14,0 q7,-14 14,0 q7,-14 14,0 q7,-14 14,0 q7,-14 14,0 q7,-14 14,0 l-2,10 q-49,-10 -94,2 Z" />
+    <path android:fillColor="#B8EFC8" android:pathData="M150,196 Q152,168 178,166 Q166,190 190,206 L164,208 Q152,206 150,196 Z" />
+    <path android:fillColor="#26A047" android:pathData="M182,205.5 A7.5,7.5 0 0 1 197,205.5 L197,230.5 A7.5,7.5 0 0 1 182,230.5 Z M180.5,238 a9,9 0 1,0 18,0 a9,9 0 1,0 -18,0" />
+    <path android:fillColor="#34C759" android:pathData="M162,118 Q160,92 134,88 Q104,84 88,112 Q74,138 84,162 Q94,186 126,188 Q152,189 160,168 Q166,148 162,118 Z" />
+    <path android:fillColor="#26A047" android:fillAlpha="0.45" android:pathData="M100,166 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0" />
+    <path android:strokeColor="#3D2B1F" android:strokeWidth="4.5" android:strokeLineCap="round" android:pathData="M82,148 Q104,162 128,154" />
+    <path android:fillColor="#B8EFC8" android:pathData="M97,126 a21,21 0 1,0 42,0 a21,21 0 1,0 -42,0" />
+    <path android:fillColor="#FFFEF9" android:pathData="M106.5,126 a11.5,11.5 0 1,0 23,0 a11.5,11.5 0 1,0 -23,0" />
+    <path android:fillColor="#241A12" android:pathData="M116.77,124.58 a5.5,5.5 0 1,0 11,0 a5.5,5.5 0 1,0 -11,0" />
+    <path android:fillColor="#FFFFFF" android:fillAlpha="0.9" android:pathData="M122.77,122.08 a2,2 0 1,0 4,0 a2,2 0 1,0 -4,0" />
+  </group>
+</vector>
