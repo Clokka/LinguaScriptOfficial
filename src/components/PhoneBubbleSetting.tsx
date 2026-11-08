@@ -22,6 +22,8 @@ export function PhoneBubbleSetting() {
   const [style, setStyle] = useState<"text" | "ring" | "common">("text");
   const [gold, setGold] = useState(false);
   const [subtitles, setSubtitles] = useState(false);
+  // No subtitles in the video? Read Live Caption / on-screen caption boxes too.
+  const [anywhere, setAnywhere] = useState(false);
 
   useEffect(() => {
     try {
@@ -30,6 +32,7 @@ export function PhoneBubbleSetting() {
       if (saved.style === "ring" || saved.style === "common") setStyle(saved.style);
       setGold(!!saved.gold);
       setSubtitles(!!saved.subtitles);
+      setAnywhere(!!saved.anywhere);
     } catch { /* ignore */ }
   }, []);
 
@@ -54,7 +57,7 @@ export function PhoneBubbleSetting() {
   const save = (next: { on: boolean; style: "text" | "ring" | "common" }) => {
     setOn(next.on);
     setStyle(next.style);
-    try { localStorage.setItem(KEY, JSON.stringify({ ...next, gold, subtitles })); } catch { /* ignore */ }
+    try { localStorage.setItem(KEY, JSON.stringify({ ...next, gold, subtitles, anywhere })); } catch { /* ignore */ }
     toApp({ type: "bubble", on: next.on, style: next.style });
   };
 
@@ -75,12 +78,33 @@ export function PhoneBubbleSetting() {
           checked={subtitles}
           onCheckedChange={(v) => {
             setSubtitles(v);
-            try { localStorage.setItem(KEY, JSON.stringify({ on, style, gold, subtitles: v })); } catch { /* ignore */ }
-            toApp({ type: "subtitles", on: v });
+            try { localStorage.setItem(KEY, JSON.stringify({ on, style, gold, subtitles: v, anywhere })); } catch { /* ignore */ }
+            toApp({ type: "subtitles", on: v, anywhere });
             track(v ? "phone_subtitles_enabled" : "phone_subtitles_disabled");
           }}
         />
       </div>
+      {subtitles && (
+        <div className="flex items-center gap-3 pl-10">
+          <label htmlFor="phone-captions-anywhere" className="flex-1">
+            <span className="block text-sm font-semibold">No subtitles? Tap my own captions</span>
+            <span className="block text-sm text-muted-foreground">
+              When a video has no subtitles, turn on Live Caption (volume button → captions) or play a video with words in the picture,
+              and tap those words instead. Only used when the video shows no subtitles.
+            </span>
+          </label>
+          <Switch
+            id="phone-captions-anywhere"
+            checked={anywhere}
+            onCheckedChange={(v) => {
+              setAnywhere(v);
+              try { localStorage.setItem(KEY, JSON.stringify({ on, style, gold, subtitles, anywhere: v })); } catch { /* ignore */ }
+              toApp({ type: "subtitles", on: true, anywhere: v });
+              track(v ? "phone_captions_anywhere_enabled" : "phone_captions_anywhere_disabled");
+            }}
+          />
+        </div>
+      )}
 
       <div className="flex items-center gap-3 border-t border-border pt-3">
         <span className="text-2xl" aria-hidden>🦎</span>
@@ -151,7 +175,7 @@ export function PhoneBubbleSetting() {
           checked={gold}
           onCheckedChange={(v) => {
             setGold(v);
-            try { localStorage.setItem(KEY, JSON.stringify({ on, style, gold: v, subtitles })); } catch { /* ignore */ }
+            try { localStorage.setItem(KEY, JSON.stringify({ on, style, gold: v, subtitles, anywhere })); } catch { /* ignore */ }
             toApp({ type: "gold", on: v });
             track(v ? "phone_gold_enabled" : "phone_gold_disabled");
           }}

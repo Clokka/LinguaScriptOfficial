@@ -10,7 +10,8 @@ package __PACKAGE__
 //   linguascriptbubble://gold?on=1|0            → gold word on the lock screen (GoldWords.kt)
 //   linguascriptbubble://widget                 → "add the widget to your home screen?"
 //   linguascriptbubble://tile                   → "add the LinguaScript button to quick settings?" (Android 13+)
-//   linguascriptbubble://subtitles?on=1|0       → tap subtitle words in YouTube (SubtitleTapService);
+//   linguascriptbubble://subtitles?on=1|0[&anywhere=1|0] → tap subtitle words in YouTube (SubtitleTapService);
+//                                                 anywhere=1 also reads Live Caption boxes when the video has none;
 //                                                 asks for "display over other apps", then the
 //                                                 one-time "share your screen?" yes
 //   ACTION_SUBTITLE_CAPTURE (from the service)  → that yes again, when a video starts and
@@ -78,10 +79,17 @@ class BubbleStartActivity : Activity() {
         finish()
       }
       "tile" -> addTile()
-      "subtitles" -> if (uri?.getQueryParameter("on") == "1") startSubtitles() else {
-        prefs.edit().putBoolean("subtitles_on", false).apply()
-        stopService(Intent(this, SubtitleTapService::class.java))
-        finish()
+      "subtitles" -> {
+        // "anywhere=1": no subtitles in the video → also read Live Caption / on-screen caption boxes.
+        uri?.getQueryParameter("anywhere")?.let { prefs.edit().putBoolean("subtitles_anywhere", it == "1").apply() }
+        if (uri?.getQueryParameter("on") == "1") {
+          // Only the "anywhere" option changed while it's already running: no need to ask again.
+          if (SubtitleTapService.isRunning()) finish() else startSubtitles()
+        } else {
+          prefs.edit().putBoolean("subtitles_on", false).apply()
+          stopService(Intent(this, SubtitleTapService::class.java))
+          finish()
+        }
       }
       "stop" -> { stopService(Intent(this, BubbleService::class.java)); prefs.edit().putBoolean("on", false).apply(); finish() }
       else -> finish()

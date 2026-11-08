@@ -237,10 +237,21 @@ class SubtitleTapService : Service() {
     if (z == null || now - zoneSeenAt > ZONE_KEEP_MS) { removeTarget(); return }
     reading = true
     readSubtitles(frame, z) { found ->
-      reading = false
-      if (cardOpen) return@readSubtitles
-      words = found
-      if (found.isEmpty()) removeTarget() else placeTarget(found)
+      if (cardOpen) { reading = false; return@readSubtitles }
+      if (found.isNotEmpty() || !prefs(this).getBoolean("subtitles_anywhere", false)) {
+        reading = false
+        words = found
+        if (found.isEmpty()) removeTarget() else placeTarget(found)
+        return@readSubtitles
+      }
+      // The video shows no subtitles of its own: look for captions the learner
+      // put on screen (Live Caption box, or text burned into the video).
+      readCaptionBox(frame) { box ->
+        reading = false
+        if (cardOpen) return@readCaptionBox
+        words = box
+        if (box.isEmpty()) removeTarget() else placeTarget(box)
+      }
     }
   }
 
@@ -418,25 +429,67 @@ class SubtitleTapService : Service() {
     }
   }
 
-  /** Keep only words in subtitle-looking lines: centred, in the lower part of the video, with letters. */
-  private fun subtitleWords(hits: List<WordHit>, z: Rect): List<WordHit> {
+  /** Same line text + about the same height on screen = one line. */
+  private fun groupLines(hits: List<WordHit>): Collection<List<WordHit>> {
     val lines = LinkedHashMap<String, MutableList<WordHit>>()
     for (h in hits) {
-      // Same line text + about the same height on screen = one line.
       val key = h.context + "@" + (h.rect.centerY() / maxOf(1, h.rect.height()))
       lines.getOrPut(key) { ArrayList() }.add(h)
     }
+    return lines.values
+  }
+
+  private fun lineRect(line: List<WordHit>) = Rect(line[0].rect).also { r -> line.forEach { r.union(it.rect) } }
+  private fun hasLetters(line: List<WordHit>) = line.any { w -> w.text.any { it.isLetter() } }
+  private fun notTime(line: List<WordHit>) = !Regex("^\\d{1,2}:\\d{2}").containsMatchIn(line[0].context.trim())
+
+  /** Keep only words in subtitle-looking lines: centred, in the lower part of the video, with letters. */
+  private fun subtitleWords(hits: List<WordHit>, z: Rect): List<WordHit> {
     val out = ArrayList<WordHit>()
-    for (line in lines.values) {
-      val r = Rect(line[0].rect)
-      line.forEach { r.union(it.rect) }
+    for (line in groupLines(hits)) {
+      val r = lineRect(line)
       val centred = abs(r.centerX() - z.centerX()) < z.width() * 0.14
       val lower = r.centerY() > z.top + z.height() * 0.35
-      val hasLetters = line.any { w -> w.text.any { it.isLetter() } }
-      val notTime = !Regex("^\\d{1,2}:\\d{2}").containsMatchIn(line[0].context.trim())
-      if (centred && lower && hasLetters && notTime) out.addAll(line)
+      if (centred && lower && hasLetters(line) && notTime(line)) out.addAll(line)
     }
     return out
+  }
+
+  // ── No subtitles in the video: captions the learner put on screen ──────────
+  // (Only with the "anywhere" option, and only when the video showed no subtitles.)
+  // Live Caption draws a floating box that can sit anywhere, and a creator's own
+  // text is part of the picture, so position doesn't tell us much. What does:
+  // caption text CHANGES while the video plays, and the rest of the screen
+  // (titles, buttons, comments) stays the same.
+
+  /** Every line's text on the last full-screen read. */
+  private var lastScreenLines: Set<String> = emptySet()
+  /** The caption lines we made tappable last time (kept while the speaker pauses). */
+  private var lastCaption: Set<String> = emptySet()
+
+  private fun readCaptionBox(frame: Bitmap, onDone: (List<WordHit>) -> Unit) {
+    DeckStore.load(this)
+    WordFinder.find(frame) { hits -> main.post { onDone(captionBoxWords(hits, frame.height)) } }
+  }
+
+  private fun captionBoxWords(hits: List<WordHit>, screenH: Int): List<WordHit> {
+    val lines = groupLines(hits)
+    val seenBefore = lastScreenLines
+    lastScreenLines = lines.map { it[0].context }.toSet()
+    val live = lines.filter { line ->
+      val text = line[0].context
+      hasLetters(line) && notTime(line) && (text !in seenBefore || text in lastCaption)
+    }
+    // Captions are a few lines close together. If many lines changed all over
+    // the screen, the page was scrolled or opened (and the first read sees
+    // everything as new): wait for the next look.
+    val box = live.map { lineRect(it) }.reduceOrNull { a, b -> Rect(a).apply { union(b) } }
+    if (box == null || live.size > 4 || box.height() > screenH / 4) {
+      lastCaption = emptySet()
+      return emptyList()
+    }
+    lastCaption = live.map { it[0].context }.toSet()
+    return live.flatten()
   }
 
   // ── The invisible tap area over the subtitle words ──────────────────────────

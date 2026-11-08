@@ -239,7 +239,7 @@ export default function AppScreen() {
             }
             // Tap subtitle words in YouTube, no bubble (plugins/word-bubble/SubtitleTapService.kt).
             if (msg.type === 'subtitles' && Platform.OS === 'android') {
-              Linking.openURL(`linguascriptbubble://subtitles?on=${msg.on ? 1 : 0}`).catch(() => {});
+              Linking.openURL(`linguascriptbubble://subtitles?on=${msg.on ? 1 : 0}&anywhere=${msg.anywhere ? 1 : 0}`).catch(() => {});
               return;
             }
             // Gold word on the lock screen, and "add the widget" (plugins/word-bubble/GoldWords.kt, DeckWidget.kt).
