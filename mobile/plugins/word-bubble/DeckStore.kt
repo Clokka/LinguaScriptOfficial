@@ -2,7 +2,10 @@ package __PACKAGE__
 
 // The learner's deck for the bubble, read from files/ls-deck.json.
 // The website writes it every time the app opens (src/components/AppInbox.tsx
-// → app/index.tsx). Each word: [state, dueAtMs or 0, tappedAtMs or 0].
+// → app/index.tsx). Each word: [state, dueAtMs or 0, tappedAtMs or 0, blue 0|1].
+// Blue = 100% known (isBlue() in packages/core/src/review.ts: right at the
+// 30-day review). Blue words are counted as blue on the widgets and leave the
+// phone's gold reviews; the bubble still colours them green/gold as before.
 // Gold uses the SAME rule as isDueGold() in packages/core/src/vocab.ts:
 // green + due + not tapped in a video since it fell due.
 // "common": most-common words not yet in a deck (ringed in "common" style).
@@ -18,10 +21,12 @@ object DeckStore {
   const val ORANGE = "orange"
   const val GREEN = "green"
   const val GOLD = "gold"
+  /** 100% known — only for the widgets' counts, never a word colour on screen. */
+  const val BLUE = "blue"
   /** Not in a deck, but one of the most common words — ringed in "common" style. */
   const val COMMON = "common"
 
-  private class Entry(val state: String, val dueAt: Long, val tappedAt: Long)
+  private class Entry(val state: String, val dueAt: Long, val tappedAt: Long, val blue: Boolean = false)
 
   private var words = HashMap<String, Entry>()
   private var common = HashSet<String>()
@@ -52,7 +57,7 @@ object DeckStore {
       var max = 1
       for (k in w.keys()) {
         val arr = w.optJSONArray(k) ?: continue
-        map[k] = Entry(arr.optString(0, RED), arr.optLong(1, 0L), arr.optLong(2, 0L))
+        map[k] = Entry(arr.optString(0, RED), arr.optLong(1, 0L), arr.optLong(2, 0L), arr.optInt(3, 0) == 1)
         if (k.length > max) max = k.length
       }
       words = map
@@ -82,20 +87,27 @@ object DeckStore {
 
   fun hasWords() = words.isNotEmpty()
 
-  /** How many words show red / orange / green / gold right now. */
+  fun isBlue(raw: String) = words[key(raw)]?.blue == true
+
+  /** How many words are red / orange / green / gold / blue right now (a blue word counts only as blue). */
   fun counts(now: Long = System.currentTimeMillis()): Map<String, Int> {
-    val out = hashMapOf(RED to 0, ORANGE to 0, GREEN to 0, GOLD to 0)
-    for (k in words.keys) {
-      val c = colourOf(k, now) ?: continue
+    val out = hashMapOf(RED to 0, ORANGE to 0, GREEN to 0, GOLD to 0, BLUE to 0)
+    for ((k, e) in words) {
+      val c = if (e.blue) BLUE else colourOf(k, now) ?: continue
       out[c] = (out[c] ?: 0) + 1
     }
     return out
   }
 
-  /** Words in this colour that have a meaning, as (word, meaning). */
+  /** Every word in the decks. */
+  fun total() = words.size
+
+  /** Words in this colour that have a meaning, as (word, meaning). Gold leaves out blue words. */
   fun withMeaning(colour: String, now: Long = System.currentTimeMillis()): List<Pair<String, String>> =
     // Only real words: "95" or "2024" saved by accident never become a card.
-    words.keys.filter { k -> k.any { ch -> ch.isLetter() } && colourOf(k, now) == colour }.mapNotNull { k -> meanings[k]?.let { k to it } }.sortedBy { it.first }
+    words.keys.filter { k ->
+      k.any { ch -> ch.isLetter() } && colourOf(k, now) == colour && !(colour == GOLD && words[k]?.blue == true)
+    }.mapNotNull { k -> meanings[k]?.let { k to it } }.sortedBy { it.first }
 
   /** A word saved from the bubble shows red straight away (the app saves it later). */
   fun markSaved(raw: String) {

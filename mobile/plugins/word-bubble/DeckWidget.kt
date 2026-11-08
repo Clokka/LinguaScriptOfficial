@@ -1,16 +1,19 @@
 package __PACKAGE__
 
-// 🦎 The home-screen widget: the chameleon, three squares (red, orange, green)
-// with how many words are in each deck, one orange/green word with its meaning
-// to glance at, and a gold strip when reviews are due. Tap a square → that
-// deck; the gold strip → due reviews; anywhere else → flashcards.
-// Layout: res/layout/ls_widget_deck.xml. Refreshed hourly by GoldWordReceiver.
+// 🦎 The home-screen widget (4×2): the chameleon funnel on your home screen.
+//   Top:    gold chameleon · "12 gold — words ready to turn blue" · Review
+//   Middle: the blue bar — how many of your words you 100% know
+//   Bottom: five chameleons (red, orange, green, gold, blue) with their counts
+// Tap Review / the gold square → due reviews; a square → that deck; anywhere
+// else → flashcards. Blue = isBlue() in packages/core/src/review.ts (right at
+// the 30-day review); a blue word counts only as blue.
+// Layout: res/layout/ls_widget_deck.xml. Refreshed hourly by GoldWordReceiver,
+// and whenever a gold answer is given on the gold / lock-screen widget.
 
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
-import android.view.View
 import android.widget.RemoteViews
 
 class DeckWidget : AppWidgetProvider() {
@@ -32,30 +35,39 @@ class DeckWidget : AppWidgetProvider() {
     private fun render(c: Context, mgr: AppWidgetManager, ids: IntArray) {
       DeckStore.load(c)
       val counts = DeckStore.counts()
-      val gold = counts[DeckStore.GOLD] ?: 0
-      // One orange or green word to glance at — changes every refresh.
-      val glance = DeckStore.withMeaning(DeckStore.ORANGE) + DeckStore.withMeaning(DeckStore.GREEN)
-      val pick = if (glance.isEmpty()) null else glance[((System.currentTimeMillis() / 3_600_000L) % glance.size).toInt()]
+      // Gold answered on the gold widget but not yet sent to the account: don't count it again.
+      val gold = maxOf(0, (counts[DeckStore.GOLD] ?: 0) - GoldWidget.answeredCount(c))
+      val blue = counts[DeckStore.BLUE] ?: 0
+      val total = DeckStore.total()
+      val pct = if (total > 0) (blue * 100) / total else 0
 
       for (id in ids) {
         val v = RemoteViews(c.packageName, R.layout.ls_widget_deck)
+        if (gold > 0) {
+          v.setTextViewText(R.id.ls_gold_count, "$gold gold")
+          v.setTextViewText(R.id.ls_gold_sub, if (gold == 1) "word ready to turn blue" else "words ready to turn blue")
+          v.setTextViewText(R.id.ls_review, "Review")
+        } else {
+          v.setTextViewText(R.id.ls_gold_count, "All caught up")
+          v.setTextViewText(R.id.ls_gold_sub, "No gold words to review — nice!")
+          v.setTextViewText(R.id.ls_review, "Learn")
+        }
+        v.setTextViewText(R.id.ls_blue_label, "$blue blue · 100% known")
+        v.setTextViewText(R.id.ls_blue_pct, if (total > 0) "$pct% of your words" else "")
+        v.setProgressBar(R.id.ls_blue_bar, 100, pct, false)
         v.setTextViewText(R.id.ls_count_red, (counts[DeckStore.RED] ?: 0).toString())
         v.setTextViewText(R.id.ls_count_orange, (counts[DeckStore.ORANGE] ?: 0).toString())
-        // Gold words are green words too — count them in the green square.
-        v.setTextViewText(R.id.ls_count_green, ((counts[DeckStore.GREEN] ?: 0) + gold).toString())
-        if (pick != null) {
-          v.setViewVisibility(R.id.ls_glance, View.VISIBLE)
-          v.setTextViewText(R.id.ls_glance, "${pick.first} · ${pick.second}")
-        } else {
-          v.setViewVisibility(R.id.ls_glance, View.GONE)
-        }
-        v.setTextViewText(R.id.ls_gold, if (gold > 0) "✨ $gold gold word${if (gold == 1) "" else "s"} to review" else "✨ No reviews due — nice!")
-        // Each square opens its own deck; the gold strip opens the due reviews.
+        v.setTextViewText(R.id.ls_count_green, (counts[DeckStore.GREEN] ?: 0).toString())
+        v.setTextViewText(R.id.ls_count_gold, gold.toString())
+        v.setTextViewText(R.id.ls_count_blue, blue.toString())
+
         v.setOnClickPendingIntent(R.id.ls_widget_root, GoldWords.openPage(c, "flashcards", 10))
-        v.setOnClickPendingIntent(R.id.ls_count_red, GoldWords.openPage(c, "flashcards?deck=red", 11))
-        v.setOnClickPendingIntent(R.id.ls_count_orange, GoldWords.openPage(c, "flashcards?deck=orange", 12))
-        v.setOnClickPendingIntent(R.id.ls_count_green, GoldWords.openPage(c, "flashcards?deck=green", 13))
-        v.setOnClickPendingIntent(R.id.ls_gold, GoldWords.openPage(c, "flashcards?deck=gold", 14))
+        v.setOnClickPendingIntent(R.id.ls_cell_red, GoldWords.openPage(c, "flashcards?deck=red", 11))
+        v.setOnClickPendingIntent(R.id.ls_cell_orange, GoldWords.openPage(c, "flashcards?deck=orange", 12))
+        v.setOnClickPendingIntent(R.id.ls_cell_green, GoldWords.openPage(c, "flashcards?deck=green", 13))
+        v.setOnClickPendingIntent(R.id.ls_cell_gold, GoldWords.openPage(c, "flashcards?deck=gold", 14))
+        v.setOnClickPendingIntent(R.id.ls_cell_blue, GoldWords.openPage(c, "flashcards?deck=green", 15))
+        v.setOnClickPendingIntent(R.id.ls_review, GoldWords.openPage(c, if (gold > 0) "flashcards?deck=gold" else "flashcards", 16))
         mgr.updateAppWidget(id, v)
       }
     }

@@ -17,7 +17,7 @@ export {
   REVIEW_LADDER_DAYS, REVIEW_GROWTH, FIRST_REVIEW_MINUTES,
   nextReviewInterval, todayLocal, dateInDays,
   reviewDueAt, isReviewDue, isDueGold, displayState, applySrsReview,
-  DECK_COLOURS,
+  DECK_COLOURS, isBlue, BLUE_AFTER_DAYS, promote,
 } from "@linguascript/core/review";
 export type { DeckState, DisplayState, ReviewFields, SrsInput, SrsResult } from "@linguascript/core/review";
 
