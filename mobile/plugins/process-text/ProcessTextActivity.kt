@@ -11,6 +11,7 @@ package __PACKAGE__
 // Added to the build by plugins/withProcessText.js (expo prebuild).
 
 import android.app.Activity
+import android.content.Context
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
@@ -42,6 +43,54 @@ import kotlin.concurrent.thread
 /** Lets the 🦎 bubble know when a card closes, and what it saved. */
 object CardEvents {
   var onClosed: ((saved: String?) -> Unit)? = null
+}
+
+/**
+ * Instant French→English meanings with no internet: the 11,000+ most common
+ * French subtitle words, bundled in the app (assets/dict/fr-en.tsv, built by
+ * scripts/sync-instant-dict.mjs). Same keys as the website and the extension.
+ */
+object InstantDict {
+  private val maps = HashMap<String, HashMap<String, String>>()
+  @Volatile private var loading = false
+  private val skip = Regex("[.,!?;:\"'`«»()\\[\\]…，。、！？；：「」『』（）《》〈〉“”‘’]")
+  private val elided = Regex("^(c|j|l|d|n|s|m|t|qu|jusqu|lorsqu|puisqu)'(.+)$")
+
+  private fun key(w: String) = w.lowercase(Locale.ROOT).replace(skip, "").trim()
+
+  /** Start loading in the background so the first tap is already instant. */
+  fun preload(ctx: Context, pair: String = "fr-en") {
+    if (maps.containsKey(pair) || loading) return
+    loading = true
+    val app = ctx.applicationContext
+    thread { try { load(app, pair) } finally { loading = false } }
+  }
+
+  @Synchronized private fun load(ctx: Context, pair: String): HashMap<String, String>? {
+    maps[pair]?.let { return it }
+    return try {
+      val m = HashMap<String, String>(16384)
+      ctx.assets.open("dict/$pair.tsv").bufferedReader().useLines { lines ->
+        for (l in lines) {
+          val i = l.indexOf('\t')
+          if (i > 0) m[l.substring(0, i)] = l.substring(i + 1)
+        }
+      }
+      maps[pair] = m
+      m
+    } catch (_: Exception) { null }
+  }
+
+  /** The meaning of ONE word, or null (phrases and unknown words go to the translator). */
+  fun lookup(ctx: Context, text: String, from: String, to: String): String? {
+    val pair = "$from-$to"
+    if (pair != "fr-en" || text.trim().contains(' ')) return null
+    val map = maps[pair] ?: load(ctx.applicationContext, pair) ?: return null
+    map[key(text)]?.let { return it }
+    val raw = text.lowercase(Locale.ROOT).replace('’', '\'')
+    val m = elided.find(raw) ?: return null
+    return map[key(m.groupValues[2])]
+  }
 }
 
 class ProcessTextActivity : Activity() {
@@ -213,7 +262,32 @@ class ProcessTextActivity : Activity() {
     } catch (_: Exception) { null }
   }
 
+  /** Save / Review / "In your flashcards" button, depending on what the deck already knows. */
+  private fun applyState() {
+    when (state) {
+      "" -> saveBtn.isEnabled = true
+      "gold" -> {
+        saveBtn.text = "🟡  Review it"
+        saveBtn.isEnabled = true
+        saveBtn.setOnClickListener { openApp("/flashcards") }
+      }
+      else -> { saveBtn.text = "✓  In your flashcards"; saveBtn.isEnabled = false }
+    }
+  }
+
   private fun translate() {
+    // Instant: a French word comes straight from the built-in pack, no internet at all.
+    if (knownLanguage == "fr" && native == "en") {
+      val quick = InstantDict.lookup(this, selected, "fr", "en")
+      if (quick != null) {
+        translation = quick
+        detected = "fr"
+        transView.text = quick
+        transView.setTextColor(white)
+        applyState()
+        return
+      }
+    }
     thread {
       // From the bubble we already know the language; from the text menu we guess.
       var res = gtx(selected, knownLanguage.ifEmpty { "auto" }, native)
@@ -232,15 +306,7 @@ class ProcessTextActivity : Activity() {
           transView.text = translation
           transView.setTextColor(white)
         }
-        when (state) {
-          "" -> saveBtn.isEnabled = true
-          "gold" -> {
-            saveBtn.text = "🟡  Review it"
-            saveBtn.isEnabled = true
-            saveBtn.setOnClickListener { openApp("/flashcards") }
-          }
-          else -> { saveBtn.text = "✓  In your flashcards"; saveBtn.isEnabled = false }
-        }
+        applyState()
       }
     }
   }
@@ -273,12 +339,18 @@ class ProcessTextActivity : Activity() {
     }
   }
 
+  // Opens a page of the site INSIDE the app. A plain https://linguascript.co.uk/...
+  // link is only claimed by the app for /gift and /friends, so Android handed it to
+  // Chrome and the learner landed on a separate website. linguascript://open/... is
+  // the app's own link (app/index.tsx turns it into the site page), the same one the
+  // widget and the gold-word card use.
   private fun openApp(path: String) {
-    val launch = packageManager.getLaunchIntentForPackage(packageName) ?: return finish()
-    launch.action = Intent.ACTION_VIEW
-    launch.data = Uri.parse("https://linguascript.co.uk$path")
-    launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-    startActivity(launch)
+    val launch = Intent(Intent.ACTION_VIEW, Uri.parse("linguascript://open$path"))
+      .setPackage(packageName)
+      .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    try { startActivity(launch) } catch (_: Exception) {
+      packageManager.getLaunchIntentForPackage(packageName)?.let { startActivity(it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+    }
     finish()
   }
 

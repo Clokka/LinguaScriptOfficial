@@ -21,7 +21,6 @@ export const BUILT_IN_LOADERS = {
   none: "No intro",
   languages: "Through the languages → LinguaScript",
   decode: "Decoding text",
-  alphabets: "Every alphabet → LinguaScript",
   deck: "Deck colours drop in",
 } as const;
 export const LOADER_LABS = ["loading-experiences", "loading-screens", "loading-motion"] as const;
@@ -46,12 +45,15 @@ export type SiteConfig = {
 export type FilmLoaderConfig = { designs: string[]; reveals: string[] };
 /** Defaults until HQ publishes others. Reveals are Rowan's favourite loading → playing motions. */
 export const DEFAULT_FILM_LOADER: FilmLoaderConfig = {
-  // "Through the languages → LinguaScript" first, then the Chameleon Method screen, and round again.
-  designs: ["lab:loading-screens:86", "lab:loading-screens:96", "decode:languages", "chameleon"],
-  reveals: [7, 8, 9, 16, 17, 18].map((n) => `lab:loading-motion:${n}`),
+  // One story, in order: reading the SRT file, the three steps, the chameleon colouring the words,
+  // then (when the subtitles are ready) the green colour-wash curtain sweeps across into the film.
+  // lab ids are 0-based tile numbers: loading-screens #052 SRT timecodes scroll (Glass) = 51,
+  // #072 Progress steps (Glass) = 71, #002 Chameleon colour cycle (Glass) = 1; loading-motion "Colour wash" = 3.
+  designs: ["lab:loading-screens:51", "lab:loading-screens:71", "lab:loading-screens:1"],
+  reveals: ["lab:loading-motion:3"],
 };
 export const isFilmDesign = (v: unknown): v is string =>
-  v === "chameleon" || (typeof v === "string" && /^decode:(languages|decode|alphabets|deck)$/.test(v)) || (typeof v === "string" && /^lab:(loading-screens|loading-experiences):\d{1,3}$/.test(v));
+  v === "chameleon" || (typeof v === "string" && /^decode:(languages|decode|deck)$/.test(v)) || (typeof v === "string" && /^lab:(loading-screens|loading-experiences):\d{1,3}$/.test(v));
 export const isFilmReveal = (v: unknown): v is string => typeof v === "string" && /^lab:loading-motion:\d{1,3}$/.test(v);
 function cleanFilm(f: any): FilmLoaderConfig | undefined {
   if (!f || typeof f !== "object") return undefined;

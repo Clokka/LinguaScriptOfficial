@@ -47,6 +47,13 @@ function withKotlinSource(config) {
       const dir = path.join(cfg.modRequest.platformProjectRoot, 'app', 'src', 'main', 'java', ...pkg.split('.'));
       fs.mkdirSync(dir, { recursive: true });
       fs.writeFileSync(path.join(dir, 'ProcessTextActivity.kt'), src);
+      // The built-in word packs (scripts/sync-instant-dict.mjs) → app assets, read by InstantDict.
+      const packs = path.join(__dirname, 'process-text', 'dict');
+      if (fs.existsSync(packs)) {
+        const assets = path.join(cfg.modRequest.platformProjectRoot, 'app', 'src', 'main', 'assets', 'dict');
+        fs.mkdirSync(assets, { recursive: true });
+        for (const f of fs.readdirSync(packs)) if (f.endsWith('.tsv')) fs.copyFileSync(path.join(packs, f), path.join(assets, f));
+      }
       return cfg;
     },
   ]);

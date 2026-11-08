@@ -894,7 +894,9 @@
     const fs = document.fullscreenElement;
     return fs && fs !== document.documentElement ? fs : document.body;
   }
-  const DEFAULT_DOCK = 120;
+  // How far above the bottom our bar sits when the site's own controls are showing.
+  // 64px clears YouTube's controls; Netflix's taller bar is measured and raises it.
+  const DEFAULT_DOCK = 64;
   function watchLayout(getVideo, getChrome = () => []) {
     const root = document.documentElement;
     // The site hides its controls while the mouse is still, so keep the highest
@@ -905,14 +907,36 @@
       for (const el of getChrome()) {
         const r = el?.getBoundingClientRect();
         if (!r || !r.height || !r.width || r.bottom < innerHeight - 60) continue;
-        dock = Math.max(dock, Math.min(260, Math.round(innerHeight - r.top + 10)));
+        dock = Math.max(dock, Math.min(190, Math.round(innerHeight - r.top + 8)));
       }
       root.style.setProperty('--ls-dock', dock + 'px');
     };
     const update = () => {
       const r = getVideo()?.getBoundingClientRect();
-      root.classList.toggle('ls-fills', !!r && r.height >= innerHeight * 0.75 && r.bottom >= innerHeight - 8);
+      const fills = !!r && r.height >= innerHeight * 0.75 && r.bottom >= innerHeight - 8;
+      root.classList.toggle('ls-fills', fills);
       measureDock();
+      // Size and place the subtitles from the picture itself, not the window.
+      // Fullscreen / Netflix: the picture is the window. Embedded player (a
+      // normal YouTube page): follow the player so the subtitles sit ON the video.
+      if (r && r.width > 0) {
+        const vBottom = Math.min(r.bottom, innerHeight);
+        if (fills) {
+          root.style.setProperty('--ls-fs', Math.max(24, Math.round(innerHeight * 0.031)) + 'px');
+          root.style.setProperty('--ls-sub-idle', Math.round(Math.min(130, Math.max(64, innerHeight * 0.085))) + 'px');
+          ['--ls-vl', '--ls-vr', '--ls-vrh', '--ls-vb'].forEach((k) => root.style.removeProperty(k));
+        } else {
+          let chromeH = 54;
+          for (const el of getChrome()) { const cr = el?.getBoundingClientRect(); if (cr && cr.height) chromeH = Math.max(chromeH, Math.round(cr.height)); }
+          const fromBottom = Math.round(innerHeight - vBottom);
+          root.style.setProperty('--ls-fs', Math.max(15, Math.min(30, Math.round(r.height * 0.04))) + 'px');
+          root.style.setProperty('--ls-vl', Math.max(0, Math.round(r.left)) + 'px');
+          root.style.setProperty('--ls-vr', Math.max(0, Math.round(innerWidth - r.right)) + 'px');
+          root.style.setProperty('--ls-vrh', Math.max(0, Math.round(innerWidth - r.right)) + 'px');
+          root.style.setProperty('--ls-vb', fromBottom + chromeH + 8 + 'px');
+          root.style.setProperty('--ls-sub-idle', fromBottom + 16 + 'px');
+        }
+      }
       const host = layerHost();
       LAYERS.forEach((id) => { const el = document.getElementById(id); if (el && el.parentElement !== host) host.appendChild(el); });
     };
@@ -933,7 +957,7 @@
       removeEventListener('mousemove', wake);
       clearInterval(timer); clearTimeout(idleTimer);
       root.classList.remove('ls-fills', 'ls-idle');
-      root.style.removeProperty('--ls-dock');
+      ['--ls-dock', '--ls-fs', '--ls-sub-idle', '--ls-vl', '--ls-vr', '--ls-vrh', '--ls-vb'].forEach((k) => root.style.removeProperty(k));
     };
   }
 
@@ -1164,19 +1188,21 @@
     @media (prefers-reduced-motion: reduce) { .ls-ring { animation:none; } }
 
     /* Subtitle overlay: the same on YouTube and Netflix. */
-    #ls-overlay { position:fixed; bottom:92px; left:0; right:360px; z-index:2147483640; text-align:center; pointer-events:none; font-family:'LS Inter','Inter',system-ui,-apple-system,sans-serif; transition:right .3s ease, opacity .15s ease, bottom .2s ease; }
-    #ls-overlay.ls-panel-hidden { right:0; }
-    #ls-primary { display:inline-block; background:rgba(0,0,0,0.82); border-radius:6px; padding:10px 28px 14px; margin-bottom:6px; font-size:34px; font-weight:800; color:#fff; line-height:1.45; pointer-events:auto; cursor:pointer; text-shadow:0 2px 8px rgba(0,0,0,0.95); max-width:100%; box-sizing:border-box; }
+    #ls-overlay { position:fixed; bottom:var(--ls-vb, 92px); left:var(--ls-vl, 0px); right:var(--ls-vr, 360px); z-index:2147483640; text-align:center; pointer-events:none; font-family:'LS Inter','Inter',system-ui,-apple-system,sans-serif; transition:right .3s ease, opacity .15s ease, bottom .2s ease; }
+    #ls-overlay.ls-panel-hidden { right:var(--ls-vrh, 0px); }
+    #ls-primary { display:inline-block; background:rgba(0,0,0,0.82); border-radius:6px; padding:.3em .8em .4em; margin-bottom:.18em; font-size:var(--ls-fs, 34px); font-weight:800; color:#fff; line-height:1.45; pointer-events:auto; cursor:pointer; text-shadow:0 2px 8px rgba(0,0,0,0.95); max-width:100%; box-sizing:border-box; }
     #ls-primary:empty { display:none; }
-    #ls-secondary { display:inline-block; font-size:20px; font-weight:500; color:rgba(255,255,255,0.82); background:rgba(0,0,0,0.68); border-radius:4px; padding:4px 18px 6px; pointer-events:none; text-shadow:0 1px 4px rgba(0,0,0,0.9); }
+    #ls-secondary { display:inline-block; font-size:calc(var(--ls-fs, 34px) * 0.6); font-weight:500; color:rgba(255,255,255,0.82); background:rgba(0,0,0,0.68); border-radius:4px; padding:.2em 1em .3em; pointer-events:none; text-shadow:0 1px 4px rgba(0,0,0,0.9); }
     #ls-overlay #ls-secondary { display:table; margin:0 auto; }
 
     /* Video fills the window (Netflix, fullscreen): keep clear of the site's own
        controls along the bottom (subtitles, audio, settings, fullscreen). */
-    html.ls-fills #ls-controls { bottom:var(--ls-dock, 120px); }
-    html.ls-fills #ls-overlay { bottom:calc(var(--ls-dock, 120px) + 54px); }
-    html.ls-fills #ls-panel { bottom:var(--ls-dock, 120px); border-bottom:1px solid #24242D; border-bottom-left-radius:16px; }
-    html.ls-fills.ls-idle #ls-controls { opacity:0.15; }
+    html.ls-fills #ls-controls { bottom:var(--ls-dock, 64px); }
+    html.ls-fills #ls-overlay { bottom:calc(var(--ls-dock, 64px) + 54px); }
+    html.ls-fills #ls-panel { bottom:var(--ls-dock, 64px); border-bottom:1px solid #24242D; border-bottom-left-radius:16px; }
+    html.ls-fills.ls-idle #ls-controls { opacity:0.15; bottom:20px; }
+    /* Controls hidden (mouse still): the subtitles drop to where the site's own would sit. */
+    html.ls-idle #ls-overlay { bottom:var(--ls-sub-idle, 72px); }
     /* Moved by hand: sits exactly where it was dropped (left/top set inline). */
     #ls-controls.ls-moved { right:auto !important; bottom:auto !important; display:block; transition:opacity .4s ease; }
     #ls-controls.ls-moved #ls-controls-inner { display:inline-flex; }
@@ -1185,7 +1211,7 @@
     .ls-grip:hover { color:#F5F5F7; }
     #ls-controls.ls-dragging .ls-grip { cursor:grabbing; }
 
-    #ls-controls { position:fixed; z-index:2147483641; bottom:22px; transition:right .3s ease, opacity .4s ease; display:flex; align-items:center; justify-content:center; gap:6px; pointer-events:none; left:0; right:360px; }
+    #ls-controls { position:fixed; z-index:2147483641; bottom:22px; transition:right .3s ease, opacity .4s ease, bottom .25s ease; display:flex; align-items:center; justify-content:center; gap:6px; pointer-events:none; left:0; right:360px; }
     #ls-controls.ls-panel-hidden { right:0; }
     #ls-controls-inner { display:flex; flex-wrap:wrap; justify-content:center; max-width:calc(100% - 16px); box-sizing:border-box; align-items:center; gap:6px; background:rgba(8,8,11,0.94); border:1px solid #24242D; border-radius:999px; padding:7px 12px; backdrop-filter:blur(16px); pointer-events:auto; box-shadow:0 4px 24px rgba(0,0,0,0.7); font-family:'LS Inter','Inter',system-ui,-apple-system,sans-serif; }
     .ls-btn { background:rgba(255,255,255,0.08); color:#F5F5F7; border:none; border-radius:999px; padding:5px 11px; font-size:12px; font-weight:600; cursor:pointer; transition:background .12s, transform .1s; white-space:nowrap; font-family:inherit; text-decoration:none; display:inline-flex; align-items:center; }

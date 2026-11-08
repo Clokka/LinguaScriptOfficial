@@ -81,6 +81,7 @@ class BubbleService : Service() {
   override fun onCreate() {
     super.onCreate()
     instance = this
+    InstantDict.preload(applicationContext)
     wm = getSystemService(WINDOW_SERVICE) as WindowManager
     style = getSharedPreferences("ls-bubble", MODE_PRIVATE).getString("style", "text") ?: "text"
     goForeground(capturing = false)
@@ -90,7 +91,12 @@ class BubbleService : Service() {
 
   override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
     when (intent?.action) {
-      ACTION_STOP -> { stopSelf(); return START_NOT_STICKY }
+      ACTION_STOP -> {
+        // "Turn off" in the notification: stay off after a restart too.
+        getSharedPreferences("ls-bubble", MODE_PRIVATE).edit().putBoolean("on", false).apply()
+        stopSelf()
+        return START_NOT_STICKY
+      }
       ACTION_START -> {
         intent.getStringExtra(EXTRA_STYLE)?.let { style = it }
         if (intent.getBooleanExtra(EXTRA_READ_NOW, false)) readScreenSoon()

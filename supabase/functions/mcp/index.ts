@@ -377,6 +377,10 @@ function hasActivePro(profile, now = Date.now()) {
 
 // src/lib/mcp/pro.ts
 var denied = (text) => ({ content: [{ type: "text", text }], isError: true });
+var unable = (why, detail) => {
+  console.error("[mcp pro check]", why, detail ?? "");
+  return denied(`Unable to check your LinguaScript Pro access (${why}). Please try again later.`);
+};
 function proOnly(tool) {
   return {
     ...tool,
@@ -389,17 +393,17 @@ function proOnly(tool) {
         const env = (key2) => runtime.Deno?.env.get(key2) ?? (typeof process !== "undefined" ? process.env[key2] : void 0);
         const url = env("SUPABASE_URL") ?? "https://ffephracinqeylfhqkiz.supabase.co";
         const key = env("SUPABASE_PUBLISHABLE_KEY") ?? env("SUPABASE_ANON_KEY") ?? "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZmZXBocmFjaW5xZXlsZmhxa2l6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2MTc4MDgsImV4cCI6MjA5MDE5MzgwOH0.CzCejyUYY1i6-T_gCxkLqq_Cmc1OSRlXAhmPC-Ud4zA";
-        if (!url || !key) return denied("Unable to check your LinguaScript Pro access. Please try again later.");
+        if (!url || !key) return unable("server settings missing");
         const sb = createClient8(url, key, {
           global: { headers: { Authorization: `Bearer ${token}` } },
           auth: { persistSession: false, autoRefreshToken: false }
         });
         const { data, error } = await sb.from("profiles").select("is_pro,pro_expires_at").eq("user_id", uid).maybeSingle();
-        if (error) return denied("Unable to check your LinguaScript Pro access. Please try again later.");
+        if (error) return unable(`profile lookup failed: ${error.code ?? "no code"}`, error);
         if (!hasActivePro(data)) return denied("ChatGPT and Claude connections require LinguaScript Pro. Upgrade at linguascript.co.uk/pricing.");
         return await tool.handler(args, ctx);
-      } catch {
-        return denied("Unable to check your LinguaScript Pro access. Please try again later.");
+      } catch (e) {
+        return unable(`unexpected error: ${e instanceof Error ? e.name : "unknown"}`, e);
       }
     }
   };

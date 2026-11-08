@@ -158,11 +158,16 @@ export async function prefetchVideo(lines: { primary: string; secondary?: string
     }
     missing = missing.filter((k) => !extraMap(pair).has(k));
 
-    // Then Google, one word per line, ~80 words per request.
-    for (let i = 0; i < missing.length; i += 80) {
-      const chunk = missing.slice(i, i + 80);
-      const got = await googleBatch(chunk.map((k) => want.get(k) || k), from, to).catch(() => [] as string[]);
-      if (got.length === chunk.length) chunk.forEach((w, j) => rememberMeaning(w, from, to, got[j]));
-    }
+    // Then Google, one word per line, ~60 words per request, 4 requests at a time. Words are in the
+    // order they appear, so the lines about to play are ready first.
+    const chunks: string[][] = [];
+    for (let i = 0; i < missing.length; i += 60) chunks.push(missing.slice(i, i + 60));
+    const worker = async () => {
+      for (let chunk = chunks.shift(); chunk; chunk = chunks.shift()) {
+        const got = await googleBatch(chunk.map((k) => want.get(k) || k), from, to).catch(() => [] as string[]);
+        if (got.length === chunk.length) chunk.forEach((w, j) => rememberMeaning(w, from, to, got[j]));
+      }
+    };
+    await Promise.all([worker(), worker(), worker(), worker()]);
   } catch { /* the tap path still works without the prefetch */ }
 }

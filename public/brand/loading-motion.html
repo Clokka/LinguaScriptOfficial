@@ -52,7 +52,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 /* ---------- MOTIFS (sized relative to tile via cqi) ---------- */
 .m{font-size:clamp(10px,4cqi,18px)}
 .logo{width:9em;height:4.45em}
-.c-hue{animation:hue 3s linear infinite}@keyframes hue{to{filter:hue-rotate(360deg)}}
+.c-hue{animation:hue 3.6s ease-in-out infinite}@keyframes hue{0%,8%{filter:hue-rotate(-110deg) saturate(1.6)}33%,41%{filter:hue-rotate(-80deg) saturate(1.5)}66%,80%{filter:none}100%{filter:hue-rotate(-110deg) saturate(1.6)}}/* brand colours only: red, orange, green (not the whole rainbow) */
 .c-walk{animation:walk 2.4s ease-in-out infinite}@keyframes walk{0%{transform:translateX(-3em)}50%{transform:translateX(3em)}100%{transform:translateX(-3em) scaleX(1)}}
 .branch{width:18em;height:.35em;border-radius:1em;background:#5b4332;margin-top:-.4em}
 .tongue{position:relative;width:16em;height:5em}
@@ -85,6 +85,12 @@ button{font:inherit;color:inherit;cursor:pointer}
 .steps{display:grid;gap:.4em;font:600 .95em var(--sans);text-align:left}.steps div{display:flex;gap:.5em;align-items:center;opacity:.35;animation:step 6s infinite}
 .steps div:nth-child(2){animation-delay:2s}.steps div:nth-child(3){animation-delay:4s}.steps i{width:.9em;height:.9em;border-radius:50%;border:2px solid var(--g)}
 @keyframes step{0%,5%{opacity:.35}12%,100%{opacity:1}}
+/* In the video player (isolate.js adds html.ls-live) the three steps run once and stay ticked: each bubble fills green when its step is done. */
+html.ls-live .steps div{--d:0s;opacity:.35;animation:step-once .5s var(--d) forwards}
+html.ls-live .steps div:nth-child(2){--d:2s}html.ls-live .steps div:nth-child(3){--d:4s}
+html.ls-live .steps i{animation:step-tick .35s calc(var(--d) + .5s) forwards}
+@keyframes step-once{to{opacity:1}}@keyframes step-tick{to{background:var(--g);box-shadow:0 0 12px var(--g)}}
+
 .spark{position:relative;width:12em;height:5em}.spark i{position:absolute;width:.35em;height:.35em;border-radius:50%;background:var(--a);box-shadow:0 0 .6em var(--a);animation:spk 2s ease-in-out infinite}
 .spark b{position:absolute;inset:0;display:grid;place-items:center;font:800 1.5em var(--sans);background:linear-gradient(100deg,#FFD54A,#FFF3C4 45%,#FFD54A 60%);background-size:220% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:shine 2.4s linear infinite}
 @keyframes spk{0%,100%{opacity:0;transform:scale(.3)}50%{opacity:1;transform:scale(1)}}@keyframes shine{to{background-position:-220% 0}}

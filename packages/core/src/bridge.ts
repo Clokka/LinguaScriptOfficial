@@ -41,6 +41,8 @@ export type SiteToAppMessage =
   | { type: "gold"; on: boolean }
   /** Ask Android to pin a LinguaScript widget: the deck widget, or kind "gold" = the ✨ gold-word widget. */
   | { type: "widget"; kind?: "deck" | "gold" }
+  /** Ask Android to add the LinguaScript button to quick settings (swipe down) so the 🦎 bubble can be brought back (Android 13+). */
+  | { type: "tile" }
   /** Sent by the app's injected script with the site's login, so the app can register for push. */
   | { type: "session"; userId: string; accessToken: string };
 

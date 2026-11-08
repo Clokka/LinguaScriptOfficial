@@ -133,6 +133,14 @@ class GoldWordReceiver : BroadcastReceiver() {
         if (GoldWords.isOn(c)) GoldWords.setOn(c, true)
         DeckWidget.refreshAll(c)
         GoldWidget.refreshAll(c)
+        // The 🦎 bubble: back after a restart or an app update, if it was on (and still allowed over other apps).
+        val bubblePrefs = c.getSharedPreferences("ls-bubble", Context.MODE_PRIVATE)
+        if (bubblePrefs.getBoolean("on", false) && !BubbleService.isRunning() &&
+          (android.os.Build.VERSION.SDK_INT < 23 || android.provider.Settings.canDrawOverlays(c))) runCatching {
+          val i = Intent(c, BubbleService::class.java).setAction(BubbleService.ACTION_START)
+            .putExtra(BubbleService.EXTRA_STYLE, bubblePrefs.getString("style", "text"))
+          if (android.os.Build.VERSION.SDK_INT >= 26) c.startForegroundService(i) else c.startService(i)
+        }
         // Subtitle taps: back on after a restart (it asks to share the screen when a video plays).
         if (SubtitleTapService.isOn(c) && !SubtitleTapService.isRunning()) runCatching {
           val i = Intent(c, SubtitleTapService::class.java).setAction(SubtitleTapService.ACTION_START)
