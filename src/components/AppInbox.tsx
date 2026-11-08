@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useXp } from "@/contexts/XpContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { focusRingWords } from "@/lib/focusDeck";
 import { loadDeckIndex, normalizeToken, reviewDueAt } from "@/lib/vocab";
 import { track } from "@/lib/analytics";
@@ -32,27 +33,35 @@ export function AppInbox() {
   const awardRef = useRef(award);
   awardRef.current = award;
   const userId = user?.id;
+  // The language the site is using right now (onboarding choice, or what the
+  // learner picked in settings). The profile row can lag behind it: right after
+  // onboarding it may still hold the database default, and a settings switch
+  // is written in the background — so the phone must follow THIS, not the row.
+  const { learningLanguage } = useLanguage();
+  const learningNow = (learningLanguage || "").toLowerCase();
+  const learningRef = useRef(learningNow);
+  learningRef.current = learningNow;
+
+  const languagesOf = async (uid: string) => {
+    const [{ data: prof }, { data: lps }] = await Promise.all([
+      supabase.from("profiles").select("learning_language, native_language").eq("user_id", uid).maybeSingle(),
+      (supabase as any).from("language_profiles").select("language").eq("user_id", uid),
+    ]);
+    const learning = learningRef.current || String((prof as any)?.learning_language || "").toLowerCase();
+    const native = String((prof as any)?.native_language || "en").toLowerCase();
+    const list = Array.from(new Set([...(lps || []).map((r: any) => String(r.language).toLowerCase()), learning].filter(Boolean)));
+    return { learning, native, list };
+  };
 
   useEffect(() => {
     if (!(window as any).ReactNativeWebView || !userId) return;
     let alive = true;
 
-    const languagesOf = async () => {
-      const [{ data: prof }, { data: lps }] = await Promise.all([
-        supabase.from("profiles").select("learning_language, native_language").eq("user_id", userId!).maybeSingle(),
-        (supabase as any).from("language_profiles").select("language").eq("user_id", userId!),
-      ]);
-      const learning = String((prof as any)?.learning_language || "").toLowerCase();
-      const native = String((prof as any)?.native_language || "en").toLowerCase();
-      const list = Array.from(new Set([...(lps || []).map((r: any) => String(r.language).toLowerCase()), learning].filter(Boolean)));
-      return { learning, native, list };
-    };
-
     (window as any).__lsInbox = async (items: InboxItem[]) => {
       if (busy.current || !Array.isArray(items) || !items.length) return;
       busy.current = true;
       try {
-        const { learning, native, list } = await languagesOf();
+        const { learning, native, list } = await languagesOf(userId);
         const done: number[] = [];
         let saved = 0;
         for (const it of items) {
@@ -95,8 +104,19 @@ export function AppInbox() {
       }
     };
 
-    // The 🦎 bubble's copy of your deck (Android): word → [state, dueAt, tappedAt].
-    // It works out gold on the phone with the same rule as isDueGold().
+    toApp({ type: "inbox-ready" });
+
+    return () => { alive = false; delete (window as any).__lsInbox; };
+  }, [userId]);
+
+  // The 🦎 bubble's copy of your deck (Android): word → [state, dueAt, tappedAt].
+  // It works out gold on the phone with the same rule as isDueGold().
+  // Sent again whenever the learning language changes, so the bubble reads
+  // Chinese characters as soon as Chinese is chosen (not the old language).
+  useEffect(() => {
+    if (!(window as any).ReactNativeWebView || !userId) return;
+    let current = true;
+
     const sendDeck = async (learning: string, native: string) => {
       if (!learning) return;
       const deck = await loadDeckIndex(userId!, learning);
@@ -122,19 +142,21 @@ export function AppInbox() {
         const key = normalizeToken(r.word);
         if (key && r.translation) meanings[key] = r.translation;
       }
+      // A newer language choice started its own send: drop this older one.
+      if (!current) return;
       toApp({ type: "deck", language: learning, native, words, common, meanings });
     };
 
-    languagesOf()
+    languagesOf(userId)
       .then(({ learning, native }) => {
+        if (!current) return;
         toApp({ type: "langs", learning, native });
         void sendDeck(learning, native).catch(() => {});
       })
-      .catch(() => {})
-      .finally(() => toApp({ type: "inbox-ready" }));
+      .catch(() => {});
 
-    return () => { alive = false; delete (window as any).__lsInbox; };
-  }, [userId]);
+    return () => { current = false; };
+  }, [userId, learningNow]);
 
   return null;
 }
