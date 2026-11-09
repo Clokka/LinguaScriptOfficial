@@ -1059,6 +1059,13 @@ const DiscoverTab = ({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && runSearch()}
+              // Don't let the browser remember searches: on a shared device
+              // the next person would see them in the dropdown.
+              type="search"
+              name="ls-discover-q"
+              autoComplete="off"
+              autoCorrect="off"
+              spellCheck={false}
               className="pl-10 h-11 bg-secondary/50 border-border rounded-xl"
             />
           </div>
