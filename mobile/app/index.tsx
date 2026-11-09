@@ -7,6 +7,8 @@ import * as Notifications from 'expo-notifications';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 import { onPendingLink, takePendingLink } from '@/lib/pendingLink';
+import * as Application from 'expo-application';
+import { APP_NATIVE_LEVEL } from '@linguascript/core';
 import { createClient } from '@supabase/supabase-js';
 import { ensurePermissions, registerForPushAsync } from '@/native/notifications';
 
@@ -223,6 +225,13 @@ export default function AppScreen() {
         onNavigationStateChange={(nav) => { canGoBack.current = nav.canGoBack; }}
         onShouldStartLoadWithRequest={onShouldStartLoadWithRequest}
         onMessage={(e) => {
+          // Phone buttons (bubble, tile, widgets) open linguascriptbubble:// links. If one fails,
+          // tell the page instead of doing nothing, so the learner sees why.
+          const openBubbleLink = (url: string) =>
+            Linking.openURL(url).catch((err) => {
+              const detail = JSON.stringify({ url, error: String(err?.message || err) });
+              webRef.current?.injectJavaScript(`window.dispatchEvent(new CustomEvent('ls:app-link-failed',{detail:${detail}}));true;`);
+            });
           try {
             const msg = JSON.parse(e.nativeEvent.data);
             if (msg.type === 'inbox-ready') { flushInbox(); return; }
@@ -234,25 +243,25 @@ export default function AppScreen() {
             }
             if (msg.type === 'bubble' && Platform.OS === 'android') {
               const style = msg.style === 'ring' || msg.style === 'common' ? msg.style : 'text';
-              Linking.openURL(`linguascriptbubble://${msg.on ? 'start' : 'stop'}?style=${style}`).catch(() => {});
+              openBubbleLink(`linguascriptbubble://${msg.on ? 'start' : 'stop'}?style=${style}`);
               return;
             }
             // Tap subtitle words in YouTube, no bubble (plugins/word-bubble/SubtitleTapService.kt).
             if (msg.type === 'subtitles' && Platform.OS === 'android') {
-              Linking.openURL(`linguascriptbubble://subtitles?on=${msg.on ? 1 : 0}&anywhere=${msg.anywhere ? 1 : 0}`).catch(() => {});
+              openBubbleLink(`linguascriptbubble://subtitles?on=${msg.on ? 1 : 0}&anywhere=${msg.anywhere ? 1 : 0}`);
               return;
             }
             // Gold word on the lock screen, and "add the widget" (plugins/word-bubble/GoldWords.kt, DeckWidget.kt).
             if (msg.type === 'gold' && Platform.OS === 'android') {
-              Linking.openURL(`linguascriptbubble://gold?on=${msg.on ? 1 : 0}`).catch(() => {});
+              openBubbleLink(`linguascriptbubble://gold?on=${msg.on ? 1 : 0}`);
               return;
             }
             if (msg.type === 'tile' && Platform.OS === 'android') {
-              Linking.openURL('linguascriptbubble://tile').catch(() => {});
+              openBubbleLink('linguascriptbubble://tile');
               return;
             }
             if (msg.type === 'widget' && Platform.OS === 'android') {
-              Linking.openURL(`linguascriptbubble://widget${msg.kind === 'gold' ? '?kind=gold' : ''}`).catch(() => {});
+              openBubbleLink(`linguascriptbubble://widget${msg.kind === 'gold' ? '?kind=gold' : ''}`);
               return;
             }
             if (msg.type === 'langs') {
@@ -272,8 +281,9 @@ export default function AppScreen() {
           <View style={styles.loading}><Text style={styles.brand}>🦎 LinguaScript</Text></View>
         )}
         startInLoadingState
-        // User agent hint so the site knows it's inside the app
-        applicationNameForUserAgent="LinguaScriptApp/1.0"
+        // User agent hint so the site knows it's inside the app, which version, and which
+        // phone features this build has (LSNative level, packages/core/src/bridge.ts).
+        applicationNameForUserAgent={`LinguaScriptApp/${Application.nativeApplicationVersion ?? '1.0'} LSNative/${APP_NATIVE_LEVEL}`}
       />
     </SafeAreaView>
   );
