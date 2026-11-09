@@ -6,7 +6,12 @@
 // instantly, then refreshes quietly.
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Play, ChevronRight } from "lucide-react";
+import { Play, ChevronRight, X, Trash2 } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -48,6 +53,56 @@ export function ContinueWatchingRail() {
   const { learningLanguage } = useLanguage();
   const navigate = useNavigate();
   const [rows, setRows] = useState<Row[] | null>(null);
+  const [confirmClear, setConfirmClear] = useState(false);
+  const { toast } = useToast();
+
+  // Remove every device's cached copy of this rail on THIS device.
+  const clearLocalCaches = () => {
+    if (!user) return;
+    try {
+      const prefix = `ls.rewatch:${user.id}:`;
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith(prefix)) localStorage.removeItem(k);
+      }
+    } catch { /* ignore */ }
+  };
+
+  // Delete one video from watch history. Deleted from the account, so it
+  // also disappears on any other device signed in to it.
+  const removeOne = async (filmId: string) => {
+    if (!user) return;
+    const before = rows;
+    const next = (rows || []).filter((r) => r.film_id !== filmId);
+    setRows(next);
+    const { error } = await supabase
+      .from("watch_history")
+      .delete()
+      .eq("user_id", user.id)
+      .eq("film_id", filmId);
+    if (error) {
+      setRows(before);
+      toast({ title: "Couldn't remove it", description: error.message, variant: "destructive" });
+      return;
+    }
+    try {
+      localStorage.setItem(cacheKey(user.id, (learningLanguage || "").toLowerCase()), JSON.stringify(next));
+    } catch { /* ignore */ }
+    toast({ title: "Removed from your history" });
+  };
+
+  // Delete ALL watch history (every language) for this account.
+  const clearAll = async () => {
+    if (!user) return;
+    const { error } = await supabase.from("watch_history").delete().eq("user_id", user.id);
+    if (error) {
+      toast({ title: "Couldn't clear history", description: error.message, variant: "destructive" });
+      return;
+    }
+    clearLocalCaches();
+    setRows([]);
+    toast({ title: "Watch history deleted", description: "It's gone from every device signed in to your account." });
+  };
 
   useEffect(() => {
     if (!user) { setRows([]); return; }
@@ -117,17 +172,49 @@ export function ContinueWatchingRail() {
           <h2 className="text-lg font-semibold text-foreground">Rewatch to 100% green</h2>
           <p className="text-xs text-muted-foreground">Each rewatch turns more words green.</p>
         </div>
+        <button
+          type="button"
+          onClick={() => setConfirmClear(true)}
+          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground px-2 py-1 rounded-lg hover:bg-secondary transition-colors"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+          Clear history
+        </button>
       </div>
+      <AlertDialog open={confirmClear} onOpenChange={setConfirmClear}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete your watch history?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This removes every video you've watched from your history, in all languages, on every
+              device signed in to your account. Your flashcards and words stay safe.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={clearAll}>Delete history</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin">
         {rows.map((r) => {
           const scored = Number.isFinite(r.latest_score);
           const delta = scored ? Math.round(r.latest_score - r.first_score) : 0;
           const up = delta > 0;
           return (
+            <div key={r.film_id} className="relative shrink-0 w-[220px]">
             <button
-              key={r.film_id}
+              type="button"
+              onClick={(e) => { e.stopPropagation(); removeOne(r.film_id); }}
+              aria-label={`Remove "${r.title}" from history`}
+              title="Remove from history"
+              className="absolute top-1.5 right-1.5 z-10 w-7 h-7 rounded-full bg-black/70 text-white flex items-center justify-center hover:bg-black/90 transition-colors"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+            <button
               onClick={() => navigate(`/watch/${r.film_id}`)}
-              className="group shrink-0 w-[220px] text-left"
+              className="group w-full text-left"
             >
               <div className="relative rounded-xl overflow-hidden aspect-video bg-secondary mb-2 border border-border group-hover:border-primary/50 transition-all">
                 {r.thumbnail_url ? (
@@ -160,6 +247,7 @@ export function ContinueWatchingRail() {
                 </span>}
               </div>
             </button>
+            </div>
           );
         })}
       </div>
