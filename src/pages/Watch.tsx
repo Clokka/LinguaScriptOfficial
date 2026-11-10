@@ -23,6 +23,7 @@ import { fetchCaptionsFromBrowser } from "@/lib/browserCaptionFetcher";
 import { FilmLoadingGate } from "@/components/FilmLoader";
 import { loadPack, prefetchVideo } from "@/lib/instantDict";
 import { PreTeachCard } from "@/components/PreTeachCard";
+import { AssignedVideoNotice } from "@/components/AssignedVideoNotice";
 import { ContentLockScreen } from "@/components/ContentLockScreen";
 import { ActiveLanguageBadge } from "@/components/ActiveLanguageBadge";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -1582,7 +1583,7 @@ const Watch = () => {
     // never unmount the YouTube player (that was killing playback sideways).
     return (
       <div className={cn("ls-cinema bg-background text-foreground flex flex-col", isLandscape ? "h-[100dvh] overflow-hidden" : "min-h-screen")}>
-        {!isLandscape && header}
+        {!isLandscape && <>{header}<AssignedVideoNotice filmId={film.id} /></>}
         <div className={cn("flex w-full", isLandscape ? "flex-1 flex-row min-h-0" : "flex-col")}>
           <div
             className={cn("min-w-0 flex items-center justify-center bg-black", isLandscape && "flex-[7] h-full")}
@@ -1692,6 +1693,7 @@ const Watch = () => {
           </Button>
         </div>
       </div>
+      <AssignedVideoNotice filmId={film.id} />
 
       <div className="relative flex-1 flex flex-col items-center justify-center bg-black px-3 sm:px-6 py-2 sm:py-4">
         {/* Fullscreen wrapper — subtitles are INSIDE this so they persist in fullscreen */}

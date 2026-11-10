@@ -89,6 +89,7 @@ const Privacy = lazy(() => import("./pages/Privacy"));
 const PrivacyExtension = lazy(() => import("./pages/PrivacyExtension"));
 const Terms = lazy(() => import("./pages/Terms"));
 const Teacher = lazy(() => import("./pages/Teacher"));
+const MyClasses = lazy(() => import("./pages/MyClasses"));
 const Schools = lazy(() => import("./pages/Schools"));
 const SchoolTour = lazy(() => import("./pages/SchoolTour"));
 const Progress = lazy(() => import("./pages/Progress"));
@@ -197,6 +198,7 @@ const App = () => (
                 <Route path="/manual" element={<Manual />} />
                 <Route path="/landingpage5" element={<Landing5 />} />
                 <Route path="/teacher" element={<Teacher />} />
+                <Route path="/classes" element={<MyClasses />} />
                 <Route path="/progress" element={<Progress />} />
                 <Route path="/gift" element={<GiftClaim />} />
                 <Route path="/pro-gift" element={<ProGiftClaim />} />
