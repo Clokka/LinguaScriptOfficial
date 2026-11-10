@@ -113,6 +113,13 @@
       "when": 1793791021215,
       "tag": "0015_school_recent_vocabulary_counts",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1793791081215,
+      "tag": "0016_teacher_video_tasks_privacy",
+      "breakpoints": true
     }
   ]
 }
