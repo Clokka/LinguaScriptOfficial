@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocation, useNavigate } from "react-router-dom";
 import { ArrowRight, X } from "lucide-react";
@@ -10,6 +10,7 @@ import { StreakFlame } from "./StreakFlame";
 import { DailyGoalPicker } from "./DailyGoalPicker";
 import { ChameleonMascot } from "./ChameleonMascot";
 import { normalizeWordGoal, videoGoalForWords } from "@/lib/progressStats";
+import { isIntroPlaying, subscribeIntroPlaying } from "@/lib/site/intro";
 
 const dismissKey = (uid: string) => `briefing:${uid}:${new Date().toISOString().split("T")[0]}`;
 
@@ -43,6 +44,8 @@ export const DailyBriefing = () => {
   const [profileChecked, setProfileChecked] = useState(false);
   const streak = useStreakStatus();
   const { learningLanguage } = useLanguage();
+  // Wait for the opening intro animation to finish — never cover it.
+  const introPlaying = useSyncExternalStore(subscribeIntroPlaying, isIntroPlaying, () => false);
 
   useEffect(() => {
     if (authLoading || !user) return;
@@ -104,7 +107,7 @@ export const DailyBriefing = () => {
 
   // Team tools (HQ, partners, admin) are work screens: the learner pop-up would cover the Studio.
   const onTeamPage = /^\/(hq|partners|admin|teacher|for-schools|schools)(\/|$)/.test(location.pathname);
-  if (!open || onTeamPage || !profileChecked || wordGoal == null) return null;
+  if (!open || introPlaying || onTeamPage || !profileChecked || wordGoal == null) return null;
 
   const remaining = Math.max(0, wordGoal - streak.wordsReviewed);
   const done = remaining === 0;
