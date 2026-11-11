@@ -25,3 +25,18 @@ export function introToPlay(): { intro: Intro; preview: boolean } | null {
 export function markIntroSeen() {
   try { sessionStorage.setItem(SEEN_SESSION, "1"); localStorage.setItem(SEEN_EVER, "1"); } catch { /* ignore */ }
 }
+
+// Is the opening intro on screen right now? Pop-ups (the "Welcome back"
+// daily briefing) wait for it, so they never cover the animation.
+let introPlaying = false;
+const introListeners = new Set<() => void>();
+export function setIntroPlaying(on: boolean) {
+  if (introPlaying === on) return;
+  introPlaying = on;
+  introListeners.forEach((fn) => fn());
+}
+export const isIntroPlaying = () => introPlaying;
+export function subscribeIntroPlaying(fn: () => void) {
+  introListeners.add(fn);
+  return () => { introListeners.delete(fn); };
+}

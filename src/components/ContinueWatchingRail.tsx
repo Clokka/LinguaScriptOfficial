@@ -6,7 +6,8 @@
 // instantly, then refreshes quietly.
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Play, ChevronRight } from "lucide-react";
+import { Play, ChevronRight, X } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -48,6 +49,29 @@ export function ContinueWatchingRail() {
   const { learningLanguage } = useLanguage();
   const navigate = useNavigate();
   const [rows, setRows] = useState<Row[] | null>(null);
+  const { toast } = useToast();
+
+  // Remove a video from "what I watched". Only the watch history goes — the
+  // words it taught stay in the decks.
+  const removeRow = async (r: Row) => {
+    if (!user) return;
+    const lang = (learningLanguage || "").toLowerCase();
+    const before = rows;
+    const next = (rows || []).filter((x) => x.film_id !== r.film_id);
+    setRows(next);
+    const { error } = await supabase
+      .from("watch_history")
+      .delete()
+      .eq("user_id", user.id)
+      .eq("film_id", r.film_id);
+    if (error) {
+      setRows(before);
+      toast({ title: "Couldn't remove that video", description: error.message, variant: "destructive" });
+      return;
+    }
+    try { localStorage.setItem(cacheKey(user.id, lang), JSON.stringify(next)); } catch { /* ignore */ }
+    toast({ title: "Removed from your library", description: "Your saved words are kept." });
+  };
 
   useEffect(() => {
     if (!user) { setRows([]); return; }
@@ -124,10 +148,10 @@ export function ContinueWatchingRail() {
           const delta = scored ? Math.round(r.latest_score - r.first_score) : 0;
           const up = delta > 0;
           return (
+            <div key={r.film_id} className="group relative shrink-0 w-[220px]">
             <button
-              key={r.film_id}
               onClick={() => navigate(`/watch/${r.film_id}`)}
-              className="group shrink-0 w-[220px] text-left"
+              className="w-full text-left"
             >
               <div className="relative rounded-xl overflow-hidden aspect-video bg-secondary mb-2 border border-border group-hover:border-primary/50 transition-all">
                 {r.thumbnail_url ? (
@@ -160,6 +184,16 @@ export function ContinueWatchingRail() {
                 </span>}
               </div>
             </button>
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); void removeRow(r); }}
+              aria-label={`Remove “${r.title}” from your library`}
+              title="Remove from library"
+              className="absolute top-2 right-2 p-1.5 rounded-lg bg-black/70 text-white/80 hover:text-destructive transition-opacity opacity-100 md:opacity-0 md:group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+            </div>
           );
         })}
       </div>

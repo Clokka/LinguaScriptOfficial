@@ -437,7 +437,7 @@ const Browse = () => {
   const deleteLesson = async (lessonId: string) => {
     await supabase.from("user_lessons").delete().eq("id", lessonId);
     fetchLessons();
-    toast({ title: "Lesson removed" });
+    toast({ title: "Removed from your library" });
   };
 
   const saveSettings = async () => {
@@ -945,8 +945,11 @@ const LessonCard = ({
         </div>
       </button>
       <button
+        type="button"
         onClick={(e) => { e.stopPropagation(); onDelete(lesson.id); }}
-        className="absolute top-2 right-2 p-1.5 rounded-lg bg-black/60 text-white/60 hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+        aria-label={`Remove “${lesson.title}” from your library`}
+        title="Remove from library"
+        className="absolute top-2 right-2 p-1.5 rounded-lg bg-black/70 text-white/80 hover:text-destructive transition-opacity opacity-100 md:opacity-0 md:group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100"
       >
         <Trash2 className="w-3.5 h-3.5" />
       </button>
