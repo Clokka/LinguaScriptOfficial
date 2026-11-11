@@ -4,9 +4,15 @@
 // too), most recent first. Each card shows how green it is and the gain since
 // the first watch. The last list is kept on the device so the rail shows
 // instantly, then refreshes quietly.
+// The bin on each card opens a box to delete that video from the learner's
+// history everywhere in LinguaScript (forget_video RPC). Saved words stay.
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Play, ChevronRight, X } from "lucide-react";
+import { Play, ChevronRight, Trash2 } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -16,6 +22,7 @@ import { getLanguageLabel, getLanguageFlag } from "@/lib/languages";
 
 interface Row {
   film_id: string;
+  video_id: string | null;
   title: string;
   thumbnail_url: string | null;
   language: string | null;
@@ -49,28 +56,26 @@ export function ContinueWatchingRail() {
   const { learningLanguage } = useLanguage();
   const navigate = useNavigate();
   const [rows, setRows] = useState<Row[] | null>(null);
+  const [toForget, setToForget] = useState<Row | null>(null);
+  const [forgetting, setForgetting] = useState(false);
   const { toast } = useToast();
 
-  // Remove a video from "what I watched". Only the watch history goes — the
-  // words it taught stay in the decks.
-  const removeRow = async (r: Row) => {
+  const forget = async (r: Row) => {
     if (!user) return;
-    const lang = (learningLanguage || "").toLowerCase();
-    const before = rows;
-    const next = (rows || []).filter((x) => x.film_id !== r.film_id);
-    setRows(next);
-    const { error } = await supabase
-      .from("watch_history")
-      .delete()
-      .eq("user_id", user.id)
-      .eq("film_id", r.film_id);
+    setForgetting(true);
+    const { error } = await supabase.rpc("forget_video", { _film_id: r.film_id, _video_id: r.video_id ?? null });
+    setForgetting(false);
+    setToForget(null);
     if (error) {
-      setRows(before);
-      toast({ title: "Couldn't remove that video", description: error.message, variant: "destructive" });
+      toast({ title: "Couldn't delete it", description: "Please try again.", variant: "destructive" });
       return;
     }
-    try { localStorage.setItem(cacheKey(user.id, lang), JSON.stringify(next)); } catch { /* ignore */ }
-    toast({ title: "Removed from your library", description: "Your saved words are kept." });
+    const next = (rows || []).filter((x) => x.film_id !== r.film_id);
+    setRows(next);
+    try {
+      localStorage.setItem(cacheKey(user.id, (learningLanguage || "").toLowerCase()), JSON.stringify(next));
+    } catch { /* ignore */ }
+    toast({ title: "Deleted from your history", description: `"${r.title}" is gone from LinguaScript. Your saved words are still in your decks.` });
   };
 
   useEffect(() => {
@@ -85,7 +90,7 @@ export function ContinueWatchingRail() {
       // watch. Fetch extra so fully green videos can be dropped.
       const { data: wh } = await supabase
         .from("watch_history")
-        .select("film_id, title, thumbnail_url, language, completion_pct, watched_at")
+        .select("film_id, video_id, title, thumbnail_url, language, completion_pct, watched_at")
         .eq("user_id", user.id)
         .eq("language", lang)
         .not("film_id", "is", null)
@@ -116,6 +121,7 @@ export function ContinueWatchingRail() {
         if (v && Number(v.latest_score) >= 100) continue;
         out.push({
           film_id: r.film_id,
+          video_id: r.video_id ?? null,
           title: r.title || "Video",
           thumbnail_url: r.thumbnail_url,
           language: r.language,
@@ -148,10 +154,10 @@ export function ContinueWatchingRail() {
           const delta = scored ? Math.round(r.latest_score - r.first_score) : 0;
           const up = delta > 0;
           return (
-            <div key={r.film_id} className="group relative shrink-0 w-[220px]">
+            <div key={r.film_id} className="relative shrink-0 w-[220px]">
             <button
               onClick={() => navigate(`/watch/${r.film_id}`)}
-              className="w-full text-left"
+              className="group w-full text-left"
             >
               <div className="relative rounded-xl overflow-hidden aspect-video bg-secondary mb-2 border border-border group-hover:border-primary/50 transition-all">
                 {r.thumbnail_url ? (
@@ -186,17 +192,39 @@ export function ContinueWatchingRail() {
             </button>
             <button
               type="button"
-              onClick={(e) => { e.stopPropagation(); void removeRow(r); }}
-              aria-label={`Remove “${r.title}” from your library`}
-              title="Remove from library"
-              className="absolute top-2 right-2 p-1.5 rounded-lg bg-black/70 text-white/80 hover:text-destructive transition-opacity opacity-100 md:opacity-0 md:group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100"
+              aria-label={`Delete ${r.title} from history`}
+              title="Delete from history"
+              onClick={() => setToForget(r)}
+              className="absolute top-2 right-2 z-10 w-7 h-7 rounded-full bg-black/70 text-white flex items-center justify-center hover:bg-destructive focus-visible:outline focus-visible:outline-2 focus-visible:outline-white"
             >
-              <X className="w-3.5 h-3.5" />
+              <Trash2 className="w-3.5 h-3.5" />
             </button>
             </div>
           );
         })}
       </div>
+      <AlertDialog open={!!toForget} onOpenChange={(o) => { if (!o && !forgetting) setToForget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this video from your history?</AlertDialogTitle>
+            <AlertDialogDescription>
+              "{toForget?.title}" will be removed from LinguaScript: where you stopped, your rewatch
+              count and how green it was. Your saved words stay in your decks. If a teacher set this
+              video as a task, they will see it as not started. This can't be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={forgetting}>Keep it</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={forgetting}
+              onClick={(e) => { e.preventDefault(); if (toForget) void forget(toForget); }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {forgetting ? "Deleting…" : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </section>
   );
 }

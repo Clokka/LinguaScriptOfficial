@@ -58,10 +58,18 @@ const Privacy = () => (
             settings, and messages you send to friends.</li>
           <li><b>Subscription</b> — your plan status, and subscription/customer identifiers from
             our payment providers. We never see or store your card details.</li>
-          <li><b>Schools</b> — if you join a school or class, your membership and role in that
-            school. Authorised school staff can see joined students' display names, email addresses,
-            active learning language, vocabulary and recorded viewing/review activity, and export
-            this class report. These records are not exam grades. Only join a school you recognise.</li>
+          <li><b>Schools and classes</b> — if you join a school or class, your membership and role in
+            that school. Teachers see joined students' display names and invited email addresses, and,
+            <b> only for videos they set as tasks</b>, how far each student watched, how many times and
+            how much of the video's language is green — counted from when the task was set. Teachers
+            cannot see any other video you watch, your searches, saved words, flashcards, streak or when
+            you use the app. Task videos show a notice before you watch. You can see exactly what is
+            shared, and leave a class at any time (the teacher's access ends at once), on the My classes
+            page (/classes). Teachers can export their class report. These records are not exam grades.
+            Only join a school you recognise.</li>
+          <li><b>Deleting a video from your history</b> — use the bin on any video in "Rewatch to 100%
+            green". It deletes where you stopped, your rewatch count and score for that video from
+            LinguaScript. Words you saved stay in your decks until you delete them.</li>
           <li><b>School enquiries</b> — the school name, contact name, contact email, optional student
             count and needs you submit are saved for the LinguaScript team to respond to your request.
             They do not enrol pupils or subscribe you to marketing.</li>
