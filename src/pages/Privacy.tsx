@@ -95,7 +95,7 @@ const Privacy = () => (
         <p>
           You can create an account or sign in using Google. Signing in requests only the standard
           scopes: <code>openid</code>, <code>email</code> and <code>profile</code>. We have no access
-          to your Gmail, Drive, Calendar, contacts or any other Google service.
+          to your Gmail, Drive, Calendar, contacts or any other Google service unless you choose one of the optional connections below.
         </p>
         <p>
           <strong>Connect YouTube (optional, separate).</strong> Only if you choose “Connect YouTube”
@@ -105,6 +105,22 @@ const Privacy = () => (
           token Google gives us for this (in our database, linked to your account) and do not read,
           post, edit or delete anything else on your YouTube account. You can remove this access at
           any time in your Google Account → Security → Third-party connections.
+        </p>
+        <p>
+          <strong>Connect Google Calendar (teachers, optional, separate).</strong> Only if a teacher
+          chooses “Connect Google Calendar” in LinguaScript Classroom, we also ask Google for the
+          scope <code>https://www.googleapis.com/auth/calendar.events</code>. We use it only to show
+          the teacher their own events for the next 14 days and, when they press “Add clip”, to add a
+          LinguaScript clip link to that one event. We store the access token Google gives us for this
+          (in our database, linked to the teacher's account, readable only by our server) and never
+          share calendar data with students or anyone else. Disconnect in Classroom → Calendar, or in
+          your Google Account → Security → Third-party connections.
+        </p>
+        <p>
+          <strong>Calendar subscription links.</strong> Classroom and My classes can give you a private
+          calendar link that Google Calendar, Apple Calendar or Outlook subscribe to. It lists only clip
+          titles, class names, due dates and links, never anyone's progress. You can replace the link at
+          any time to stop the old one working.
         </p>
         <p>From Google we receive, and store against your account:</p>
         <ul className="list-disc pl-5 space-y-1 mt-2">

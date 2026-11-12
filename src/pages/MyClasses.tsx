@@ -3,7 +3,9 @@
 // (leave_school RPC: the teacher's access ends straight away).
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { GraduationCap, ShieldCheck, Play, LogOut } from "lucide-react";
+import { GraduationCap, ShieldCheck, Play, LogOut, CalendarPlus } from "lucide-react";
+import { getCalendarFeedToken, googleSubscribeUrl, webcalUrl } from "@/lib/classroom/calendar";
+import { track } from "@/lib/analytics";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -30,6 +32,7 @@ export default function MyClasses() {
   const [tasks, setTasks] = useState<TaskRow[]>([]);
   const [leaving, setLeaving] = useState<ClassRow | null>(null);
   const [busy, setBusy] = useState(false);
+  const [feedToken, setFeedToken] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) navigate("/auth?next=/classes");
@@ -41,6 +44,8 @@ export default function MyClasses() {
     setTasks((t.data || []) as TaskRow[]);
   };
   useEffect(() => { if (user) void load(); }, [user]);
+  // Private calendar feed of this student's clip due dates (class-calendar edge function).
+  useEffect(() => { if (classes?.length) void getCalendarFeedToken().then(setFeedToken); }, [classes?.length]);
 
   const leave = async (c: ClassRow) => {
     setBusy(true);
@@ -71,6 +76,21 @@ export default function MyClasses() {
           </ul>
           <p className="text-xs text-muted-foreground pt-1">Videos that are tasks show a notice before you watch. Leave a class any time and your teacher loses access straight away. More in our <Link to="/privacy" className="underline">privacy policy</Link>.</p>
         </section>
+
+        {classes.length > 0 && tasks.some((t) => t.due_at) && (
+          <section className="border border-border rounded-xl p-4 space-y-3">
+            <h2 className="font-semibold flex items-center gap-2"><CalendarPlus className="w-4 h-4 text-primary" /> Put due dates in your calendar</h2>
+            <p className="text-sm text-muted-foreground">Every video your teacher sets shows up on its due date, and updates by itself.</p>
+            <div className="flex flex-wrap gap-2">
+              <Button asChild size="sm" disabled={!feedToken}>
+                <a href={feedToken ? googleSubscribeUrl(feedToken) : undefined} target="_blank" rel="noreferrer" onClick={() => track("student_calendar_subscribed", { app: "google" })}>Add to Google Calendar</a>
+              </Button>
+              <Button asChild size="sm" variant="outline" disabled={!feedToken}>
+                <a href={feedToken ? webcalUrl(feedToken) : undefined} onClick={() => track("student_calendar_subscribed", { app: "webcal" })}>Apple or Outlook</a>
+              </Button>
+            </div>
+          </section>
+        )}
 
         {classes.length === 0 && (
           <p className="text-muted-foreground text-sm">You're not in any class. If your teacher sent you an invite link, open it to join.</p>
