@@ -68,7 +68,8 @@ export type AnalyticsEvent =
   | "student_calendar_subscribed"
   | "a1_unit_completed"
   | "a1_test_finished"
-  | "a1_words_known_updated";
+  | "a1_words_known_updated"
+  | "a1_checklist_ticked";
 
 type Props = Record<string, string | number | boolean | null | undefined>;
 

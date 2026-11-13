@@ -37,6 +37,7 @@ const staticEntries: SitemapEntry[] = [
     .map((slug): SitemapEntry => ({ path: `/english/a1/grammar/${slug}`, changefreq: "monthly", priority: "0.6" })),
   { path: "/english/a1/words", changefreq: "monthly", priority: "0.7" },
   { path: "/english/a1/test", changefreq: "monthly", priority: "0.7" },
+  { path: "/english/a1/checklist", changefreq: "monthly", priority: "0.7" },
   { path: "/english/exams", changefreq: "monthly", priority: "0.7" },
   { path: "/english/a1/sources", changefreq: "yearly", priority: "0.4" },
   { path: "/linguascripts", changefreq: "monthly", priority: "0.6" },

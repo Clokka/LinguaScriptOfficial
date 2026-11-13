@@ -9,6 +9,7 @@ const TABS = [
   { to: "/english/a1", label: "Guide", end: true },
   { to: "/english/a1/grammar", label: "Grammar" },
   { to: "/english/a1/words", label: "Words" },
+  { to: "/english/a1/checklist", label: "Checklist" },
   { to: "/english/a1/test", label: "Practice test" },
   { to: "/english/exams", label: "Exams & study abroad" },
   { to: "/english/a1/sources", label: "Sources" },
