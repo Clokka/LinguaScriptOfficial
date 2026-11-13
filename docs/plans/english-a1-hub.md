@@ -117,6 +117,18 @@ A certificate only "means something" when others trust **how** it was tested. Cl
 
 ---
 
+## 6b. Exam partners: our content, their certificate
+
+Yes: we teach, a recognised exam certifies. Pick by the learner's goal:
+
+| Goal | Exams | Notes |
+|---|---|---|
+| **Study abroad (university)** | IELTS Academic, TOEFL iBT, PTE Academic, Duolingo English Test, Cambridge C1 Advanced | Universities usually want B2–C1. Best first partner fit: **Duolingo English Test** (online, cheap, fast, our learners are online) and **IELTS** (biggest brand for UK/Australia/Canada). |
+| **Work** | TOEIC (ETS) | Employers, not universities. |
+| **First certificate (A1)** | Trinity GESE early grades, LanguageCert ESOL A1, Pearson English International Certificate A1, Cambridge A1 Movers (children) | IELTS and TOEIC are **not** A1 exams. For the A1 guide, link these. |
+
+How to partner, from easy to hard: (1) link and explain each exam (done: `/english/exams`); (2) apply to each exam's official prep-provider or affiliate programme (check each official site; terms change); (3) bundles such as "LinguaScript prep + exam voucher"; (4) official recognition of LinguaScript as a prep provider.
+
 ## 7. Success numbers
 
 - Launch: hub + 5 units live; your own students use it weekly.
@@ -126,6 +138,9 @@ A certificate only "means something" when others trust **how** it was tested. Cl
 ---
 
 ## 8. Bibliography (read for structure; never copy)
+
+The live, complete list is `src/lib/english/sources.ts` (shown on `/english/a1/sources` and `/english/exams`). Add every new source there.
+
 
 - Council of Europe. *Common European Framework of Reference for Languages: Learning, Teaching, Assessment, Companion Volume* (2020). The official A1 descriptors.
 - Council of Europe. *Relating Language Examinations to the CEFR: A Manual* (2009). How to align a test to CEFR levels.

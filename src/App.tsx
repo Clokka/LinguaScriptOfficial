@@ -60,6 +60,14 @@ const RefLink = lazy(() => import("./pages/RefLink"));
 const PhoneOverlay = lazy(() => import("./pages/PhoneOverlay"));
 const FrequentWords = lazy(() => import("./pages/FrequentWords"));
 const FrenchWords = lazy(() => import("./pages/FrenchWords"));
+// English A1 guide (/english/*): docs/plans/english-a1-hub.md
+const A1Hub = lazy(() => import("./pages/english/A1Hub"));
+const A1Grammar = lazy(() => import("./pages/english/A1Grammar"));
+const A1Unit = lazy(() => import("./pages/english/A1Unit"));
+const A1Words = lazy(() => import("./pages/english/A1Words"));
+const A1Test = lazy(() => import("./pages/english/A1Test"));
+const A1Sources = lazy(() => import("./pages/english/A1Sources"));
+const EnglishExams = lazy(() => import("./pages/english/EnglishExams"));
 const LandingPage2 = lazy(() => import("./pages/LandingPage2"));
 const LandingPage3 = lazy(() => import("./pages/LandingPage3"));
 const LandingPage4 = lazy(() => import("./pages/LandingPage4"));
@@ -185,6 +193,14 @@ const App = () => (
                 <Route path="/overlay" element={<PhoneOverlay />} />
                 <Route path="/frequent-words" element={<FrequentWords />} />
                 <Route path="/french-words" element={<FrenchWords />} />
+                <Route path="/english" element={<Navigate to="/english/a1" replace />} />
+                <Route path="/english/a1" element={<A1Hub />} />
+                <Route path="/english/a1/grammar" element={<A1Grammar />} />
+                <Route path="/english/a1/grammar/:slug" element={<A1Unit />} />
+                <Route path="/english/a1/words" element={<A1Words />} />
+                <Route path="/english/a1/test" element={<A1Test />} />
+                <Route path="/english/a1/sources" element={<A1Sources />} />
+                <Route path="/english/exams" element={<EnglishExams />} />
                 <Route path="/zipf" element={<Navigate to="/frequent-words" replace />} />
                 <Route path="/admin" element={<Admin />} />
                 <Route path="/partners" element={<Partners />} />

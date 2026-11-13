@@ -30,6 +30,15 @@ const staticEntries: SitemapEntry[] = [
   { path: "/blog", changefreq: "weekly", priority: "0.8" },
   { path: "/story", changefreq: "yearly", priority: "0.6" },
   { path: "/pricing", changefreq: "monthly", priority: "0.7" },
+  // English A1 guide (src/lib/english/a1): only units with content are listed.
+  { path: "/english/a1", changefreq: "weekly", priority: "0.8" },
+  { path: "/english/a1/grammar", changefreq: "weekly", priority: "0.7" },
+  ...["be-am-is-are", "pronouns-possessives", "a-an-the", "plural-nouns", "this-that-these-those"]
+    .map((slug): SitemapEntry => ({ path: `/english/a1/grammar/${slug}`, changefreq: "monthly", priority: "0.6" })),
+  { path: "/english/a1/words", changefreq: "monthly", priority: "0.7" },
+  { path: "/english/a1/test", changefreq: "monthly", priority: "0.7" },
+  { path: "/english/exams", changefreq: "monthly", priority: "0.7" },
+  { path: "/english/a1/sources", changefreq: "yearly", priority: "0.4" },
   { path: "/linguascripts", changefreq: "monthly", priority: "0.6" },
   { path: "/privacy", changefreq: "yearly", priority: "0.3" },
   { path: "/terms", changefreq: "yearly", priority: "0.3" },
