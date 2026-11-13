@@ -3,9 +3,8 @@ import { Link } from "react-router-dom";
 import { Seo } from "@/components/Seo";
 import { MarketingLayout, H2 } from "@/components/marketing/MarketingLayout";
 import { UNITS } from "@/lib/english/a1/grammar";
-import { TOP_100 } from "@/lib/english/a1/words";
 import { A1_TEST } from "@/lib/english/a1/test";
-import { a1Ready, unitsPassed, wordsKnown } from "@/lib/english/a1/progress";
+import { A1_WORD_RANGE, A1_WORD_TARGET, a1Ready, unitsPassed, wordsKnown } from "@/lib/english/a1/progress";
 import { A1Nav, Bar, useA1Progress } from "./A1Shared";
 
 const CAN_DO = [
@@ -26,7 +25,7 @@ export default function A1Hub() {
     <>
       <Seo
         title="Pass English A1: free grammar, words and practice test"
-        description="A free, clear guide to English level A1 (CEFR): 20 grammar units, the 100 most common words, and a 20-question practice test with listening. Track your progress as you go."
+        description="A free, clear guide to English level A1 (CEFR): 20 grammar units, the A1 words starting with the 100 most common, and a 20-question practice test with listening. Track your progress as you go."
         path="/english/a1"
         jsonLd={{
           "@context": "https://schema.org", "@type": "Course",
@@ -55,7 +54,7 @@ export default function A1Hub() {
           </div>
           <div className="mt-5 grid gap-4 sm:grid-cols-3">
             <div className="space-y-1.5"><p className="text-sm text-muted-foreground">Grammar units passed</p><p className="font-bold text-foreground">{passed} / {UNITS.length}</p><Bar pct={(passed / UNITS.length) * 100} /></div>
-            <div className="space-y-1.5"><p className="text-sm text-muted-foreground">Top 100 words known</p><p className="font-bold text-foreground">{known} / {TOP_100.length}</p><Bar pct={known} /></div>
+            <div className="space-y-1.5"><p className="text-sm text-muted-foreground">A1 words known</p><p className="font-bold text-foreground">{known} <span className="font-normal text-muted-foreground">of about {A1_WORD_TARGET}</span></p><Bar pct={(known / A1_WORD_TARGET) * 100} /></div>
             <div className="space-y-1.5"><p className="text-sm text-muted-foreground">Practice test</p><p className="font-bold text-foreground">{p.test ? `${p.test.score} / ${A1_TEST.length}` : "Not taken yet"}</p><Bar pct={p.test ? (p.test.score / A1_TEST.length) * 100 : 0} /></div>
           </div>
           <p className="mt-4 text-xs text-muted-foreground">Saved on this device.</p>
@@ -69,7 +68,7 @@ export default function A1Hub() {
         <div className="not-prose grid gap-4 sm:grid-cols-3">
           {[
             { to: "/english/a1/grammar", n: "1", t: "Grammar", d: "20 short units. Each one has examples, common mistakes and an 8-question check." },
-            { to: "/english/a1/words", n: "2", t: "The 100 key words", d: "The 100 most common words make up about half of everyday English. Start there." },
+            { to: "/english/a1/words", n: "2", t: "A1 words", d: `A1 needs about ${A1_WORD_RANGE} words. Start with the 100 most common: they make up about half of everyday English.` },
             { to: "/english/a1/test", n: "3", t: "Practice test", d: "20 questions: grammar, words, reading and listening. See what to study next." },
           ].map((c) => (
             <Link key={c.to} to={c.to} className="rounded-2xl border border-border bg-card p-5 transition-colors hover:border-primary">

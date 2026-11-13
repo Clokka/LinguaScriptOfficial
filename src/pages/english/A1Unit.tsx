@@ -117,7 +117,7 @@ function UnitPage({ slug }: { slug: string }) {
               <button type="button" onClick={retry} className="rounded-full border border-border px-5 py-2.5 text-sm font-semibold text-foreground">Try again</button>
               {next && (isReady(next)
                 ? <Link to={`/english/a1/grammar/${next.slug}`} onClick={() => window.scrollTo(0, 0)} className="rounded-full bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground">Next: {next.title} →</Link>
-                : <Link to="/english/a1/words" className="rounded-full bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground">Next: the 100 key words →</Link>)}
+                : <Link to="/english/a1/words" className="rounded-full bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground">Next: your A1 words →</Link>)}
             </div>
           )}
         </div>

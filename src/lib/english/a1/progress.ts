@@ -5,7 +5,10 @@ import { TOP_100 } from "./words";
 
 export interface A1Progress { units: Record<string, number>; known: string[]; test?: { score: number; at: string } }
 const KEY = "ls.a1.v1";
-/** A1 vocabulary target from the plan (§3b). Step 1 ships the first 100 words. */
+/** The CEFR sets no official word count. Courses and exams usually expect about
+ *  400–700 words at A1; "A1 ready %" uses the top of that range. Step 1 ships the
+ *  first 100 (the most frequent); the rest come by topic (plan §3b). */
+export const A1_WORD_RANGE = "400–700";
 export const A1_WORD_TARGET = 700;
 
 export function loadA1(): A1Progress {

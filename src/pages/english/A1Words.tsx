@@ -1,4 +1,5 @@
-// /english/a1/words — the 100 most frequent English words: listen, tick "I know it",
+// /english/a1/words — A1 vocabulary (about 400–700 words; no official CEFR count).
+// Step 1: the first 100, the most frequent. Listen, tick "I know it",
 // save to LinguaScript flashcards.
 import { useState } from "react";
 import { Link } from "react-router-dom";
@@ -8,7 +9,7 @@ import { Seo } from "@/components/Seo";
 import { MarketingLayout } from "@/components/marketing/MarketingLayout";
 import { useAuth } from "@/hooks/useAuth";
 import { TOP_100 } from "@/lib/english/a1/words";
-import { wordsKnown } from "@/lib/english/a1/progress";
+import { A1_WORD_RANGE, wordsKnown } from "@/lib/english/a1/progress";
 import { saveA1Word } from "@/lib/english/a1/saveWord";
 import { track } from "@/lib/analytics";
 import { A1Nav, Bar, SpeakButton, useA1Progress } from "./A1Shared";
@@ -40,17 +41,17 @@ export default function A1Words() {
 
   return (
     <>
-      <Seo title="The 100 most common English words (A1), with examples and audio"
-        description="Learn the 100 most frequent English words first: they make up about half of everyday English. Simple meanings, example sentences, audio and flashcards."
+      <Seo title="English A1 vocabulary: how many words you need, starting with the 100 most common"
+        description="English A1 usually means about 400–700 words. Start with the 100 most frequent: they make up about half of everyday English. Meanings, examples, audio and flashcards."
         path="/english/a1/words" />
-      <MarketingLayout eyebrow="English A1 · words" heading="The 100 most common English words"
-        intro={<>These 100 words make up <strong className="text-foreground">about half of everything you read and hear</strong> in English (<Link to="/frequent-words" className="text-primary hover:underline">why?</Link>). Learn them first. Tick the ones you know, and save the others to your flashcards.</>}
+      <MarketingLayout eyebrow="English A1 · words" heading="A1 words: start with the 100 most common"
+        intro={<>A1 learners usually know <strong className="text-foreground">about {A1_WORD_RANGE} words</strong>. There's no official number: the CEFR describes what you can <em>do</em>, not a word count, so courses and exams vary. The best place to start is these <strong className="text-foreground">100 most common words</strong>: they make up about half of everything you read and hear (<Link to="/frequent-words" className="text-primary hover:underline">why?</Link>). Tick the ones you know, and save the others to your flashcards.</>}
         cta={{ label: "Keep your flashcards free", to: "/auth?next=/english/a1/words" }}>
         <A1Nav />
         <div className="not-prose mb-6 space-y-2 rounded-2xl border border-border bg-card p-5">
-          <p className="font-bold text-foreground">You know {known} of 100</p>
+          <p className="font-bold text-foreground">You know {known} of these first 100</p>
           <Bar pct={known} />
-          <p className="text-xs text-muted-foreground">Saved on this device. The full A1 list (about 700 words in 15 topics) is coming next.</p>
+          <p className="text-xs text-muted-foreground">Step 1 of your A1 words (about {A1_WORD_RANGE} in total). Next: the rest, in 15 everyday topics (family, food, travel…). Saved on this device.</p>
         </div>
         <ol className="not-prose grid gap-2">
           {TOP_100.map((x, i) => {

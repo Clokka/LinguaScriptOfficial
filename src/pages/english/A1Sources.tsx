@@ -38,6 +38,7 @@ export default function A1Sources() {
         <ul className="list-disc space-y-2 pl-6">
           <li><strong className="text-foreground">Which topics:</strong> the grammar and skills follow the A1 level of the CEFR (Council of Europe). The list of topics is the same in every A1 course, because it comes from the CEFR.</li>
           <li><strong className="text-foreground">Our own words:</strong> every explanation, example sentence, common mistake and test question here is written by LinguaScript.</li>
+          <li><strong className="text-foreground">How many words is A1?</strong> The CEFR has <strong className="text-foreground">no official word count</strong>: it describes what you can do, not how many words you know. Courses and exams usually expect <strong className="text-foreground">about 400–700 words</strong> at A1. Research that tests which words learners recognise can find higher numbers (Milton, 2010), so treat any single number as a guide. Our "A1 ready %" uses 700.</li>
           <li><strong className="text-foreground">Most useful first:</strong> words are ordered by how often they're used (word frequency), so you learn the words you'll meet most.</li>
           <li><strong className="text-foreground">Honest about level:</strong> our practice test helps you learn. It is not an official exam. For an official certificate, see <Link to="/english/exams" className="text-primary hover:underline">exams and study abroad</Link>.</li>
         </ul>

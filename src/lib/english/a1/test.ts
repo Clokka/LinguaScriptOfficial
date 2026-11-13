@@ -37,5 +37,5 @@ export const A1_TEST: TestQuestion[] = [
 export function scoreBand(score: number): { label: string; advice: string } {
   if (score >= 17) return { label: "Ready for A1 🎉", advice: "You know most of A1. Start A2 soon, and keep watching real English videos." };
   if (score >= 12) return { label: "Almost A1", advice: "A few gaps. Study the units below, then take the test again." };
-  return { label: "Building up to A1", advice: "Great start! Work through the grammar units one by one and learn the 100 most common words." };
+  return { label: "Building up to A1", advice: "Great start! Work through the grammar units one by one and learn your A1 words, starting with the 100 most common." };
 }

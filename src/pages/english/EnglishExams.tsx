@@ -63,7 +63,7 @@ export default function EnglishExams() {
 
         <H2>Your path to studying abroad</H2>
         <ol className="list-decimal space-y-2 pl-6">
-          <li><strong className="text-foreground">A1:</strong> the <Link to="/english/a1" className="text-primary hover:underline">free A1 guide</Link>: grammar, the 100 key words and a practice test.</li>
+          <li><strong className="text-foreground">A1:</strong> the <Link to="/english/a1" className="text-primary hover:underline">free A1 guide</Link>: grammar, your first A1 words (about 400–700 in total) and a practice test.</li>
           <li><strong className="text-foreground">A2–B1:</strong> watch real English videos in LinguaScript; your known words turn green as you go.</li>
           <li><strong className="text-foreground">B2–C1:</strong> practise for the exam your university asks for, then book it.</li>
         </ol>

@@ -67,7 +67,7 @@ export default function A1Test() {
             )}
             <div className="mt-5 flex flex-wrap gap-2">
               <button type="button" onClick={restart} className="rounded-full border border-border px-5 py-2.5 text-sm font-semibold text-foreground">Take it again</button>
-              <Link to="/english/a1/words" className="rounded-full bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground">Learn the 100 key words →</Link>
+              <Link to="/english/a1/words" className="rounded-full bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground">Learn your A1 words →</Link>
             </div>
           </section>
         )}

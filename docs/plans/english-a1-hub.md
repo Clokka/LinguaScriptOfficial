@@ -60,7 +60,10 @@ Based on the CEFR A1 level ("can understand and use familiar everyday expression
 
 Each unit page: 1-minute explanation · 6–10 examples (ideally lines from LinguaScript films) · common mistakes (especially for French/Spanish/Thai speakers) · 8-question check → result feeds the A1 %.
 
-### 3b. Vocabulary (~700 words, 15 topics)
+### 3b. Vocabulary (about 400–700 words, 15 topics)
+
+The CEFR sets **no official word count**. Courses and exams usually expect about 400–700 words at A1 (research estimates vary: Milton, 2010). Say this plainly on every page, and never call 100 words "A1". "A1 ready %" uses 700.
+
 
 Numbers, time and dates · Family and people · Body and health · Food and drink · Home and furniture · Clothes and colours · Jobs · School and work · Town, places and directions · Transport and travel · Shopping and money · Weather and seasons · Free time, sport and hobbies · Feelings and adjectives · The 100 most frequent "small words" (the, and, it, to, of…) first.
 
