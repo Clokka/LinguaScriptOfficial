@@ -58,7 +58,14 @@ export type AnalyticsEvent =
   | "overlay_prompt_allowed"
   | "overlay_prompt_dismissed"
   | "page_scan_started"
-  | "page_scanned";
+  | "page_scanned"
+  | "teacher_group_created"
+  | "teacher_clip_created"
+  | "teacher_student_invited"
+  | "teacher_calendar_subscribed"
+  | "teacher_calendar_connected"
+  | "teacher_clip_added_to_lesson"
+  | "student_calendar_subscribed";
 
 type Props = Record<string, string | number | boolean | null | undefined>;
 

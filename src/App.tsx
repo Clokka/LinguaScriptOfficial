@@ -88,7 +88,14 @@ const CheckoutReturn = lazy(() => import("./pages/CheckoutReturn"));
 const Privacy = lazy(() => import("./pages/Privacy"));
 const PrivacyExtension = lazy(() => import("./pages/PrivacyExtension"));
 const Terms = lazy(() => import("./pages/Terms"));
-const Teacher = lazy(() => import("./pages/Teacher"));
+// LinguaScript Classroom (/teacher/*): one lazy chunk per page.
+const TeacherLayout = lazy(() => import("./pages/teacher/TeacherLayout"));
+const TeacherToday = lazy(() => import("./pages/teacher/TeacherToday"));
+const TeacherClips = lazy(() => import("./pages/teacher/TeacherClips"));
+const TeacherNewClip = lazy(() => import("./pages/teacher/TeacherNewClip"));
+const TeacherStudents = lazy(() => import("./pages/teacher/TeacherStudents"));
+const TeacherWords = lazy(() => import("./pages/teacher/TeacherWords"));
+const TeacherCalendar = lazy(() => import("./pages/teacher/TeacherCalendar"));
 const MyClasses = lazy(() => import("./pages/MyClasses"));
 const Schools = lazy(() => import("./pages/Schools"));
 const SchoolTour = lazy(() => import("./pages/SchoolTour"));
@@ -197,7 +204,15 @@ const App = () => (
                 <Route path="/explain" element={<Explain />} />
                 <Route path="/manual" element={<Manual />} />
                 <Route path="/landingpage5" element={<Landing5 />} />
-                <Route path="/teacher" element={<Teacher />} />
+                <Route path="/teacher" element={<TeacherLayout />}>
+                  <Route index element={<TeacherToday />} />
+                  <Route path="clips" element={<TeacherClips />} />
+                  <Route path="clips/new" element={<TeacherNewClip />} />
+                  <Route path="students" element={<TeacherStudents />} />
+                  <Route path="words" element={<TeacherWords />} />
+                  <Route path="calendar" element={<TeacherCalendar />} />
+                  <Route path="*" element={<Navigate to="/teacher" replace />} />
+                </Route>
                 <Route path="/classes" element={<MyClasses />} />
                 <Route path="/progress" element={<Progress />} />
                 <Route path="/gift" element={<GiftClaim />} />

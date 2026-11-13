@@ -120,6 +120,13 @@
       "when": 1793791081215,
       "tag": "0016_teacher_video_tasks_privacy",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1793791141215,
+      "tag": "0017_classroom_calendar",
+      "breakpoints": true
     }
   ]
 }
