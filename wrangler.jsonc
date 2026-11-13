@@ -1,0 +1,13 @@
+// Cloudflare Workers hosting for linguascript.co.uk (assets only, no server code).
+// Build: `npx vite build` → dist/. Deploy: `npx wrangler deploy`.
+// Backend stays on Lovable Cloud (Supabase); the site talks to it from any host.
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "linguascriptofficial",
+  "compatibility_date": "2026-11-13",
+  "assets": {
+    "directory": "./dist",
+    // Every app route (/teacher, /english/a1, …) gets index.html; React Router takes over.
+    "not_found_handling": "single-page-application"
+  }
+}

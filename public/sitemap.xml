@@ -76,6 +76,66 @@
     <priority>0.7</priority>
   </url>
   <url>
+    <loc>https://linguascript.co.uk/english/a1</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://linguascript.co.uk/english/a1/grammar</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://linguascript.co.uk/english/a1/grammar/be-am-is-are</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://linguascript.co.uk/english/a1/grammar/pronouns-possessives</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://linguascript.co.uk/english/a1/grammar/a-an-the</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://linguascript.co.uk/english/a1/grammar/plural-nouns</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://linguascript.co.uk/english/a1/grammar/this-that-these-those</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://linguascript.co.uk/english/a1/words</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://linguascript.co.uk/english/a1/test</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+<url>
+    <loc>https://linguascript.co.uk/english/a1/checklist</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://linguascript.co.uk/english/exams</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://linguascript.co.uk/english/a1/sources</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.4</priority>
+  </url>
+  <url>
     <loc>https://linguascript.co.uk/linguascripts</loc>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
