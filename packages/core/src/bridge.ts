@@ -70,6 +70,21 @@ export const LINKS = {
 /** Added to the WebView user agent, so the site knows it runs inside the app. */
 export const APP_USER_AGENT_TAG = "LinguaScriptApp";
 
+/**
+ * Which phone features the installed app has. The website is live and always new, but the app
+ * on someone's phone can be old — then the bubble / tile buttons did nothing at all. The app adds
+ * "LSNative/<level>" to its user agent; the site compares it with what a button needs.
+ *   3 = 🦎 bubble, quick-settings tile, widgets, gold lock-screen word, YouTube subtitle taps.
+ * Raise it (and the site's checks) whenever new native code is added.
+ */
+export const APP_NATIVE_LEVEL = 3;
+
+/** The native level of the app this page runs in (0 = an old app, or not in the app). */
+export function appNativeLevel(userAgent: string): number {
+  const m = /LSNative\/(\d+)/.exec(userAgent || "");
+  return m ? Number(m[1]) : 0;
+}
+
 /** Parse a WebView message safely; null when it isn't one of ours. */
 export function parseSiteMessage(raw: string): SiteToAppMessage | null {
   try {

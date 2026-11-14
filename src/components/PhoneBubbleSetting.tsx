@@ -3,7 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { track } from "@/lib/analytics";
-import type { SiteToAppMessage } from "@linguascript/core/bridge";
+import { APP_NATIVE_LEVEL, appNativeLevel, type SiteToAppMessage } from "@linguascript/core/bridge";
 
 /**
  * "🦎 Colour words on my phone" — the Android bubble (mobile/plugins/withWordBubble.js).
@@ -24,6 +24,22 @@ export function PhoneBubbleSetting() {
   const [subtitles, setSubtitles] = useState(false);
   // No subtitles in the video? Read Live Caption / on-screen caption boxes too.
   const [anywhere, setAnywhere] = useState(false);
+  // This page is always the newest, but the app on the phone can be old. An old app has none of
+  // the phone code, so its buttons did nothing. Say so instead (LSNative level, bridge.ts).
+  const nativeLevel = typeof navigator !== "undefined" ? appNativeLevel(navigator.userAgent) : 0;
+  const appVersion = typeof navigator !== "undefined" ? /LinguaScriptApp\/([\w.]+)/.exec(navigator.userAgent)?.[1] : undefined;
+  const [linkFailed, setLinkFailed] = useState(false);
+  const appTooOld = nativeLevel < APP_NATIVE_LEVEL || linkFailed;
+
+  // A newer app tells us when a phone button's link failed (mobile/app/index.tsx).
+  useEffect(() => {
+    const onFail = (e: Event) => {
+      setLinkFailed(true);
+      track("phone_link_failed", { url: (e as CustomEvent).detail?.url, error: (e as CustomEvent).detail?.error });
+    };
+    window.addEventListener("ls:app-link-failed", onFail);
+    return () => window.removeEventListener("ls:app-link-failed", onFail);
+  }, []);
 
   useEffect(() => {
     try {
@@ -63,6 +79,16 @@ export function PhoneBubbleSetting() {
 
   return (
     <section className="rounded-2xl border border-border bg-card p-4 space-y-3">
+      {appTooOld && (
+        <div role="alert" className="rounded-xl border border-amber-500/50 bg-amber-500/10 p-3 text-sm">
+          <p className="font-semibold">Update the LinguaScript app to use these</p>
+          <p className="text-muted-foreground">
+            The app on this phone is older than this page, so these buttons can't reach it yet.
+            Install the newest version. If your old app came from the Play Store and the new APK
+            says “App not installed”, uninstall the old app first, then install the new one.
+          </p>
+        </div>
+      )}
       {/* 🎬 Tap a subtitle word in the YouTube app — no bubble (SubtitleTapService.kt). */}
       <div className="flex items-center gap-3">
         <span className="text-2xl" aria-hidden>🎬</span>
@@ -203,6 +229,9 @@ export function PhoneBubbleSetting() {
       <p className="text-xs text-muted-foreground border-t border-border pt-3">
         Tip: swipe down from the top of your phone, tap ✏️ (edit) and drag the <b>LinguaScript</b> tile next to the torch — one tap turns the 🦎 bubble on or off. To hide the bubble, drag it onto the ✕ at the bottom.
         <br />Highlight a word in any app → <b>Save to LinguaScript</b>. On Samsung, tap <b>Manage apps</b> in that menu once and switch LinguaScript on.
+      </p>
+      <p className="text-[11px] text-muted-foreground/70">
+        App version {appVersion ?? "unknown"} · phone features {nativeLevel}/{APP_NATIVE_LEVEL}
       </p>
     </section>
   );
