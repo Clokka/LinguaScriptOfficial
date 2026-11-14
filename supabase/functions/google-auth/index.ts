@@ -11,8 +11,14 @@ const GOOGLE_CLIENT_ID =
   "83696703346-d088shcldb678oec73jmh3o5lqjru132.apps.googleusercontent.com";
 
 // Verify a Google ID token using Google's public JWKS
+async function sha256Hex(text: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 async function verifyGoogleToken(
-  idToken: string
+  idToken: string,
+  rawNonce?: string,
 ): Promise<{ email: string; name?: string; sub: string } | null> {
   try {
     // Fetch Google's public keys
@@ -44,6 +50,23 @@ async function verifyGoogleToken(
     if (payload.exp < Math.floor(Date.now() / 1000)) {
       console.error("Token expired");
       return null;
+    }
+    // Only trust the email if Google has verified it. Without this, a Google
+    // account made with someone else's (unverified) address could sign in as them.
+    if (payload.email_verified !== true && payload.email_verified !== "true") {
+      console.error("Email not verified by Google");
+      return null;
+    }
+    if (typeof payload.email !== "string" || !payload.email.includes("@")) {
+      console.error("Token has no email");
+      return null;
+    }
+    // Replay protection: the browser sends the raw nonce, Google signed its SHA-256.
+    if (rawNonce !== undefined) {
+      if (!payload.nonce || payload.nonce !== (await sha256Hex(rawNonce))) {
+        console.error("Nonce mismatch");
+        return null;
+      }
     }
 
     // Find the matching key
@@ -81,7 +104,7 @@ async function verifyGoogleToken(
     }
 
     return {
-      email: payload.email,
+      email: String(payload.email).toLowerCase(),
       name: payload.name,
       sub: payload.sub,
     };
@@ -97,7 +120,7 @@ serve(async (req) => {
   }
 
   try {
-    const { id_token } = await req.json();
+    const { id_token, nonce } = await req.json();
     if (!id_token) {
       return new Response(
         JSON.stringify({ error: "id_token is required" }),
@@ -106,7 +129,7 @@ serve(async (req) => {
     }
 
     // Verify the Google token
-    const googleUser = await verifyGoogleToken(id_token);
+    const googleUser = await verifyGoogleToken(id_token, typeof nonce === "string" ? nonce : undefined);
     if (!googleUser) {
       return new Response(
         JSON.stringify({ error: "Invalid Google token" }),
@@ -123,27 +146,22 @@ serve(async (req) => {
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
 
-    // Check if user already exists
-    const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
-    const existingUser = existingUsers?.users?.find((u) => u.email === email);
-
-    if (!existingUser) {
-      // Create new user
-      const { error: createError } = await supabaseAdmin.auth.admin.createUser({
-        email,
-        email_confirm: true,
-        user_metadata: {
-          display_name: name ?? email.split("@")[0],
-          full_name: name,
-        },
-      });
-      if (createError) {
-        console.error("Create user error:", createError);
-        return new Response(
-          JSON.stringify({ error: createError.message }),
-          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
+    // Create the account if it doesn't exist yet. (The old version searched
+    // listUsers(), which only returns the first page of users.)
+    const { error: createError } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      email_confirm: true,
+      user_metadata: {
+        display_name: name ?? email.split("@")[0],
+        full_name: name,
+      },
+    });
+    if (createError && !/already|registered|exists/i.test(createError.message)) {
+      console.error("Create user error:", createError);
+      return new Response(
+        JSON.stringify({ error: "Could not create your account" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     // Generate a magic link to get a token_hash the client can use
@@ -171,7 +189,7 @@ serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ token_hash: tokenHash, email }),
+      JSON.stringify({ token_hash: tokenHash, email, v: 2 }), // v2 = checks email_verified + nonce
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (e) {
