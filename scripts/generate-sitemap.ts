@@ -40,6 +40,13 @@ const staticEntries: SitemapEntry[] = [
   { path: "/english/a1/checklist", changefreq: "monthly", priority: "0.7" },
   { path: "/english/exams", changefreq: "monthly", priority: "0.7" },
   { path: "/english/a1/sources", changefreq: "yearly", priority: "0.4" },
+  // Most common words (static pages from scripts/word-pages.mjs — keep in sync with its LANGS).
+  { path: "/words", changefreq: "monthly", priority: "0.8" },
+  ...["spanish", "french", "german", "italian", "portuguese", "english"].flatMap((l): SitemapEntry[] => [
+    { path: `/words/${l}`, changefreq: "monthly", priority: "0.8" },
+    { path: `/words/${l}/top-1000`, changefreq: "monthly", priority: "0.7" },
+    { path: `/words/${l}/top-3000`, changefreq: "monthly", priority: "0.6" },
+  ]),
   { path: "/linguascripts", changefreq: "monthly", priority: "0.6" },
   { path: "/privacy", changefreq: "yearly", priority: "0.3" },
   { path: "/terms", changefreq: "yearly", priority: "0.3" },
