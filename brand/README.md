@@ -20,18 +20,19 @@ the Netflix overlay, and the YouTube overlay.
 
 | Deck | Meaning | Hex | Where it's defined |
 |------|---------|-----|--------------------|
-| 🔴 **Red** | Unknown / newly saved | `#FF3B30` | `DECK_CONFIG` (Flashcards.tsx), `DECK_COLORS` (SubtitleOverlay.tsx), `.ls-red` (extension) |
+| 🔴 **Red** | Unknown / newly saved | `#FF3B30` | `DECK` (src/lib/deck-colors.ts), `DECK_COLORS` (SubtitleOverlay.tsx), `Deck.PALETTE.red` (extension/ls-core.js) |
 | 🟠 **Orange** | Learning | `#FF8A00` | same three |
 | 🟢 **Green** | Known / acquired | `#34C759` | same three |
+| ✨ **Gold** | Green, review due (not a deck — a *moment*) | `#FFD54A` | `Deck.PALETTE.gold` (extension/ls-core.js); see AGENTS.md's review-ladder entry |
 
 **Mapping is 1:1:** red deck → red word, orange → orange, green → green.
-No shifting, on any surface.
+No shifting, on any surface. Gold is layered on top of green at review time —
+it is never a word's resting colour.
 
-**Rule:** these three hexes are the source of truth. If you change one, update
-all of:
-- `src/pages/Flashcards.tsx` → `DECK_CONFIG`
+**Rule:** these hexes are the source of truth. If you change one, update all of:
+- `src/lib/deck-colors.ts` → `DECK`
 - `src/components/SubtitleOverlay.tsx` → `DECK_COLORS`
-- `extension/content.js` and `extension/youtube-content.js` → `.ls-red/.ls-orange/.ls-green`
+- `extension/ls-core.js` → `Deck.PALETTE` (shared by both `extension/adapters/netflix.js` and `extension/adapters/youtube.js`)
 
 (There is a grep-based check for drift in the colour verification prompt.)
 
@@ -101,9 +102,43 @@ brand/
 
 | Surface | File |
 |---------|------|
-| Flashcard decks | `src/pages/Flashcards.tsx` (`DECK_CONFIG`) |
+| Canonical deck colours | `src/lib/deck-colors.ts` (`DECK`) |
 | Website subtitle overlay | `src/components/SubtitleOverlay.tsx` (`DECK_COLORS`) |
-| Netflix word colours | `extension/content.js` (`.ls-red/.ls-orange/.ls-green`) |
-| YouTube word colours | `extension/youtube-content.js` (same) |
-| Pet rendering | `src/components/pets/PetViewer.tsx`, `PetCelebration.tsx` |
-| Landing mascot | `src/components/LandingChameleonDemo.tsx` (`/mascot/chameleon.png`) |
+| Extension word colours (Netflix + YouTube) | `extension/ls-core.js` (`Deck.PALETTE`), used by `extension/adapters/netflix.js` and `extension/adapters/youtube.js` |
+| Extension review-ladder check | `extension/background.js` (`deckState()`), checked against `packages/core/src/review.ts` by `npm run test:review` |
+| Pet rendering | `src/components/pets/PetViewer.tsx`, `PetLive.tsx`, `PetCelebration.tsx` |
+| Chameleon mascot (2D, SVG) | `src/components/ChameleonMascot.tsx`, `public/logo.svg` / `favicon.svg` |
+| Chameleon in 3D | `src/components/landing/Chameleon3D.tsx` (hue-rotates the rigged `/pets/Chameleon_Animations.glb` model — see §3) |
+| Landing mascot demo | `src/components/LandingChameleonDemo.tsx` (`/mascot/chameleon.png`) |
+
+---
+
+## 6. The blue chameleon — 100% known
+
+A fourth tier beyond green, not a fourth deck: a green word the learner got
+right at its own 30-day review (`isBlue()` in `packages/core/src/review.ts` —
+`state === "green"` and `interval_days` has climbed past the ladder's last
+rung). The review ladder itself keeps going after this; blue only changes
+how the word is *shown*, and it drops out of the phone's gold reviews
+(widgets, lock screen) once it's blue.
+
+| Part | Hex | Notes |
+|------|-----|-------|
+| Skin | `#2F7BFF` | |
+| Skin (dark/shade) | `#1F5FD6` | also the tail stroke and the skin-spot colour (45% alpha) |
+| Belly | `#C7DBFF` | |
+| Ridge | `#163F99` | |
+
+**What's different about this mascot, not just a recolour:** it has skin
+spots (four small translucent dots) that the red/orange/green mascot never
+has — see `ls_cham_blue.xml`. That's deliberate: 100% known should read as a
+distinct milestone, not just "another colour in the ladder."
+
+**Where it exists today:** Android only —
+`mobile/plugins/word-bubble/res/drawable/ls_cham_blue.xml` (the home-screen
+widget, `DeckWidget`). **Where it does NOT exist yet:** the website's
+`ChameleonMascot.tsx` (tiers are still only `red | orange | green`), `DECK`
+in `src/lib/deck-colors.ts`, and the extension's `Deck.PALETTE` in
+`extension/ls-core.js`. If blue is meant to show up on web or in the
+extension too, that's real, scoped follow-up work — not a mystery, just not
+built yet.
