@@ -1,0 +1,1 @@
+-- Use the provided, idempotent classroom setup after validating dependencies and the existing migration state.

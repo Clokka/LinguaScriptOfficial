@@ -127,6 +127,20 @@
       "when": 1793791141215,
       "tag": "0017_classroom_calendar",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1794647928478,
+      "tag": "0018_verify_classroom_setup",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1794648007556,
+      "tag": "0019_classroom_setup",
+      "breakpoints": true
     }
   ]
 }
