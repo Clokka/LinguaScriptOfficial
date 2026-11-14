@@ -61,6 +61,12 @@ export default function FrequentWords() {
           words are rare.
         </p>
 
+        <p>
+          See it for yourself: free lists of the{" "}
+          <a href="/words" className="text-primary underline">most common words</a> in Spanish, French,
+          German, Italian, Portuguese and English, each with its real share of film and TV speech.
+        </p>
+
         <H2>How many words do you need?</H2>
         <div className="not-prose overflow-hidden rounded-2xl border border-border">
           <table className="w-full text-left text-sm">
