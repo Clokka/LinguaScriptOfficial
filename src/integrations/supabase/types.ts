@@ -14,84 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      calendar_feed_tokens: {
-        Row: {
-          created_at: string
-          token: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          token: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          token?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      google_calendar_connections: {
-        Row: {
-          access_token: string
-          created_at: string
-          expires_at: string
-          refresh_token: string | null
-          scope: string | null
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          access_token: string
-          created_at?: string
-          expires_at: string
-          refresh_token?: string | null
-          scope?: string | null
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          access_token?: string
-          created_at?: string
-          expires_at?: string
-          refresh_token?: string | null
-          scope?: string | null
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      class_assignments: {
-        Row: {
-          created_at: string
-          created_by: string
-          due_at: string | null
-          film_id: string
-          id: string
-          note: string | null
-          school_id: string
-        }
-        Insert: {
-          created_at?: string
-          created_by: string
-          due_at?: string | null
-          film_id: string
-          id?: string
-          note?: string | null
-          school_id: string
-        }
-        Update: {
-          created_at?: string
-          created_by?: string
-          due_at?: string | null
-          film_id?: string
-          id?: string
-          note?: string | null
-          school_id?: string
-        }
-        Relationships: []
-      }
       activity_log: {
         Row: {
           created_at: string
@@ -2625,50 +2547,6 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      class_assignment_progress: {
-        Args: { _school_id: string }
-        Returns: {
-          assignment_id: string
-          green_pct: number | null
-          last_watched_at: string | null
-          user_id: string
-          watch_count: number | null
-          watched_pct: number | null
-        }[]
-      }
-      create_class_assignment: {
-        Args: {
-          _due_at: string | null
-          _film_id: string
-          _note: string | null
-          _school_id: string
-        }
-        Returns: string
-      }
-      delete_class_assignment: {
-        Args: { _assignment_id: string }
-        Returns: undefined
-      }
-      forget_video: {
-        Args: { _film_id: string | null; _video_id: string | null }
-        Returns: undefined
-      }
-      leave_school: { Args: { _school_id: string }; Returns: undefined }
-      my_calendar_feed_token: { Args: { _reset?: boolean }; Returns: string }
-      my_class_tasks: {
-        Args: never
-        Returns: {
-          assignment_id: string
-          created_at: string
-          due_at: string | null
-          film_id: string
-          note: string | null
-          school_id: string
-          school_name: string
-          thumbnail_url: string | null
-          title: string
-        }[]
-      }
       accept_friend_request: { Args: { _other: string }; Returns: boolean }
       accept_school_invite: { Args: { _token: string }; Returns: string }
       add_friend_by_code: { Args: { _code: string }; Returns: string }
@@ -2973,6 +2851,20 @@ export type Database = {
       }
       is_site_team: { Args: { _uid: string }; Returns: boolean }
       keep_streak: { Args: never; Returns: Json }
+      list_school_students: {
+        Args: { _school_id: string }
+        Returns: {
+          display_name: string
+          email: string
+          joined_at: string
+          minutes_watched: number
+          streak_count: number
+          user_id: string
+          words_known: number
+          xp_level: number
+          xp_total: number
+        }[]
+      }
       local_midnight: { Args: { _uid: string }; Returns: string }
       local_today: { Args: { _uid: string }; Returns: string }
       move_to_dlq: {
@@ -3073,11 +2965,15 @@ export type Database = {
           display_name: string
           email: string
           joined_at: string
-          last_task_activity: string | null
-          tasks_done: number
-          tasks_set: number
-          tasks_started: number
+          last_active_at: string
+          learning_language: string
+          minutes_this_week: number
+          minutes_total: number
+          reviews_this_week: number
+          streak_count: number
           user_id: string
+          words_learned: number
+          words_this_week: number
         }[]
       }
       seed_known_vocabulary:
