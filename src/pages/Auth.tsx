@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { track } from "@/lib/analytics";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useT } from "@/i18n";
 import { UiLanguageSwitcher } from "@/components/UiLanguageSwitcher";
 import { applyGuestOnboarding } from "@/lib/guestOnboarding";
+import { GOOGLE_WEB_CLIENT_ID, canUseGoogleButton, loadGoogleScript, makeNonce, signInWithGoogleCredential } from "@/lib/googleSignIn";
 
 function GoogleIcon() {
   return (
@@ -109,6 +110,62 @@ const Auth = () => {
     else toast({ title: "Joined your school", description: "Welcome to the class!" });
   };
 
+  // After any sign-in that stays on this page (password, Google button):
+  // join the class from an invite, then onboarding for new learners.
+  const finishSignIn = async () => {
+    await acceptInviteIfAny();
+    // Returning learners go straight in — never back through onboarding.
+    const { data: u } = await supabase.auth.getUser();
+    const { data: prof } = await supabase.from("profiles")
+      .select("onboarded, cef_level").eq("user_id", u.user?.id ?? "").maybeSingle();
+    const done = Boolean((prof as any)?.onboarded || (prof as any)?.cef_level)
+      || (!!u.user && await applyGuestOnboarding(u.user.id));
+    if (done) { try { localStorage.removeItem("ls.onboardingState.v1"); } catch { /* ignore */ } }
+    navigate(done ? next : "/onboarding", { replace: true });
+  };
+
+  // Google's own button (src/lib/googleSignIn.ts): Google shows linguascript.co.uk,
+  // not the Supabase address. "off" = not allowed here or failed → old button.
+  const [gis, setGis] = useState<"loading" | "ready" | "off">(() => (canUseGoogleButton() ? "loading" : "off"));
+  const gisRef = useRef<HTMLDivElement>(null);
+  const nonceRef = useRef("");
+  useEffect(() => {
+    if (gis !== "loading") return;
+    let alive = true;
+    const setup = async () => {
+      const google = await loadGoogleScript();
+      const nonce = await makeNonce();
+      if (!alive || !gisRef.current) return;
+      nonceRef.current = nonce.raw;
+      google.accounts.id.initialize({
+        client_id: GOOGLE_WEB_CLIENT_ID,
+        nonce: nonce.hashed,
+        ux_mode: "popup",
+        use_fedcm_for_button: true,
+        itp_support: true,
+        callback: async ({ credential }: { credential?: string }) => {
+          if (!credential) return;
+          setGoogleLoading(true);
+          track("signup_started", { method: "google_button", mode: isLogin ? "login" : "signup" });
+          try {
+            await signInWithGoogleCredential(credential, nonceRef.current);
+            await finishSignIn();
+          } catch (e) {
+            toast({ title: "Google sign-in failed", description: e instanceof Error ? e.message : "Please try again", variant: "destructive" });
+            setGoogleLoading(false);
+            setGis("loading"); // fresh nonce for the next try
+          }
+        },
+      });
+      const width = Math.max(220, Math.min(400, Math.round(gisRef.current.getBoundingClientRect().width)));
+      google.accounts.id.renderButton(gisRef.current, { type: "standard", theme: "outline", size: "large", text: "continue_with", shape: "rectangular", width });
+      setGis("ready");
+    };
+    setup().catch(() => { if (alive) setGis("off"); });
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gis]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -117,15 +174,7 @@ const Auth = () => {
       if (error) {
         toast({ title: "Login failed", description: authErrorMessage(error), variant: "destructive" });
       } else {
-        await acceptInviteIfAny();
-        // Returning learners go straight in — never back through onboarding.
-        const { data: u } = await supabase.auth.getUser();
-        const { data: prof } = await supabase.from("profiles")
-          .select("onboarded, cef_level").eq("user_id", u.user?.id ?? "").maybeSingle();
-        const done = Boolean((prof as any)?.onboarded || (prof as any)?.cef_level)
-          || (!!u.user && await applyGuestOnboarding(u.user.id));
-        if (done) { try { localStorage.removeItem("ls.onboardingState.v1"); } catch { /* ignore */ } }
-        navigate(done ? next : "/onboarding", { replace: true });
+        await finishSignIn();
       }
     } else {
       track("signup_started", { method: "email", mode: "signup" });
@@ -204,20 +253,31 @@ const Auth = () => {
         ) : (
           <div className="glass-panel-strong p-8 space-y-4">
 
-            {/* Google Sign-In */}
-            <div className="relative w-full min-h-[44px]">
-              <Button
-                type="button"
-                variant="outline"
-                size="lg"
-                className="w-full bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
-                onClick={handleGoogleFallback}
-                disabled={googleLoading}
-              >
-                <GoogleIcon />
-                {googleLoading ? t("signingIn") : t("google")}
-              </Button>
-            </div>
+            {/* Google Sign-In: Google's own button where allowed, else the redirect button */}
+            {gis !== "off" && (
+              <div className="w-full space-y-2">
+                <div ref={gisRef} aria-busy={gis === "loading"} className={`flex min-h-[44px] w-full justify-center ${googleLoading ? "pointer-events-none opacity-60" : ""}`} />
+                {googleLoading && <p className="text-center text-xs text-muted-foreground">{t("signingIn")}</p>}
+                <button type="button" onClick={handleGoogleFallback} className="block w-full text-center text-xs text-muted-foreground underline-offset-2 hover:underline">
+                  Trouble with Google? Try the other way
+                </button>
+              </div>
+            )}
+            {gis === "off" && (
+              <div className="relative w-full min-h-[44px]">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="lg"
+                  className="w-full bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                  onClick={handleGoogleFallback}
+                  disabled={googleLoading}
+                >
+                  <GoogleIcon />
+                  {googleLoading ? t("signingIn") : t("google")}
+                </Button>
+              </div>
+            )}
 
 
             <div className="flex items-center gap-3">
