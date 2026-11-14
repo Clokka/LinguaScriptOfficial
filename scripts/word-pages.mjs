@@ -16,6 +16,14 @@ export const LANGS = [
   { code: "pt", file: "pt_br", slug: "portuguese", name: "Portuguese", voice: "pt-BR", note: "Brazilian Portuguese" },
   { code: "en", file: "en", slug: "english", name: "English", voice: "en-GB" },
 ];
+const TIPS = {
+  es: "Spanish has two verbs for “to be”: es/está, soy/estoy and son/están are all near the top. Learn which goes with which (ser for what something is, estar for how or where it is) and a big part of the list clicks at once.",
+  fr: "Many of the top French words are tiny elided forms: c', j', l', d', qu'. They join the next word (c'est, j'ai, l'ami), so practise them in short phrases rather than alone.",
+  de: "German articles change with the role in the sentence: der, die, das, den, dem all sit in the top 100. Learn each noun with its article and these forms stop being confusing.",
+  it: "Italian films drop accents in subtitles (perche for perché, piu for più), so you'll see both. Elided words like l', c' and un' join the next word, so read them as part of a phrase.",
+  pt: "This is Brazilian Portuguese: você (you) is far more common than tu, and short words like que, não and é carry a huge share of every conversation.",
+  en: "English is full of contractions: don't, didn't, I'm, it's. Subtitles split them, so “don” and “didn” on this list really mean do not and did not. Learn the full forms together.",
+};
 const SIZES = [100, 1000, 3000];
 export const wordPagePaths = () => ["/words", ...LANGS.flatMap((l) => SIZES.map((n) => pagePath(l, n)))];
 const pagePath = (l, n) => (n === 100 ? `/words/${l.slug}` : `/words/${l.slug}/top-${n}`);
@@ -69,6 +77,8 @@ td.m{color:var(--muted);font-size:15px}td.a{width:120px;text-align:right;white-s
 .langs b{display:block;font-size:18px;margin-bottom:4px}.langs small{color:var(--muted);font-size:14px}
 details{border-bottom:1px solid var(--line);padding:14px 0}summary{cursor:pointer;font-weight:700}details p{color:var(--muted);margin:10px 0 0}
 .method{font-size:14px;color:var(--faint)}
+.answer{font-size:16px;background:var(--card);border-left:3px solid var(--green);border-radius:12px;padding:14px 16px;margin:0 0 10px}.updated{font-size:13px;color:var(--faint);margin:0 0 18px}
+.need{max-width:460px;margin-bottom:8px}.need td strong{color:var(--green)}.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 footer{border-top:1px solid var(--line);margin-top:48px;padding:26px 0 40px;color:var(--faint);font-size:14px}footer a{color:var(--muted)}
 @media (max-width:560px){thead{display:none}tr[data-w]{display:grid;grid-template-columns:30px 1fr auto;align-items:center;column-gap:10px;row-gap:2px;padding:10px 0;border-bottom:1px solid var(--line)}tr[data-w] td{border:0;padding:0}td.r{grid-row:1/span 2;width:auto}td.m{grid-column:2;grid-row:2;font-size:14px}td.a{grid-column:3;grid-row:1/span 2;width:auto}.know{padding:0 10px}.bar{grid-template-columns:86px 1fr 50px}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
@@ -91,10 +101,17 @@ function langPage(l, data, n, cfg) {
   const cov = data.coverage[n];
   const url = pagePath(l, n);
   const label = l.note || l.name;
-  const title = `The ${fmt(n)} Most Common ${l.name} Words (${cov}% of real speech) | LinguaScript`;
-  const desc = `Learn the ${fmt(n)} most common ${label} words first: together they are ${cov}% of everything said in ${l.name} films and TV. Free list with ${l.code === "en" ? "simple definitions" : "English meanings"}, audio and progress.`;
+  // Titles ≤ 60 and descriptions ≤ 155 characters so Google shows them whole.
+  const title = n === 100 ? `100 Most Common ${l.name} Words (Free List + Audio)`
+    : n === 1000 ? `1,000 Most Common ${l.name} Words: Free Frequency List`
+    : `3,000 Most Common ${l.name} Words: Full Frequency List`;
+  const desc = `The ${fmt(n)} most common ${l.name} words cover ${cov}% of real speech. Free list with ${l.code === "en" ? "definitions" : "English meanings"}, audio and a CSV for Anki.`;
+  const csvPath = `${pagePath(l, n)}.csv`;
+  const top3 = data.words.slice(0, 3);
+  const q = (x) => `<strong lang="${l.code}" translate="no">${esc(x.w)}</strong>${x.m ? ` (“${esc(x.m.split(/[;,]/)[0].trim())}”)` : ""}`;
+  const need = data.needFor || {};
   const faqs = [
-    [`How many ${l.name} words do I need?`, `The top 100 ${l.name} words already make up ${data.coverage[100]}% of what people say in films and TV, the top 1,000 make up ${data.coverage[1000]}%, and the top 3,000 make up ${data.coverage[3000]}%. To follow a film comfortably you need about 95% of the words, which takes a few thousand. That's why learning the most common words first is the fastest start.`],
+    [`How many ${l.name} words do I need?`, `The top 100 ${l.name} words already make up ${data.coverage[100]}% of what people say in films and TV, the top 1,000 make up ${data.coverage[1000]}%, and the top 3,000 make up ${data.coverage[3000]}%. About ${fmt(need[80] || 0)} words cover 80% and about ${fmt(need[90] || 0)} cover 90%. To follow a film comfortably you need about 95% of the words. That's why learning the most common words first is the fastest start.`],
     ["Are these words or word forms?", `They are word forms exactly as they appear in subtitles, so “${data.words[0].w}” and similar forms are counted separately. That keeps the list true to real speech; your real coverage of dictionary words is a little higher.`],
     ["Where does this list come from?", "From OpenSubtitles 2018 (millions of lines of film and TV subtitles) via the FrequencyWords project, shared under CC BY-SA 4.0. We removed abbreviations and broken fragments, and every percentage on this page is calculated from the word counts."],
   ];
@@ -106,6 +123,11 @@ function langPage(l, data, n, cfg) {
     ] },
     { "@context": "https://schema.org", "@type": "ItemList", name: `${fmt(n)} most common ${l.name} words`, numberOfItems: n,
       itemListElement: words.slice(0, 100).map((x) => ({ "@type": "ListItem", position: x.r, name: x.w })) },
+    { "@context": "https://schema.org", "@type": "Dataset", name: `${fmt(n)} most common ${label} words`,
+      description: `Frequency list of the ${fmt(n)} most common ${label} words from film and TV subtitles, with coverage and ${l.code === "en" ? "definitions" : "English meanings"}.`,
+      url: `${SITE}${url}`, license: "https://creativecommons.org/licenses/by-sa/4.0/", isAccessibleForFree: true,
+      creator: { "@type": "Organization", name: "LinguaScript", url: SITE }, isBasedOn: data.sourceUrl, dateModified: data.builtAt,
+      inLanguage: l.code, distribution: [{ "@type": "DataDownload", encodingFormat: "text/csv", contentUrl: `${SITE}${csvPath}` }] },
     { "@context": "https://schema.org", "@type": "FAQPage", mainEntity: faqs.map(([q, a]) => ({ "@type": "Question", name: q, acceptedAnswer: { "@type": "Answer", text: a } })) },
   ];
   const rows = words.map((x) => `<tr id="w${x.r}" data-w="${esc(x.w)}"><td class="r">${x.r}</td><td><span class="w" lang="${l.code}" translate="no">${esc(x.w)}</span></td><td class="m">${esc(x.m || "")}</td><td class="a"></td></tr>${x.r === 20 ? `<tr class="ctarow"><td colspan="4">${cta(l)}</td></tr>` : ""}`).join("");
@@ -116,12 +138,18 @@ function langPage(l, data, n, cfg) {
 <div class="chams">${chameleon("red", 54, "New word")}${chameleon("orange", 54, "Learning")}${chameleon("green", 54, "Known")}${chameleon("gold", 54, "Review due")}${chameleon("blue", 54, "100% known")}</div>
 <h1>The ${fmt(n)} most common ${esc(l.name)} words</h1>
 <p class="lead">These ${fmt(n)} words are <strong>${cov}% of everything said in ${esc(l.name)} films and TV</strong>. Learn them first and real ${esc(l.name)} opens up months sooner.${l.note ? ` This list is <strong>${esc(l.note)}</strong>.` : ""}</p>
+<p class="answer">The most common ${esc(l.name)} word is ${q(top3[0])}, followed by ${q(top3[1])} and ${q(top3[2])}. Just ${fmt(need[50] || 0)} words make up half of everything people say, and the top ${fmt(n)} cover ${cov}%.</p>
+<p class="updated">Updated ${esc(data.builtAt)} · <a href="${csvPath}" download>Download CSV (works with Anki)</a></p>
 <section class="card" aria-label="How much these words cover"><div class="big">${cov}%</div><div style="color:var(--muted);font-size:14px">of real ${esc(l.name)} speech, from just ${fmt(n)} words</div><div class="bars">${bars}</div>
 <p style="margin:14px 0 0;font-size:14px;color:var(--muted)">Why so few words go so far: <a href="/frequent-words">Zipf's law, explained</a>.</p></section>
+<h2>How many ${esc(l.name)} words do you need?</h2>
+<table class="need"><caption class="sr">Words needed for each share of real ${esc(l.name)} speech</caption><thead><tr><th>To understand</th><th>You need about</th></tr></thead><tbody>${[50, 75, 80, 90].filter((g) => need[g]).map((g) => `<tr><td>${g}% of words you hear</td><td><strong>${fmt(need[g])}</strong> words</td></tr>`).join("")}</tbody></table>
+<p style="color:var(--muted);font-size:15px">After the first few hundred words, each new word adds a little less. That's why the order matters: start at the top of this list.</p>
+<h2>Tip for ${esc(l.name)} learners</h2><p style="color:var(--muted)">${esc(TIPS[l.code] || "")}</p>
 <h2>Turn the list green</h2>
 <div class="card you"><span id="youCham">${chameleon("red", 58)}</span><div><div class="count"><span id="known">0</span> of ${fmt(n)} known</div><div style="font-size:14px;color:var(--muted)">Tap “I know it” on words you know. Red words are new; known words turn green. Saved on this device.</div></div><div class="ptrack" aria-hidden="true"><div class="pfill" id="pfill"></div></div></div>
 <h2>The list</h2>${jump}
-<table><thead><tr><th>#</th><th>Word</th><th>${l.code === "en" ? "Meaning" : "In English"}</th><th></th></tr></thead><tbody>${rows}</tbody></table>
+<table><caption class="sr">The ${fmt(n)} most common ${esc(l.name)} words with ${l.code === "en" ? "meanings" : "English meanings"}</caption><thead><tr><th>#</th><th>Word</th><th>${l.code === "en" ? "Meaning" : "In English"}</th><th></th></tr></thead><tbody>${rows}</tbody></table>
 ${cta(l)}
 <h2>Questions</h2>${faqs.map(([q, a]) => `<details><summary>${esc(q)}</summary><p>${esc(a)}</p></details>`).join("")}
 <h2>More word lists</h2><div class="langs">${LANGS.filter((x) => x.code !== l.code).map((x) => `<a href="${pagePath(x, 100)}"><b>${esc(x.name)}</b><small>Top 100 · 1,000 · 3,000</small></a>`).join("")}</div>
@@ -155,8 +183,8 @@ fetch(${JSON.stringify(cfg.supabaseUrl)}+"/rest/v1/word_dictionary?select=word,t
 }
 
 function hubPage(all) {
-  const title = "The Most Common Words in 6 Languages (free lists) | LinguaScript";
-  const desc = "Free lists of the 100, 1,000 and 3,000 most common words in Spanish, French, German, Italian, Portuguese and English, measured from real films and TV. With meanings, audio and progress.";
+  const title = "Most Common Words in 6 Languages: Free Frequency Lists";
+  const desc = "Free lists of the 100, 1,000 and 3,000 most common Spanish, French, German, Italian, Portuguese and English words, from real films and TV.";
   const jsonLd = [{ "@context": "https://schema.org", "@type": "ItemList", name: "Most common words by language",
     itemListElement: LANGS.map((l, i) => ({ "@type": "ListItem", position: i + 1, name: `${l.name} most common words`, url: `${SITE}${pagePath(l, 100)}` })) }];
   return head({ title, desc, url: "/words", jsonLd }) + `
@@ -178,6 +206,13 @@ export function renderWordPages(distDir, root, cfg = {}) {
   // the clean URL with no redirect (a folder index.html would 307 to a trailing slash).
   const write = (p, html) => { const file = path.join(distDir, `${p}.html`); fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, html); };
   write("words", hubPage(all));
-  for (const l of LANGS) for (const n of SIZES) write(pagePath(l, n).slice(1), langPage(l, all[l.file], n, cfg));
+  for (const l of LANGS) for (const n of SIZES) {
+    write(pagePath(l, n).slice(1), langPage(l, all[l.file], n, cfg));
+    // CSV next to the page (rank, word, meaning, count): imports straight into Anki. CC BY-SA like the source.
+    const cell = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const csv = ["rank,word,meaning,count", ...all[l.file].words.slice(0, n).map((x) => [x.r, cell(x.w), cell(x.m || ""), x.c].join(","))].join("\n")
+      + `\n# ${all[l.file].source} (${all[l.file].licence}), compiled by LinguaScript ${SITE}${pagePath(l, n)}\n`;
+    fs.writeFileSync(path.join(distDir, `${pagePath(l, n).slice(1)}.csv`), "\ufeff" + csv);
+  }
   return wordPagePaths();
 }

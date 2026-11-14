@@ -42,8 +42,12 @@ for (const lang of langs) {
     const single = [...w].length === 1 && !ok.includes(w);
     if (!letters || fragment || single) { if (words.length < KEEP) removed.push(w); continue; }
     words.push({ w, c });
-    if (words.length >= KEEP) break;
   }
+  // Words needed for 50/75/80/90% of all word uses (whole clean list), then keep the top KEEP.
+  const needFor = {};
+  { let sum = 0; const goals = [50, 75, 80, 90]; for (let i = 0; i < words.length && goals.length; i++) {
+    sum += words[i].c; while (goals.length && (sum / total) * 100 >= goals[0]) needFor[goals.shift()] = i + 1; } }
+  words.length = Math.min(words.length, KEEP);
 
   // Coverage = share of all word uses (whole 50k list) covered by the CLEANED top n shown on the page.
   const share = (n) => Math.round((words.slice(0, n).reduce((a, { c }) => a + c, 0) / total) * 1000) / 10;
@@ -64,6 +68,7 @@ for (const lang of langs) {
     licence: "CC BY-SA 4.0",
     builtAt: new Date().toISOString().slice(0, 10),
     coverage: { 100: share(100), 500: share(500), 1000: share(1000), 3000: share(3000) },
+    needFor,
     removedSample: removed.slice(0, 40),
     words: list,
   };
@@ -71,5 +76,5 @@ for (const lang of langs) {
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, `${lang}.json`), JSON.stringify(out));
   const withMeaning = list.filter((x) => x.m).length;
-  console.log(`${lang}: ${list.length} words, coverage ${JSON.stringify(out.coverage)}, meanings ${withMeaning}, removed ${removed.length} (e.g. ${removed.slice(0, 8).join(" ")})`);
+  console.log(`${lang}: ${list.length} words, need ${JSON.stringify(needFor)}, coverage ${JSON.stringify(out.coverage)}, meanings ${withMeaning}, removed ${removed.length} (e.g. ${removed.slice(0, 8).join(" ")})`);
 }

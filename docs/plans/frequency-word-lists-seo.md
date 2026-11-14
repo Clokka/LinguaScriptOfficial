@@ -145,3 +145,34 @@ Build wave 1 of the most-common-words pages: languages es, fr, de, it, pt, en.
    Screenshot one page on phone and desktop.
 Commit on the current branch, open a PR, and list any word you removed and why.
 ```
+
+---
+
+## 9. Getting to page 1 (November 2026 update)
+
+No one can promise #1. Google ranks pages on three things: **is it the best answer** (on-page), **do other sites trust it** (links), and **do searchers like it** (clicks, staying). We now do the first well; the other two take weeks of work.
+
+### Done on the pages (on-page)
+- **Titles ≤ 60 characters, descriptions ≤ 155**, so Google shows them whole: "100 Most Common Spanish Words (Free List + Audio)".
+- **Quick answer at the top** (Google likes pages that answer straight away): "The most common Spanish word is de, then que and no. Just 87 words make up half of everything people say."
+- **"How many words do you need?" table** (50 / 75 / 80 / 90%), computed from the counts (`needFor` in `build-word-lists.mjs`). This is information most competing lists don't have.
+- **A hand-written tip per language** (ser/estar, French elisions, German articles…), so each language page has real, different content and isn't a copy with the name swapped.
+- **Free CSV download (works with Anki)** next to every page (`/words/<lang>.csv`, `/words/<lang>/top-1000.csv`…), CC BY-SA. That's the thing people link to and share.
+- **Dataset schema** (licence, source, CSV download, date) + the FAQPage, ItemList and BreadcrumbList schemas we already had. Visible "Updated" date.
+
+### What Rowan does (off-page: this is what moves us to page 1)
+1. **Search Console** → Sitemaps → submit `https://linguascript.co.uk/sitemap.xml`. Then URL Inspection → "Request indexing" for `/words` and the six `/words/<language>` pages.
+2. **Get links (most important).** 5–10 good links beat everything else:
+   - Reddit (r/Spanish, r/French, r/German, r/italianlearning, r/Portuguese, r/languagelearning, r/Anki): post the **free Anki CSV** with "I measured how much of film subtitles the top 100 / 1,000 words cover". Lead with the numbers, not the app.
+   - Anki shared-deck page: upload the 1,000-word decks linking back to the page as the source.
+   - Teachers: send the page to the language teachers and EFL teachers you know, and ask schools' resource pages to list it.
+   - Answer Quora / Stack Exchange (Language Learning) questions like "how many words do I need in Spanish?" with the table, linking to the page.
+3. **Wait and watch (about 4–8 weeks).** In Search Console → Performance, look at each page's queries:
+   - **Lots of impressions, few clicks** → change the title (one change at a time, wait 2 weeks).
+   - **Position 8–20** → add what that query wants (e.g. "spanish verbs list" → a verbs section), and get one more link to that page.
+4. **Keep it fresh:** rebuild once a year (`node scripts/build-word-lists.mjs es fr de it pt_br en`), which updates the date.
+
+### Honest expectations
+- Big learning sites already rank for "most common spanish words". New domains usually take **3–6 months** to reach page 1 for the main phrase.
+- Longer phrases come first: "3000 most common portuguese words csv", "how many german words do I need", "most common italian words with audio". Expect the first clicks there.
+- Keyword volumes: Semrush had no API units, so there are none here (section 7).
