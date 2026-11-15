@@ -6,6 +6,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { Button } from "@/components/ui/button";
 import { Seo } from "@/components/Seo";
 import { track } from "@/lib/analytics";
+import { LANGUAGES, getLanguageFlag, getLanguageLabel } from "@/lib/languages";
 import { COLOUR_HEX, loadMe, loadPillarDeck, type PillarDeck } from "@/lib/pillars";
 import {
   drawCaption,
@@ -26,6 +27,19 @@ const LANG_MAP: Record<string, string> = {
   ru: "ru-RU", tr: "tr-TR", nl: "nl-NL", pl: "pl-PL", sv: "sv-SE",
   th: "th-TH", en: "en-GB",
 };
+
+/** Studio remembers which languages you speak in your videos (this device only). */
+const SPOKEN_KEY = "ls.studio.spoken";
+type Spoken = { main: string; second: string };
+function loadSpoken(): Spoken | null {
+  try {
+    const v = JSON.parse(localStorage.getItem(SPOKEN_KEY) || "null");
+    return v && typeof v.main === "string" && typeof v.second === "string" ? v : null;
+  } catch { return null; }
+}
+function saveSpoken(v: Spoken) {
+  try { localStorage.setItem(SPOKEN_KEY, JSON.stringify(v)); } catch { /* private mode */ }
+}
 const getSR = (): any =>
   typeof window === "undefined" ? null : (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition || null;
 
@@ -44,7 +58,7 @@ export default function Studio() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const { learningLanguage } = useLanguage();
-  const lang = learningLanguage || "fr";
+  const accountLang = learningLanguage || "fr";
 
   const [deck, setDeck] = useState<PillarDeck | null>(null);
   const [native, setNative] = useState("en");
@@ -57,6 +71,15 @@ export default function Studio() {
   const [error, setError] = useState<string | null>(null);
   const [showLogo, setShowLogo] = useState(true);
   const [result, setResult] = useState<{ url: string; blob: Blob } | null>(null);
+  // The languages you SPEAK in this video. Starts as your account's learning
+  // language + your native language (e.g. Thai + English); change it here and
+  // the studio remembers. "auto" = let the AI detect any language.
+  const [spoken, setSpokenState] = useState<Spoken | null>(() => loadSpoken());
+  const setSpoken = (v: Spoken) => { setSpokenState(v); saveSpoken(v); };
+  const main = spoken?.main || accountLang;
+  const second = spoken?.second || native;
+  const lang = main; // deck colours + live words follow your main spoken language
+  const spokenList = Array.from(new Set([main, second].filter(Boolean)));
 
   useEffect(() => {
     if (!authLoading && !user) navigate("/auth");
@@ -84,7 +107,7 @@ export default function Studio() {
     setBusy("Listening to your video…");
     setProgress(0);
     try {
-      const got = await transcribeVideo(videoBlob, lang, native, setProgress);
+      const got = await transcribeVideo(videoBlob, spokenList, native, setProgress);
       if (!got.length) setError("I couldn't hear any speech in this video 🤔");
       setLines(got);
     } catch (e) {
@@ -107,7 +130,7 @@ export default function Studio() {
       const blob = await renderCaptionedVideo(videoUrl, ready, deck, { showLogo, onProgress: setProgress });
       setResult({ blob, url: URL.createObjectURL(blob) });
       setPhase("done");
-      track("studio_video_made", { lines: ready.length, language: lang, seconds: Math.round(ready[ready.length - 1]?.end || 0) });
+      track("studio_video_made", { lines: ready.length, language: lang, second_language: second, seconds: Math.round(ready[ready.length - 1]?.end || 0) });
     } catch (e) {
       setError((e as Error).message || "The video couldn't be made in this browser.");
       setPhase("edit");
@@ -145,6 +168,15 @@ export default function Studio() {
 
         <Legend />
 
+        {(phase === "pick" || phase === "edit") && (
+          <SpokenPicker
+            main={main}
+            second={second}
+            onChange={setSpoken}
+            fromAccount={!spoken}
+          />
+        )}
+
         {phase === "pick" && (
           <div className="grid sm:grid-cols-2 gap-4">
             <button
@@ -172,6 +204,7 @@ export default function Studio() {
         {phase === "camera" && (
           <CameraRecorder
             lang={lang}
+            second={second}
             deck={deck}
             showLogo={showLogo}
             onCancel={() => setPhase("pick")}
@@ -200,6 +233,12 @@ export default function Studio() {
                 <Video className="w-4 h-4 mr-2" /> Make my video
               </Button>
             </div>
+            {lines.length > 0 && spokenList.length > 1 && (
+              <p className="text-xs text-muted-foreground text-center">
+                Mixed {spokenList.map((c) => (c === "auto" ? "languages" : getLanguageLabel(c))).join(" + ")}? Tap
+                “Make the subtitles again” — it writes each word in its own alphabet (live words only hear one language).
+              </p>
+            )}
             <label className="flex items-center justify-center gap-2 text-sm">
               <input type="checkbox" checked={showLogo} onChange={(e) => setShowLogo(e.target.checked)} />
               Show the LinguaScript logo
@@ -251,6 +290,42 @@ export default function Studio() {
 
         {error && <p className="text-sm text-destructive text-center">{error}</p>}
       </main>
+    </div>
+  );
+}
+
+/**
+ * "I'm speaking: 🇹🇭 Thai + 🇬🇧 English". The browser's live words can only
+ * listen in ONE language at a time, so this choice tells the studio which one
+ * to listen in, and tells the AI subtitle helper every language you mix.
+ */
+function SpokenPicker({
+  main, second, onChange, fromAccount,
+}: {
+  main: string;
+  second: string;
+  onChange: (v: Spoken) => void;
+  fromAccount: boolean;
+}) {
+  const options = LANGUAGES.map((l) => ({ code: l.code as string, label: `${l.flag} ${l.label}` }));
+  const select = "rounded-full border border-border bg-card px-3 py-1.5 text-sm font-semibold";
+  return (
+    <div className="rounded-2xl border border-border bg-card/60 p-3 text-center space-y-2">
+      <div className="text-sm font-bold">🗣️ Languages I'm speaking</div>
+      <div className="flex flex-wrap items-center justify-center gap-2">
+        <select aria-label="Main language" className={select} value={main} onChange={(e) => onChange({ main: e.target.value, second })}>
+          {options.map((o) => <option key={o.code} value={o.code}>{o.label}</option>)}
+        </select>
+        <span className="text-muted-foreground">+</span>
+        <select aria-label="Second language" className={select} value={second} onChange={(e) => onChange({ main, second: e.target.value })}>
+          {options.filter((o) => o.code !== main).map((o) => <option key={o.code} value={o.code}>{o.label}</option>)}
+          <option value="auto">🌐 Detect any language</option>
+        </select>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        {fromAccount ? "From your account — change it for this video if you like. " : ""}
+        Thai, Japanese and Chinese words are written in their own alphabet.
+      </p>
     </div>
   );
 }
@@ -385,9 +460,10 @@ function Editor({
  * share the mic with the camera — then "Make subtitles for me" does it after.)
  */
 function CameraRecorder({
-  lang, deck, showLogo, onCancel, onDone,
+  lang, second, deck, showLogo, onCancel, onDone,
 }: {
   lang: string;
+  second: string;
   deck: PillarDeck | null;
   showLogo: boolean;
   onCancel: () => void;
@@ -409,7 +485,12 @@ function CameraRecorder({
   const [recording, setRecording] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const [camError, setCamError] = useState<string | null>(null);
-  const [liveOff, setLiveOff] = useState(!getSR() || !LANG_MAP[lang]);
+  // Live words hear ONE language at a time — tap the chip to swap mid-video.
+  const liveChoices = [lang, second].filter((c, i, a) => LANG_MAP[c] && a.indexOf(c) === i);
+  const [liveLang, setLiveLang] = useState(liveChoices[0] || lang);
+  const liveLangRef = useRef(liveLang);
+  liveLangRef.current = liveLang;
+  const [liveOff, setLiveOff] = useState(!getSR() || !liveChoices.length);
 
   // Open the front camera and keep painting the preview.
   useEffect(() => {
@@ -466,11 +547,11 @@ function CameraRecorder({
 
   const startListening = useCallback(() => {
     const SR = getSR();
-    if (!SR || !LANG_MAP[lang]) return;
+    if (!SR || !LANG_MAP[liveLangRef.current]) return;
     listening.current = true;
     const open = () => {
       const rec = new SR();
-      rec.lang = LANG_MAP[lang];
+      rec.lang = LANG_MAP[liveLangRef.current] || LANG_MAP[lang];
       // Android repeats earlier words in continuous mode — one phrase at a time there.
       rec.continuous = !/Android/i.test(navigator.userAgent);
       rec.interimResults = true;
@@ -505,6 +586,16 @@ function CameraRecorder({
     };
     try { open(); } catch { setLiveOff(true); }
   }, [lang]);
+
+  // Switch which language the live words listen in. The old listener stops,
+  // and its onend opens a new one in the new language.
+  const swapLive = () => {
+    const next = liveChoices[(liveChoices.indexOf(liveLang) + 1) % liveChoices.length];
+    if (!next || next === liveLang) return;
+    liveLangRef.current = next;
+    setLiveLang(next);
+    if (listening.current) { try { recRef.current?.stop(); } catch { /* restarts anyway */ } }
+  };
 
   const start = () => {
     const stream = streamRef.current;
@@ -543,6 +634,16 @@ function CameraRecorder({
           </div>
         )}
       </div>
+      {!liveOff && liveChoices.length > 1 && (
+        <div className="text-center">
+          <button
+            onClick={swapLive}
+            className="rounded-full border border-border bg-card px-4 py-1.5 text-sm font-semibold"
+          >
+            👂 Live words: {getLanguageFlag(liveLang)} {getLanguageLabel(liveLang)} · tap to switch
+          </button>
+        </div>
+      )}
       {camError && <p className="text-sm text-destructive text-center">{camError}</p>}
       {liveOff && (
         <p className="text-xs text-muted-foreground text-center">
