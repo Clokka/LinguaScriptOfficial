@@ -31,6 +31,7 @@ export type AnalyticsEvent =
   | "video_started"
   | "video_completed"
   | "word_saved"
+  | "words_exported"
   | "first_word_saved"
   | "flashcard_reviewed"
   | "word_turned_green"
