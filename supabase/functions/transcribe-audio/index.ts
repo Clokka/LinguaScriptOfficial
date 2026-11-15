@@ -17,21 +17,35 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
   try {
-    const { audio, language, nativeLanguage } = await req.json();
+    const { audio, language, languages, nativeLanguage } = await req.json();
     if (!audio || typeof audio !== 'string') return json({ error: 'audio (base64 wav) required' }, 400);
     // ~45 s of 16 kHz mono WAV is ~1.9 MB; anything far bigger is a mistake.
     if (audio.length > 6_000_000) return json({ error: 'audio clip too long' }, 413);
     if (!hasAIKey()) return json({ error: 'No AI key configured' }, 500);
 
-    const from = language || 'French';
+    // The learner can speak more than one language in the same video (e.g.
+    // English + Thai). Old clients send only `language`.
+    const spoken: string[] = (Array.isArray(languages) && languages.length ? languages : [language || 'French'])
+      .map((l: unknown) => String(l || '').trim())
+      .filter(Boolean)
+      .slice(0, 3);
+    const anyLanguage = spoken.some((l) => /^any/i.test(l));
+    const named = spoken.filter((l) => !/^any/i.test(l));
     const to = nativeLanguage || 'English';
 
-    const prompt = `Transcribe the speech in this audio clip exactly as it is spoken. The speaker is mostly speaking ${from}; write every word in the language it is actually spoken in.
+    const who = anyLanguage
+      ? `The speaker may use ANY language, and may switch languages mid-sentence${named.length ? ` (most likely ${named.join(' and ')})` : ''}. Work out the language of every word from the sound.`
+      : named.length > 1
+        ? `The speaker mixes ${named.join(' and ')}, sometimes in the same sentence. Work out the language of every word from the sound.`
+        : `The speaker is mostly speaking ${named[0]}, but may say some words in another language.`;
+
+    const prompt = `Transcribe the speech in this audio clip exactly as it is spoken. ${who}
+Write every word in the language it is actually spoken in, using that language's OWN writing system: Thai in Thai script (e.g. ยินดีที่ได้รู้จัก, never "yindi tee dai roo jak"), Japanese in Japanese, Chinese in Chinese characters, Russian in Cyrillic, Arabic in Arabic script, Hindi in Devanagari. Never romanise and never translate inside "text".
 Split it into short subtitle lines (at most about 8 words or 3 seconds each), in order.
 For each line give:
 - "start" and "end": seconds from the start of THIS clip (decimals allowed)
 - "text": the words spoken
-- "translation": a natural ${to} translation of that line
+- "translation": a natural ${to} translation of the whole line (parts already in ${to} stay as they are)
 Reply with JSON only, like {"lines":[{"start":0.4,"end":2.1,"text":"...","translation":"..."}]}.
 If nobody speaks, reply {"lines":[]}.`;
 
