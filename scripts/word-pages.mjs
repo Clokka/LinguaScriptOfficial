@@ -5,6 +5,7 @@
 // (scripts/build-word-lists.mjs). Colours = the chameleon decks in brand/README.md.
 import fs from "node:fs";
 import path from "node:path";
+import { ARTICLES } from "./learn-articles.mjs";
 
 const SITE = "https://linguascript.co.uk";
 const C = { red: "#FF3B30", orange: "#FF8A00", green: "#34C759", gold: "#FFD54A", blue: "#2F7BFF" };
@@ -26,7 +27,7 @@ const TIPS = {
 };
 const SIZES = [100, 1000, 3000];
 export const GUIDE_PATH = "/words/anki-and-quizlet";
-export const wordPagePaths = () => ["/words", GUIDE_PATH, ...LANGS.flatMap((l) => SIZES.map((n) => pagePath(l, n)))];
+export const wordPagePaths = () => ["/learn", ...ARTICLES.map((a) => `/learn/${a.slug}`), "/words", GUIDE_PATH, ...LANGS.flatMap((l) => SIZES.map((n) => pagePath(l, n)))];
 const pagePath = (l, n) => (n === 100 ? `/words/${l.slug}` : `/words/${l.slug}/top-${n}`);
 const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const fmt = (n) => n.toLocaleString("en-GB");
@@ -91,6 +92,9 @@ details{border-bottom:1px solid var(--line);padding:14px 0}summary{cursor:pointe
 .ladder{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 4px}.ladder span{font-size:13px;font-weight:700;padding:6px 12px;border-radius:99px;border:1px solid #2A2A30}
 .mist{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}.mist.two{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}.mist div{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px 16px;color:var(--muted);font-size:15px}.mist b{display:block;color:var(--text);margin-bottom:4px}
 p.body{color:var(--muted)}p.body strong{color:var(--text)}kbd{font:600 13px Inter,system-ui,sans-serif;background:#1C1C21;border:1px solid #2A2A30;border-radius:6px;padding:1px 6px;color:var(--text)}
+.demo{font-size:22px;font-weight:700;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px 18px;margin:14px 0 6px}.demo .g{color:var(--green)}.demo .r{color:var(--red);text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:4px}.r{color:var(--red)}
+ul.body{padding-left:20px}ul.body li{margin:6px 0}.refs{font-size:13px;color:var(--faint);padding-left:18px}.refs li{margin:6px 0}.refs i{color:var(--muted)}
+.meta{font-size:13px;color:var(--faint);margin:-6px 0 18px}
 footer{border-top:1px solid var(--line);margin-top:48px;padding:26px 0 40px;color:var(--faint);font-size:14px}footer a{color:var(--muted)}
 @media (max-width:560px){thead{display:none}tr[data-w]{display:grid;grid-template-columns:30px 1fr auto;align-items:center;column-gap:10px;row-gap:2px;padding:10px 0;border-bottom:1px solid var(--line)}tr[data-w] td{border:0;padding:0}td.r{grid-row:1/span 2;width:auto}td.m{grid-column:2;grid-row:2;font-size:14px}td.a{grid-column:3;grid-row:1/span 2;width:auto}.know{padding:0 10px}.bar{grid-template-columns:86px 1fr 50px}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
@@ -104,7 +108,7 @@ ${jsonLd.map((j) => `<script type="application/ld+json">${JSON.stringify(j).repl
 <style>${CSS}</style></head><body>
 <header class="top"><div class="wrap"><a class="brand" href="/" aria-label="LinguaScript home">${chameleon("green", 46)}<span>Lingua<b>Script</b></span></a><a class="btn" href="/auth?mode=signup">Start free</a></div></header><main class="wrap">`;
 
-const foot = () => `</main><footer><div class="wrap"><p><a href="/words">Most common words</a> · <a href="${GUIDE_PATH}">Anki &amp; Quizlet guide</a> · <a href="/frequent-words">Why frequent words first</a> · <a href="/english/a1">English A1 guide</a> · <a href="/english/exams">Exams &amp; study abroad</a> · <a href="/privacy">Privacy</a></p><p>Word lists built from OpenSubtitles 2018 via <a href="https://github.com/hermitdave/FrequencyWords" rel="noopener">FrequencyWords</a>, shared under <a href="https://creativecommons.org/licenses/by-sa/4.0/" rel="noopener license">CC BY-SA 4.0</a>.</p></div></footer>`;
+const foot = () => `</main><footer><div class="wrap"><p><a href="/words">Most common words</a> · <a href="${GUIDE_PATH}">Anki &amp; Quizlet guide</a> · <a href="/learn">How languages are learned</a> · <a href="/frequent-words">Why frequent words first</a> · <a href="/english/a1">English A1 guide</a> · <a href="/english/exams">Exams &amp; study abroad</a> · <a href="/privacy">Privacy</a></p><p>Word lists built from OpenSubtitles 2018 via <a href="https://github.com/hermitdave/FrequencyWords" rel="noopener">FrequencyWords</a>, shared under <a href="https://creativecommons.org/licenses/by-sa/4.0/" rel="noopener license">CC BY-SA 4.0</a>.</p></div></footer>`;
 
 const tierFor = (pct) => (pct >= 100 ? "blue" : pct >= 90 ? "gold" : pct >= 60 ? "green" : pct >= 25 ? "orange" : "red");
 
@@ -346,6 +350,66 @@ ${cta({ name: "new", slug: "anki-guide" }).replace("every new word", "every word
 ` + foot() + "</body></html>";
 }
 
+
+const LEARN_ORDER = ["comprehensible-input", "comprehensible-output", "output-hypothesis", "kato-lomb-chameleon-method"];
+const articleCta = (slug) => `<div class="cta card"><p>Try the Chameleon Method free<span>Watch what you love; every word is coloured by how well you know it, and new words become flashcards in one tap.</span></p><div style="display:flex;gap:10px;flex-wrap:wrap"><a class="btn" href="/auth?mode=signup&amp;from=learn-${slug}">Start free</a><a class="btn ghost" href="/discover?from=learn-${slug}">Watch videos</a></div></div>`;
+const words = (a) => [a.lead, a.answer, ...a.sections.map((x) => x.html)].join(" ").replace(/<[^>]+>/g, " ").split(/\s+/).filter(Boolean).length;
+
+function articlePage(a, builtAt) {
+  const url = `/learn/${a.slug}`;
+  const mins = Math.max(1, Math.round(words(a) / 220));
+  const jsonLd = [
+    { "@context": "https://schema.org", "@type": "Article", headline: a.title, description: a.desc, url: `${SITE}${url}`,
+      author: { "@type": "Organization", name: "LinguaScript", url: SITE }, publisher: { "@type": "Organization", name: "LinguaScript", url: SITE },
+      dateModified: builtAt, inLanguage: "en", citation: a.sources.map((x) => x.replace(/<[^>]+>/g, "").replace(/&amp;/g, "&")) },
+    { "@context": "https://schema.org", "@type": "FAQPage", mainEntity: a.faqs.map(([q, ans]) => ({ "@type": "Question", name: q, acceptedAnswer: { "@type": "Answer", text: ans } })) },
+    { "@context": "https://schema.org", "@type": "BreadcrumbList", itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Learn", item: `${SITE}/learn` },
+      { "@type": "ListItem", position: 2, name: a.h1, item: `${SITE}${url}` }] },
+  ];
+  const others = LEARN_ORDER.filter((s) => s !== a.slug).map((s) => ARTICLES.find((x) => x.slug === s));
+  return head({ title: a.title, desc: a.desc, url, jsonLd }) + `
+<p class="crumbs"><a href="/learn">Learn</a> › ${esc(a.h1)}</p>
+<div class="chams">${chameleon("red", 54, "New word")}${chameleon("orange", 54, "Learning")}${chameleon("green", 54, "Known")}${chameleon("gold", 54, "Review due")}${chameleon("blue", 54, "100% known")}</div>
+<h1>${esc(a.h1)}</h1>
+<p class="lead">${a.lead}</p>
+<p class="meta">${mins} min read · Updated ${esc(builtAt)} · Sources at the end</p>
+<p class="answer">${a.answer}</p>
+<nav class="toc" aria-label="On this page">${a.sections.map((x) => `<a href="#${x.id}">${esc(x.h2.replace(/\s*\(.*\)$/, ""))}</a>`).join("")}</nav>
+${a.sections.map((x, i) => `<h2 id="${x.id}">${esc(x.h2)}</h2>${x.html}${i === 2 ? articleCta(a.slug) : ""}`).join("\n")}
+${articleCta(a.slug)}
+<h2>Questions</h2>${a.faqs.map(([q, ans]) => `<details><summary>${esc(q)}</summary><p>${esc(ans)}</p></details>`).join("")}
+<h2>Keep reading</h2><div class="langs">${others.map((o) => `<a href="/learn/${o.slug}"><b>${esc(o.h1)}</b><small>${esc(o.desc)}</small></a>`).join("")}</div>
+<h2>Sources</h2><ol class="refs">${a.sources.map((x) => `<li>${x}</li>`).join("")}</ol>
+<p class="method">Written by LinguaScript in plain English. Where researchers disagree, we say so.</p>
+` + foot() + "</body></html>";
+}
+
+function learnHub(builtAt) {
+  const title = "How Languages Are Learned: Simple, Cited Guides";
+  const desc = "Comprehensible input, comprehensible output, the output hypothesis and Kató Lomb's three pillars, explained simply, with sources and practical tips.";
+  const list = LEARN_ORDER.map((s) => ARTICLES.find((x) => x.slug === s));
+  const jsonLd = [{ "@context": "https://schema.org", "@type": "ItemList", name: "How languages are learned",
+    itemListElement: list.map((a, i) => ({ "@type": "ListItem", position: i + 1, name: a.h1, url: `${SITE}/learn/${a.slug}` })) }];
+  return head({ title, desc, url: "/learn", jsonLd }) + `
+<p class="crumbs">Learn</p>
+<div class="chams">${["red", "orange", "green", "gold", "blue"].map((t) => chameleon(t, 54)).join("")}</div>
+<h1>How languages are learned</h1>
+<p class="lead">The research behind learning a language, in plain English: <strong>what goes in</strong> (input), <strong>what comes out</strong> (output), and a polyglot's simple routine that puts both together.</p>
+<div class="langs">${list.map((a, i) => `<a href="/learn/${a.slug}"><b>${i + 1}. ${esc(a.h1)}</b><small>${esc(a.desc)}</small></a>`).join("")}
+<a href="${GUIDE_PATH}"><b>Bonus: how to use Anki and Quizlet</b><small>Flashcards that actually work, and how to export your words.</small></a></div>
+<h2>The short version</h2>
+<ol class="steps">
+<li><b>Understand lots.</b> Watch, listen and read things you enjoy where you know about 95–98% of the words. <a href="/learn/comprehensible-input">Comprehensible input</a></li>
+<li><b>Use a little, every day.</b> Write and speak with your new words, even imperfectly. <a href="/learn/comprehensible-output">Comprehensible output</a></li>
+<li><b>Notice the gaps.</b> Getting stuck shows you exactly what to listen for next. <a href="/learn/output-hypothesis">The output hypothesis</a></li>
+<li><b>Keep it fun and fearless.</b> (Motivation + Time) ÷ Inhibition = Result. <a href="/learn/kato-lomb-chameleon-method">Kató Lomb &amp; the Chameleon Method</a></li>
+</ol>
+${articleCta("hub")}
+<p class="method">Updated ${esc(builtAt)}.</p>
+` + foot() + "</body></html>";
+}
+
 /** Writes dist/words/** as static HTML. Returns the paths written. */
 export function renderWordPages(distDir, root, cfg = {}) {
   const all = {};
@@ -355,6 +419,8 @@ export function renderWordPages(distDir, root, cfg = {}) {
   const write = (p, html) => { const file = path.join(distDir, `${p}.html`); fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, html); };
   write("words", hubPage(all));
   write(GUIDE_PATH.slice(1), guidePage(all));
+  write("learn", learnHub(all.es.builtAt));
+  for (const a of ARTICLES) write(`learn/${a.slug}`, articlePage(a, all.es.builtAt));
   for (const l of LANGS) for (const n of SIZES) {
     write(pagePath(l, n).slice(1), langPage(l, all[l.file], n, cfg));
     // CSV next to the page (rank, word, meaning, count): imports straight into Anki. CC BY-SA like the source.

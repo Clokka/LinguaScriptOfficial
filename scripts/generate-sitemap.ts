@@ -43,6 +43,9 @@ const staticEntries: SitemapEntry[] = [
   // Most common words (static pages from scripts/word-pages.mjs — keep in sync with its LANGS).
   { path: "/words", changefreq: "monthly", priority: "0.8" },
   { path: "/words/anki-and-quizlet", changefreq: "monthly", priority: "0.7" },
+  // /learn articles (static, scripts/learn-articles.mjs).
+  { path: "/learn", changefreq: "monthly", priority: "0.7" },
+  ...["comprehensible-input", "comprehensible-output", "output-hypothesis", "kato-lomb-chameleon-method"].map((s) => ({ path: `/learn/${s}`, changefreq: "monthly", priority: "0.7" })),
   ...["spanish", "french", "german", "italian", "portuguese", "english"].flatMap((l): SitemapEntry[] => [
     { path: `/words/${l}`, changefreq: "monthly", priority: "0.8" },
     { path: `/words/${l}/top-1000`, changefreq: "monthly", priority: "0.7" },

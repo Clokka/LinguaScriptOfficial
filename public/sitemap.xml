@@ -146,6 +146,31 @@
     <priority>0.7</priority>
   </url>
   <url>
+    <loc>https://linguascript.co.uk/learn</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://linguascript.co.uk/learn/comprehensible-input</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://linguascript.co.uk/learn/comprehensible-output</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://linguascript.co.uk/learn/output-hypothesis</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://linguascript.co.uk/learn/kato-lomb-chameleon-method</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
     <loc>https://linguascript.co.uk/words/spanish</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
