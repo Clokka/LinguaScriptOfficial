@@ -5,7 +5,7 @@ import { PhoneBubbleSetting } from "@/components/PhoneBubbleSetting";
 
 /**
  * The Android 🦎 overlay (mobile/plugins/word-bubble) and the
- * "Save to LinguaScript" text menu (mobile/plugins/withProcessText.js),
+ * "Add to LinguaScript" text menu (mobile/plugins/withProcessText.js),
  * explained — with the on/off switch right here when opened in the app.
  */
 export default function PhoneOverlay() {
@@ -13,7 +13,7 @@ export default function PhoneOverlay() {
     <>
       <Seo
         title="LinguaScript overlay — tap any word on YouTube to translate it"
-        description="The LinguaScript Android overlay: tap the 🦎 over YouTube or any app, tap a word in the subtitles for its meaning, and save it to your flashcards. Plus “Save to LinguaScript” in the copy and paste menu."
+        description="The LinguaScript Android overlay: tap the 🦎 over YouTube or any app, tap a word in the subtitles for its meaning, and save it to your flashcards. Plus “Add to LinguaScript” in the copy and paste menu."
         path="/overlay"
       />
       <MarketingLayout
@@ -45,10 +45,10 @@ export default function PhoneOverlay() {
           uploaded — only the word you tap is looked up.
         </p>
 
-        <H2>Highlight → “Save to LinguaScript”</H2>
+        <H2>Highlight → “Add to LinguaScript”</H2>
         <p>
           In any app where you can select text — Chrome, WhatsApp, Instagram, a news app — press on
-          a word, and next to Copy and Paste you'll see <strong>Save to LinguaScript</strong>{" "}
+          a word, and next to Copy and Paste you'll see <strong>Add to LinguaScript</strong>{" "}
           (sometimes behind the ⋮). You get the translation and a Save button. This one is always
           on and doesn't need the overlay.
         </p>
@@ -56,7 +56,7 @@ export default function PhoneOverlay() {
           <strong>Samsung phones:</strong> the first time, tap <strong>Manage apps</strong> in that
           menu and switch <strong>LinguaScript</strong> on — Samsung hides extra apps until you do.
           Inside the LinguaScript app it's always there — select any text and{" "}
-          <strong>Save to LinguaScript</strong> sits next to Copy and Translate.
+          <strong>Add to LinguaScript</strong> sits next to Copy and Translate.
         </p>
 
         <H2>Turn it on</H2>

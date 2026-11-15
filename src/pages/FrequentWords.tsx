@@ -134,7 +134,7 @@ export default function FrequentWords() {
           </li>
           <li>
             <strong>Save words from anywhere.</strong> Highlight text in any app →{" "}
-            <em>Save to LinguaScript</em>, or tap a word on YouTube with the{" "}
+            <em>Add to LinguaScript</em>, or tap a word on YouTube with the{" "}
             <Link to="/overlay" className="text-primary underline">🦎 overlay</Link>.
           </li>
           <li>
