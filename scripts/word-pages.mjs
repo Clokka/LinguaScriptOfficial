@@ -84,8 +84,12 @@ details{border-bottom:1px solid var(--line);padding:14px 0}summary{cursor:pointe
 .steps{counter-reset:s;list-style:none;padding:0;margin:0;display:grid;gap:10px}.steps li{counter-increment:s;position:relative;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px 16px 14px 58px;color:var(--muted)}
 .steps li::before{content:counter(s);position:absolute;left:14px;top:13px;width:30px;height:30px;border-radius:99px;display:grid;place-items:center;font-weight:800;font-size:14px;background:rgba(52,199,89,.14);color:var(--green)}.steps li b{color:var(--text)}
 .toc{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px}.toc a{font-size:13px;padding:6px 12px;border-radius:99px;border:1px solid #2A2A30;color:var(--muted);text-decoration:none}.toc a:hover{border-color:var(--green);color:var(--text)}
+.svcs{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 18px}.svcs small{color:var(--faint);font-size:13px;margin-right:4px}
+.svc{display:inline-flex;align-items:center;gap:8px;padding:6px 12px 6px 6px;border-radius:99px;background:var(--card);border:1px solid var(--line);font-weight:700;font-size:14px;color:var(--text)}
+.svc i{font-style:normal;width:24px;height:24px;border-radius:99px;display:grid;place-items:center;background:var(--svc);color:#fff;font-size:12px;font-weight:800}
+.flow{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:12px 0}.flow div{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;font-size:14px;color:var(--muted)}.flow b{display:block;color:var(--text);font-size:15px;margin:8px 0 2px}
 .ladder{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 4px}.ladder span{font-size:13px;font-weight:700;padding:6px 12px;border-radius:99px;border:1px solid #2A2A30}
-.mist{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}.mist div{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px 16px;color:var(--muted);font-size:15px}.mist b{display:block;color:var(--text);margin-bottom:4px}
+.mist{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}.mist.two{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}.mist div{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px 16px;color:var(--muted);font-size:15px}.mist b{display:block;color:var(--text);margin-bottom:4px}
 p.body{color:var(--muted)}p.body strong{color:var(--text)}kbd{font:600 13px Inter,system-ui,sans-serif;background:#1C1C21;border:1px solid #2A2A30;border-radius:6px;padding:1px 6px;color:var(--text)}
 footer{border-top:1px solid var(--line);margin-top:48px;padding:26px 0 40px;color:var(--faint);font-size:14px}footer a{color:var(--muted)}
 @media (max-width:560px){thead{display:none}tr[data-w]{display:grid;grid-template-columns:30px 1fr auto;align-items:center;column-gap:10px;row-gap:2px;padding:10px 0;border-bottom:1px solid var(--line)}tr[data-w] td{border:0;padding:0}td.r{grid-row:1/span 2;width:auto}td.m{grid-column:2;grid-row:2;font-size:14px}td.a{grid-column:3;grid-row:1/span 2;width:auto}.know{padding:0 10px}.bar{grid-template-columns:86px 1fr 50px}}
@@ -208,6 +212,17 @@ ${cta({ name: "new", slug: "hub" }).replace("every new word", "every word").repl
 }
 
 
+// Name badges for the services we work with: the name in the brand's colour, never copied logo artwork.
+const SERVICES = {
+  youtube: { name: "YouTube", color: "#FF0033", icon: "▶" },
+  netflix: { name: "Netflix", color: "#E50914" },
+  crunchyroll: { name: "Crunchyroll", color: "#F47521" },
+  tv5monde: { name: "TV5MONDE", color: "#E6007E" },
+  anki: { name: "Anki", color: "#6FA8FF" },
+  quizlet: { name: "Quizlet", color: "#4255FF", text: "#A9B2FF" },
+};
+const badge = (k) => { const b = SERVICES[k]; return `<span class="svc" style="--svc:${b.color}"><i aria-hidden="true">${b.icon || b.name[0]}</i>${esc(b.name)}</span>`; };
+
 function guidePage(all) {
   const url = GUIDE_PATH;
   const title = "How to Use Anki and Quizlet to Learn a Language";
@@ -217,6 +232,7 @@ function guidePage(all) {
     ["Is Quizlet free?", "Quizlet has a free plan with ads. Some study modes are limited unless you pay for Quizlet Plus. Making sets and the basic flashcards stay free."],
     ["Which is better for learning a language, Anki or Quizlet?", "For remembering words for months and years, Anki, because it schedules every card with spaced repetition. For getting started in two minutes, studying with friends, or a test next week, Quizlet. Many learners use Quizlet first and move to Anki when their deck grows."],
     ["How many new cards should I add per day?", "Start with 5 to 10 new words a day. Every new card comes back for reviews, so after a few weeks 10 new cards a day means roughly 50 to 100 reviews. Anki's default is 20 new cards a day, which is a lot for most beginners."],
+    ["Can I export my LinguaScript words to Anki or Quizlet?", "Yes. Words you save while watching YouTube, Netflix, Crunchyroll or TV5MONDE go into your LinguaScript decks. On the Vocabulary page press Export and choose Anki (a CSV file with the word, its meaning and the sentence you saw it in) or Quizlet (your words are copied, ready to paste into Quizlet's Import)."],
     ["Can I import a word list into Anki or Quizlet?", "Yes. Our free most-common-word lists download as CSV files. In Anki use File, then Import. In Quizlet, open the CSV in a spreadsheet, copy the word and meaning columns and paste them into Import when you create a set."],
   ];
   const jsonLd = [
@@ -236,8 +252,9 @@ function guidePage(all) {
 <div class="chams">${chameleon("red", 54, "New word")}${chameleon("orange", 54, "Learning")}${chameleon("green", 54, "Known")}${chameleon("gold", 54, "Review due")}${chameleon("blue", 54, "100% known")}</div>
 <h1>How to use Anki and Quizlet to learn a language</h1>
 <p class="lead">Flashcards are the fastest way to <strong>stop forgetting the words you meet</strong>. Here is how the two most popular apps work, how to set each one up in ten minutes, and the mistakes that make people quit.</p>
+<div class="svcs" aria-label="Works with"><small>Save words on</small>${badge("youtube")}${badge("netflix")}${badge("crunchyroll")}${badge("tv5monde")}<small style="margin-left:6px">export to</small>${badge("anki")}${badge("quizlet")}</div>
 <p class="answer"><strong>Short answer:</strong> use <strong>Anki</strong> if you want to remember words for years: it decides when you see each card again, so you review just before you'd forget. Use <strong>Quizlet</strong> if you want to start in two minutes, study with a class, or prepare for a test soon. With either app, what you put on the cards matters most: <a href="/words">the most common words first</a>, then words from things you actually watch and read.</p>
-<nav class="toc" aria-label="On this page"><a href="#compare">Anki vs Quizlet</a><a href="#why">Why flashcards work</a><a href="#anki">How to use Anki</a><a href="#quizlet">How to use Quizlet</a><a href="#mistakes">Mistakes</a><a href="#cards">What to put on cards</a><a href="#download">Free word lists</a></nav>
+<nav class="toc" aria-label="On this page"><a href="#compare">Anki vs Quizlet</a><a href="#why">Why flashcards work</a><a href="#anki">How to use Anki</a><a href="#quizlet">How to use Quizlet</a><a href="#export">Export from LinguaScript</a><a href="#mistakes">Mistakes</a><a href="#cards">What to put on cards</a><a href="#download">Free word lists</a></nav>
 
 <h2 id="compare">Anki vs Quizlet at a glance</h2>
 <table class="vs"><caption class="sr">Anki and Quizlet compared</caption><thead><tr><th></th><th>Anki</th><th>Quizlet</th></tr></thead><tbody>
@@ -280,6 +297,27 @@ ${step("Use Match as a warm-up, not the main thing.", `Games are fun, but quick 
 ${step("Come back tomorrow, and again in a few days.", `Quizlet won't fully schedule every card for you, so plan it yourself: same set tomorrow, then after 3 days, then after a week. Move words you know well into a separate "Known" set.`)}
 </ol>
 
+<h2 id="export">Export your words from LinguaScript to Anki or Quizlet</h2>
+<p class="body">The best flashcards are words you met in something you enjoyed. LinguaScript catches them while you watch, then sends them to the flashcard app you already use.</p>
+<div class="flow">
+<div>${badge("netflix")}<b>1. Watch</b>YouTube, Netflix, Crunchyroll or TV5MONDE with the LinguaScript extension. Every word is coloured by how well you know it.</div>
+<div><span class="svc" style="--svc:${C.red}"><i aria-hidden="true">+</i>Tap</span><b>2. Tap a word</b>See the meaning instantly and save it. LinguaScript keeps the sentence you heard it in.</div>
+<div>${badge("anki")}<b>3. Export</b>On the Vocabulary page press <kbd>Export</kbd> and pick Anki or Quizlet.</div>
+<div>${badge("quizlet")}<b>4. Review</b>Import once, then review in the app you like. Or just use LinguaScript's own flashcards.</div>
+</div>
+<ol class="steps">
+${step("To Anki:", `press <kbd>Export</kbd> → <b>Anki</b>. You get a CSV file. In Anki choose <kbd>File</kbd> → <kbd>Import</kbd> and pick it. Each card has the <b>word on the front</b> and the <b>meaning plus the sentence you saw it in</b> on the back, in a deck called <b>LinguaScript::French</b> (or your language), tagged with its colour (red, orange, green, gold or blue). Export again later and Anki updates the cards you already have instead of making copies.`)}
+${step("To Quizlet:", `press <kbd>Export</kbd> → <b>Quizlet</b>. Your words are copied. In Quizlet tap <kbd>Create</kbd> → <b>Flashcard set</b> → <kbd>Import</kbd>, paste, and keep <b>Tab</b> and <b>New line</b> selected. Done.`)}
+${step("Choose which words:", `the export follows the deck you have selected on the Vocabulary page: <b>red</b> (new), <b>orange</b> (learning), <b>green</b> (known) or all of them. Most people export red and orange.`)}
+</ol>
+<h3 style="margin:26px 0 10px;font-size:18px">Where LinguaScript works</h3>
+<div class="mist two">
+<div>${badge("youtube")}<span style="display:block;margin-top:10px">Dual subtitles and tap-to-save in the browser extension, and on Android with the 🦎 bubble.</span></div>
+<div>${badge("netflix")}<span style="display:block;margin-top:10px">Dual subtitles and tap-to-save in the browser extension on a computer.</span></div>
+<div>${badge("crunchyroll")}<span style="display:block;margin-top:10px">Works when the subtitles are text. Some anime subtitles are drawn as pictures and can't be read; the extension tells you when that happens.</span></div>
+<div>${badge("tv5monde")}<span style="display:block;margin-top:10px">French and other shows, with the same colours and tap-to-save.</span></div>
+</div>
+
 <h2 id="mistakes">Mistakes that make people quit</h2>
 <div class="mist">
 <div><b>Too many new cards</b>Adding 50 words on day one feels great and turns into 300 reviews a week later. Start small and grow.</div>
@@ -297,14 +335,14 @@ ${step("First, the most common words.", `Start with a top-100 list, then top 1,0
 ${step("Then, words from what you watch and read.", `A word you met in a scene you enjoyed already has a memory attached. That's the word to put on a card.`)}
 ${step("Skip the rest for now.", `Rare words can wait. You'll meet them later, in context, when they matter.`)}
 </ol>
-<p class="body">That's exactly the idea behind LinguaScript: while you watch videos in the language you're learning, every word is coloured by how well you know it, and one tap turns a new word into a flashcard on the same review ladder. You can keep using Anki or Quizlet as well: the free lists below work in both.</p>
+<p class="body">That's exactly the idea behind LinguaScript: while you watch videos in the language you're learning, every word is coloured by how well you know it, and one tap turns a new word into a flashcard on the same review ladder. You can keep using Anki or Quizlet as well: <a href="#export">export your words</a> any time, and the free lists below work in both.</p>
 
 <h2 id="download">Free word lists for Anki and Quizlet</h2>
 <p class="body">Top 1,000 words for each language, from real film and TV subtitles, with English meanings. Each list also comes as top 100 and top 3,000 on its page.</p>
 <div class="langs">${downloads}</div>
 ${cta({ name: "new", slug: "anki-guide" }).replace("every new word", "every word").replace("Watch new videos", "Watch videos")}
 <h2>Questions</h2>${faqs.map(([q, a]) => `<details><summary>${esc(q)}</summary><p>${esc(a)}</p></details>`).join("")}
-<p class="method" style="margin-top:26px">Written by LinguaScript. Anki is free, open-source software by Ankitects; Quizlet is a product of Quizlet, Inc. We're not connected to either. App details change: check each app for current prices and features. Reference: Ebbinghaus, H. (1885), <i>Über das Gedächtnis</i> (Memory: A Contribution to Experimental Psychology).</p>
+<p class="method" style="margin-top:26px">Written by LinguaScript. Anki is free, open-source software by Ankitects; Quizlet is a product of Quizlet, Inc. YouTube, Netflix, Crunchyroll and TV5MONDE belong to their owners. We're not connected to, or endorsed by, any of them; names are used only to say what LinguaScript works with. App details change: check each app for current prices and features. Reference: Ebbinghaus, H. (1885), <i>Über das Gedächtnis</i> (Memory: A Contribution to Experimental Psychology).</p>
 ` + foot() + "</body></html>";
 }
 

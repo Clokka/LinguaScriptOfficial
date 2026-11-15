@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { LevelBadge } from "@/components/LevelBadge";
 import { BrandMark } from "@/components/BrandMark";
 import { FrequencyCoverageCard } from "@/components/FrequencyCoverageCard";
+import { ExportWordsMenu } from "@/components/ExportWordsMenu";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -250,6 +251,7 @@ export default function Vocabulary() {
                 className="pl-9 rounded-full bg-white/5 border-white/10"
               />
             </div>
+            <ExportWordsMenu user={user} language={learningLanguage || "fr"} filter={filter} />
             <Button onClick={() => navigate("/flashcards")} className="gap-2 rounded-full">
               <BookOpen className="w-4 h-4" /> Review
             </Button>
