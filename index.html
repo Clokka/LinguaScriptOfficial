@@ -32,7 +32,9 @@
         "name": "LinguaScript",
         "alternateName": ["Lingoscript", "Language Script", "LinguaScript — The Chameleon Method"],
         "url": "https://linguascript.co.uk",
-        "logo": "https://linguascript.co.uk/favicon-512x512.png"
+        "logo": "https://linguascript.co.uk/favicon-512x512.png",
+        "description": "LinguaScript teaches languages through films, YouTube and podcasts, starting with high-frequency words: the few hundred words that make up half of real speech. Every word is coloured by how well you know it, from red (new) to green (known).",
+        "knowsAbout": ["High-frequency words", "Zipf's law", "Comprehensible input", "Language learning with films", "Spaced repetition", "The Chameleon Method"]
       }
     </script>
     <script type="application/ld+json">
@@ -47,7 +49,11 @@
 
   </head>
   <body>
-    <div id="root"><div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#08090b"><img src="/logo.svg" alt="LinguaScript" width="72" height="72" style="animation:lsp 1.2s ease-in-out infinite alternate"/></div><style>@keyframes lsp{from{opacity:.4}to{opacity:1}}</style></div>
+    <div id="root"><div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:#08090b;color:#8E8E98;font:14px/1.5 system-ui,sans-serif;text-align:center;padding:0 16px"><img src="/logo.svg" alt="LinguaScript" width="72" height="72" style="animation:lsp 1.2s ease-in-out infinite alternate"/>
+      <!-- Shown only until the app loads. Real text so search engines and AI answers can read what LinguaScript is. -->
+      <div style="max-width:520px"><h1 style="font-size:16px;color:#F2F2F5;margin:0 0 6px">LinguaScript: learn languages from films, starting with high-frequency words</h1>
+        <p style="margin:0 0 8px">Watch YouTube, Netflix and more with dual subtitles. Every word is coloured by how well you know it, and the most common words, the few hundred that make up half of real speech, come first.</p>
+        <p style="margin:0"><a href="/words" style="color:#34C759">Most common words</a> · <a href="/learn/high-frequency-words" style="color:#34C759">Why high-frequency words first</a> · <a href="/learn" style="color:#34C759">How languages are learned</a></p></div></div><style>@keyframes lsp{from{opacity:.4}to{opacity:1}}</style></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

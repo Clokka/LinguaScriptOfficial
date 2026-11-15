@@ -351,13 +351,14 @@ ${cta({ name: "new", slug: "anki-guide" }).replace("every new word", "every word
 }
 
 
-const LEARN_ORDER = ["comprehensible-input", "comprehensible-output", "output-hypothesis", "kato-lomb-chameleon-method"];
+const LEARN_ORDER = ["high-frequency-words", "comprehensible-input", "comprehensible-output", "output-hypothesis", "kato-lomb-chameleon-method"];
 const articleCta = (slug) => `<div class="cta card"><p>Try the Chameleon Method free<span>Watch what you love; every word is coloured by how well you know it, and new words become flashcards in one tap.</span></p><div style="display:flex;gap:10px;flex-wrap:wrap"><a class="btn" href="/auth?mode=signup&amp;from=learn-${slug}">Start free</a><a class="btn ghost" href="/discover?from=learn-${slug}">Watch videos</a></div></div>`;
-const words = (a) => [a.lead, a.answer, ...a.sections.map((x) => x.html)].join(" ").replace(/<[^>]+>/g, " ").split(/\s+/).filter(Boolean).length;
+const html = (x, all) => (typeof x.html === "function" ? x.html(all) : x.html);
+const words = (a, all) => [a.lead, a.answer, ...a.sections.map((x) => html(x, all))].join(" ").replace(/<[^>]+>/g, " ").split(/\s+/).filter(Boolean).length;
 
-function articlePage(a, builtAt) {
+function articlePage(a, builtAt, all) {
   const url = `/learn/${a.slug}`;
-  const mins = Math.max(1, Math.round(words(a) / 220));
+  const mins = Math.max(1, Math.round(words(a, all) / 220));
   const jsonLd = [
     { "@context": "https://schema.org", "@type": "Article", headline: a.title, description: a.desc, url: `${SITE}${url}`,
       author: { "@type": "Organization", name: "LinguaScript", url: SITE }, publisher: { "@type": "Organization", name: "LinguaScript", url: SITE },
@@ -376,7 +377,7 @@ function articlePage(a, builtAt) {
 <p class="meta">${mins} min read · Updated ${esc(builtAt)} · Sources at the end</p>
 <p class="answer">${a.answer}</p>
 <nav class="toc" aria-label="On this page">${a.sections.map((x) => `<a href="#${x.id}">${esc(x.h2.replace(/\s*\(.*\)$/, ""))}</a>`).join("")}</nav>
-${a.sections.map((x, i) => `<h2 id="${x.id}">${esc(x.h2)}</h2>${x.html}${i === 2 ? articleCta(a.slug) : ""}`).join("\n")}
+${a.sections.map((x, i) => `<h2 id="${x.id}">${esc(x.h2)}</h2>${html(x, all)}${i === 2 ? articleCta(a.slug) : ""}`).join("\n")}
 ${articleCta(a.slug)}
 <h2>Questions</h2>${a.faqs.map(([q, ans]) => `<details><summary>${esc(q)}</summary><p>${esc(ans)}</p></details>`).join("")}
 <h2>Keep reading</h2><div class="langs">${others.map((o) => `<a href="/learn/${o.slug}"><b>${esc(o.h1)}</b><small>${esc(o.desc)}</small></a>`).join("")}</div>
@@ -387,7 +388,7 @@ ${articleCta(a.slug)}
 
 function learnHub(builtAt) {
   const title = "How Languages Are Learned: Simple, Cited Guides";
-  const desc = "Comprehensible input, comprehensible output, the output hypothesis and Kató Lomb's three pillars, explained simply, with sources and practical tips.";
+  const desc = "High-frequency words, comprehensible input and output, the output hypothesis and Kató Lomb's three pillars, explained simply with sources.";
   const list = LEARN_ORDER.map((s) => ARTICLES.find((x) => x.slug === s));
   const jsonLd = [{ "@context": "https://schema.org", "@type": "ItemList", name: "How languages are learned",
     itemListElement: list.map((a, i) => ({ "@type": "ListItem", position: i + 1, name: a.h1, url: `${SITE}/learn/${a.slug}` })) }];
@@ -400,6 +401,7 @@ function learnHub(builtAt) {
 <a href="${GUIDE_PATH}"><b>Bonus: how to use Anki and Quizlet</b><small>Flashcards that actually work, and how to export your words.</small></a></div>
 <h2>The short version</h2>
 <ol class="steps">
+<li><b>Start with the most common words.</b> A few hundred words make up half of real speech. <a href="/learn/high-frequency-words">High-frequency words</a></li>
 <li><b>Understand lots.</b> Watch, listen and read things you enjoy where you know about 95–98% of the words. <a href="/learn/comprehensible-input">Comprehensible input</a></li>
 <li><b>Use a little, every day.</b> Write and speak with your new words, even imperfectly. <a href="/learn/comprehensible-output">Comprehensible output</a></li>
 <li><b>Notice the gaps.</b> Getting stuck shows you exactly what to listen for next. <a href="/learn/output-hypothesis">The output hypothesis</a></li>
@@ -420,7 +422,7 @@ export function renderWordPages(distDir, root, cfg = {}) {
   write("words", hubPage(all));
   write(GUIDE_PATH.slice(1), guidePage(all));
   write("learn", learnHub(all.es.builtAt));
-  for (const a of ARTICLES) write(`learn/${a.slug}`, articlePage(a, all.es.builtAt));
+  for (const a of ARTICLES) write(`learn/${a.slug}`, articlePage(a, all.es.builtAt, all));
   for (const l of LANGS) for (const n of SIZES) {
     write(pagePath(l, n).slice(1), langPage(l, all[l.file], n, cfg));
     // CSV next to the page (rank, word, meaning, count): imports straight into Anki. CC BY-SA like the source.

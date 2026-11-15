@@ -16,6 +16,10 @@ const S = {
   swainLapkin95: "Swain, M. &amp; Lapkin, S. (1995). Problems in output and the cognitive processes they generate: A step towards second language learning. <i>Applied Linguistics</i>, 16(3), 371–391.",
   schmidt90: "Schmidt, R. (1990). The role of consciousness in second language learning. <i>Applied Linguistics</i>, 11(2), 129–158.",
   long96: "Long, M. (1996). The role of the linguistic environment in second language acquisition. In W. Ritchie &amp; T. Bhatia (Eds.), <i>Handbook of Second Language Acquisition</i> (pp. 413–468). San Diego: Academic Press.",
+  west53: "West, M. (1953). <i>A General Service List of English Words</i>. London: Longman.",
+  zipf49: "Zipf, G. K. (1949). <i>Human Behavior and the Principle of Least Effort</i>. Cambridge, MA: Addison-Wesley.",
+  ngsl: "Browne, C., Culligan, B. &amp; Phillips, J. (2013). The New General Service List. newgeneralservicelist.com.",
+  freqwords: "Dave, H. FrequencyWords: word frequency lists from OpenSubtitles 2018 (CC BY-SA 4.0). github.com/hermitdave/FrequencyWords.",
   lomb: "Lomb, K. (2008). <i>Polyglot: How I Learn Languages</i> (ed. S. Alkire). TESL-EJ. Originally published in Hungarian as <i>Így tanulok nyelveket</i> (1970).",
 };
 
@@ -228,5 +232,47 @@ ${colouredLine([["Mi", "g"], ["perro", "g"], ["siempre", "g"], ["duerme", "r"], 
       ["What was Kató Lomb's formula?", "(Motivation + Time) ÷ Inhibition = Result. Interest and time spent increase results; fear and inhibition reduce them."],
     ],
     sources: [S.lomb, S.krashen85, S.swain85],
+  },
+  {
+    slug: "high-frequency-words",
+    title: "High-Frequency Words: Why Learn Them First",
+    desc: "High-frequency words are the few hundred words that make up most of any language. Real numbers for 6 languages, Zipf's law, and how LinguaScript uses them.",
+    h1: "High-frequency words: why learn them first",
+    lead: "<strong>High-frequency words</strong> are the words a language uses most often: <i>the, you, de, que, je, ich</i>. A few hundred of them make up around half of everything people say, which is why LinguaScript teaches them first.",
+    answer: "<strong>In one sentence:</strong> because word use follows Zipf's law, the most common 100 words cover roughly half of real speech and the top 1,000 cover around three quarters, so learning words in frequency order gets you understanding real films, podcasts and conversations much sooner than learning words by topic. LinguaScript builds every list, recommendation and colour on this idea.",
+    sections: [
+      { id: "what", h2: "What are high-frequency words?", html: `
+<p class="body">Count every word in thousands of films and TV series and sort them from most to least common. The words at the top are the <strong>high-frequency words</strong>. They're mostly small grammar words (<i>the, a, is, not, of</i>) plus the most useful everyday verbs, nouns and adjectives (<i>go, want, time, good</i>).</p>
+<p class="body">The idea is old. In 1953 Michael West published the <strong>General Service List</strong>: about 2,000 English words chosen for teaching because they're so frequent and useful. Modern versions like the <strong>New General Service List</strong> (2013) do the same with huge computer-counted collections of text.</p>` },
+      { id: "zipf", h2: "Zipf's law: why so few words do so much work", html: `
+<p class="body">In the 1930s and 1940s, linguist George Kingsley Zipf noticed a pattern in every language he studied: the most common word appears about <strong>twice as often</strong> as the second, <strong>three times as often</strong> as the third, and so on. This is called <strong>Zipf's law</strong>.</p>
+<p class="body">The result is a very steep curve: a small group of words is used all the time, and a huge "long tail" of words appears only now and then. That's great news for learners: you don't need 50,000 words to start understanding. You need the right few hundred first. <a href="/frequent-words">See the Zipf table</a>.</p>` },
+      { id: "numbers", h2: "The real numbers, in six languages", html: (all) => {
+        const L = [["es", "Spanish", "spanish"], ["fr", "French", "french"], ["de", "German", "german"], ["it", "Italian", "italian"], ["pt_br", "Portuguese (Brazil)", "portuguese"], ["en", "English", "english"]];
+        const f = (n) => n.toLocaleString("en-GB");
+        return `<p class="body">We measured this ourselves from film and TV subtitles (OpenSubtitles 2018). Each number is the share of all words people say that the top words cover:</p>
+<table><caption class="sr">Share of real speech covered by the most common words</caption><thead><tr><th>Language</th><th>Top 100</th><th>Top 1,000</th><th>Top 3,000</th><th>Words for 50%</th></tr></thead><tbody>
+${L.map(([k, n, slug]) => `<tr><td><a href="/words/${slug}">${n}</a></td><td><strong style="color:var(--green)">${all[k].coverage[100]}%</strong></td><td>${all[k].coverage[1000]}%</td><td>${all[k].coverage[3000]}%</td><td>${f(all[k].needFor[50])}</td></tr>`).join("")}
+</tbody></table>
+<p class="body">So in Spanish, just <strong>${f(all.es.needFor[50])} words</strong> make up half of everything said, and in French only <strong>${f(all.fr.needFor[50])}</strong>. These are word forms (<i>is</i> and <i>are</i> count separately), so the real number of dictionary words is even smaller.</p>`; } },
+      { id: "enough", h2: "Is the top 1,000 enough?", html: `
+<p class="body">It's a brilliant start, but not the finish line. To follow a film comfortably you need to know about <strong>95–98%</strong> of the words you hear (see <a href="/learn/comprehensible-input">comprehensible input</a>). Research suggests that takes roughly <strong>3,000 word families</strong> for 95% of film dialogue and about 6,000–7,000 for 98% of spoken English (Webb &amp; Rodgers, 2009; Nation, 2006).</p>
+<p class="body">So the plan is: <strong>learn the high-frequency words first</strong>, because each one pays off every day, then pick up the rest <strong>in context</strong>, from the shows, videos and podcasts you enjoy, where you meet the words that matter to <i>you</i>.</p>` },
+      { id: "linguascript", h2: "How LinguaScript uses high-frequency words", html: `
+<ol class="steps">
+<li><b>Free frequency lists.</b> The <a href="/words">100, 1,000 and 3,000 most common words</a> in Spanish, French, German, Italian, Portuguese and English, with meanings, audio and a CSV for Anki or Quizlet.</li>
+<li><b>Videos at your level.</b> LinguaScript counts how many words of a video you already know and recommends videos where you know about 95–98%: input that's comprehensible, not overwhelming.</li>
+<li><b>Colour-coded words.</b> Every word in the subtitles is coloured by how well you know it: red (new), orange (learning), green (known), gold (review due), blue (100% known). High-frequency words turn green first, and you can watch it happen.</li>
+<li><b>Flashcards in frequency order.</b> The "most common words" deck teaches the words that unlock the most of real speech first, on a spaced review schedule.</li>
+</ol>
+<p class="body">It's the <a href="/learn/kato-lomb-chameleon-method">Chameleon Method</a>: frequent words first, real content always, and a little writing and speaking to make the words your own.</p>` },
+    ],
+    faqs: [
+      ["What are high-frequency words?", "The words a language uses most often. In film and TV subtitles, the top 100 make up roughly half of everything said, and the top 1,000 around three quarters."],
+      ["How many high-frequency words should I learn first?", "Start with the top 100, then the top 1,000. After that, learn words in context from content you enjoy, aiming for about 3,000 word families to follow films comfortably."],
+      ["What is Zipf's law?", "George Kingsley Zipf's observation that the most common word in a language appears about twice as often as the second, three times as often as the third, and so on, so a few words do most of the work."],
+      ["Does LinguaScript use high-frequency words?", "Yes. LinguaScript's free word lists, video recommendations, colour-coded subtitles and flashcards all start from the most frequent words, measured from real film and TV subtitles."],
+    ],
+    sources: [S.zipf49, S.west53, S.ngsl, S.nation06, S.webb09, S.freqwords],
   },
 ];
