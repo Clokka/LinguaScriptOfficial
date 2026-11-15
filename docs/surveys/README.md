@@ -7,7 +7,7 @@
 3. Pick `createLinguaScriptSurvey` and click **▶ Run**. Allow access when Google asks.
 4. Open **Execution log**. It shows the **share link** and the **edit link**. The form is also saved in your Google Drive.
 
-13 questions in 5 sections: About you · Your background · Other apps · LinguaScript and you · Your feedback.
+12 questions in 5 sections: About you · Your background · Other apps · LinguaScript and you · Your feedback.
 For HubSpot, copy the same questions and answer choices into a HubSpot feedback form.
 
 ## Extra data that makes answers more useful
