@@ -25,7 +25,8 @@ const TIPS = {
   en: "English is full of contractions: don't, didn't, I'm, it's. Subtitles split them, so “don” and “didn” on this list really mean do not and did not. Learn the full forms together.",
 };
 const SIZES = [100, 1000, 3000];
-export const wordPagePaths = () => ["/words", ...LANGS.flatMap((l) => SIZES.map((n) => pagePath(l, n)))];
+export const GUIDE_PATH = "/words/anki-and-quizlet";
+export const wordPagePaths = () => ["/words", GUIDE_PATH, ...LANGS.flatMap((l) => SIZES.map((n) => pagePath(l, n)))];
 const pagePath = (l, n) => (n === 100 ? `/words/${l.slug}` : `/words/${l.slug}/top-${n}`);
 const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const fmt = (n) => n.toLocaleString("en-GB");
@@ -79,6 +80,13 @@ details{border-bottom:1px solid var(--line);padding:14px 0}summary{cursor:pointe
 .method{font-size:14px;color:var(--faint)}
 .answer{font-size:16px;background:var(--card);border-left:3px solid var(--green);border-radius:12px;padding:14px 16px;margin:0 0 10px}.updated{font-size:13px;color:var(--faint);margin:0 0 18px}
 .need{max-width:460px;margin-bottom:8px}.need td strong{color:var(--green)}.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.vs td:first-child{color:var(--faint);font-size:14px;width:30%}.vs td{font-size:15px}.vs .yes{color:var(--green);font-weight:700}.vs .meh{color:var(--orange);font-weight:700}
+.steps{counter-reset:s;list-style:none;padding:0;margin:0;display:grid;gap:10px}.steps li{counter-increment:s;position:relative;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px 16px 14px 58px;color:var(--muted)}
+.steps li::before{content:counter(s);position:absolute;left:14px;top:13px;width:30px;height:30px;border-radius:99px;display:grid;place-items:center;font-weight:800;font-size:14px;background:rgba(52,199,89,.14);color:var(--green)}.steps li b{color:var(--text)}
+.toc{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px}.toc a{font-size:13px;padding:6px 12px;border-radius:99px;border:1px solid #2A2A30;color:var(--muted);text-decoration:none}.toc a:hover{border-color:var(--green);color:var(--text)}
+.ladder{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 4px}.ladder span{font-size:13px;font-weight:700;padding:6px 12px;border-radius:99px;border:1px solid #2A2A30}
+.mist{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}.mist div{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px 16px;color:var(--muted);font-size:15px}.mist b{display:block;color:var(--text);margin-bottom:4px}
+p.body{color:var(--muted)}p.body strong{color:var(--text)}kbd{font:600 13px Inter,system-ui,sans-serif;background:#1C1C21;border:1px solid #2A2A30;border-radius:6px;padding:1px 6px;color:var(--text)}
 footer{border-top:1px solid var(--line);margin-top:48px;padding:26px 0 40px;color:var(--faint);font-size:14px}footer a{color:var(--muted)}
 @media (max-width:560px){thead{display:none}tr[data-w]{display:grid;grid-template-columns:30px 1fr auto;align-items:center;column-gap:10px;row-gap:2px;padding:10px 0;border-bottom:1px solid var(--line)}tr[data-w] td{border:0;padding:0}td.r{grid-row:1/span 2;width:auto}td.m{grid-column:2;grid-row:2;font-size:14px}td.a{grid-column:3;grid-row:1/span 2;width:auto}.know{padding:0 10px}.bar{grid-template-columns:86px 1fr 50px}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
@@ -92,7 +100,7 @@ ${jsonLd.map((j) => `<script type="application/ld+json">${JSON.stringify(j).repl
 <style>${CSS}</style></head><body>
 <header class="top"><div class="wrap"><a class="brand" href="/" aria-label="LinguaScript home">${chameleon("green", 46)}<span>Lingua<b>Script</b></span></a><a class="btn" href="/auth?mode=signup">Start free</a></div></header><main class="wrap">`;
 
-const foot = () => `</main><footer><div class="wrap"><p><a href="/words">Most common words</a> · <a href="/frequent-words">Why frequent words first</a> · <a href="/english/a1">English A1 guide</a> · <a href="/english/exams">Exams &amp; study abroad</a> · <a href="/privacy">Privacy</a></p><p>Word lists built from OpenSubtitles 2018 via <a href="https://github.com/hermitdave/FrequencyWords" rel="noopener">FrequencyWords</a>, shared under <a href="https://creativecommons.org/licenses/by-sa/4.0/" rel="noopener license">CC BY-SA 4.0</a>.</p></div></footer>`;
+const foot = () => `</main><footer><div class="wrap"><p><a href="/words">Most common words</a> · <a href="${GUIDE_PATH}">Anki &amp; Quizlet guide</a> · <a href="/frequent-words">Why frequent words first</a> · <a href="/english/a1">English A1 guide</a> · <a href="/english/exams">Exams &amp; study abroad</a> · <a href="/privacy">Privacy</a></p><p>Word lists built from OpenSubtitles 2018 via <a href="https://github.com/hermitdave/FrequencyWords" rel="noopener">FrequencyWords</a>, shared under <a href="https://creativecommons.org/licenses/by-sa/4.0/" rel="noopener license">CC BY-SA 4.0</a>.</p></div></footer>`;
 
 const tierFor = (pct) => (pct >= 100 ? "blue" : pct >= 90 ? "gold" : pct >= 60 ? "green" : pct >= 25 ? "orange" : "red");
 
@@ -139,7 +147,7 @@ function langPage(l, data, n, cfg) {
 <h1>The ${fmt(n)} most common ${esc(l.name)} words</h1>
 <p class="lead">These ${fmt(n)} words are <strong>${cov}% of everything said in ${esc(l.name)} films and TV</strong>. Learn them first and real ${esc(l.name)} opens up months sooner.${l.note ? ` This list is <strong>${esc(l.note)}</strong>.` : ""}</p>
 <p class="answer">The most common ${esc(l.name)} word is ${q(top3[0])}, followed by ${q(top3[1])} and ${q(top3[2])}. Just ${fmt(need[50] || 0)} words make up half of everything people say, and the top ${fmt(n)} cover ${cov}%.</p>
-<p class="updated">Updated ${esc(data.builtAt)} · <a href="${csvPath}" download>Download CSV (works with Anki)</a></p>
+<p class="updated">Updated ${esc(data.builtAt)} · <a href="${csvPath}" download>Download CSV (works with Anki)</a> · <a href="${GUIDE_PATH}#anki">How to import it</a></p>
 <section class="card" aria-label="How much these words cover"><div class="big">${cov}%</div><div style="color:var(--muted);font-size:14px">of real ${esc(l.name)} speech, from just ${fmt(n)} words</div><div class="bars">${bars}</div>
 <p style="margin:14px 0 0;font-size:14px;color:var(--muted)">Why so few words go so far: <a href="/frequent-words">Zipf's law, explained</a>.</p></section>
 <h2>How many ${esc(l.name)} words do you need?</h2>
@@ -193,8 +201,110 @@ function hubPage(all) {
 <h1>Learn the most common words first</h1>
 <p class="lead">In every language a small group of words does almost all the work. <strong>The top 100 words are about half of everything people say.</strong> Pick a language, see the words, and turn them green.</p>
 <div class="langs">${LANGS.map((l) => { const d = all[l.file]; return `<a href="${pagePath(l, 100)}"><b>${esc(l.name)}${l.note ? ` <small>(Brazil)</small>` : ""}</b><small>Top 100 = <strong style="color:${C.green}">${d.coverage[100]}%</strong> · top 1,000 = ${d.coverage[1000]}% · top 3,000 = ${d.coverage[3000]}%</small></a>`; }).join("")}</div>
+<p class="body" style="margin-top:18px">Every list downloads as a CSV for Anki or Quizlet. New to flashcards? Read <a href="${GUIDE_PATH}">how to use Anki and Quizlet to learn a language</a>.</p>
 <h2>Why this works</h2><p style="color:var(--muted)">Languages follow <a href="/frequent-words">Zipf's law</a>: the most common word appears about twice as often as the second, three times as often as the third, and so on. So a few hundred words cover most of a conversation, and LinguaScript always teaches those first.</p>
 ${cta({ name: "new", slug: "hub" }).replace("every new word", "every word").replace("Watch new videos", "Watch videos")}
+` + foot() + "</body></html>";
+}
+
+
+function guidePage(all) {
+  const url = GUIDE_PATH;
+  const title = "How to Use Anki and Quizlet to Learn a Language";
+  const desc = "Anki or Quizlet? A simple, honest guide: how each works, step-by-step setup, importing a word list, daily routine and the mistakes that waste time.";
+  const faqs = [
+    ["Is Anki free?", "Yes on computers (Windows, Mac, Linux), on the web (AnkiWeb) and on Android (AnkiDroid). The official iPhone and iPad app, AnkiMobile, is paid; that money helps fund Anki."],
+    ["Is Quizlet free?", "Quizlet has a free plan with ads. Some study modes are limited unless you pay for Quizlet Plus. Making sets and the basic flashcards stay free."],
+    ["Which is better for learning a language, Anki or Quizlet?", "For remembering words for months and years, Anki, because it schedules every card with spaced repetition. For getting started in two minutes, studying with friends, or a test next week, Quizlet. Many learners use Quizlet first and move to Anki when their deck grows."],
+    ["How many new cards should I add per day?", "Start with 5 to 10 new words a day. Every new card comes back for reviews, so after a few weeks 10 new cards a day means roughly 50 to 100 reviews. Anki's default is 20 new cards a day, which is a lot for most beginners."],
+    ["Can I import a word list into Anki or Quizlet?", "Yes. Our free most-common-word lists download as CSV files. In Anki use File, then Import. In Quizlet, open the CSV in a spreadsheet, copy the word and meaning columns and paste them into Import when you create a set."],
+  ];
+  const jsonLd = [
+    { "@context": "https://schema.org", "@type": "Article", headline: title, description: desc, url: `${SITE}${url}`,
+      author: { "@type": "Organization", name: "LinguaScript", url: SITE }, publisher: { "@type": "Organization", name: "LinguaScript", url: SITE },
+      dateModified: all.es.builtAt, inLanguage: "en" },
+    { "@context": "https://schema.org", "@type": "FAQPage", mainEntity: faqs.map(([q, a]) => ({ "@type": "Question", name: q, acceptedAnswer: { "@type": "Answer", text: a } })) },
+    { "@context": "https://schema.org", "@type": "BreadcrumbList", itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Most common words", item: `${SITE}/words` },
+      { "@type": "ListItem", position: 2, name: "Anki and Quizlet guide", item: `${SITE}${url}` }] },
+  ];
+  const step = (b, t) => `<li><b>${b}</b> ${t}</li>`;
+  const tone = (t, label) => `<span style="color:${C[t]};border-color:${C[t]}55">${label}</span>`;
+  const downloads = LANGS.map((l) => `<a href="${pagePath(l, 1000)}.csv" download><b>${esc(l.name)}${l.note ? " <small>(Brazil)</small>" : ""}</b><small>Top 1,000 · CSV · <span style="color:${C.green}">${all[l.file].coverage[1000]}%</span> of real speech</small></a>`).join("");
+  return head({ title, desc, url, jsonLd }) + `
+<p class="crumbs"><a href="/words">Most common words</a> › Anki &amp; Quizlet guide</p>
+<div class="chams">${chameleon("red", 54, "New word")}${chameleon("orange", 54, "Learning")}${chameleon("green", 54, "Known")}${chameleon("gold", 54, "Review due")}${chameleon("blue", 54, "100% known")}</div>
+<h1>How to use Anki and Quizlet to learn a language</h1>
+<p class="lead">Flashcards are the fastest way to <strong>stop forgetting the words you meet</strong>. Here is how the two most popular apps work, how to set each one up in ten minutes, and the mistakes that make people quit.</p>
+<p class="answer"><strong>Short answer:</strong> use <strong>Anki</strong> if you want to remember words for years: it decides when you see each card again, so you review just before you'd forget. Use <strong>Quizlet</strong> if you want to start in two minutes, study with a class, or prepare for a test soon. With either app, what you put on the cards matters most: <a href="/words">the most common words first</a>, then words from things you actually watch and read.</p>
+<nav class="toc" aria-label="On this page"><a href="#compare">Anki vs Quizlet</a><a href="#why">Why flashcards work</a><a href="#anki">How to use Anki</a><a href="#quizlet">How to use Quizlet</a><a href="#mistakes">Mistakes</a><a href="#cards">What to put on cards</a><a href="#download">Free word lists</a></nav>
+
+<h2 id="compare">Anki vs Quizlet at a glance</h2>
+<table class="vs"><caption class="sr">Anki and Quizlet compared</caption><thead><tr><th></th><th>Anki</th><th>Quizlet</th></tr></thead><tbody>
+<tr><td>Price</td><td><span class="yes">Free</span> on computer, web and Android; iPhone app is paid</td><td><span class="yes">Free</span> with ads; some modes need Quizlet Plus</td></tr>
+<tr><td>Spaced repetition</td><td><span class="yes">Yes, at its core</span>: every card has its own schedule</td><td><span class="meh">Partly</span>: Learn mode adapts, but there's no long-term schedule for every card</td></tr>
+<tr><td>Setup</td><td><span class="meh">10–20 minutes</span>, lots of settings</td><td><span class="yes">2 minutes</span>, very simple</td></tr>
+<tr><td>Best for</td><td>Big vocabularies, months of daily study</td><td>Classes, short word lists, a test next week</td></tr>
+<tr><td>Ready-made decks</td><td>Thousands of shared decks (quality varies)</td><td>Millions of public sets (quality varies)</td></tr>
+<tr><td>Games and modes</td><td>Mostly plain cards (add-ons on computer)</td><td>Flashcards, Learn, Test, Match and more</td></tr>
+</tbody></table>
+<p class="body">Neither is "the best". The best app is the one you open <strong>every day</strong>. A deck you review for 10 minutes daily beats a perfect deck you open once a week.</p>
+
+<h2 id="why">Why flashcards work: the forgetting curve</h2>
+<p class="body">In 1885 Hermann Ebbinghaus showed that we forget new things quickly at first, then more slowly, and that <strong>each review at the right moment makes a memory last longer</strong>. That's called <strong>spaced repetition</strong>: see a word again just before you would forget it, and the gap before the next review can grow.</p>
+<p class="body">The second trick is <strong>active recall</strong>: trying to remember the answer before you flip the card. Struggling a little is what makes it stick, so always say your answer (out loud or in your head) before you look.</p>
+<div class="card"><p style="margin:0 0 4px;font-weight:700">A word's journey (this is how LinguaScript colours it)</p>
+<div class="ladder">${tone("red", "New")}${tone("orange", "Learning")}${tone("green", "Known")}${tone("gold", "Review due")}${tone("blue", "100% known")}</div>
+<p style="margin:8px 0 0;font-size:14px;color:var(--muted)">Each time you remember a word, the next review comes later: minutes, then a day, then days, then weeks.</p></div>
+
+<h2 id="anki">How to use Anki, step by step</h2>
+<ol class="steps">
+${step("Install it.", `Get Anki free from <a href="https://apps.ankiweb.net" rel="noopener">apps.ankiweb.net</a> for your computer. On Android, install <b>AnkiDroid</b> (free). On iPhone, <b>AnkiMobile</b> is the official paid app, or use AnkiWeb in the browser.`)}
+${step("Make a free AnkiWeb account and sync.", `Click <kbd>Sync</kbd> on the computer and log in on your phone too. Now you can add cards on the computer and review on the bus.`)}
+${step("Create a deck.", `Click <kbd>Create Deck</kbd> and name it, for example "Spanish – top 1,000". One deck per language is enough; too many small decks get messy.`)}
+${step("Import a word list (or add cards yourself).", `Download a free list below. In Anki choose <kbd>File</kbd> → <kbd>Import</kbd> and pick the CSV. Check that the separator is <b>Comma</b>, choose your deck, and match <b>Word</b> to the Front and <b>Meaning</b> to the Back (you can ignore Rank, Count and Source). Click <kbd>Import</kbd>.`)}
+${step("Turn on card reversal (optional).", `The note type <b>Basic (and reversed card)</b> makes two cards per word: Spanish → English and English → Spanish. The second one is harder but trains you to <i>use</i> the word, not just recognise it.`)}
+${step("Set a sensible daily limit.", `In the deck's <kbd>Options</kbd>, set <b>New cards/day</b> to 5–10 to start. Leave Maximum reviews/day high so reviews never pile up silently. Newer versions of Anki also offer <b>FSRS</b>, a smarter scheduler; you can switch it on in the same options.`)}
+${step("Study every day, and rate honestly.", `Press <kbd>Again</kbd> if you forgot, <kbd>Good</kbd> if you remembered, <kbd>Hard</kbd> or <kbd>Easy</kbd> only when it really was. Be honest: pressing Good on a word you didn't know just hides it until you've forgotten it completely.`)}
+${step("Make cards better as you go.", `Add an example sentence, a picture, or audio to words that keep coming back. A word with a sentence you understand is much easier to remember than a word alone.`)}
+</ol>
+
+<h2 id="quizlet">How to use Quizlet, step by step</h2>
+<ol class="steps">
+${step("Sign up.", `Go to <a href="https://quizlet.com" rel="noopener">quizlet.com</a> or get the app, and make a free account.`)}
+${step("Create a set.", `Tap <kbd>Create</kbd> → <b>Flashcard set</b>, give it a title like "French – top 100", and set the languages so Quizlet reads the words aloud with the right accent.`)}
+${step("Import a list in one paste.", `Open one of our CSV files in Google Sheets or Excel, select the <b>Word</b> and <b>Meaning</b> columns, and copy. In Quizlet press <kbd>Import</kbd>, paste, and choose <b>Tab</b> between term and definition and <b>New line</b> between cards. Check the preview, then import.`)}
+${step("Start with Flashcards.", `Flip through once, saying each answer before you turn the card. Sort the ones you don't know into "Still learning".`)}
+${step("Use Learn, then Test.", `<b>Learn</b> mixes multiple choice and typing and repeats what you miss. <b>Test</b> shows you what you really know. Typing the answer beats picking it, so choose written questions when you can.`)}
+${step("Use Match as a warm-up, not the main thing.", `Games are fun, but quick matching is recognition, not recall. Keep them for a 2-minute warm-up.`)}
+${step("Come back tomorrow, and again in a few days.", `Quizlet won't fully schedule every card for you, so plan it yourself: same set tomorrow, then after 3 days, then after a week. Move words you know well into a separate "Known" set.`)}
+</ol>
+
+<h2 id="mistakes">Mistakes that make people quit</h2>
+<div class="mist">
+<div><b>Too many new cards</b>Adding 50 words on day one feels great and turns into 300 reviews a week later. Start small and grow.</div>
+<div><b>Skipping days</b>Reviews pile up while you're away. Ten minutes every day beats an hour on Sunday.</div>
+<div><b>Words with no context</b>A word you saw in a show you like sticks far better than one from a random list. Add a sentence.</div>
+<div><b>Learning rare words first</b>A word you'll hear once a year isn't worth a card yet. <a href="/words">Common words</a> pay back every single day.</div>
+<div><b>Only recognising</b>Seeing "perro → dog" is easier than "dog → ?". Turn on reversed cards once a word feels easy.</div>
+<div><b>Flashcards only</b>Cards help you remember. Listening and reading are where you actually meet words and hear how they're used. Do both.</div>
+</div>
+
+<h2 id="cards">What should you put on your cards?</h2>
+<p class="body">In every language a small group of words does most of the work: in Spanish, the top 100 words are about <strong>${all.es.coverage[100]}%</strong> of everything said in films and TV, and the top 1,000 about <strong>${all.es.coverage[1000]}%</strong>. So:</p>
+<ol class="steps">
+${step("First, the most common words.", `Start with a top-100 list, then top 1,000. Every one of them shows up again and again.`)}
+${step("Then, words from what you watch and read.", `A word you met in a scene you enjoyed already has a memory attached. That's the word to put on a card.`)}
+${step("Skip the rest for now.", `Rare words can wait. You'll meet them later, in context, when they matter.`)}
+</ol>
+<p class="body">That's exactly the idea behind LinguaScript: while you watch videos in the language you're learning, every word is coloured by how well you know it, and one tap turns a new word into a flashcard on the same review ladder. You can keep using Anki or Quizlet as well: the free lists below work in both.</p>
+
+<h2 id="download">Free word lists for Anki and Quizlet</h2>
+<p class="body">Top 1,000 words for each language, from real film and TV subtitles, with English meanings. Each list also comes as top 100 and top 3,000 on its page.</p>
+<div class="langs">${downloads}</div>
+${cta({ name: "new", slug: "anki-guide" }).replace("every new word", "every word").replace("Watch new videos", "Watch videos")}
+<h2>Questions</h2>${faqs.map(([q, a]) => `<details><summary>${esc(q)}</summary><p>${esc(a)}</p></details>`).join("")}
+<p class="method" style="margin-top:26px">Written by LinguaScript. Anki is free, open-source software by Ankitects; Quizlet is a product of Quizlet, Inc. We're not connected to either. App details change: check each app for current prices and features. Reference: Ebbinghaus, H. (1885), <i>Über das Gedächtnis</i> (Memory: A Contribution to Experimental Psychology).</p>
 ` + foot() + "</body></html>";
 }
 
@@ -206,13 +316,16 @@ export function renderWordPages(distDir, root, cfg = {}) {
   // the clean URL with no redirect (a folder index.html would 307 to a trailing slash).
   const write = (p, html) => { const file = path.join(distDir, `${p}.html`); fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, html); };
   write("words", hubPage(all));
+  write(GUIDE_PATH.slice(1), guidePage(all));
   for (const l of LANGS) for (const n of SIZES) {
     write(pagePath(l, n).slice(1), langPage(l, all[l.file], n, cfg));
     // CSV next to the page (rank, word, meaning, count): imports straight into Anki. CC BY-SA like the source.
     const cell = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
-    const csv = ["rank,word,meaning,count", ...all[l.file].words.slice(0, n).map((x) => [x.r, cell(x.w), cell(x.m || ""), x.c].join(","))].join("\n")
-      + `\n# ${all[l.file].source} (${all[l.file].licence}), compiled by LinguaScript ${SITE}${pagePath(l, n)}\n`;
-    fs.writeFileSync(path.join(distDir, `${pagePath(l, n).slice(1)}.csv`), "\ufeff" + csv);
+    // "#" lines are Anki file headers (separator + column names), so Anki imports cleanly;
+    // the Source column carries the CC BY-SA credit into every shared deck.
+    const src = cell(`FrequencyWords/OpenSubtitles 2018, ${all[l.file].licence} · linguascript.co.uk${pagePath(l, n)}`);
+    const csv = ["#separator:comma", "#html:false", "#columns:Rank,Word,Meaning,Count,Source", ...all[l.file].words.slice(0, n).map((x) => [x.r, cell(x.w), cell(x.m || ""), x.c, src].join(","))].join("\n") + "\n";
+    fs.writeFileSync(path.join(distDir, `${pagePath(l, n).slice(1)}.csv`), csv);
   }
   return wordPagePaths();
 }
