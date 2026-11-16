@@ -32,6 +32,13 @@ function withManifest(config) {
           category: [{ $: { 'android:name': 'android.intent.category.DEFAULT' } }],
           data: [{ $: { 'android:mimeType': 'text/plain' } }],
         },
+        {
+          // Share → LinguaScript: shared text opens the same translate + save card
+          // (before, the app just opened and nothing happened).
+          action: [{ $: { 'android:name': 'android.intent.action.SEND' } }],
+          category: [{ $: { 'android:name': 'android.intent.category.DEFAULT' } }],
+          data: [{ $: { 'android:mimeType': 'text/plain' } }],
+        },
       ],
     });
     return cfg;

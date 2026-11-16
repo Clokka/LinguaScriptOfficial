@@ -129,7 +129,10 @@ class ProcessTextActivity : Activity() {
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
-    selected = (intent.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT)?.toString() ?: "")
+    // Highlight → "Add to LinguaScript" (PROCESS_TEXT) or Share → LinguaScript (SEND).
+    selected = (intent.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT)?.toString()
+      ?: (if (intent.action == Intent.ACTION_SEND) intent.getStringExtra(Intent.EXTRA_TEXT) else null)
+      ?: "")
       .replace(Regex("\\s+"), " ").trim().take(200)
     if (selected.isEmpty()) { finish(); return }
     contextLine = intent.getStringExtra(EXTRA_CONTEXT)?.trim()?.take(300) ?: ""

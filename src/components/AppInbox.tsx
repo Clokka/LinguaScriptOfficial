@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { WordSavedSheet, type SavedWord } from "@/components/WordSavedSheet";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useXp } from "@/contexts/XpContext";
@@ -32,6 +33,7 @@ export function AppInbox() {
   const busy = useRef(false);
   // Bumped after lock-screen reviews are saved, so the phone gets a fresh deck.
   const [deckBump, setDeckBump] = useState(0);
+  const [savedSheet, setSavedSheet] = useState<SavedWord[]>([]);
   const awardRef = useRef(award);
   awardRef.current = award;
   const userId = user?.id;
@@ -66,6 +68,7 @@ export function AppInbox() {
         const { learning, native, list } = await languagesOf(userId);
         const done: number[] = [];
         let saved = 0;
+        const sheet: SavedWord[] = [];
         let reviewed = 0;
         for (const it of items) {
           const word = normalizeToken(String(it.word || "")).slice(0, 120);
@@ -125,9 +128,11 @@ export function AppInbox() {
             } as any);
             if (error) { console.error("[AppInbox] save failed", error); continue; } // stays in the inbox, retried next open
             saved++;
+            sheet.push({ word, translation: String(it.translation || ""), isNew: true });
             awardRef.current("add_word");
             track("word_saved", { language: lang, source: "android_select" });
           }
+          else sheet.push({ word, translation: String(it.translation || ""), isNew: false });
           done.push(it.at);
         }
         if (done.length) toApp({ type: "inbox-saved", ats: done });
@@ -136,7 +141,8 @@ export function AppInbox() {
           // The deck changed: send the phone a fresh copy so the widgets update.
           setDeckBump((n) => n + 1);
         }
-        if (saved && alive) toast.success(`🔴 ${saved} word${saved === 1 ? "" : "s"} saved from your phone`);
+        // Proof it worked: the "it's red now" sheet (first time: the whole colour journey).
+        if (sheet.length && alive) setSavedSheet(sheet);
       } finally {
         busy.current = false;
       }
@@ -196,5 +202,5 @@ export function AppInbox() {
     return () => { current = false; };
   }, [userId, learningNow, deckBump]);
 
-  return null;
+  return savedSheet.length ? <WordSavedSheet words={savedSheet} onClose={() => setSavedSheet([])} /> : null;
 }
