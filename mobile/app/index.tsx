@@ -78,6 +78,29 @@ const INBOX = `${FileSystem.documentDirectory}ls-inbox.json`;
 const CONFIG = `${FileSystem.documentDirectory}ls-config.json`;
 const DECK = `${FileSystem.documentDirectory}ls-deck.json`;
 
+const LAST_TAP = `${FileSystem.documentDirectory}ls-last-notification-tap.txt`;
+
+/**
+ * Where a push / reminder notification takes you when tapped. Every
+ * notification must lead somewhere clear: a sender can set data.url
+ * ("/flashcards?deck=gold&word=maison"), otherwise the kind decides.
+ */
+function notificationPath(data: Record<string, unknown> | undefined): string {
+  const url = typeof data?.url === 'string' ? data.url : '';
+  if (url.startsWith('/') && !url.startsWith('//')) return url;
+  switch (data?.kind) {
+    case 'flashcards-due': return '/flashcards?deck=gold';
+    case 'gold-word': {
+      const w = typeof data.word === 'string' ? data.word : '';
+      return w ? `/flashcards?deck=gold&word=${encodeURIComponent(w)}` : '/flashcards?deck=gold';
+    }
+    case 'friend-activity': return '/friends';
+    case 'daily-goal':
+    case 'daily-reminder': return '/browse';
+    default: return '/';
+  }
+}
+
 async function readInbox(): Promise<{ at: number }[]> {
   try {
     const info = await FileSystem.getInfoAsync(INBOX);
@@ -155,15 +178,26 @@ export default function AppScreen() {
     return () => sub.remove();
   }, []);
 
-  // Push notification taps → open the matching page.
+  // Push notification taps → open the matching page. Works when the app is
+  // open, in the background, AND when the tap starts a closed app.
   useEffect(() => {
-    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
-      const data = response.notification.request.content.data as Record<string, unknown>;
-      let path = '/';
-      if (data?.kind === 'flashcards-due') path = '/flashcards';
-      else if (data?.kind === 'friend-activity') path = '/friends';
-      goTo(`${APP_URL}${path}`);
-    });
+    const handle = async (response: Notifications.NotificationResponse | null, coldStart: boolean) => {
+      if (!response) return;
+      const req = response.notification.request;
+      // Android remembers the last tap forever — only act on each tap once.
+      const tapId = `${req.identifier}@${response.notification.date}`;
+      try {
+        const info = await FileSystem.getInfoAsync(LAST_TAP);
+        if (info.exists && (await FileSystem.readAsStringAsync(LAST_TAP)) === tapId) return;
+        await FileSystem.writeAsStringAsync(LAST_TAP, tapId);
+      } catch { /* can't remember: still open the page */ }
+      const url = `${APP_URL}${notificationPath(req.content.data as Record<string, unknown>)}`;
+      // Cold start: the WebView may not be ready yet, so wait a moment.
+      if (coldStart) setTimeout(() => goTo(url), 1200);
+      else goTo(url);
+    };
+    Notifications.getLastNotificationResponseAsync().then((r) => handle(r, true)).catch(() => {});
+    const sub = Notifications.addNotificationResponseReceivedListener((r) => { void handle(r, false); });
     return () => sub.remove();
   }, [goTo]);
 
