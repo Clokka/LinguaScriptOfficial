@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 // Runs before `vite dev` and `vite build` (predev/prebuild hooks); writes public/sitemap.xml.
 // Static marketing routes are listed here; published blog posts are pulled from
 // the database at build time so new articles enter the sitemap on the next deploy.
@@ -80,6 +82,14 @@ async function fetchBlogEntries(): Promise<SitemapEntry[]> {
 }
 
 function generateSitemap(entries: SitemapEntry[]) {
+  // Real "last updated" dates for the static SEO pages, so Google knows they're fresh:
+  // /words = when the word lists were built; /learn = when the articles last changed.
+  const wordsBuilt = (() => { try { return JSON.parse(readFileSync(resolve(process.cwd(), "src/data/wordlists/es.json"), "utf8")).builtAt as string; } catch { return undefined; } })();
+  const LEARN_UPDATED = "2026-11-16";
+  for (const e of entries) {
+    if (!e.lastmod && e.path.startsWith("/words")) e.lastmod = wordsBuilt;
+    if (!e.lastmod && e.path.startsWith("/learn")) e.lastmod = LEARN_UPDATED;
+  }
   const urls = entries.map((e) =>
     [
       `  <url>`,
