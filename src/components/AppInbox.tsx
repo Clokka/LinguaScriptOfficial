@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { WordSavedSheet, type SavedWord } from "@/components/WordSavedSheet";
+import { getLanguageLabel } from "@/lib/languages";
+import { getGuestWords, saveGuestWord } from "@/lib/guestWords";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useXp } from "@/contexts/XpContext";
@@ -32,6 +35,7 @@ export function AppInbox() {
   const busy = useRef(false);
   // Bumped after lock-screen reviews are saved, so the phone gets a fresh deck.
   const [deckBump, setDeckBump] = useState(0);
+  const [savedSheet, setSavedSheet] = useState<SavedWord[]>([]);
   const awardRef = useRef(award);
   awardRef.current = award;
   const userId = user?.id;
@@ -55,6 +59,38 @@ export function AppInbox() {
     return { learning, native, list };
   };
 
+  // Signed out in the app: words still save (to the guest deck on this device),
+  // instead of waiting in the inbox forever with no sign of anything.
+  useEffect(() => {
+    if (!(window as any).ReactNativeWebView || userId) return;
+    let alive = true;
+    (window as any).__lsInbox = (items: InboxItem[]) => {
+      const lang = learningRef.current;
+      if (!Array.isArray(items) || !items.length) return;
+      if (!lang) {
+        toast("Your saved words are waiting", { description: "Choose the language you're learning, and they'll save." });
+        return;
+      }
+      const have = new Set(getGuestWords().filter((g) => g.language === lang).map((g) => g.word.toLowerCase()));
+      const sheet: SavedWord[] = [];
+      const done: number[] = [];
+      for (const it of items) {
+        const word = normalizeToken(String(it.word || "")).slice(0, 120);
+        if (word && (it as any).kind !== "review") {
+          const isNew = !have.has(word.toLowerCase());
+          if (isNew) saveGuestWord({ word, translation: String(it.translation || "").slice(0, 300), pronunciation: "", ipa: "", context: String(it.context || "").slice(0, 500), language: lang });
+          sheet.push({ word, translation: String(it.translation || ""), isNew });
+          track("word_saved", { language: lang, source: "android_select", guest: true });
+        }
+        done.push(it.at);
+      }
+      toApp({ type: "inbox-saved", ats: done });
+      if (sheet.length && alive) setSavedSheet(sheet);
+    };
+    toApp({ type: "inbox-ready" });
+    return () => { alive = false; delete (window as any).__lsInbox; };
+  }, [userId]);
+
   useEffect(() => {
     if (!(window as any).ReactNativeWebView || !userId) return;
     let alive = true;
@@ -66,6 +102,8 @@ export function AppInbox() {
         const { learning, native, list } = await languagesOf(userId);
         const done: number[] = [];
         let saved = 0;
+        let waiting = 0;
+        const sheet: SavedWord[] = [];
         let reviewed = 0;
         for (const it of items) {
           const word = normalizeToken(String(it.word || "")).slice(0, 120);
@@ -103,8 +141,28 @@ export function AppInbox() {
           // Detected language first if it's one you learn; otherwise your
           // learning language. Text in your own language is skipped.
           const detected = String(it.language || "").toLowerCase().split("-")[0];
-          const lang = list.includes(detected) ? detected : detected && detected === native ? "" : learning;
-          if (!lang) { done.push(it.at); continue; }
+          // Never drop a word silently. No learning language yet → it waits in the
+          // inbox (the learner is told why). Your own language → shown as "not saved".
+          if (!learning && !list.includes(detected)) { waiting++; continue; }
+          if (detected && detected === native && !list.includes(detected)) {
+            sheet.push({ word, translation: "", isNew: false, note: `That's ${getLanguageLabel(native)}, your own language, so it wasn't saved` });
+            done.push(it.at);
+            continue;
+          }
+          const lang = list.includes(detected) ? detected : learning;
+          // No meaning from the phone (offline, or Save tapped early)? Look it up now.
+          let translation = String(it.translation || "").slice(0, 300);
+          if (!translation && native && native !== lang) {
+            try {
+              const { translateWord } = await import("@/lib/browserTranslate");
+              const t = await Promise.race([
+                translateWord((body) => supabase.functions.invoke("translate-word", { body }), word, String(it.context || ""), lang, native,
+                  { from: getLanguageLabel(lang), to: getLanguageLabel(native) }),
+                new Promise<null>((r) => setTimeout(() => r(null), 6000)),
+              ]);
+              translation = (t as any)?.translation || "";
+            } catch { /* saved without a meaning; flashcards look it up later */ }
+          }
           const { data: existing } = await supabase
             .from("saved_words").select("id").eq("user_id", userId!).eq("language", lang).eq("word", word).limit(1);
           if (!existing?.length) {
@@ -112,7 +170,7 @@ export function AppInbox() {
               user_id: userId!,
               word,
               language: lang,
-              translation: String(it.translation || "").slice(0, 300),
+              translation,
               context: String(it.context || "").slice(0, 500),
               ipa: "",
               pronunciation: "",
@@ -125,9 +183,11 @@ export function AppInbox() {
             } as any);
             if (error) { console.error("[AppInbox] save failed", error); continue; } // stays in the inbox, retried next open
             saved++;
+            sheet.push({ word, translation, isNew: true });
             awardRef.current("add_word");
             track("word_saved", { language: lang, source: "android_select" });
           }
+          else sheet.push({ word, translation: String(it.translation || ""), isNew: false });
           done.push(it.at);
         }
         if (done.length) toApp({ type: "inbox-saved", ats: done });
@@ -136,7 +196,9 @@ export function AppInbox() {
           // The deck changed: send the phone a fresh copy so the widgets update.
           setDeckBump((n) => n + 1);
         }
-        if (saved && alive) toast.success(`🔴 ${saved} word${saved === 1 ? "" : "s"} saved from your phone`);
+        // Proof it worked: the "it's red now" sheet (first time: the whole colour journey).
+        if (sheet.length && alive) setSavedSheet(sheet);
+        if (waiting && alive) toast(`${waiting} word${waiting === 1 ? " is" : "s are"} waiting to be saved`, { description: "Choose the language you're learning (Profile), and they'll save next time you open the app." });
       } finally {
         busy.current = false;
       }
@@ -196,5 +258,5 @@ export function AppInbox() {
     return () => { current = false; };
   }, [userId, learningNow, deckBump]);
 
-  return null;
+  return savedSheet.length ? <WordSavedSheet words={savedSheet} onClose={() => setSavedSheet([])} /> : null;
 }
