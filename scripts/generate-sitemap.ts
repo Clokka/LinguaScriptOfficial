@@ -1,5 +1,4 @@
 import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 // Runs before `vite dev` and `vite build` (predev/prebuild hooks); writes public/sitemap.xml.
 // Static marketing routes are listed here; published blog posts are pulled from
 // the database at build time so new articles enter the sitemap on the next deploy.
