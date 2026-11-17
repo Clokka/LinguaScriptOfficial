@@ -108,6 +108,9 @@ class ProcessTextActivity : Activity() {
   private var knownLanguage = ""
   private var state = ""
   private var savedWord: String? = null
+  /** True while the translation is loading; a Save tapped meanwhile waits for it (max 2.5 s). */
+  private var translating = false
+  private var pendingSave = false
 
   private val bg = Color.parseColor("#08080B")
   private val surface = Color.parseColor("#121218")
@@ -133,8 +136,12 @@ class ProcessTextActivity : Activity() {
     selected = (intent.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT)?.toString()
       ?: (if (intent.action == Intent.ACTION_SEND) intent.getStringExtra(Intent.EXTRA_TEXT) else null)
       ?: "")
+      .let { if (intent.action == Intent.ACTION_SEND) it.replace(Regex("https?://\\S+"), " ") else it }
       .replace(Regex("\\s+"), " ").trim().take(200)
-    if (selected.isEmpty()) { finish(); return }
+    if (selected.isEmpty()) {
+      Toast.makeText(this, "Share a word or a short phrase to save it", Toast.LENGTH_SHORT).show()
+      finish(); return
+    }
     contextLine = intent.getStringExtra(EXTRA_CONTEXT)?.trim()?.take(300) ?: ""
     knownLanguage = intent.getStringExtra(EXTRA_LANGUAGE) ?: ""
     state = intent.getStringExtra(EXTRA_STATE) ?: ""
@@ -148,6 +155,7 @@ class ProcessTextActivity : Activity() {
     if (native.isEmpty()) native = Locale.getDefault().language.ifEmpty { "en" }
 
     setContentView(buildCard())
+    applyState()
     translate()
   }
 
@@ -228,7 +236,6 @@ class ProcessTextActivity : Activity() {
       setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
       typeface = Typeface.DEFAULT_BOLD
       background = rounded(Color.parseColor("#26FF3B30"), 16, red)
-      isEnabled = false
       setOnClickListener { save() }
     }
     row.addView(saveBtn, LinearLayout.LayoutParams(0, dp(52), 1f).apply { rightMargin = dp(10) })
@@ -280,7 +287,8 @@ class ProcessTextActivity : Activity() {
 
   private fun translate() {
     // Instant: a French word comes straight from the built-in pack, no internet at all.
-    if (knownLanguage == "fr" && native == "en") {
+    val packLang = knownLanguage.ifEmpty { learning }
+    if (packLang == "fr" && native == "en") {
       val quick = InstantDict.lookup(this, selected, "fr", "en")
       if (quick != null) {
         translation = quick
@@ -291,6 +299,7 @@ class ProcessTextActivity : Activity() {
         return
       }
     }
+    translating = true
     thread {
       // From the bubble we already know the language; from the text menu we guess.
       var res = gtx(selected, knownLanguage.ifEmpty { "auto" }, native)
@@ -301,8 +310,9 @@ class ProcessTextActivity : Activity() {
         if (back != null) res = Pair(back.first, "$native>$learning")
       }
       main.post {
+        translating = false
         if (res == null || res.first.isEmpty()) {
-          transView.text = "Translation unavailable — check your connection"
+          transView.text = "No meaning yet. Save it anyway: we'll add the meaning in the app."
         } else {
           translation = res.first
           detected = res.second
@@ -310,12 +320,27 @@ class ProcessTextActivity : Activity() {
           transView.setTextColor(white)
         }
         applyState()
+        if (pendingSave) doSave()
       }
     }
   }
 
-  /** Queue the word for the LinguaScript app (it saves it to your red deck). */
+  /** Save tapped: if the meaning is still loading, wait for it briefly, never block. */
   private fun save() {
+    if (savedWord != null || pendingSave) return
+    if (translating) {
+      pendingSave = true
+      saveBtn.text = "Saving…"
+      main.postDelayed({ if (pendingSave) doSave() }, 2500)
+      return
+    }
+    doSave()
+  }
+
+  /** Queue the word for the LinguaScript app (it saves it to your red deck). */
+  private fun doSave() {
+    if (savedWord != null) return
+    pendingSave = false
     try {
       val reversed = detected.contains(">")
       val item = JSONObject().apply {

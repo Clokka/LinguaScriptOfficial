@@ -7,7 +7,7 @@ import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { ChameleonMascot } from "@/components/ChameleonMascot";
 
-export interface SavedWord { word: string; translation?: string; isNew: boolean }
+export interface SavedWord { word: string; translation?: string; isNew: boolean; note?: string }
 
 const JOURNEY = [
   { color: "#FF3B30", name: "Red", what: "New. You'll meet it in videos and flashcards." },
@@ -38,10 +38,10 @@ export function WordSavedSheet({ words, onClose }: { words: SavedWord[]; onClose
         <div className="flex flex-col items-center gap-2 text-center">
           <ChameleonMascot tier="red" className="w-24" />
           <DialogTitle className="text-xl font-extrabold">
-            {fresh.length ? `Saved: ${fresh.length === 1 ? "it's red now" : `${fresh.length} new red words`}` : "Already in your words"}
+            {fresh.length ? `Saved: ${fresh.length === 1 ? "it's red now" : `${fresh.length} new red words`}` : words.some((w) => w.note) ? "Not saved" : "Already in your words"}
           </DialogTitle>
           <DialogDescription className="text-sm text-[#A1A1AA]">
-            {fresh.length ? "Red means new. It's in your flashcards, and it'll light up red whenever it appears in a video." : "You saved this before, so nothing changed."}
+            {fresh.length ? "Red means new. It's in your flashcards, and it'll light up red whenever it appears in a video." : words.some((w) => w.note) ? words.find((w) => w.note)!.note : "You saved this before, so nothing changed."}
           </DialogDescription>
         </div>
 
@@ -49,7 +49,7 @@ export function WordSavedSheet({ words, onClose }: { words: SavedWord[]; onClose
           {shown.map((w) => (
             <li key={w.word} className="flex items-center justify-between gap-3 rounded-2xl border border-[#1E1E23] bg-[#131316] px-4 py-3">
               <span translate="no" className="text-lg font-extrabold" style={{ color: w.isNew ? "#FF3B30" : "#A1A1AA" }}>{w.word}</span>
-              <span className="truncate text-sm text-[#A1A1AA]">{w.translation || (w.isNew ? "meaning on its way" : "already saved")}</span>
+              <span className="truncate text-sm text-[#A1A1AA]">{w.note || w.translation || (w.isNew ? "meaning on its way" : "already saved")}</span>
             </li>
           ))}
           {words.length > shown.length && <li className="text-center text-xs text-[#8E8E98]">and {words.length - shown.length} more</li>}
@@ -66,7 +66,13 @@ export function WordSavedSheet({ words, onClose }: { words: SavedWord[]; onClose
               </li>
             ))}
           </ol>
-        ) : (
+        ) : null}
+        {firstTime && (
+          <p className="rounded-2xl border border-[#1E1E23] bg-[#131316] p-3 text-xs leading-relaxed text-[#A1A1AA]">
+            <b className="text-[#F2F2F5]">Save from any app:</b> highlight a word and tap <b className="text-[#F2F2F5]">Add to LinguaScript</b>. Can't see it? On Samsung tap <b className="text-[#F2F2F5]">Manage apps</b> in that menu and switch LinguaScript on once. Or use <b className="text-[#F2F2F5]">Share → LinguaScript</b>.
+          </p>
+        )}
+        {firstTime ? null : (
           <div className="flex items-center gap-1.5" aria-label="Red, then orange, green, gold and blue">
             {JOURNEY.map((s, i) => (
               <span key={s.name} className="h-2 flex-1 rounded-full" style={{ background: s.color, opacity: i === 0 ? 1 : 0.35 }} />
