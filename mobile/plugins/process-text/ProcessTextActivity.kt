@@ -85,6 +85,9 @@ object InstantDict {
   fun lookup(ctx: Context, text: String, from: String, to: String): String? {
     val pair = "$from-$to"
     if (pair != "fr-en" || text.trim().contains(' ')) return null
+    val trimmed = text.trim()
+    // Numbers aren't translated, just written the same way — instant, no pack or network needed.
+    if (Regex("^\\d+%?$").matches(trimmed)) return trimmed
     val map = maps[pair] ?: load(ctx.applicationContext, pair) ?: return null
     map[key(text)]?.let { return it }
     val raw = text.lowercase(Locale.ROOT).replace('’', '\'')

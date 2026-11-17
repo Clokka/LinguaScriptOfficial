@@ -370,9 +370,12 @@ const packKey = (w) => String(w || '').toLowerCase()
   .replace(/[.,!?;:"'`«»()\[\]…，。、！？；：「」『』（）《》〈〉“”‘’]/g, '').trim();
 async function instantMeaning(text, sl, tl) {
   if (sl !== 'fr' || tl !== 'en' || /\s/.test(String(text || '').trim())) return null;
+  const key = packKey(text);
+  // Numbers aren't translated, just written the same way — instant, no pack or network needed.
+  if (/^\d+%?$/.test(key)) return String(text).trim();
   const pack = await loadPack();
   if (!pack) return null;
-  const hit = pack.get(packKey(text));
+  const hit = pack.get(key);
   if (hit) return hit;
   const raw = String(text).toLowerCase().replace(/’/g, "'").replace(/[.,!?;:"`«»()\[\]…]/g, '').trim();
   const m = raw.match(/^(c|j|l|d|n|s|m|t|qu|jusqu|lorsqu|puisqu)'(.+)$/);

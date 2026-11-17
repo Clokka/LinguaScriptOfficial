@@ -85,6 +85,8 @@ export function instantMeaning(word: string, from: string, to: string): string |
   const pair = pairOf(from, to);
   const k = dictKey(word); // same key as the app and the shared dictionary (no apostrophes)
   if (!k || base(from) === base(to)) return null;
+  // Numbers aren't translated, just written the same way — instant, no pack or network needed.
+  if (/^\d+%?$/.test(k)) return word.trim();
   const get = (key: string) => extraMap(pair).get(key) ?? packs.get(pair)?.get(key);
   const hit = get(k);
   if (hit) return hit;
