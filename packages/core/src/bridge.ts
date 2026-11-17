@@ -38,7 +38,7 @@ export type SiteToAppMessage =
   /** The deck for the 🦎 bubble. */
   | { type: "deck"; language: string; native: string; words: BubbleDeckWords; common?: string[]; meanings?: Record<string, string> }
   /** Turn the 🦎 bubble on/off (Android). */
-  | { type: "bubble"; on: boolean; style: "text" | "ring" | "common" }
+  | { type: "bubble"; on: boolean; style: "text" | "common" }
   /** Tap subtitle words in YouTube (and other video apps) on/off — no bubble (Android, SubtitleTapService). */
   | { type: "subtitles"; on: boolean; /** No subtitles in the video? Also read Live Caption / other caption boxes on screen. */ anywhere?: boolean }
   /** Gold review word on the lock screen on/off (Android). */

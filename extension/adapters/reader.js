@@ -142,10 +142,9 @@
     document.body.appendChild(badge);
   }
 
-  // Reading on a normal page. Style "Text" (default): the word itself turns
-  // red / orange / green, gold glimmers. On a light background the brand hexes
-  // are too pale to read, so the chunk gets .ls-light and deeper shades of the
-  // same four colours. Style "Rings" (html.ls-style-ring): circles instead.
+  // Reading on a normal page: the word itself turns red / orange / green, gold
+  // glimmers. On a light background the brand hexes are too pale to read, so
+  // the chunk gets .ls-light and deeper shades of the same four colours.
   const READER_CSS = `
     .${CHUNK} .ls-word { font:inherit !important; padding:0 !important; border-radius:4px; color:inherit; text-shadow:none !important; }
     .${CHUNK} .ls-word:hover { background:rgba(123,191,39,0.18); }
@@ -155,10 +154,6 @@
     .${CHUNK}.ls-light .ls-word.ls-green  { color:#34C759 !important; }
     .${CHUNK} .ls-word.ls-gold { filter:drop-shadow(0 0 5px rgba(255,200,60,0.6)); }
     .${CHUNK}.ls-light .ls-word.ls-gold { color:#B07A00 !important; background-image:linear-gradient(100deg,#B07A00 0%,#B07A00 35%,#FFE27A 50%,#B07A00 65%,#B07A00 100%); filter:drop-shadow(0 0 4px rgba(255,190,40,0.45)); }
-    html.ls-style-ring .${CHUNK} .ls-word.ls-red,
-    html.ls-style-ring .${CHUNK} .ls-word.ls-orange,
-    html.ls-style-ring .${CHUNK} .ls-word.ls-green,
-    html.ls-style-ring .${CHUNK} .ls-word.ls-gold { color:inherit !important; background-image:none !important; padding:0 3px !important; }
     #ls-reader-badge { position:fixed; right:16px; bottom:16px; z-index:2147483646; display:flex; align-items:center; gap:8px; padding:8px 12px; border-radius:999px; border:1px solid #24242D; background:rgba(8,8,11,0.92); color:#F5F5F7; font:600 14px 'LS Inter',system-ui,sans-serif; cursor:pointer; box-shadow:0 8px 24px rgba(0,0,0,0.35); }
     #ls-reader-badge:hover { border-color:#7bbf27; }
     #ls-reader-badge .ls-rb-dots { display:flex; gap:3px; }

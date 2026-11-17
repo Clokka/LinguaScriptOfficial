@@ -19,7 +19,7 @@ export function PhoneBubbleSetting() {
   const { pathname } = useLocation();
   const inAndroidApp = typeof window !== "undefined" && !!(window as any).ReactNativeWebView && /Android/i.test(navigator.userAgent);
   const [on, setOn] = useState(false);
-  const [style, setStyle] = useState<"text" | "ring" | "common">("text");
+  const [style, setStyle] = useState<"text" | "common">("text");
   const [gold, setGold] = useState(false);
   const [subtitles, setSubtitles] = useState(false);
   // No subtitles in the video? Read Live Caption / on-screen caption boxes too.
@@ -45,7 +45,7 @@ export function PhoneBubbleSetting() {
     try {
       const saved = JSON.parse(localStorage.getItem(KEY) || "{}");
       setOn(!!saved.on);
-      if (saved.style === "ring" || saved.style === "common") setStyle(saved.style);
+      if (saved.style === "common") setStyle(saved.style);
       setGold(!!saved.gold);
       setSubtitles(!!saved.subtitles);
       setAnywhere(!!saved.anywhere);
@@ -70,7 +70,7 @@ export function PhoneBubbleSetting() {
     );
   }
 
-  const save = (next: { on: boolean; style: "text" | "ring" | "common" }) => {
+  const save = (next: { on: boolean; style: "text" | "common" }) => {
     setOn(next.on);
     setStyle(next.style);
     try { localStorage.setItem(KEY, JSON.stringify({ ...next, gold, subtitles, anywhere })); } catch { /* ignore */ }
@@ -154,10 +154,10 @@ export function PhoneBubbleSetting() {
           Bubble missing? Tap here. If Android asks, allow “Display over other apps” for LinguaScript.
         </p>
       </div>
-      <p className="text-sm text-muted-foreground">Word style: colour the words red, orange, green and gold, draw rings around them, or colour them and ring the common words you haven't saved yet.</p>
+      <p className="text-sm text-muted-foreground">Word style: colour the words red, orange, green and gold, or colour them and ring the common words you haven't saved yet.</p>
       {(
-        <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Word style">
-          {(["text", "ring", "common"] as const).map((s) => (
+        <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Word style">
+          {(["text", "common"] as const).map((s) => (
             <button
               key={s}
               type="button"
@@ -168,12 +168,10 @@ export function PhoneBubbleSetting() {
             >
               {s === "common" ? (
                 <span><b style={{ color: "#34C759" }}>A</b><b className="inline-block rounded-full border-2 px-0.5 leading-none" style={{ borderColor: "#FFD54A" }}>a</b></span>
-              ) : s === "text" ? (
-                <span><b style={{ color: "#FF3B30" }}>A</b><b style={{ color: "#FF8A00" }}>a</b><b style={{ color: "#34C759" }}>a</b><b style={{ color: "#FFD54A" }}>a</b></span>
               ) : (
-                <span className="flex gap-0.5">{["#FF3B30", "#FF8A00", "#34C759", "#FFD54A"].map((c) => <i key={c} className="block w-2.5 h-2.5 rounded-full border-2" style={{ borderColor: c }} />)}</span>
+                <span><b style={{ color: "#FF3B30" }}>A</b><b style={{ color: "#FF8A00" }}>a</b><b style={{ color: "#34C759" }}>a</b><b style={{ color: "#FFD54A" }}>a</b></span>
               )}
-              {s === "text" ? "Colour" : s === "ring" ? "Rings" : "Common words"}
+              {s === "text" ? "Colour" : "Common words"}
             </button>
           ))}
         </div>

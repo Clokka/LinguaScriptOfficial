@@ -4,7 +4,6 @@ package __PACKAGE__
 //   "text" — the word is covered with its own background and drawn again in
 //            its deck colour, system font, same size and weight; gold glimmers.
 //            Busy backgrounds (photos, gradients) fall back to a ring.
-//   "ring" — a circle in the deck colour around the word; gold pulses.
 //   "common" — deck words coloured as in "text", PLUS a gold ring around
 //            common words not yet in a deck (same idea as the onboarding rings).
 // Tap any word found on screen → its card (meaning + Save). Tap anywhere else → close.
@@ -56,8 +55,8 @@ class WordOverlayView(
 
   /** 0..1, drives the gold glimmer and the gold ring's pulse. */
   private var phase = 0f
-  // "text": deck words recoloured. "ring": rings in deck colours. "common":
-  // deck words recoloured, plus a gold ring around common words not yet in a deck (worth tapping to save).
+  // "text": deck words recoloured. "common": deck words recoloured, plus a
+  // gold ring around common words not yet in a deck (worth tapping to save).
   private val coloured = hits.filter { it.colour != null && (style == "common" || it.colour != DeckStore.COMMON) }
   private val hasGold = coloured.any { it.colour == DeckStore.GOLD }
   private val animator = ValueAnimator.ofFloat(0f, 1f).apply {
@@ -79,7 +78,7 @@ class WordOverlayView(
 
   override fun onDraw(canvas: Canvas) {
     for (h in coloured) {
-      if (style == "ring" || h.colour == DeckStore.COMMON || h.busy) drawRing(canvas, h) else drawText(canvas, h)
+      if (h.colour == DeckStore.COMMON || h.busy) drawRing(canvas, h) else drawText(canvas, h)
     }
     drawPill(canvas)
   }

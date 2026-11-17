@@ -45,8 +45,8 @@ export function OverlayPermissionPrompt() {
   };
 
   const allow = () => {
-    let style: "text" | "ring" = "ring";
-    try { if (JSON.parse(localStorage.getItem(BUBBLE_KEY) || "{}").style === "text") style = "text"; } catch { /* ignore */ }
+    let style: "text" | "common" = "text";
+    try { if (JSON.parse(localStorage.getItem(BUBBLE_KEY) || "{}").style === "common") style = "common"; } catch { /* ignore */ }
     try { localStorage.setItem(BUBBLE_KEY, JSON.stringify({ on: true, style })); } catch { /* ignore */ }
     remember();
     toApp({ type: "bubble", on: true, style });

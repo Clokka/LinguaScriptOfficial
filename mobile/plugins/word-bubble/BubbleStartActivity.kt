@@ -1,10 +1,10 @@
 package __PACKAGE__
 
 // Invisible helper screen for the 🦎 bubble:
-//   linguascriptbubble://start?style=text|ring  → asks for "display over other
+//   linguascriptbubble://start?style=text|common → asks for "display over other
 //                                                 apps" if needed, starts the bubble
 //   linguascriptbubble://stop                   → turns it off
-//   linguascriptbubble://style?style=ring       → switches Colour / Rings
+//   linguascriptbubble://style?style=common     → switches Colour / Common words
 //   linguascriptbubble://read                   → read this screen now (quick-settings tile);
 //                                                 starts the bubble first if it's off
 //   linguascriptbubble://gold?on=1|0            → gold word on the lock screen (GoldWords.kt)
@@ -58,7 +58,7 @@ class BubbleStartActivity : Activity() {
     if (intent.action == ACTION_SUBTITLE_CAPTURE) { askCapture(REQ_SUB_CAPTURE); return }
 
     val uri: Uri? = intent.data
-    val style = uri?.getQueryParameter("style")?.takeIf { it == "text" || it == "ring" || it == "common" }
+    val style = uri?.getQueryParameter("style")?.takeIf { it == "text" || it == "common" }
     if (style != null) {
       prefs.edit().putString("style", style).apply()
       BubbleService.instance?.setStyle(style)
