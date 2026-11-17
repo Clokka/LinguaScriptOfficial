@@ -489,7 +489,7 @@ class SubtitleTapService : Service() {
       return emptyList()
     }
     lastCaption = live.map { it[0].context }.toSet()
-    return live.flatten()
+    return live.flatten().onEach { it.confirmedLanguage = false }
   }
 
   // ── The invisible tap area over the subtitle words ──────────────────────────
@@ -588,7 +588,7 @@ class SubtitleTapService : Service() {
       startActivity(Intent(this, ProcessTextActivity::class.java)
         .putExtra(Intent.EXTRA_PROCESS_TEXT, hit.text)
         .putExtra(ProcessTextActivity.EXTRA_CONTEXT, hit.context)
-        .putExtra(ProcessTextActivity.EXTRA_LANGUAGE, DeckStore.language)
+        .putExtra(ProcessTextActivity.EXTRA_LANGUAGE, if (hit.confirmedLanguage) DeckStore.language else "")
         .putExtra(ProcessTextActivity.EXTRA_STATE, hit.colour?.takeIf { it != DeckStore.COMMON } ?: "")
         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }, 250)

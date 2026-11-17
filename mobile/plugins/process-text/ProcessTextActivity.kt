@@ -122,6 +122,7 @@ class ProcessTextActivity : Activity() {
 
   private val main = Handler(Looper.getMainLooper())
   private lateinit var transView: TextView
+  private lateinit var langView: TextView
   private lateinit var saveBtn: Button
 
   private var selected = ""
@@ -153,6 +154,13 @@ class ProcessTextActivity : Activity() {
 
   private fun dp(v: Int): Int =
     TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, v.toFloat(), resources.displayMetrics).toInt()
+
+  private val LANG_NAMES = mapOf(
+    "en" to "English", "fr" to "French", "es" to "Spanish", "de" to "German", "it" to "Italian",
+    "pt" to "Portuguese", "ja" to "Japanese", "zh" to "Chinese", "ko" to "Korean", "ru" to "Russian",
+    "ar" to "Arabic", "nl" to "Dutch", "pl" to "Polish", "sv" to "Swedish", "hi" to "Hindi",
+  )
+  private fun langName(code: String) = LANG_NAMES[code.substringBefore("-").lowercase()] ?: code.uppercase()
 
   private fun rounded(color: Int, radius: Int, stroke: Int? = null): GradientDrawable =
     GradientDrawable().apply {
@@ -209,6 +217,18 @@ class ProcessTextActivity : Activity() {
       setPadding(0, 0, 0, if (contextLine.isNotEmpty() && contextLine != selected) dp(6) else dp(16))
     }
     card.addView(transView)
+    // Only shown when we had to guess the language (e.g. "tap my own captions",
+    // where there's no confirmed video language) — so a wrong guess is visible
+    // instead of silently producing a word that looks untranslated.
+    langView = TextView(this).apply {
+      text = ""
+      visibility = View.GONE
+      setTextColor(muted)
+      setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
+      typeface = Typeface.DEFAULT_BOLD
+      setPadding(0, 0, 0, dp(8))
+    }
+    card.addView(langView)
     if (contextLine.isNotEmpty() && contextLine != selected) {
       card.addView(TextView(this).apply {
         text = "« $contextLine »"
@@ -308,6 +328,12 @@ class ProcessTextActivity : Activity() {
           detected = res.second
           transView.text = translation
           transView.setTextColor(white)
+          // We had to guess the language (no confirmed video subtitle) — show what
+          // Google actually detected, so a wrong guess is visible, not silent.
+          if (knownLanguage.isEmpty() && !detected.contains(">")) {
+            langView.text = "Detected ${langName(detected)} → ${langName(native)}"
+            langView.visibility = View.VISIBLE
+          }
         }
         applyState()
       }

@@ -29,6 +29,11 @@ class WordHit(
   var busy: Boolean = false, // photo / gradient behind: use a ring, not a redraw
   var light: Boolean = true, // light background: use the deeper shades
   var bold: Boolean = false, // thick strokes: redraw bold
+  // False for "no subtitles? tap my own captions" hits: we're reading whatever
+  // text is on screen, not a confirmed video subtitle, so the deck's learning
+  // language is just a guess, not a known fact — ProcessTextActivity should
+  // let Google detect the source language instead of forcing a wrong one.
+  var confirmedLanguage: Boolean = true,
 )
 
 object WordFinder {
