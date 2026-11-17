@@ -91,6 +91,8 @@ class GoldWidget : AppWidgetProvider() {
         } else {
           val index = Math.floorMod(p.getInt("index", 0), gold.size)
           val (word, meaning) = gold[index]
+          // Tap the widget → that word's flashcard, not just the deck.
+          v.setOnClickPendingIntent(R.id.ls_gw_root, GoldWords.openPage(c, GoldWords.wordPage(word), 20))
           v.setTextViewText(R.id.ls_gw_word, word)
           v.setTextViewText(R.id.ls_gw_count, "${index + 1} of ${gold.size}")
           v.setViewVisibility(R.id.ls_gw_buttons, View.VISIBLE)
