@@ -162,6 +162,14 @@ class ProcessTextActivity : Activity() {
   )
   private fun langName(code: String) = LANG_NAMES[code.substringBefore("-").lowercase()] ?: code.uppercase()
 
+  /** Always states which language the word is going into. "Detected" only
+   *  when the source was a guess, so a wrong guess stays visible. */
+  private fun showLangLine(source: String, target: String, guessed: Boolean = false) {
+    val prefix = if (guessed) "Detected " else ""
+    langView.text = "$prefix${langName(source)} → ${langName(target)}"
+    langView.visibility = View.VISIBLE
+  }
+
   private fun rounded(color: Int, radius: Int, stroke: Int? = null): GradientDrawable =
     GradientDrawable().apply {
       setColor(color)
@@ -307,6 +315,7 @@ class ProcessTextActivity : Activity() {
         detected = "fr"
         transView.text = quick
         transView.setTextColor(white)
+        showLangLine("fr", "en")
         applyState()
         return
       }
@@ -328,11 +337,13 @@ class ProcessTextActivity : Activity() {
           detected = res.second
           transView.text = translation
           transView.setTextColor(white)
-          // We had to guess the language (no confirmed video subtitle) — show what
-          // Google actually detected, so a wrong guess is visible, not silent.
-          if (knownLanguage.isEmpty() && !detected.contains(">")) {
-            langView.text = "Detected ${langName(detected)} → ${langName(native)}"
-            langView.visibility = View.VISIBLE
+          // Always say which language this is going into — not just when we had
+          // to guess. "Detected" only appears when the source wasn't already known.
+          if (detected.contains(">")) {
+            val (src, tgt) = detected.split(">", limit = 2)
+            showLangLine(src, tgt, guessed = false)
+          } else {
+            showLangLine(detected, native, guessed = knownLanguage.isEmpty())
           }
         }
         applyState()
