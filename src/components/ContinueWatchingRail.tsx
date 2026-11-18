@@ -59,6 +59,38 @@ export function ContinueWatchingRail() {
   const [toForget, setToForget] = useState<Row | null>(null);
   const [forgetting, setForgetting] = useState(false);
   const { toast } = useToast();
+  const [confirmClear, setConfirmClear] = useState(false);
+  const [clearing, setClearing] = useState(false);
+
+  // Delete ALL watch history (every language). Each video goes through the
+  // same forget_video as the bin, so rewatch scores and sessions go too;
+  // saved words stay. Deleted from the account = gone on every device.
+  const clearAll = async () => {
+    if (!user) return;
+    setClearing(true);
+    const { data: all } = await supabase.from("watch_history").select("film_id, video_id").eq("user_id", user.id);
+    const list = (all as { film_id: string; video_id: string | null }[] | null) ?? [];
+    let failed = 0;
+    for (let i = 0; i < list.length; i += 8) {
+      const res = await Promise.all(list.slice(i, i + 8).map((r) => supabase.rpc("forget_video", { _film_id: r.film_id, _video_id: r.video_id ?? null })));
+      failed += res.filter((r) => r.error).length;
+    }
+    setClearing(false);
+    setConfirmClear(false);
+    if (failed) {
+      toast({ title: "Couldn't delete everything", description: `${failed} video${failed === 1 ? "" : "s"} are still there. Please try again.`, variant: "destructive" });
+      return;
+    }
+    try {
+      const prefix = `ls.rewatch:${user.id}:`;
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith(prefix)) localStorage.removeItem(k);
+      }
+    } catch { /* ignore */ }
+    setRows([]);
+    toast({ title: "Watch history deleted", description: "It's gone from every device signed in to your account. Your saved words are still in your decks." });
+  };
 
   const forget = async (r: Row) => {
     if (!user) return;
@@ -147,6 +179,14 @@ export function ContinueWatchingRail() {
           <h2 className="text-lg font-semibold text-foreground">Rewatch to 100% green</h2>
           <p className="text-xs text-muted-foreground">Each rewatch turns more words green.</p>
         </div>
+        <button
+          type="button"
+          onClick={() => setConfirmClear(true)}
+          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground px-2 py-1 rounded-lg hover:bg-secondary transition-colors"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+          Clear history
+        </button>
       </div>
       <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin">
         {rows.map((r) => {
@@ -221,6 +261,27 @@ export function ContinueWatchingRail() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {forgetting ? "Deleting…" : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog open={confirmClear} onOpenChange={(o) => { if (!clearing) setConfirmClear(o); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete all your watch history?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Every video you've watched is removed from LinguaScript, in all languages, on every device
+              signed in to your account. Your saved words stay in your decks. This can't be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={clearing}>Keep it</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={clearing}
+              onClick={(e) => { e.preventDefault(); void clearAll(); }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {clearing ? "Deleting…" : "Delete history"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
