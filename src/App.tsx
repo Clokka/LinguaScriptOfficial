@@ -77,6 +77,7 @@ const LandingPage4 = lazy(() => import("./pages/LandingPage4"));
 const Landing5 = lazy(() => import("./pages/Landing5"));
 const LabLanding = lazy(() => import("./pages/landing/LabLanding"));
 const LandingClear = lazy(() => import("./pages/LandingClear"));
+const CoverflowLanding = lazy(() => import("./pages/landing/CoverflowLanding"));
 const GapDemo = lazy(() => import("./pages/GapDemo"));
 const Demo = lazy(() => import("./pages/Demo"));
 const Browse = lazy(() => import("./pages/Browse"));
@@ -162,6 +163,7 @@ const APP_ROUTES = (
                 <Route path="/landing-glass" element={<LabLanding theme="glass" />} />
                 <Route path="/landing-split" element={<LabLanding theme="split" />} />
                 <Route path="/landing-clear" element={<LandingClear />} />
+                <Route path="/landing6" element={<CoverflowLanding />} />
                 <Route path="/gap-demo" element={<GapDemo />} />
                 <Route path="/demo" element={<Demo />} />
                 <Route path="/browse" element={<Navigate to="/discover" replace />} />
