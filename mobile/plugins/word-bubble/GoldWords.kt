@@ -7,7 +7,7 @@ package __PACKAGE__
 // A quiet notification (no sound, no buzz) that shows on the lock screen:
 //   "✨ maison — do you remember it?"   [Show meaning]
 //   tap Show meaning → "maison = house" [Next ✨]
-//   tap the card → your flashcards
+//   tap the card → the flashcard for THAT word (?word=…), then the other gold words
 // An hourly alarm picks the next gold word (or clears the card when none are
 // due) and refreshes the home-screen widget. On/off: linguascriptbubble://gold?on=1|0.
 
@@ -66,6 +66,13 @@ object GoldWords {
     return PendingIntent.getActivity(c, req, i, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
   }
 
+  /** Flashcards page that opens on THIS word first (Flashcards.tsx reads ?word= and ?lang=). */
+  fun wordPage(word: String): String {
+    val enc = { s: String -> java.net.URLEncoder.encode(s, "UTF-8") }
+    val lang = DeckStore.language
+    return "flashcards?deck=gold&word=${enc(word)}" + if (lang.isNotEmpty()) "&lang=${enc(lang)}" else ""
+  }
+
   /** Show the current gold word (optionally its meaning, or move to the next one). */
   fun show(c: Context, reveal: Boolean, advance: Boolean) {
     if (!isOn(c)) return
@@ -104,7 +111,9 @@ object GoldWords {
       .setVisibility(Notification.VISIBILITY_PUBLIC)
       .setOnlyAlertOnce(true)
       .setShowWhen(false)
-      .setContentIntent(openPage(c, "flashcards?deck=gold", 1))
+      // Tap the card → the app opens on THIS word's flashcard (not just the deck).
+      .setContentIntent(openPage(c, wordPage(word), 1))
+      .setAutoCancel(false)
     if (reveal) {
       b.setContentTitle("✨ $word = $meaning")
         .setContentText(if (gold.size > 1) "${gold.size} gold words ready — tap to review them all" else "Tap to review it in LinguaScript")

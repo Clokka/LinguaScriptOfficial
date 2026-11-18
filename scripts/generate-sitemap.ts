@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 // Runs before `vite dev` and `vite build` (predev/prebuild hooks); writes public/sitemap.xml.
 // Static marketing routes are listed here; published blog posts are pulled from
 // the database at build time so new articles enter the sitemap on the next deploy.
@@ -40,6 +41,17 @@ const staticEntries: SitemapEntry[] = [
   { path: "/english/a1/checklist", changefreq: "monthly", priority: "0.7" },
   { path: "/english/exams", changefreq: "monthly", priority: "0.7" },
   { path: "/english/a1/sources", changefreq: "yearly", priority: "0.4" },
+  // Most common words (static pages from scripts/word-pages.mjs — keep in sync with its LANGS).
+  { path: "/words", changefreq: "monthly", priority: "0.8" },
+  { path: "/words/anki-and-quizlet", changefreq: "monthly", priority: "0.7" },
+  // /learn articles (static, scripts/learn-articles.mjs).
+  { path: "/learn", changefreq: "monthly", priority: "0.7" },
+  ...["high-frequency-words", "comprehensible-input", "comprehensible-output", "output-hypothesis", "kato-lomb-chameleon-method"].map((s) => ({ path: `/learn/${s}`, changefreq: "monthly", priority: "0.7" })),
+  ...["spanish", "french", "german", "italian", "portuguese", "english"].flatMap((l): SitemapEntry[] => [
+    { path: `/words/${l}`, changefreq: "monthly", priority: "0.8" },
+    { path: `/words/${l}/top-1000`, changefreq: "monthly", priority: "0.7" },
+    { path: `/words/${l}/top-3000`, changefreq: "monthly", priority: "0.6" },
+  ]),
   { path: "/linguascripts", changefreq: "monthly", priority: "0.6" },
   { path: "/privacy", changefreq: "yearly", priority: "0.3" },
   { path: "/terms", changefreq: "yearly", priority: "0.3" },
@@ -69,6 +81,14 @@ async function fetchBlogEntries(): Promise<SitemapEntry[]> {
 }
 
 function generateSitemap(entries: SitemapEntry[]) {
+  // Real "last updated" dates for the static SEO pages, so Google knows they're fresh:
+  // /words = when the word lists were built; /learn = when the articles last changed.
+  const wordsBuilt = (() => { try { return JSON.parse(readFileSync(resolve(process.cwd(), "src/data/wordlists/es.json"), "utf8")).builtAt as string; } catch { return undefined; } })();
+  const LEARN_UPDATED = "2026-11-16";
+  for (const e of entries) {
+    if (!e.lastmod && e.path.startsWith("/words")) e.lastmod = wordsBuilt;
+    if (!e.lastmod && e.path.startsWith("/learn")) e.lastmod = LEARN_UPDATED;
+  }
   const urls = entries.map((e) =>
     [
       `  <url>`,

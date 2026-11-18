@@ -10,10 +10,10 @@ import { getLanguageLabel } from "@/lib/languages";
 import { track } from "@/lib/analytics";
 
 /**
- * Select a word or short phrase → "Save to LinguaScript": translated and saved
+ * Select a word or short phrase → "Add to LinguaScript": translated and saved
  * to the red deck (guest words when signed out).
  * - In the phone app it's an item in Android's own text menu (Copy · Paste ·
- *   Translate · Save to LinguaScript): mobile/plugins/withWebViewMenu.js +
+ *   Translate · Add to LinguaScript): mobile/plugins/withWebViewMenu.js +
  *   app/index.tsx call window.__lsSaveText(text).
  * - In a browser there's no such menu, so a small chip appears under the
  *   selection instead.
@@ -154,7 +154,7 @@ export function SelectionSave() {
       style={{ left: chip.x, top: chip.y }}
       className="fixed z-[1000] -translate-x-1/2 rounded-full bg-[#08080B] px-4 py-2 text-sm font-semibold text-white shadow-lg ring-2 ring-[#34C759] active:scale-95 disabled:opacity-70"
     >
-      {saving ? "Saving…" : "＋ Save to LinguaScript"}
+      {saving ? "Saving…" : "＋ Add to LinguaScript"}
     </button>
   );
 }

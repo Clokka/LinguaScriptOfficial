@@ -50,6 +50,7 @@ export function splitLongLines(lines: CaptionLine[], maxWords = 9): CaptionLine[
 // ---------------------------------------------------------------------------
 // Drawing
 
+const LOGO_RATIO = 372 / 184; // public/logo.svg viewBox
 let logo: HTMLImageElement | null = null;
 function getLogo(): HTMLImageElement | null {
   if (typeof Image === "undefined") return null;
@@ -60,7 +61,40 @@ function getLogo(): HTMLImageElement | null {
   return logo.complete && logo.naturalWidth ? logo : null;
 }
 
-const FONT = "'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif";
+// Thai/Chinese/Japanese fonts listed so mixed lines (English + ไทย) never draw boxes.
+const FONT = "'Inter', system-ui, -apple-system, 'Segoe UI', 'Noto Sans Thai', 'Leelawadee UI', Tahoma, 'Noto Sans CJK', sans-serif";
+
+// Scripts written WITHOUT spaces between words. Each match gets its own
+// Intl.Segmenter pass, so a mixed line like "Hello ยินดีที่ได้รู้จัก" becomes
+// Hello · ยินดี · ที่ · ได้ · รู้จัก — every Thai word coloured on its own and
+// able to wrap onto the next row (before, the whole Thai part was ONE word).
+const UNSPACED_SCRIPTS: [RegExp, string][] = [
+  [/[\u0E00-\u0E7F]/, "th"],
+  [/[\u0E80-\u0EFF]/, "lo"],
+  [/[\u1780-\u17FF]/, "km"],
+  [/[\u1000-\u109F]/, "my"],
+  [/[\u3040-\u30FF]/, "ja"],
+  [/[\u4E00-\u9FFF]/, "zh"],
+];
+
+/** tokenize(), but unspaced-script words are split into real words (no spaces added). */
+export function captionTokens(text: string): { text: string; word: boolean }[] {
+  const Seg = typeof Intl !== "undefined" ? (Intl as any).Segmenter : null;
+  const out: { text: string; word: boolean }[] = [];
+  for (const p of tokenize(text)) {
+    const script = p.word && Seg ? UNSPACED_SCRIPTS.find(([re]) => re.test(p.text)) : undefined;
+    if (!script) { out.push(p); continue; }
+    try {
+      const seg = new Seg(script[1], { granularity: "word" });
+      for (const s of seg.segment(p.text) as Iterable<{ segment: string; isWordLike?: boolean }>) {
+        out.push({ text: s.segment, word: s.isWordLike !== false });
+      }
+    } catch {
+      out.push(p);
+    }
+  }
+  return out;
+}
 
 interface Piece { text: string; colour: string; width: number }
 
@@ -110,7 +144,7 @@ export function drawCaption(
   let bottomRows: Piece[][] = [];
   if (line?.text.trim()) {
     ctx.font = `800 ${size}px ${FONT}`;
-    const pieces: Piece[] = tokenize(line.text).map((p) => {
+    const pieces: Piece[] = captionTokens(line.text).map((p) => {
       const c = p.word ? colourOf(deck, p.text) : null;
       return { text: p.text, colour: c ? COLOUR_HEX[c] : "#FFFFFF", width: ctx.measureText(p.text).width };
     });
@@ -161,16 +195,20 @@ export function drawCaption(
   if (opts.showLogo) {
     const img = getLogo();
     const s = Math.round(size * 1.1);
+    // public/logo.svg is wide (viewBox 372 × 184) — keep its real shape.
+    // Drawing it into an s × s square is what squashed the chameleon.
+    const ratio = img && img.naturalWidth && img.naturalHeight ? img.naturalWidth / img.naturalHeight : LOGO_RATIO;
+    const lw = Math.round(s * (Number.isFinite(ratio) && ratio > 0.2 ? ratio : LOGO_RATIO));
     const x = Math.round(W * 0.05);
     const ly = Math.round(H * 0.05);
     ctx.globalAlpha = 0.9;
-    if (img) ctx.drawImage(img, x, ly, s, s);
+    if (img) ctx.drawImage(img, x, ly, lw, s);
     ctx.font = `800 ${Math.round(size * 0.6)}px ${FONT}`;
     ctx.fillStyle = "#FFFFFF";
     ctx.shadowColor = "rgba(0,0,0,0.8)";
     ctx.shadowBlur = size * 0.2;
     ctx.textBaseline = "middle";
-    ctx.fillText("LinguaScript", x + (img ? s + size * 0.25 : 0), ly + s / 2);
+    ctx.fillText("LinguaScript", x + (img ? lw + size * 0.25 : 0), ly + s / 2);
   }
   ctx.restore();
 }
@@ -349,10 +387,13 @@ function wavBase64(samples: Float32Array): string {
 /** Speech in the video → timed subtitle lines with translations. */
 export async function transcribeVideo(
   file: Blob,
-  language: string,
+  /** The language(s) spoken, e.g. ["th", "en"]. "auto" = let the AI work it out. */
+  language: string | string[],
   nativeLanguage: string,
   onProgress?: (fraction: number) => void,
 ): Promise<CaptionLine[]> {
+  const spoken = (Array.isArray(language) ? language : [language]).filter(Boolean);
+  const labels = spoken.map((c) => (c === "auto" ? "any language" : getLanguageLabel(c)));
   const chunks = await audioChunks(file);
   const all: CaptionLine[] = [];
   for (let i = 0; i < chunks.length; i++) {
@@ -361,7 +402,8 @@ export async function transcribeVideo(
     const { data, error } = await supabase.functions.invoke("transcribe-audio", {
       body: {
         audio: wavBase64(samples),
-        language: getLanguageLabel(language),
+        language: labels[0],
+        languages: labels,
         nativeLanguage: getLanguageLabel(nativeLanguage),
       },
     });

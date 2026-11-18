@@ -1,6 +1,6 @@
 // Expo config plugin: adds LinguaScript to Android's "select text" menu.
 //
-// Highlight text in any app → "Save to LinguaScript" (sometimes under ⋮) → a small card with the
+// Highlight text in any app → "Add to LinguaScript" (sometimes under ⋮) → a small card with the
 // translation and a Save button (plugins/process-text/ProcessTextActivity.kt).
 // Uses Android's PROCESS_TEXT intent, which needs no permission at all.
 const fs = require('fs');
@@ -16,8 +16,9 @@ function withManifest(config) {
     app.activity.push({
       $: {
         'android:name': ACTIVITY,
-        // What shows in the copy / paste menu.
-        'android:label': 'Save to LinguaScript',
+        // What shows in the copy / paste menu. Android/Chrome sort these entries A→Z by label,
+        // so "Add…" lands FIRST (above Anki Card, Ask ChatGPT…); "Save…" was near the bottom.
+        'android:label': 'Add to LinguaScript',
         'android:exported': 'true',
         'android:theme': '@android:style/Theme.Translucent.NoTitleBar',
         'android:excludeFromRecents': 'true',
@@ -28,6 +29,13 @@ function withManifest(config) {
       'intent-filter': [
         {
           action: [{ $: { 'android:name': 'android.intent.action.PROCESS_TEXT' } }],
+          category: [{ $: { 'android:name': 'android.intent.category.DEFAULT' } }],
+          data: [{ $: { 'android:mimeType': 'text/plain' } }],
+        },
+        {
+          // Share → LinguaScript: shared text opens the same translate + save card
+          // (before, the app just opened and nothing happened).
+          action: [{ $: { 'android:name': 'android.intent.action.SEND' } }],
           category: [{ $: { 'android:name': 'android.intent.category.DEFAULT' } }],
           data: [{ $: { 'android:mimeType': 'text/plain' } }],
         },

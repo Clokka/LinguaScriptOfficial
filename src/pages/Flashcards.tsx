@@ -13,7 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { ScanPageButton } from "@/components/ScanPageButton";
 import { getGuestWords } from "@/lib/guestWords";
-import { DeckState, isReviewDue } from "@/lib/vocab";
+import { DeckState, isReviewDue, normalizeToken } from "@/lib/vocab";
 import { cn } from "@/lib/utils";
 import { useTour } from "@/contexts/TourContext";
 import { useXp } from "@/contexts/XpContext";
@@ -110,6 +110,12 @@ const Flashcards = () => {
   const [activeDeck, setActiveDeck] = useState<DeckKey | null>(null);
   const [reviewCards, setReviewCards] = useState<SavedWord[]>([]);
 
+  // True once cards came from the database (not just the on-device cache).
+  const freshCards = useRef(false);
+  // A ?lang= link has been checked (switched, or not one of the learner's languages).
+  const [langLinkChecked, setLangLinkChecked] = useState(
+    () => !new URLSearchParams(window.location.search).get("lang"),
+  );
   const fetchCards = useCallback(async (showSpinner = true) => {
     // Until we know who this is, keep the spinner: treating a signed-in learner
     // as a guest showed "0 cards · Get the Chrome Extension" on every visit.
@@ -123,6 +129,7 @@ const Flashcards = () => {
     }
     // Show the last copy of this deck instantly, then refresh from the server.
     const cacheKey = `ls.cards.${user.id}.${learningLanguage || "all"}`;
+    freshCards.current = false;
     let hadCache = false;
     try {
       const cached = localStorage.getItem(cacheKey);
@@ -182,6 +189,7 @@ const Flashcards = () => {
       rows.sort((a, b) => Number(isToday(b)) - Number(isToday(a)));
     }
     setAllCards(rows);
+    freshCards.current = true;
     setLoading(false);
     try { localStorage.setItem(cacheKey, JSON.stringify(rows)); } catch { /* storage full: skip */ }
     setStarterDecks([]);
@@ -192,7 +200,8 @@ const Flashcards = () => {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const lang = (params.get("lang") || "").toLowerCase();
-    if (!user || !lang || lang === learningLanguage) return;
+    if (!user) return;
+    if (!lang || lang === learningLanguage) { setLangLinkChecked(true); return; }
     let cancelled = false;
     supabase
       .from("language_profiles")
@@ -201,8 +210,10 @@ const Flashcards = () => {
       .eq("language", lang)
       .maybeSingle()
       .then(({ data }) => {
-        if (!cancelled && data) setLearningLanguage(lang);
-      });
+        if (cancelled) return;
+        if (data) setLearningLanguage(lang);
+        setLangLinkChecked(true);
+      }, () => { if (!cancelled) setLangLinkChecked(true); });
     return () => { cancelled = true; };
     // Only when the page opens or the account changes; switching language
     // afterwards on this page must not be undone by the link.
@@ -279,19 +290,52 @@ const Flashcards = () => {
 
   // ?deck=red|orange|green opens that deck straight away (the phone widget's
   // squares); ?deck=gold opens the green words whose review is due (its gold strip).
+  // ?word=maison (the lock-screen "do you remember it?" card, the gold widget,
+  // any notification) opens THAT word's flashcard first, whatever its colour,
+  // then the rest of the deck — a notification must always lead to its word.
   const deckLinkDone = useRef(false);
   useEffect(() => {
     if (loading || deckLinkDone.current) return;
     const params = new URLSearchParams(window.location.search);
     const deck = params.get("deck");
-    if (!deck) return;
+    const wordParam = params.get("word");
+    if (!deck && !wordParam) return;
+
+    let match: SavedWord | undefined;
+    if (wordParam) {
+      const key = normalizeToken(wordParam);
+      const same = (s?: string | null) => !!s && normalizeToken(s) === key;
+      match = allCards.find((c) => same(c.word)) ?? allCards.find((c) => same(c.lemma));
+      // Not found yet: wait for the ?lang= switch and the real database copy
+      // (the instant on-device copy can be old) before giving up.
+      if (!match && user && (!langLinkChecked || !freshCards.current)) return;
+    }
+
     deckLinkDone.current = true;
     params.delete("deck");
+    params.delete("word");
     const rest = params.toString();
     window.history.replaceState(null, "", window.location.pathname + (rest ? `?${rest}` : ""));
+
+    if (wordParam) {
+      if (match) {
+        const state = (match.state ?? "red") as DeckKey;
+        // The word first, then the other cards it belongs with.
+        const others = deck === "gold"
+          ? allCards.filter((c) => c.id !== match!.id && isReviewDue(c))
+          : allCards.filter((c) => c.id !== match!.id && (c.state ?? "red") === state);
+        setReviewCards(tourActive ? [match] : [match, ...others]);
+        setActiveDeck(state);
+        return;
+      }
+      toast(`“${wordParam}” isn't in your flashcards on this account`, {
+        description: "Showing your words that are ready to review instead.",
+      });
+    }
+
     if (deck === "red" || deck === "orange" || deck === "green") {
       if (counts[deck] > 0) openDeck(deck);
-    } else if (deck === "gold") {
+    } else if (deck === "gold" || wordParam) {
       const due = allCards.filter((c) => isReviewDue(c));
       if (due.length) {
         setReviewCards(tourActive ? due.slice(0, 1) : due);
@@ -300,7 +344,7 @@ const Flashcards = () => {
     }
     // Once, after the cards load; openDeck/counts read the same allCards.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, allCards]);
+  }, [loading, allCards, langLinkChecked]);
 
   const phraseCount = allCards.filter((c) => c.is_phrase).length;
 

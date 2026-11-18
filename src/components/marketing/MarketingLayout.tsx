@@ -74,6 +74,8 @@ export function MarketingLayout({
             <ul className="space-y-2">
               <li><Link to="/the-chameleon-method" className="hover:text-foreground">The Chameleon Method</Link></li>
               <li><Link to="/frequent-words" className="hover:text-foreground">Frequent words first</Link></li>
+              {/* Static pages outside the React app (scripts/word-pages.mjs): plain <a>, full page load. */}
+              <li><a href="/words" className="hover:text-foreground">Most common words</a></li>
               <li><Link to="/dual-subtitles" className="hover:text-foreground">Dual subtitles</Link></li>
               <li><Link to="/anki-alternative" className="hover:text-foreground">Spaced repetition built in</Link></li>
               <li><Link to="/blog" className="hover:text-foreground">Blog</Link></li>
