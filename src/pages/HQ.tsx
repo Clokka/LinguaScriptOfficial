@@ -201,6 +201,7 @@ function Today({ site, go, setPending }: { site: ReturnType<typeof useSite>; go:
   return (
     <div className="grid gap-4">
       <HomepageBox site={site} setPending={setPending} />
+      <PageSwitches site={site} setPending={setPending} />
       <GlassCard accent="green" className="p-5 space-y-3">
         <Eyebrow>Live on linguascript.co.uk</Eyebrow>
         {site.live === undefined ? <Skeleton className="h-20" /> : (
@@ -251,6 +252,7 @@ function HomepageBox({ site, setPending }: { site: ReturnType<typeof useSite>; s
   const path = cleanHomePath(text);
   const bad = text.trim() !== "" && !path;
   const same = !!path && path === current;
+  const off = !!path && !!live?.disabledPages?.includes(path);
 
   const choose = (home: SiteConfig["home"]) => {
     const c = cleanConfig({ ...site.base(), home });
@@ -273,6 +275,7 @@ function HomepageBox({ site, setPending }: { site: ReturnType<typeof useSite>; s
         <input value={text} onChange={(e) => setText(e.target.value)} placeholder="/landing" aria-label="Homepage address"
           className="min-w-0 flex-1 bg-transparent px-3 py-3 font-mono text-lg outline-none" autoCapitalize="none" autoCorrect="off" spellCheck={false} />
       </label>
+      {off && <p className="text-sm text-amber-300">This page is switched off. Switch it on below first.</p>}
       {bad && <p className="text-sm text-amber-300">That address can't be used. Try something like <code>/landing</code>.</p>}
 
       <div className="flex flex-wrap gap-1.5">
@@ -284,14 +287,14 @@ function HomepageBox({ site, setPending }: { site: ReturnType<typeof useSite>; s
       {path && (
         <div className="space-y-2">
           <p className="text-xs text-muted-foreground">Preview of <code>{path}</code>. If it says “page not found”, check the address.</p>
-          <iframe key={path} title="Homepage preview" src={path} loading="lazy"
+          <iframe key={path} title="Homepage preview" src={`${path}?hqpreview=1`} loading="lazy"
             className="h-[460px] w-full rounded-xl border border-white/10 bg-black" />
         </div>
       )}
 
       <div className="flex flex-wrap items-center gap-2">
         {path && <Button asChild variant="outline"><a href={path} target="_blank" rel="noopener"><Eye className="mr-1 h-4 w-4" /> Open full size</a></Button>}
-        <Button className="bg-gradient-to-r from-green-500 to-yellow-400 font-bold text-black" disabled={!path || same}
+        <Button className="bg-gradient-to-r from-green-500 to-yellow-400 font-bold text-black" disabled={!path || same || off}
           onClick={() => path && choose({ mode: "path", path })}>
           <Rocket className="mr-1 h-4 w-4" /> {same ? "This is the homepage ✓" : "Make it the homepage"}
         </Button>
@@ -300,6 +303,64 @@ function HomepageBox({ site, setPending }: { site: ReturnType<typeof useSite>; s
         )}
       </div>
       <p className="text-xs text-muted-foreground">Right now: <b>{live === undefined ? "loading…" : describeHome((live ?? DEFAULT_SITE).home)}</b></p>
+    </GlassCard>
+  );
+}
+
+/* ───────────── Landing page on/off ───────────── */
+// Switch pages off for a while: visitors who open them go to the homepage.
+function PageSwitches({ site, setPending }: { site: ReturnType<typeof useSite>; setPending: (p: Pending) => void }) {
+  const live = site.live;
+  const off = live?.disabledPages ?? [];
+  const home = live?.home.mode === "path" ? live.home.path : "";
+  const [extra, setExtra] = useState("");
+  const rows: [string, string][] = [...HOME_PICKS, ...off.filter((p) => !HOME_PICKS.some(([x]) => x === p)).map((p) => [p, p] as [string, string])];
+
+  const save = (next: string[], line: string) => {
+    const c = cleanConfig({ ...site.base(), disabledPages: next });
+    if (c) setPending({ title: "Change which pages are on?", lines: [line], config: c });
+  };
+  const flip = (path: string, name: string) => off.includes(path)
+    ? save(off.filter((p) => p !== path), `${name} (${path}) → ON`)
+    : save([...off, path], `${name} (${path}) → OFF (visitors go to the homepage)`);
+  const extraPath = cleanHomePath(extra);
+
+  return (
+    <GlassCard className="p-5 space-y-3">
+      <div>
+        <Eyebrow>🔌 Landing pages: on or off</Eyebrow>
+        <p className="mt-1 text-sm text-muted-foreground">Switch a page <b>off</b> to hide it for a while. Anyone who opens it goes to the homepage instead. Switch it back <b>on</b> any time.</p>
+      </div>
+      {live === undefined ? <Skeleton className="h-40" /> : (
+        <div className="divide-y divide-white/5">
+          {rows.map(([path, name]) => {
+            const isOff = off.includes(path);
+            const isHome = path === home;
+            return (
+              <div key={path} className="flex items-center gap-3 py-2">
+                <span className={cn("h-2.5 w-2.5 shrink-0 rounded-full", isOff ? "bg-red-500" : "bg-emerald-400")} aria-hidden />
+                <a href={`${path}?hqpreview=1`} target="_blank" rel="noopener" className="min-w-0 flex-1">
+                  <b className={cn("text-sm", isOff && "text-muted-foreground line-through")}>{name}</b>
+                  <span className="ml-2 font-mono text-xs text-muted-foreground">{path}</span>
+                  {isHome && <span className="ml-2 text-xs font-semibold text-emerald-300">homepage</span>}
+                </a>
+                <button role="switch" aria-checked={!isOff} aria-label={`${name} ${isOff ? "off" : "on"}`}
+                  disabled={isHome && !isOff} title={isHome ? "This is the homepage. Pick another homepage first." : undefined}
+                  onClick={() => flip(path, name)}
+                  className={cn("w-20 shrink-0 rounded-full px-3 py-1.5 text-sm font-bold transition disabled:opacity-40",
+                    isOff ? "bg-red-500/20 text-red-300" : "bg-emerald-400 text-black")}>
+                  {isOff ? "OFF" : "ON"}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      <div className="flex flex-wrap items-center gap-2">
+        <Input value={extra} onChange={(e) => setExtra(e.target.value)} placeholder="Another page, e.g. /landing6" className="max-w-xs font-mono" aria-label="Another page address" />
+        <Button variant="outline" size="sm" disabled={!extraPath || off.includes(extraPath) || extraPath === home}
+          onClick={() => { if (extraPath) { save([...off, extraPath], `${extraPath} → OFF (visitors go to the homepage)`); setExtra(""); } }}>Switch it off</Button>
+      </div>
     </GlassCard>
   );
 }

@@ -47,6 +47,7 @@ import { OverlayPermissionPrompt } from "./components/OverlayPermissionPrompt";
 import { CookieConsent } from "./components/CookieConsent";
 import { SiteIntro } from "@/components/SiteIntro";
 import { HomeRoutesContext } from "@/lib/site/homeRoutes";
+import { DisabledPageGuard } from "@/components/DisabledPageGuard";
 import Cookies from "./pages/Cookies";
 import Explain from "./pages/Explain";
 import Manual from "./pages/Manual";
@@ -277,7 +278,7 @@ const App = () => (
               <CookieConsent />
               <Suspense fallback={<RouteFallback />}>
               <HomeRoutesContext.Provider value={APP_ROUTES}>
-              <Routes>{APP_ROUTES}</Routes>
+              <DisabledPageGuard><Routes>{APP_ROUTES}</Routes></DisabledPageGuard>
               </HomeRoutesContext.Provider>
               </Suspense>
               <TourOverlay />
