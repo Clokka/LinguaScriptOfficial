@@ -40,6 +40,8 @@ export type SiteConfig = {
   /** Video player while subtitles load: one design per film from `designs`,
    * then one "loading → playing" motion from `reveals` (empty = straight in). */
   filmLoader?: FilmLoaderConfig;
+  /** Page addresses switched off in HQ (visitors are sent to the homepage). */
+  disabledPages?: string[];
   published_id?: number;
   published_at?: string;
 };
@@ -99,7 +101,9 @@ export function cleanConfig(c: any): SiteConfig | null {
     when: ["session", "first", "always"].includes(c.intro.when) ? c.intro.when : "session",
     end: c.intro.end === "button" ? "button" : "auto",
   } : undefined;
-  return { ...c, intro, pageLoader: c.pageLoader === "brand" ? "brand" : "skeleton", filmLoader: cleanFilm(c.filmLoader) } as SiteConfig;
+  const disabledPages = Array.from(new Set((Array.isArray(c.disabledPages) ? c.disabledPages : [])
+    .map((p: unknown) => (typeof p === "string" ? cleanHomePath(p) : null)).filter(Boolean) as string[])).slice(0, 50);
+  return { ...c, intro, pageLoader: c.pageLoader === "brand" ? "brand" : "skeleton", filmLoader: cleanFilm(c.filmLoader), disabledPages } as SiteConfig;
 }
 
 const CACHE = "ls.site.live.v1";

@@ -86,7 +86,7 @@ export default function LiveHome() {
 
   if (site === undefined) return <PageLoading />;
 
-  if (site?.home.mode === "path") {
+  if (site?.home.mode === "path" && !site.disabledPages?.includes(site.home.path)) {
     return <Suspense fallback={<PageLoading />}><PathHome path={site.home.path} /></Suspense>;
   }
   const page = !site || site.home.mode === "builtin" ? null : site.home.mode === "single" ? site.home.page : arm?.page ?? null;
