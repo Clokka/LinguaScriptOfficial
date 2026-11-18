@@ -3,25 +3,32 @@
      (monochrome, Android tints it with the device's own theme — the same way
      it already tinted the old speech-bubble icon). Traced from the real
      mascot (ChameleonMascot.tsx's CHAM_SVG: body, legs, tail, branch), minus
-     the back-ridge detail which doesn't read at 24dp. -->
+     the back-ridge detail which doesn't read at 24dp.
+     Viewport is a 300x300 SQUARE — matching the declared 24x24dp icon size —
+     with the artwork (naturally 300x200, wider than tall) centred inside it
+     via the group's translateY. Without this, the viewport's own aspect
+     ratio (300x200) didn't match the declared icon box (24x24), so Android
+     stretched the art to fit and squashed the chameleon. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="24dp" android:height="24dp" android:viewportWidth="300" android:viewportHeight="200">
-  <!-- Head, with the eye as a true cut-out + re-drawn pupil (evenOdd). -->
-  <path android:fillColor="#FFFFFFFF" android:fillType="evenOdd"
-      android:pathData="M92,38 Q90,12 64,8 Q34,4 18,32 Q4,58 14,82 Q24,106 56,108 Q82,109 90,88 Q96,68 92,38 Z M69,46 a21,21 0 1,0 -42,0 a21,21 0 1,0 42,0 Z M57.77,44.58 a5.5,5.5 0 1,0 -11,0 a5.5,5.5 0 1,0 11,0 Z" />
-  <!-- Body. -->
-  <path android:fillColor="#FFFFFFFF"
-      android:pathData="M66,116 Q58,38 135,26 Q206,16 215,80 Q220,122 174,128 L94,130 Q70,128 66,116 Z" />
-  <!-- Back leg. -->
-  <path android:fillColor="#FFFFFFFF"
-      android:pathData="M163,116 h15 a7.5,7.5 0 0 1 7.5,7.5 v23 a7.5,7.5 0 0 1 -7.5,7.5 h-15 a7.5,7.5 0 0 1 -7.5,-7.5 v-23 a7.5,7.5 0 0 1 7.5,-7.5 Z" />
-  <!-- Front leg + foot. -->
-  <path android:fillColor="#FFFFFFFF" android:fillType="evenOdd"
-      android:pathData="M112,118 h15 a7.5,7.5 0 0 1 7.5,7.5 v25 a7.5,7.5 0 0 1 -7.5,7.5 h-15 a7.5,7.5 0 0 1 -7.5,-7.5 v-25 a7.5,7.5 0 0 1 7.5,-7.5 Z M119.5,158 m-9,0 a9,9 0 1,0 18,0 a9,9 0 1,0 -18,0" />
-  <!-- Curled tail (stroked, round cap — matches the mascot's tail stroke). -->
-  <path android:strokeColor="#FFFFFFFF" android:strokeWidth="15" android:strokeLineCap="round"
-      android:pathData="M202,96 C252,88 278,110 274,134 C270,156 246,162 234,150 C225,140 232,126 244,127" />
-  <!-- Branch. -->
-  <path android:fillColor="#FFFFFFFF"
-      android:pathData="M90,172 Q160,160 230,172 L230,182 Q160,172 90,182 Z" />
+    android:width="24dp" android:height="24dp" android:viewportWidth="300" android:viewportHeight="300">
+  <group android:translateY="50">
+    <!-- Head, with the eye as a true cut-out + re-drawn pupil (evenOdd). -->
+    <path android:fillColor="#FFFFFFFF" android:fillType="evenOdd"
+        android:pathData="M92,38 Q90,12 64,8 Q34,4 18,32 Q4,58 14,82 Q24,106 56,108 Q82,109 90,88 Q96,68 92,38 Z M69,46 a21,21 0 1,0 -42,0 a21,21 0 1,0 42,0 Z M57.77,44.58 a5.5,5.5 0 1,0 -11,0 a5.5,5.5 0 1,0 11,0 Z" />
+    <!-- Body. -->
+    <path android:fillColor="#FFFFFFFF"
+        android:pathData="M66,116 Q58,38 135,26 Q206,16 215,80 Q220,122 174,128 L94,130 Q70,128 66,116 Z" />
+    <!-- Back leg. -->
+    <path android:fillColor="#FFFFFFFF"
+        android:pathData="M163,116 h15 a7.5,7.5 0 0 1 7.5,7.5 v23 a7.5,7.5 0 0 1 -7.5,7.5 h-15 a7.5,7.5 0 0 1 -7.5,-7.5 v-23 a7.5,7.5 0 0 1 7.5,-7.5 Z" />
+    <!-- Front leg + foot. -->
+    <path android:fillColor="#FFFFFFFF" android:fillType="evenOdd"
+        android:pathData="M112,118 h15 a7.5,7.5 0 0 1 7.5,7.5 v25 a7.5,7.5 0 0 1 -7.5,7.5 h-15 a7.5,7.5 0 0 1 -7.5,-7.5 v-25 a7.5,7.5 0 0 1 7.5,-7.5 Z M119.5,158 m-9,0 a9,9 0 1,0 18,0 a9,9 0 1,0 -18,0" />
+    <!-- Curled tail (stroked, round cap — matches the mascot's tail stroke). -->
+    <path android:strokeColor="#FFFFFFFF" android:strokeWidth="15" android:strokeLineCap="round"
+        android:pathData="M202,96 C252,88 278,110 274,134 C270,156 246,162 234,150 C225,140 232,126 244,127" />
+    <!-- Branch. -->
+    <path android:fillColor="#FFFFFFFF"
+        android:pathData="M90,172 Q160,160 230,172 L230,182 Q160,172 90,182 Z" />
+  </group>
 </vector>
