@@ -22,6 +22,9 @@ const S = {
   freqwords: "Dave, H. FrequencyWords: word frequency lists from OpenSubtitles 2018 (CC BY-SA 4.0). github.com/hermitdave/FrequencyWords.",
   coe20: "Council of Europe (2020). <i>Common European Framework of Reference for Languages: Learning, Teaching, Assessment. Companion Volume</i>. Strasbourg: Council of Europe.",
   miltonAlexiou09: "Milton, J. &amp; Alexiou, T. (2009). Vocabulary size and the Common European Framework of Reference for Languages. In B. Richards et al. (Eds.), <i>Vocabulary Studies in First and Second Language Acquisition</i>. Basingstoke: Palgrave Macmillan.",
+  milton10: "Milton, J. (2010). The development of vocabulary breadth across the CEFR levels. In I. Bartning, M. Martin &amp; I. Vedder (Eds.), <i>Communicative Proficiency and Linguistic Development</i> (EUROSLA Monographs Series 1, pp. 211–232). European Second Language Association.",
+  lauferRK10: "Laufer, B. &amp; Ravenhorst-Kalovski, G. C. (2010). Lexical threshold revisited: Lexical text coverage, learners' vocabulary size and reading comprehension. <i>Reading in a Foreign Language</i>, 22(1), 15–30.",
+  goulden90: "Goulden, R., Nation, P. &amp; Read, J. (1990). How large can a receptive vocabulary be? <i>Applied Linguistics</i>, 11(4), 341–363.",
   laufer98: "Laufer, B. (1998). The development of passive and active vocabulary in a second language: Same or different? <i>Applied Linguistics</i>, 19(2), 255–271.",
   webb08: "Webb, S. (2008). Receptive and productive vocabulary sizes of L2 learners. <i>Studies in Second Language Acquisition</i>, 30(1), 79–95.",
   ebbinghaus: "Ebbinghaus, H. (1885). <i>Über das Gedächtnis</i> (Memory: A Contribution to Experimental Psychology). Leipzig: Duncker &amp; Humblot.",
@@ -285,27 +288,37 @@ ${L.map(([k, n, slug]) => `<tr><td><a href="/words/${slug}">${n}</a></td><td><st
   {
     slug: "cefr-vocabulary-size",
     title: "How Many Words for Each CEFR Level? A1 to C2",
-    desc: "Rough word counts for CEFR A1 to C2, the difference between passive and active vocabulary, and how spaced reviews turn new words into long-term memory.",
+    desc: "What research really says about vocabulary size from A1 to C2, why advanced levels need 8,000+ word families, and passive vs active vocabulary.",
     h1: "How many words do you need for each CEFR level?",
     lead: "There's no official word count for any CEFR level: the levels describe what you can <strong>do</strong>, not how many words you know. But researchers have measured how many words learners at each level usually <strong>recognise</strong>, and the numbers make a useful map.",
-    answer: "<strong>In one sentence:</strong> learners usually recognise fewer than about 1,500 words at A1, around 2,750–3,250 at B1 and 4,500–5,000 at C2, but these are rough ranges, not pass marks, and the words you can <i>use</i> (active vocabulary) are always fewer than the words you <i>recognise</i> (passive vocabulary).",
+    answer: "<strong>In one sentence:</strong> learners typically recognise fewer than about 1,500 words at A1 and around 3,000 at B1, but the numbers climb fast after that: following most real speech takes about 6,000–7,000 word families and reading freely about 8,000–9,000, which is the territory of C1–C2 (Nation, 2006). These are research estimates, not official CEFR counts, and the words you can <i>use</i> are always fewer than the words you <i>recognise</i>.",
     sections: [
-      { id: "levels", h2: "Words per CEFR level (rough ranges)", html: (all) => {
+      { id: "levels", h2: "Words per CEFR level: what the research says", html: (all) => {
         const rows = [
           ["A1", 0, 1500, "Under 1,500", "Simple everyday phrases; introduce yourself"],
           ["A2", 1500, 2500, "1,500–2,500", "Routine tasks and simple exchanges"],
           ["B1", 2750, 3250, "2,750–3,250", "The main points of familiar topics; get by when travelling"],
           ["B2", 3250, 3750, "3,250–3,750", "Follow complex ideas; talk with fluent speakers with ease"],
-          ["C1", 3750, 4500, "3,750–4,500", "Use the language flexibly; catch implied meaning"],
-          ["C2", 4500, 5000, "4,500–5,000", "Understand almost everything you hear or read"],
+          ["C1", 3750, 4500, "3,750–4,500+", "Use the language flexibly; catch implied meaning"],
+          ["C2", 4500, 5000, "4,500–5,000 (test maximum)", "Understand almost everything you hear or read"],
         ];
-        const bar = (lo, hi, i) => `<div style="position:relative;height:10px;border-radius:99px;background:#232329"><div style="position:absolute;left:${lo / 50}%;width:${Math.max(4, (hi - lo) / 50)}%;height:10px;border-radius:99px;background:#34C759;opacity:${0.45 + i * 0.11}"></div></div>`;
-        return `<table class="need" style="max-width:none"><caption class="sr">Rough number of words recognised at each CEFR level</caption><thead><tr><th>Level</th><th>Words recognised</th><th style="width:30%">Out of the top 5,000</th><th>You can…</th></tr></thead><tbody>
-${rows.map(([lv, lo, hi, label, can], i) => `<tr><td><strong style="font-size:18px">${lv}</strong></td><td><strong style="color:#34C759">${label}</strong></td><td>${bar(lo, hi, i)}</td><td style="color:var(--muted);font-size:14px">${can}</td></tr>`).join("")}
+        const bar = (lo, hi, i) => `<div style="position:relative;height:10px;border-radius:99px;background:#232329"><div style="position:absolute;left:${lo / 50}%;width:${Math.max(4, (hi - lo) / 50)}%;height:10px;border-radius:99px;background:${i >= 4 ? "#FFD54A" : "#34C759"};opacity:${i >= 4 ? 1 : 0.45 + i * 0.11}"></div></div>`;
+        const f = (n) => n.toLocaleString("en-GB");
+        return `<h3 style="margin:6px 0 10px;font-size:18px">1. How many of the 5,000 most frequent words learners recognise</h3>
+<table class="need" style="max-width:none"><caption class="sr">Words recognised from the 5,000 most frequent words at each CEFR level</caption><thead><tr><th>Level</th><th>Of the top 5,000</th><th style="width:28%">The 5,000-word test</th><th>You can…</th></tr></thead><tbody>
+${rows.map(([lv, lo, hi, label, can], i) => `<tr><td><strong style="font-size:18px">${lv}</strong></td><td><strong style="color:${i >= 4 ? "#FFD54A" : "#34C759"}">${label}</strong></td><td>${bar(lo, hi, i)}</td><td style="color:var(--muted);font-size:14px">${can}</td></tr>`).join("")}
 </tbody></table>
-<p class="body" style="font-size:14px">Ranges from studies that measured learners' recognition of the 5,000 most frequent words (Milton &amp; Alexiou, 2009). They are <strong>indicative, not pass marks</strong>: exams test skills, and a big vocabulary alone doesn't make you B2. "You can…" lines are our plain-English summary of the CEFR's level descriptions (Council of Europe, 2020).</p>
-<p class="body">Why are these numbers manageable? Because of <a href="/learn/high-frequency-words">Zipf's law</a>: in Spanish films and TV, the top 1,000 word forms already cover <strong>${all.es.coverage[1000]}%</strong> of everything said, and the top 3,000 cover <strong>${all.es.coverage[3000]}%</strong>. Learn words in frequency order and each one pays off from day one.</p>
-<p class="body" style="font-size:14px">On our <a href="/english/a1">English A1 guide</a> we say A1 is about 400–700 words: that's the words a beginner course teaches you to <i>use</i>. Research figures above count words you <i>recognise</i>, which is always more. Both fit the same picture.</p>`; } },
+<p class="body" style="font-size:14px">These figures come from tests that only checked the <strong>5,000 most frequent words</strong> (Milton &amp; Alexiou, 2009; Milton, 2010). That works well for A1–B2. At <strong style="color:#FFD54A">C1–C2</strong> learners reach the <strong>top of the test</strong>: knowing "nearly all 5,000" doesn't mean they know only 5,000. Their real vocabulary is much larger, as the next table shows. The researchers themselves call the ranges indicative, not requirements. "You can…" lines are our plain-English summary of the CEFR descriptions (Council of Europe, 2020).</p>
+<h3 style="margin:22px 0 10px;font-size:18px">2. How many words real language takes</h3>
+<table class="need" style="max-width:none"><caption class="sr">Vocabulary needed to understand real language, from research</caption><thead><tr><th>To understand…</th><th>You need about</th><th>Research</th></tr></thead><tbody>
+<tr><td>95% of the words in films and TV</td><td><strong style="color:#34C759">3,000</strong> word families</td><td style="color:var(--muted);font-size:14px">Webb &amp; Rodgers, 2009</td></tr>
+<tr><td>98% of everyday speech and films</td><td><strong style="color:#34C759">6,000–7,000</strong> word families</td><td style="color:var(--muted);font-size:14px">Nation, 2006; Webb &amp; Rodgers, 2009</td></tr>
+<tr><td>Novels and newspapers without a dictionary (98%)</td><td><strong style="color:#2F7BFF">8,000–9,000</strong> word families</td><td style="color:var(--muted);font-size:14px">Nation, 2006; Laufer &amp; Ravenhorst-Kalovski, 2010</td></tr>
+<tr><td>Educated adult native speaker</td><td><strong style="color:#2F7BFF">around 17,000</strong> word families</td><td style="color:var(--muted);font-size:14px">Goulden, Nation &amp; Read, 1990</td></tr>
+</tbody></table>
+<p class="body" style="font-size:14px">A <strong>word family</strong> is a base word plus its forms and close relatives (<i>use, uses, used, useful, useless</i>), so 8,000 families means many more individual words. Comfortable advanced use (C1–C2) sits in the 6,000–9,000-family range or above; no study gives one exact number per level.</p>
+<p class="body">The good news is the start: because of <a href="/learn/high-frequency-words">Zipf's law</a>, in Spanish films and TV the top 1,000 word forms already cover <strong>${all.es.coverage[1000]}%</strong> of everything said, and the top 3,000 cover <strong>${all.es.coverage[3000]}%</strong>. Learn in frequency order and every word pays off from day one; the long tail comes from reading and watching.</p>
+<p class="body" style="font-size:14px">On our <a href="/english/a1">English A1 guide</a> we say A1 is about 400–700 words: that's the words a beginner course teaches you to <i>use</i>. The research figures count words you <i>recognise</i>, which is always more.</p>`; } },
       { id: "passive-active", h2: "Passive vs active vocabulary", html: `
 <div class="mist">
 <div><b>Passive (receptive) vocabulary</b>Words you <strong>recognise</strong> when you hear or read them. It grows first and stays bigger: most learners recognise far more words than they can use (Laufer, 1998; Webb, 2008).</div>
@@ -355,10 +368,11 @@ ${step("blue", "Blue", "#2F7BFF", "Long-term. Six well-timed reviews later, it's
     ],
     faqs: [
       ["How many words do I need for A1?", "Learners at A1 usually recognise fewer than about 1,500 words; beginner courses typically teach around 400–700 words to use. There is no official CEFR word count."],
-      ["How many words do I need for B1 or B2?", "Research on learners' vocabulary sizes suggests roughly 2,750–3,250 words recognised at B1 and 3,250–3,750 at B2. These are rough ranges, not exam requirements."],
+      ["How many words do I need for B1 or B2?", "Studies that tested the 5,000 most frequent words found learners typically recognise around 2,750–3,250 of them at B1 and 3,250–3,750 at B2. These are indicative ranges, not exam requirements."],
+      ["How many words do I need for C1 or C2?", "More than older 5,000-word tests can show. Understanding about 98% of everyday speech takes roughly 6,000–7,000 word families, and reading novels and newspapers comfortably about 8,000–9,000 (Nation, 2006). Educated native speakers know around 17,000 word families (Goulden, Nation and Read, 1990)."],
       ["What is the difference between passive and active vocabulary?", "Passive (receptive) vocabulary is the words you recognise when reading or listening; active (productive) vocabulary is the words you can use yourself when speaking or writing. Passive vocabulary is always larger."],
       ["What does a blue word mean in LinguaScript?", "Blue means a word has passed six spaced reviews in a row and is in long-term memory. Reviews then come only rarely, with each gap 1.5 times longer."],
     ],
-    sources: [S.coe20, S.miltonAlexiou09, S.laufer98, S.webb08, S.ebbinghaus, S.cepeda06, S.roediger06, S.krashen82, S.freqwords],
+    sources: [S.cepeda06, S.coe20, S.ebbinghaus, S.goulden90, S.krashen82, S.laufer98, S.lauferRK10, S.miltonAlexiou09, S.milton10, S.nation06, S.roediger06, S.webb08, S.webb09, S.freqwords],
   },
 ];
