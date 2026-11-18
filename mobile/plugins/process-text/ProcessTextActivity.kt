@@ -343,7 +343,20 @@ class ProcessTextActivity : Activity() {
       }
       main.post {
         translating = false
-        if (res == null || res.first.isEmpty()) {
+        // Last resort before giving up: the big built-in dictionary, keyed off
+        // the account's actual learning language — not whatever language this
+        // one tap happened to be told, which can be stale or wrong for OCR'd
+        // text. "cas" (and 15,000 other common French words) are in this pack;
+        // a network failure shouldn't still mean "no meaning yet" for those.
+        val lastChance = if (res == null || res.first.isEmpty())
+          InstantDict.lookup(this@ProcessTextActivity, selected, learning, native) else null
+        if (lastChance != null) {
+          translation = lastChance
+          detected = learning
+          transView.text = lastChance
+          transView.setTextColor(white)
+          showLangLine(learning, native)
+        } else if (res == null || res.first.isEmpty()) {
           transView.text = "No meaning yet. Save it anyway: we'll add the meaning in the app."
         } else {
           translation = res.first
