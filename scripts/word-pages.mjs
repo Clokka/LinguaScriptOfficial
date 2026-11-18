@@ -351,9 +351,9 @@ ${cta({ name: "new", slug: "anki-guide" }).replace("every new word", "every word
 }
 
 
-const LEARN_ORDER = ["high-frequency-words", "comprehensible-input", "comprehensible-output", "output-hypothesis", "kato-lomb-chameleon-method"];
+const LEARN_ORDER = ["high-frequency-words", "cefr-vocabulary-size", "comprehensible-input", "comprehensible-output", "output-hypothesis", "kato-lomb-chameleon-method"];
 const articleCta = (slug) => `<div class="cta card"><p>Try the Chameleon Method free<span>Watch what you love; every word is coloured by how well you know it, and new words become flashcards in one tap.</span></p><div style="display:flex;gap:10px;flex-wrap:wrap"><a class="btn" href="/auth?mode=signup&amp;from=learn-${slug}">Start free</a><a class="btn ghost" href="/discover?from=learn-${slug}">Watch videos</a></div></div>`;
-const html = (x, all) => (typeof x.html === "function" ? x.html(all) : x.html);
+const html = (x, all) => (typeof x.html === "function" ? x.html(all, { chameleon, C, fmt }) : x.html);
 const words = (a, all) => [a.lead, a.answer, ...a.sections.map((x) => html(x, all))].join(" ").replace(/<[^>]+>/g, " ").split(/\s+/).filter(Boolean).length;
 
 function articlePage(a, builtAt, all) {
@@ -374,14 +374,14 @@ function articlePage(a, builtAt, all) {
 <div class="chams">${chameleon("red", 54, "New word")}${chameleon("orange", 54, "Learning")}${chameleon("green", 54, "Known")}${chameleon("gold", 54, "Review due")}${chameleon("blue", 54, "100% known")}</div>
 <h1>${esc(a.h1)}</h1>
 <p class="lead">${a.lead}</p>
-<p class="meta">${mins} min read · Updated ${esc(builtAt)} · Sources at the end</p>
+<p class="meta">${mins} min read · Updated ${esc(builtAt)} · <a href="#bibliography">Bibliography</a> at the end</p>
 <p class="answer">${a.answer}</p>
 <nav class="toc" aria-label="On this page">${a.sections.map((x) => `<a href="#${x.id}">${esc(x.h2.replace(/\s*\(.*\)$/, ""))}</a>`).join("")}</nav>
 ${a.sections.map((x, i) => `<h2 id="${x.id}">${esc(x.h2)}</h2>${html(x, all)}${i === 2 ? articleCta(a.slug) : ""}`).join("\n")}
 ${articleCta(a.slug)}
 <h2>Questions</h2>${a.faqs.map(([q, ans]) => `<details><summary>${esc(q)}</summary><p>${esc(ans)}</p></details>`).join("")}
 <h2>Keep reading</h2><div class="langs">${others.map((o) => `<a href="/learn/${o.slug}"><b>${esc(o.h1)}</b><small>${esc(o.desc)}</small></a>`).join("")}</div>
-<h2>Sources</h2><ol class="refs">${a.sources.map((x) => `<li>${x}</li>`).join("")}</ol>
+<h2 id="bibliography">Bibliography</h2><ol class="refs">${a.sources.map((x) => `<li>${x}</li>`).join("")}</ol>
 <p class="method">Written by LinguaScript in plain English. Where researchers disagree, we say so.</p>
 ` + foot() + "</body></html>";
 }
