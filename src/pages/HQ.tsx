@@ -71,6 +71,7 @@ const LABS: [string, string, number, string][] = [
 ];
 /** Landing pages you can type in the homepage box (any other page address works too). */
 const HOME_PICKS: [string, string][] = [
+  ["/landing6", "Films you'll understand (fan)"],
   ["/landing5", "Chameleon Method"],
   ["/landing", "Tap-a-word demo"],
   ["/landingpage2", "Product walkthrough"],
