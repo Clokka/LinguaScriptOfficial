@@ -29,9 +29,9 @@ function pickVoice(lang: string): SpeechSynthesisVoice | undefined {
 export function speakWord(word: string, language: string) {
   try {
     if (!word) return;
-    if (!hasSpeechSynthesis()) { void speakViaCloud(word); return; }
-    const synth = window.speechSynthesis;
     const lang = TTS[language] || language;
+    if (!hasSpeechSynthesis()) { void speakViaCloud(word, lang); return; }
+    const synth = window.speechSynthesis;
     const go = () => {
       synth.cancel();
       const u = new SpeechSynthesisUtterance(word);

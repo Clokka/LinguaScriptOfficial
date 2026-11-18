@@ -222,7 +222,8 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
     // Android's WebView (the LinguaScript app) has no speechSynthesis at all,
     // so the play button was silent there. Use the cloud voice instead.
     if (!hasSpeechSynthesis()) {
-      await speakViaCloud(text);
+      const fallbackLang = TTS_VOICE_MAP[(lang || languageContext).toLowerCase()];
+      await speakViaCloud(text, fallbackLang);
       return;
     }
     try {
@@ -250,7 +251,7 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
       if (!match) {
         // No voice for this language on the device (common for Thai, Hindi,
         // Arabic…). Fall back to a cloud voice instead of staying silent.
-        await speakViaCloud(text);
+        await speakViaCloud(text, targetLang);
         return;
       }
 

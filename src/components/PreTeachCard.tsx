@@ -18,7 +18,7 @@ interface Props {
 }
 
 const speak = (text: string, lang: string) => {
-  if (!hasSpeechSynthesis()) { void speakViaCloud(text); return; }
+  if (!hasSpeechSynthesis()) { void speakViaCloud(text, lang); return; }
   try {
     const u = new SpeechSynthesisUtterance(text);
     u.lang = lang;

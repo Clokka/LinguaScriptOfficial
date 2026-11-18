@@ -3,9 +3,10 @@
 // which has no speechSynthesis at all.
 const cloudAudioCache = new Map<string, string>();
 
-export async function speakViaCloud(text: string) {
+export async function speakViaCloud(text: string, lang?: string) {
   try {
-    let url = cloudAudioCache.get(text);
+    const cacheKey = lang ? `${lang}:${text}` : text;
+    let url = cloudAudioCache.get(cacheKey);
     if (!url) {
       const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/speak-word`, {
         method: "POST",
@@ -14,11 +15,11 @@ export async function speakViaCloud(text: string) {
           apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({ text, lang }),
       });
       if (!res.ok) { console.warn("[speak] cloud voice failed", res.status); return; }
       url = URL.createObjectURL(await res.blob());
-      cloudAudioCache.set(text, url);
+      cloudAudioCache.set(cacheKey, url);
     }
     await new Audio(url).play();
   } catch (e) {

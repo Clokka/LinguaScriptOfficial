@@ -6,21 +6,38 @@ const cors = {
 
 const MODEL = "google/gemini-3.1-flash-tts-preview";
 
+// BCP-47 → the language name to put in the prompt. Without naming the
+// language explicitly, the model has no signal for which phonetics/accent
+// to use and defaults to English — which is how "cas" came out sounding
+// like an English word instead of French.
+const LANG_NAMES: Record<string, string> = {
+  "fr-fr": "French", "es-es": "Spanish", "de-de": "German", "it-it": "Italian",
+  "pt-pt": "Portuguese", "pt-br": "Portuguese", "zh-cn": "Mandarin Chinese", "ja-jp": "Japanese",
+  "ko-kr": "Korean", "ar-sa": "Arabic", "hi-in": "Hindi", "th-th": "Thai", "ru-ru": "Russian",
+  "tr-tr": "Turkish", "nl-nl": "Dutch", "pl-pl": "Polish", "sv-se": "Swedish", "en-gb": "English",
+  "en-us": "English",
+};
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
   try {
-    const { text } = await req.json();
+    const { text, lang } = await req.json();
     const clean = String(text || "").trim().slice(0, 300);
     if (!clean) return new Response(JSON.stringify({ error: "text required" }), { status: 400, headers: { ...cors, "Content-Type": "application/json" } });
     const apiKey = Deno.env.get("LOVABLE_API_KEY");
     if (!apiKey) return new Response(JSON.stringify({ error: "not configured" }), { status: 500, headers: { ...cors, "Content-Type": "application/json" } });
+
+    const languageName = LANG_NAMES[String(lang || "").toLowerCase()];
+    const prompt = languageName
+      ? `Say this ${languageName} word or phrase clearly and slowly, in ${languageName}, with native ${languageName} pronunciation, like a native ${languageName} speaker teaching a learner: ${clean}`
+      : `Say clearly and slowly, like a native speaker teaching a learner: ${clean}`;
 
     const upstream = await fetch("https://ai.gateway.lovable.dev/v1/audio/speech", {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         model: MODEL,
-        contents: [{ role: "user", parts: [{ text: `Say clearly and slowly, like a native speaker teaching a learner: ${clean}` }] }],
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
         generationConfig: {
           responseModalities: ["AUDIO"],
           speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: "Kore" } } },
