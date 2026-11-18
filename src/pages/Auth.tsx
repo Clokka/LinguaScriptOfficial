@@ -126,9 +126,22 @@ const Auth = () => {
 
   // Google's own button (src/lib/googleSignIn.ts): Google shows linguascript.co.uk,
   // not the Supabase address. "off" = not allowed here or failed → old button.
-  const [gis, setGis] = useState<"loading" | "ready" | "off">(() => (canUseGoogleButton() ? "loading" : "off"));
+  //
+  // canUseGoogleButton() checks window.ReactNativeWebView, which react-native-webview
+  // injects into the page — but that can land a tick after this component's first
+  // render. Checking it as a useState lazy initializer (synchronous, at the very
+  // first render) raced that injection: inside the app it sometimes read as "not
+  // in the app yet", locked "gis" into "loading" for good (useState's initializer
+  // only runs once), and the Google script then got asked to render inside an
+  // embedded WebView — which Google silently refuses, leaving the button stuck on
+  // its loading skeleton forever. Checking again in an effect (always after mount,
+  // so after that injection) fixes it.
+  const [gis, setGis] = useState<"loading" | "ready" | "off">("off");
   const gisRef = useRef<HTMLDivElement>(null);
   const nonceRef = useRef("");
+  useEffect(() => {
+    setGis(canUseGoogleButton() ? "loading" : "off");
+  }, []);
   useEffect(() => {
     if (gis !== "loading") return;
     let alive = true;
