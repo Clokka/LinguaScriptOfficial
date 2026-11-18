@@ -1,9 +1,7 @@
 // Growth-team tools inside /partners (lazy chunk: only team members load it).
 //   mode "team"   → every partner at a glance; admins also add partners,
 //                   give team logins, approve and pay.
-//   mode "studio" → Site Studio (public/brand/site-studio.html) in a lazy
-//                   iframe, so its ~700 kB of labs never reach visitors.
-import { lazy, Suspense, useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Download } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,27 +10,15 @@ import { Input } from "@/components/ui/input";
 import { GlassCard, Eyebrow, Skeleton } from "@/components/premium";
 import { money } from "@/pages/Partners";
 
-const StudioFrame = lazy(() => import("@/components/hq/StudioFrame"));
-
 type Row = { id: string; code: string; display_name: string; status: string; commission_rate: number;
   clicks: number; signups: number; sales: number; pending: number; approved: number; paid: number };
 
-type Props = { mode: "team" | "studio"; isAdmin: boolean; days: number; setDays: (d: number) => void; onOpen: (id: string) => void };
+type Props = { mode: "team"; isAdmin: boolean; days: number; setDays: (d: number) => void; onOpen: (id: string) => void };
 
 const rpc = (name: string, args?: Record<string, unknown>) => (supabase as any).rpc(name, args);
 
 export default function TeamTools({ mode, isAdmin, days, setDays, onOpen }: Props) {
-  if (mode === "studio") return <Studio />;
   return <Team isAdmin={isAdmin} days={days} setDays={setDays} onOpen={onOpen} />;
-}
-
-// The connected Studio (same as HQ → Studio), so "Go live" works here too.
-function Studio() {
-  return (
-    <Suspense fallback={<Skeleton className="h-64" />}>
-      <StudioFrame />
-    </Suspense>
-  );
 }
 
 function Team({ isAdmin, days, setDays, onOpen }: Omit<Props, "mode">) {
@@ -183,7 +169,7 @@ function AdminForms({ onDone }: { onDone: () => void }) {
 
       <GlassCard className="p-4 space-y-2">
         <Eyebrow>Team logins</Eyebrow>
-        <p className="text-xs text-muted-foreground">Marketing team = sees every partner and the Site Studio, never payouts or learner data.</p>
+        <p className="text-xs text-muted-foreground">Marketing team = sees every partner, never payouts or learner data.</p>
         <Input placeholder="Their account email" value={t.email} onChange={(e) => setT({ ...t, email: e.target.value })} />
         <select className="w-full rounded-md bg-transparent border border-white/10 px-2 py-2 text-sm" value={t.role}
           onChange={(e) => setT({ ...t, role: e.target.value })}>

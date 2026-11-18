@@ -46,6 +46,7 @@ import { SelectionSave } from "./components/SelectionSave";
 import { OverlayPermissionPrompt } from "./components/OverlayPermissionPrompt";
 import { CookieConsent } from "./components/CookieConsent";
 import { SiteIntro } from "@/components/SiteIntro";
+import { HomeRoutesContext } from "@/lib/site/homeRoutes";
 import Cookies from "./pages/Cookies";
 import Explain from "./pages/Explain";
 import Manual from "./pages/Manual";
@@ -73,6 +74,8 @@ const LandingPage2 = lazy(() => import("./pages/LandingPage2"));
 const LandingPage3 = lazy(() => import("./pages/LandingPage3"));
 const LandingPage4 = lazy(() => import("./pages/LandingPage4"));
 const Landing5 = lazy(() => import("./pages/Landing5"));
+const LabLanding = lazy(() => import("./pages/landing/LabLanding"));
+const LandingClear = lazy(() => import("./pages/LandingClear"));
 const GapDemo = lazy(() => import("./pages/GapDemo"));
 const Demo = lazy(() => import("./pages/Demo"));
 const Browse = lazy(() => import("./pages/Browse"));
@@ -143,26 +146,10 @@ if (typeof window !== "undefined") {
   }, { once: true });
 }
 
-const App = () => (
-  <HelmetProvider>
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <LanguageProvider>
-        <Toaster />
-        <Sonner />
-        <ExtensionAccountSync />
-        <BrowserRouter>
-          <XpProvider>
-            <PetProvider>
-            <I18nProvider><TourProvider>
-              <FunnelTracker />
-              <AppInbox />
-              <SelectionSave />
-              <OverlayPermissionPrompt />
-              <SiteIntro />
-              <CookieConsent />
-              <Suspense fallback={<RouteFallback />}>
-              <Routes>
+// Every page of the site. Also handed to the homepage (HomeRoutesContext) so
+// HQ can make any of these addresses the homepage.
+const APP_ROUTES = (
+              <>
                 <Route path="/" element={<Index />} />
                 <Route path="/index" element={<Navigate to="/" replace />} />
                 <Route path="/landing" element={<Landing />} />
@@ -170,6 +157,10 @@ const App = () => (
                 <Route path="/landingpage3" element={<LandingPage3 />} />
                 <Route path="/landingpage4" element={<LandingPage4 />} />
                 <Route path="/landing5" element={<Landing5 />} />
+                <Route path="/landing-gold" element={<LabLanding theme="gold" />} />
+                <Route path="/landing-glass" element={<LabLanding theme="glass" />} />
+                <Route path="/landing-split" element={<LabLanding theme="split" />} />
+                <Route path="/landing-clear" element={<LandingClear />} />
                 <Route path="/gap-demo" element={<GapDemo />} />
                 <Route path="/demo" element={<Demo />} />
                 <Route path="/browse" element={<Navigate to="/discover" replace />} />
@@ -263,7 +254,31 @@ const App = () => (
                 <Route path="/lingoscript" element={<Navigate to="/the-chameleon-method" replace />} />
                 <Route path="/language-script" element={<Navigate to="/the-chameleon-method" replace />} />
                 <Route path="*" element={<NotFound />} />
-              </Routes>
+              </>
+);
+
+const App = () => (
+  <HelmetProvider>
+  <QueryClientProvider client={queryClient}>
+    <TooltipProvider>
+      <LanguageProvider>
+        <Toaster />
+        <Sonner />
+        <ExtensionAccountSync />
+        <BrowserRouter>
+          <XpProvider>
+            <PetProvider>
+            <I18nProvider><TourProvider>
+              <FunnelTracker />
+              <AppInbox />
+              <SelectionSave />
+              <OverlayPermissionPrompt />
+              <SiteIntro />
+              <CookieConsent />
+              <Suspense fallback={<RouteFallback />}>
+              <HomeRoutesContext.Provider value={APP_ROUTES}>
+              <Routes>{APP_ROUTES}</Routes>
+              </HomeRoutesContext.Provider>
               </Suspense>
               <TourOverlay />
               <DailyBriefing />
