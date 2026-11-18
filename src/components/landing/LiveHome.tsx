@@ -30,6 +30,7 @@ const LandingPage4 = lazy(() => import("@/pages/LandingPage4"));
 const WAIT_MS = 900;
 
 export function HomePage({ page }: { page: SitePage }) {
+  if (page.kind === "path") return <PathHome path={page.path} />;
   switch (page.page) {
     case "clear": return <LandingClear />;
     case "gold": case "glass": case "split": return <LabLanding theme={page.page} />;
@@ -89,7 +90,8 @@ export default function LiveHome() {
   if (site?.home.mode === "path" && !site.disabledPages?.includes(site.home.path)) {
     return <Suspense fallback={<PageLoading />}><PathHome path={site.home.path} /></Suspense>;
   }
-  const page = !site || site.home.mode === "builtin" ? null : site.home.mode === "single" ? site.home.page : arm?.page ?? null;
+  let page = !site || site.home.mode === "builtin" ? null : site.home.mode === "single" ? site.home.page : arm?.page ?? null;
+  if (page?.kind === "path" && site?.disabledPages?.includes(page.path)) page = null; // switched off in HQ
   return (
     <Suspense fallback={<PageLoading />}>
       {page ? <HomePage page={page} /> : <LandingPageTest />}
