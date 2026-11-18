@@ -27,6 +27,9 @@ const S = {
   ebbinghaus: "Ebbinghaus, H. (1885). <i>Über das Gedächtnis</i> (Memory: A Contribution to Experimental Psychology). Leipzig: Duncker &amp; Humblot.",
   cepeda06: "Cepeda, N. J., Pashler, H., Vul, E., Wixted, J. T. &amp; Rohrer, D. (2006). Distributed practice in verbal recall tasks: A review and quantitative synthesis. <i>Psychological Bulletin</i>, 132(3), 354–380.",
   roediger06: "Roediger, H. L. &amp; Karpicke, J. D. (2006). Test-enhanced learning: Taking memory tests improves long-term retention. <i>Psychological Science</i>, 17(3), 249–255.",
+  brysbaert16: "Brysbaert, M., Stevens, M., Mandera, P. &amp; Keuleers, E. (2016). How many words do we know? Practical estimates of vocabulary size dependent on word definition, the degree of language input and the participant's age. <i>Frontiers in Psychology</i>, 7, 1116.",
+  ogden30: "Ogden, C. K. (1930). <i>Basic English: A General Introduction with Rules and Grammar</i>. London: Kegan Paul, Trench, Trubner.",
+  fsi: "Foreign Service Institute, U.S. Department of State. Foreign Language Training: language learning time for English speakers (Category III, about 44 weeks / 1,100 class hours, includes Polish). state.gov/foreign-language-training.",
   lomb: "Lomb, K. (2008). <i>Polyglot: How I Learn Languages</i> (ed. S. Alkire). TESL-EJ. Originally published in Hungarian as <i>Így tanulok nyelveket</i> (1970).",
 };
 
@@ -360,5 +363,74 @@ ${step("blue", "Blue", "#2F7BFF", "Long-term. Six well-timed reviews later, it's
       ["What does a blue word mean in LinguaScript?", "Blue means a word has passed six spaced reviews in a row and is in long-term memory. Reviews then come only rarely, with each gap 1.5 times longer."],
     ],
     sources: [S.coe20, S.miltonAlexiou09, S.laufer98, S.webb08, S.ebbinghaus, S.cepeda06, S.roediger06, S.krashen82, S.freqwords],
+  },
+  {
+    slug: "active-vocabulary",
+    title: "Active Vocabulary: How Many Words Do You Need to Speak?",
+    desc: "Why '10,000 words for C2' is the wrong number to worry about: passive vs active vocabulary, Zipf's law, and a realistic 8-week plan before a trip.",
+    h1: "Active vocabulary: how many words do you really need to speak?",
+    lead: "Search “how many words for C2” and you'll find numbers like <strong>10,000</strong> or even <strong>20,000</strong> words, plus claims that it takes 10–15 years. If you've got a trip to Kraków in two months and you're starting Polish from zero, that's enough to make you give up before you start. The key to a happier answer is the difference between <strong>passive</strong> and <strong>active</strong> vocabulary.",
+    answer: "<strong>In one sentence:</strong> the big numbers count every word you <i>recognise</i> (passive vocabulary), but the words you actually <i>use</i> when you speak (active vocabulary) are a much smaller set, mostly the most frequent words, so learning those first and using them every day gets you talking far sooner than the scary totals suggest.",
+    sections: [
+      { id: "scary", h2: "Why the big numbers feel so scary", html: `
+<p class="body">Most vocabulary numbers you see online mix up three different things:</p>
+<div class="mist">
+<div><b>What counts as a “word”</b><i>walk, walks, walked, walking</i> can be counted as 4 word forms, 1 dictionary word (lemma) or 1 word family. The same vocabulary can be “5,000” or “15,000” depending on how you count.</div>
+<div><b>Who is being measured</b>Native adults recognise a huge number of words: one large study estimated that a typical 20-year-old American knows about 42,000 dictionary words (Brysbaert et al., 2016). That's a lifetime of reading, not a target for a learner.</div>
+<div><b>Recognising vs using</b>Most totals count words you <strong>recognise</strong>. The words you can <strong>use</strong> without help are always far fewer, for native speakers and learners alike (Laufer, 1998; Webb, 2008).</div>
+</div>
+<p class="body">So when a number sounds impossible, ask: <i>which</i> words, counted <i>how</i>, recognised or used? The honest answer is that there's <strong>no official word count</strong> for any CEFR level (Council of Europe, 2020). See <a href="/learn/cefr-vocabulary-size">how many words for each CEFR level</a> for the research ranges.</p>` },
+      { id: "gap", h2: "Passive vs active vocabulary: the gap is normal", html: `
+<p class="body"><strong>Passive (receptive) vocabulary</strong> is every word you understand when you hear or read it. <strong>Active (productive) vocabulary</strong> is every word you can pull out of your head and say or write yourself.</p>
+<p class="body">Research on learners finds the same pattern again and again: passive vocabulary grows first and stays bigger, and active vocabulary follows more slowly (Laufer, 1998; Webb, 2008). That isn't a failure. It's how everyone's memory works, in their first language too: you understand <i>“meticulous”</i> in a film long before you'd ever use it at dinner.</p>
+<p class="body">For a learner this is good news. You don't need to be able to <i>say</i> 10,000 words. You need to <strong>understand</strong> enough to follow people, and to <strong>use</strong> a smaller, well-chosen set confidently.</p>` },
+      { id: "how-many", h2: "So how many active words do you need?", html: `
+<p class="body">There's no single research number, and anyone who gives you one exact figure is guessing. But a few facts point the same way:</p>
+<ol class="steps">
+<li><b>A small core goes a long way.</b> In 1930 C. K. Ogden designed <strong>Basic English</strong>: 850 words that, with simple grammar, could say almost anything by describing things in other words (Ogden, 1930). Clunky, but it shows the idea: a few hundred flexible words can carry a conversation.</li>
+<li><b>The C2 figures are about recognition.</b> The often-quoted “4,500–5,000 words at C2” comes from tests of how many of the 5,000 most frequent words learners <i>recognise</i> (Milton &amp; Alexiou, 2009). Even very advanced learners use fewer words than they recognise.</li>
+<li><b>Everyday speech repeats the same words.</b> Because of Zipf's law (below), the words people say most are a short list, and those are exactly the ones you need to use.</li>
+</ol>
+<p class="body">A fair summary: a few hundred active words lets you <strong>get by</strong>; one to two thousand, learned in frequency order, lets you <strong>chat about everyday life</strong>; and passive vocabulary keeps growing for as long as you watch, read and listen.</p>` },
+      { id: "zipf", h2: "Zipf's law: learn the words that do the most work", html: (all, h) => {
+        const cov = (code, n) => {
+          const d = all[code];
+          const top = (k) => d.words.slice(0, k).reduce((t, w) => t + w.c, 0);
+          const total = top(1000) / (d.coverage[1000] / 100);
+          return Math.round((top(n) / total) * 1000) / 10;
+        };
+        const plans = [[10, 560], [15, 840], [25, 1400]];
+        const L = [["es", "Spanish"], ["fr", "French"], ["de", "German"], ["it", "Italian"]];
+        return `<p class="body">Linguist George Kingsley Zipf noticed that in every language the most common word is used about twice as often as the second, three times as often as the third, and so on (Zipf, 1949). The result: a small group of words makes up most of what people say. <a href="/learn/high-frequency-words">More on high-frequency words</a>.</p>
+<p class="body">Here's what that means for an 8-week (56-day) plan. We counted words in film and TV subtitles (OpenSubtitles 2018): if you learn the most frequent words first, this is the share of everything people say that your words would cover:</p>
+<table><caption class="sr">Share of real speech covered after 8 weeks of learning the most frequent words</caption><thead><tr><th>Language</th>${plans.map(([d, n]) => `<th>${d} a day (${h.fmt(n)} words)</th>`).join("")}</tr></thead><tbody>
+${L.map(([k, name]) => `<tr><td><strong>${name}</strong></td>${plans.map(([d, n]) => `<td><small style="display:block;color:var(--faint);font-size:12px">${d}/day · ${h.fmt(n)}</small><strong style="color:var(--green)">${cov(k, n).toFixed(1)}%</strong></td>`).join("")}</tr>`).join("")}
+</tbody></table>
+<p class="body" style="font-size:14px">These are word forms from subtitles, so they're a measure of <i>familiar words</i>, not of understanding: knowing 75% of the words in a sentence still leaves gaps. Comfortable understanding needs about 95–98% (Nation, 2006; Webb &amp; Rodgers, 2009). We don't have a Polish list yet; Polish has many endings (cases), so each dictionary word has more forms and the same number of forms covers a little less.</p>`; } },
+      { id: "krakow", h2: "Two months before Kraków: a realistic plan", html: `
+<p class="body">Let's be honest first. The U.S. Foreign Service Institute puts Polish in its harder group for English speakers: about <strong>44 weeks of full-time classes</strong> to reach professional working level (FSI). Nobody goes from zero to C2 in two months, and we won't pretend you can.</p>
+<p class="body">But that isn't your goal. Your goal is to <strong>order food, ask for directions, chat with people and understand the replies</strong>, which is about A1–A2. That is very reachable in 8 weeks of short daily practice:</p>
+<ol class="steps">
+<li><b>Weeks 1–2: survival phrases + the top 100.</b> Hello, please, thank you, how much, where is, I'd like, I don't understand. The top 100 words are about half of all speech.</li>
+<li><b>Weeks 3–5: 10–15 frequent words a day, in sentences.</b> Learn each one inside a short phrase you'd really say. Let spaced reviews bring words back just before you'd forget them.</li>
+<li><b>Every day: use them out loud.</b> Two or three sentences about your day, or a one-minute voice note. This is what moves words from passive to active.</li>
+<li><b>Weeks 6–8: listen to real Polish.</b> Short videos on things you already like, with subtitles where most words are known. You'll start hearing your words everywhere.</li>
+</ol>
+<p class="body">That's working smarter, not harder: the right few hundred words, used every day, instead of a 10,000-word list.</p>` },
+      { id: "activate", h2: "How to turn passive words into active ones", html: `
+<div class="mist">
+<div><b>Try to remember, don't just reread</b>Pulling a word out of memory makes it stronger than looking at it again (Roediger &amp; Karpicke, 2006). Flashcards work when you answer before you flip.</div>
+<div><b>Space it out</b>A few reviews spread over days beat one long cram (Cepeda et al., 2006). That's why LinguaScript words go gold just before you'd forget them.</div>
+<div><b>Say and write it</b>Using a word yourself makes you notice what you don't know yet, and fixes it in memory (Swain, 1985; 1995). See <a href="/learn/comprehensible-output">comprehensible output</a>.</div>
+</div>
+<p class="body">In LinguaScript every word you save starts <b style="color:#FF3B30">red</b>, moves through <b style="color:#FF8A00">orange</b> and <b style="color:#34C759">green</b> as you recognise it, goes <b style="color:#FFD54A">gold</b> when it's time to check, and turns <b style="color:#2F7BFF">blue</b> once it's in long-term memory. Using a new word correctly when you speak or write counts as a review too, because that's the moment a passive word becomes an active one.</p>` },
+    ],
+    faqs: [
+      ["How many words do you need for C2?", "There is no official number. Studies of how many of the 5,000 most frequent words learners recognise put C2 learners at about 4,500–5,000, but that is passive (recognition) vocabulary. The words a C2 speaker actively uses are fewer, and the much bigger numbers you see online usually count every word a native speaker recognises."],
+      ["What is active vocabulary?", "Active (productive) vocabulary is the words you can use yourself when speaking or writing without help. Passive (receptive) vocabulary is the words you recognise when reading or listening. Passive vocabulary is always larger."],
+      ["Can I learn Polish in 2 months?", "Not to fluency: the U.S. Foreign Service Institute estimates about 44 weeks of full-time classes for professional working level. But basic conversation for a trip (about A1–A2: greetings, ordering, directions, simple chats) is realistic in 8 weeks of short daily practice focused on the most frequent words and using them out loud."],
+      ["How do I make passive words active?", "Use them. Try to recall words before checking (retrieval practice), space your reviews over days, and say or write a few sentences with new words every day."],
+    ],
+    sources: [S.brysbaert16, S.laufer98, S.webb08, S.coe20, S.miltonAlexiou09, S.ogden30, S.zipf49, S.freqwords, S.nation06, S.webb09, S.fsi, S.roediger06, S.cepeda06, S.swain85, S.swain95],
   },
 ];

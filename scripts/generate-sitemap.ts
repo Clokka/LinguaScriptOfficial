@@ -46,7 +46,7 @@ const staticEntries: SitemapEntry[] = [
   { path: "/words/anki-and-quizlet", changefreq: "monthly", priority: "0.7" },
   // /learn articles (static, scripts/learn-articles.mjs).
   { path: "/learn", changefreq: "monthly", priority: "0.7" },
-  ...["high-frequency-words", "cefr-vocabulary-size", "comprehensible-input", "comprehensible-output", "output-hypothesis", "kato-lomb-chameleon-method"].map((s) => ({ path: `/learn/${s}`, changefreq: "monthly", priority: "0.7" })),
+  ...["high-frequency-words", "cefr-vocabulary-size", "active-vocabulary", "comprehensible-input", "comprehensible-output", "output-hypothesis", "kato-lomb-chameleon-method"].map((s) => ({ path: `/learn/${s}`, changefreq: "monthly", priority: "0.7" })),
   ...["spanish", "french", "german", "italian", "portuguese", "english"].flatMap((l): SitemapEntry[] => [
     { path: `/words/${l}`, changefreq: "monthly", priority: "0.8" },
     { path: `/words/${l}/top-1000`, changefreq: "monthly", priority: "0.7" },
@@ -84,7 +84,7 @@ function generateSitemap(entries: SitemapEntry[]) {
   // Real "last updated" dates for the static SEO pages, so Google knows they're fresh:
   // /words = when the word lists were built; /learn = when the articles last changed.
   const wordsBuilt = (() => { try { return JSON.parse(readFileSync(resolve(process.cwd(), "src/data/wordlists/es.json"), "utf8")).builtAt as string; } catch { return undefined; } })();
-  const LEARN_UPDATED = "2026-11-16";
+  const LEARN_UPDATED = "2026-11-18";
   for (const e of entries) {
     if (!e.lastmod && e.path.startsWith("/words")) e.lastmod = wordsBuilt;
     if (!e.lastmod && e.path.startsWith("/learn")) e.lastmod = LEARN_UPDATED;
