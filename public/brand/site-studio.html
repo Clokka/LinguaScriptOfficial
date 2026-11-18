@@ -383,7 +383,7 @@ function labPlay(){const st=$('#labstage');st.innerHTML='<div class="ldr" style=
 /* ---------- tabs ---------- */
 let workspace='builder';
 const WORKSPACES={builder:'Page builder',gallery:'Design gallery',loaders:'LinguaScript name intro',films:'Before a film',startup:'Streaming startup',plan:'Plan & prompts'};
-function showTab(t){if(!WORKSPACES[t])t='builder';workspace=t;document.querySelectorAll('[data-tab]').forEach(b=>{b.setAttribute('aria-selected',b.dataset.tab==t);b.setAttribute('aria-controls','v-'+(t=='films'?'gallery':t))});['gallery','builder','loaders','startup','plan'].forEach(v=>$('#v-'+v).hidden=v!=(t=='films'?'gallery':t));$('#workspace-title').textContent=WORKSPACES[t];$('#workspace-state').textContent=t=='films'?'Video player':t=='startup'?'App & page loading':t=='loaders'?'Homepage intro':'Preview workspace';$('#film-tools').hidden=t!='films';$('#galchips').hidden=t=='films';$('.gal-hint').hidden=t=='films';$('#galFavPage').hidden=t=='films';if(t=='gallery'||t=='films')galDraw();if(t=='loaders')labPlay();else $('#labstage').innerHTML='';if(t=='builder'){fit();}else{const l=$('#ldr');if(l)l.innerHTML='';timers.forEach(clearInterval);timers=[]}if(t!='gallery'&&t!='films'){galIO.disconnect();$('#gal').innerHTML=''}try{history.replaceState(null,'','#'+t)}catch{}}
+function showTab(t){if(!WORKSPACES[t])t=WORKSPACES.builder?'builder':'loaders';workspace=t;document.querySelectorAll('[data-tab]').forEach(b=>{b.setAttribute('aria-selected',b.dataset.tab==t);b.setAttribute('aria-controls','v-'+(t=='films'?'gallery':t))});['gallery','builder','loaders','startup','plan'].forEach(v=>$('#v-'+v).hidden=v!=(t=='films'?'gallery':t));$('#workspace-title').textContent=WORKSPACES[t];$('#workspace-state').textContent=t=='films'?'Video player':t=='startup'?'App & page loading':t=='loaders'?'Homepage intro':'Preview workspace';$('#film-tools').hidden=t!='films';$('#galchips').hidden=t=='films';$('.gal-hint').hidden=t=='films';$('#galFavPage').hidden=t=='films';if(t=='gallery'||t=='films')galDraw();if(t=='loaders')labPlay();else $('#labstage').innerHTML='';if(t=='builder'){fit();}else{const l=$('#ldr');if(l)l.innerHTML='';timers.forEach(clearInterval);timers=[]}if(t!='gallery'&&t!='films'){galIO.disconnect();$('#gal').innerHTML=''}try{history.replaceState(null,'','#'+t)}catch{}}
 document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
 
 /* ---------- prompts ---------- */
@@ -516,7 +516,12 @@ addEventListener('message',e=>{if(e.origin!==location.origin||e.source!==parent)
   if(d.lsHQ==='tab'&&WORKSPACES[d.tab])showTab(d.tab);
   if(d.lsHQ==='done')toast(d.text||'Done')});
 if(parent!==window)try{parent.postMessage({lsHQ:'ready'},location.origin)}catch{}
-const h=(location.hash||'').slice(1);showTab(WORKSPACES[h]?h:'builder');
+/* HQ "Animations" tab opens ?animations=1: only the loading-screen workspaces, no page builder (pages are chosen by address in HQ → Today). */
+const ANIM_ONLY=/[?&]animations=1/.test(location.search);
+if(ANIM_ONLY){['builder','gallery','plan'].forEach(t=>{delete WORKSPACES[t];const b=document.querySelector('[data-tab="'+t+'"]');if(b)b.remove()});
+  document.querySelectorAll('.tabs .nav-label').forEach(l=>{if(!/Loading/.test(l.textContent))l.remove()});
+  const st=document.createElement('style');st.textContent='#hqbar,#gmLive{display:none!important}';document.head.appendChild(st)}
+const h=(location.hash||'').slice(1);showTab(WORKSPACES[h]?h:(ANIM_ONLY?'loaders':'builder'));
 setTimeout(()=>{if(workspace=='builder')play()},300);
 </script>
 

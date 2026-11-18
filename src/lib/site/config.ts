@@ -28,7 +28,7 @@ export const LOADER_LABS = ["loading-experiences", "loading-screens", "loading-m
 export const PAGE_LOADERS = { skeleton: "Grey skeleton (fastest)", brand: "Chameleon + colour word" } as const;
 
 /** Older HQ choices (kept so History / roll back still work). New choices use `path`. */
-export type SitePage = { kind: "react"; page: ReactPageId };
+export type SitePage = { kind: "react"; page: ReactPageId } | { kind: "path"; path: string };
 export type SiteArm = { id: string; name: string; page: SitePage };
 export type SiteConfig = {
   version: 2;
@@ -78,6 +78,7 @@ export const isLoaderId = (v: unknown): v is string =>
 
 function validPage(p: any): p is SitePage {
   if (!p || typeof p !== "object") return false;
+  if (p.kind === "path") return typeof p.path === "string" && cleanHomePath(p.path) === p.path;
   return p.kind === "react" && typeof p.page === "string" && p.page in REACT_PAGES;
 }
 
@@ -168,14 +169,14 @@ export const DEFAULT_SITE: SiteConfig = {
 
 /** One line describing a page, for HQ. */
 export function describePage(p: SitePage): string {
-  return REACT_PAGES[p.page] ?? p.page;
+  return p.kind === "path" ? p.path : REACT_PAGES[p.page] ?? p.page;
 }
 /** One line describing the homepage choice, for HQ. */
 export function describeHome(h: SiteConfig["home"]): string {
   if (h.mode === "builtin") return "Built-in test: Chameleon Method vs Gold vs Glass vs Split";
   if (h.mode === "path") return `The page at ${h.path}`;
   if (h.mode === "single") return describePage(h.page);
-  return `A/B test (${h.arms.length} versions): ${h.arms.map((a) => a.name).join(" · ")}`;
+  return `A/B test: ${h.arms.map((a) => describePage(a.page)).join(" vs ")}`;
 }
 export function describeLoader(id: string | undefined): string {
   if (!id || id === "none") return "No intro";
