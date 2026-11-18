@@ -100,6 +100,15 @@ export function AppInbox() {
       busy.current = true;
       try {
         const { learning, native, list } = await languagesOf(userId);
+        // Warm the instant-dict pack for this pair once, up front, so the
+        // per-word lookup below can read it synchronously instead of each
+        // word racing its own slow first-load network fetch.
+        if (native && native !== learning) {
+          try {
+            const { loadPack } = await import("@/lib/instantDict");
+            await Promise.race([loadPack(learning, native), new Promise((r) => setTimeout(r, 3000))]);
+          } catch { /* falls back to the network lookup below */ }
+        }
         const done: number[] = [];
         let saved = 0;
         let waiting = 0;
@@ -164,7 +173,7 @@ export function AppInbox() {
             } catch { /* saved without a meaning; flashcards look it up later */ }
           }
           const { data: existing } = await supabase
-            .from("saved_words").select("id").eq("user_id", userId!).eq("language", lang).eq("word", word).limit(1);
+            .from("saved_words").select("id, translation").eq("user_id", userId!).eq("language", lang).eq("word", word).limit(1);
           if (!existing?.length) {
             const { error } = await supabase.from("saved_words").insert({
               user_id: userId!,
@@ -187,7 +196,17 @@ export function AppInbox() {
             awardRef.current("add_word");
             track("word_saved", { language: lang, source: "android_select" });
           }
-          else sheet.push({ word, translation: String(it.translation || ""), isNew: false });
+          else {
+            const row = existing[0] as { id: string; translation: string | null };
+            // Already saved, but without a meaning (saved offline, or before
+            // this pair had a dictionary entry): fill it in now instead of
+            // leaving the flashcard blank forever.
+            if (translation && !row.translation) {
+              const { error: fillErr } = await supabase.from("saved_words").update({ translation } as any).eq("id", row.id).eq("user_id", userId!);
+              if (fillErr) console.error("[AppInbox] backfill failed", fillErr);
+            }
+            sheet.push({ word, translation: translation || row.translation || "", isNew: false });
+          }
           done.push(it.at);
         }
         if (done.length) toApp({ type: "inbox-saved", ats: done });
