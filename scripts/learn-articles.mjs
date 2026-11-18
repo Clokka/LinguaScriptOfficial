@@ -20,6 +20,13 @@ const S = {
   zipf49: "Zipf, G. K. (1949). <i>Human Behavior and the Principle of Least Effort</i>. Cambridge, MA: Addison-Wesley.",
   ngsl: "Browne, C., Culligan, B. &amp; Phillips, J. (2013). The New General Service List. newgeneralservicelist.com.",
   freqwords: "Dave, H. FrequencyWords: word frequency lists from OpenSubtitles 2018 (CC BY-SA 4.0). github.com/hermitdave/FrequencyWords.",
+  coe20: "Council of Europe (2020). <i>Common European Framework of Reference for Languages: Learning, Teaching, Assessment. Companion Volume</i>. Strasbourg: Council of Europe.",
+  miltonAlexiou09: "Milton, J. &amp; Alexiou, T. (2009). Vocabulary size and the Common European Framework of Reference for Languages. In B. Richards et al. (Eds.), <i>Vocabulary Studies in First and Second Language Acquisition</i>. Basingstoke: Palgrave Macmillan.",
+  laufer98: "Laufer, B. (1998). The development of passive and active vocabulary in a second language: Same or different? <i>Applied Linguistics</i>, 19(2), 255–271.",
+  webb08: "Webb, S. (2008). Receptive and productive vocabulary sizes of L2 learners. <i>Studies in Second Language Acquisition</i>, 30(1), 79–95.",
+  ebbinghaus: "Ebbinghaus, H. (1885). <i>Über das Gedächtnis</i> (Memory: A Contribution to Experimental Psychology). Leipzig: Duncker &amp; Humblot.",
+  cepeda06: "Cepeda, N. J., Pashler, H., Vul, E., Wixted, J. T. &amp; Rohrer, D. (2006). Distributed practice in verbal recall tasks: A review and quantitative synthesis. <i>Psychological Bulletin</i>, 132(3), 354–380.",
+  roediger06: "Roediger, H. L. &amp; Karpicke, J. D. (2006). Test-enhanced learning: Taking memory tests improves long-term retention. <i>Psychological Science</i>, 17(3), 249–255.",
   lomb: "Lomb, K. (2008). <i>Polyglot: How I Learn Languages</i> (ed. S. Alkire). TESL-EJ. Originally published in Hungarian as <i>Így tanulok nyelveket</i> (1970).",
 };
 
@@ -274,5 +281,84 @@ ${L.map(([k, n, slug]) => `<tr><td><a href="/words/${slug}">${n}</a></td><td><st
       ["Does LinguaScript use high-frequency words?", "Yes. LinguaScript's free word lists, video recommendations, colour-coded subtitles and flashcards all start from the most frequent words, measured from real film and TV subtitles."],
     ],
     sources: [S.zipf49, S.west53, S.ngsl, S.nation06, S.webb09, S.freqwords],
+  },
+  {
+    slug: "cefr-vocabulary-size",
+    title: "How Many Words for Each CEFR Level? A1 to C2",
+    desc: "Rough word counts for CEFR A1 to C2, the difference between passive and active vocabulary, and how spaced reviews turn new words into long-term memory.",
+    h1: "How many words do you need for each CEFR level?",
+    lead: "There's no official word count for any CEFR level: the levels describe what you can <strong>do</strong>, not how many words you know. But researchers have measured how many words learners at each level usually <strong>recognise</strong>, and the numbers make a useful map.",
+    answer: "<strong>In one sentence:</strong> learners usually recognise fewer than about 1,500 words at A1, around 2,750–3,250 at B1 and 4,500–5,000 at C2, but these are rough ranges, not pass marks, and the words you can <i>use</i> (active vocabulary) are always fewer than the words you <i>recognise</i> (passive vocabulary).",
+    sections: [
+      { id: "levels", h2: "Words per CEFR level (rough ranges)", html: (all) => {
+        const rows = [
+          ["A1", 0, 1500, "Under 1,500", "Simple everyday phrases; introduce yourself"],
+          ["A2", 1500, 2500, "1,500–2,500", "Routine tasks and simple exchanges"],
+          ["B1", 2750, 3250, "2,750–3,250", "The main points of familiar topics; get by when travelling"],
+          ["B2", 3250, 3750, "3,250–3,750", "Follow complex ideas; talk with fluent speakers with ease"],
+          ["C1", 3750, 4500, "3,750–4,500", "Use the language flexibly; catch implied meaning"],
+          ["C2", 4500, 5000, "4,500–5,000", "Understand almost everything you hear or read"],
+        ];
+        const bar = (lo, hi, i) => `<div style="position:relative;height:10px;border-radius:99px;background:#232329"><div style="position:absolute;left:${lo / 50}%;width:${Math.max(4, (hi - lo) / 50)}%;height:10px;border-radius:99px;background:#34C759;opacity:${0.45 + i * 0.11}"></div></div>`;
+        return `<table class="need" style="max-width:none"><caption class="sr">Rough number of words recognised at each CEFR level</caption><thead><tr><th>Level</th><th>Words recognised</th><th style="width:30%">Out of the top 5,000</th><th>You can…</th></tr></thead><tbody>
+${rows.map(([lv, lo, hi, label, can], i) => `<tr><td><strong style="font-size:18px">${lv}</strong></td><td><strong style="color:#34C759">${label}</strong></td><td>${bar(lo, hi, i)}</td><td style="color:var(--muted);font-size:14px">${can}</td></tr>`).join("")}
+</tbody></table>
+<p class="body" style="font-size:14px">Ranges from studies that measured learners' recognition of the 5,000 most frequent words (Milton &amp; Alexiou, 2009). They are <strong>indicative, not pass marks</strong>: exams test skills, and a big vocabulary alone doesn't make you B2. "You can…" lines are our plain-English summary of the CEFR's level descriptions (Council of Europe, 2020).</p>
+<p class="body">Why are these numbers manageable? Because of <a href="/learn/high-frequency-words">Zipf's law</a>: in Spanish films and TV, the top 1,000 word forms already cover <strong>${all.es.coverage[1000]}%</strong> of everything said, and the top 3,000 cover <strong>${all.es.coverage[3000]}%</strong>. Learn words in frequency order and each one pays off from day one.</p>
+<p class="body" style="font-size:14px">On our <a href="/english/a1">English A1 guide</a> we say A1 is about 400–700 words: that's the words a beginner course teaches you to <i>use</i>. Research figures above count words you <i>recognise</i>, which is always more. Both fit the same picture.</p>`; } },
+      { id: "passive-active", h2: "Passive vs active vocabulary", html: `
+<div class="mist">
+<div><b>Passive (receptive) vocabulary</b>Words you <strong>recognise</strong> when you hear or read them. It grows first and stays bigger: most learners recognise far more words than they can use (Laufer, 1998; Webb, 2008).</div>
+<div><b>Active (productive) vocabulary</b>Words you can <strong>use</strong> yourself, in speaking and writing, without help. It grows when you practise producing the language: <a href="/learn/comprehensible-output">comprehensible output</a>.</div>
+</div>
+<p class="body">Both matter. Passive vocabulary lets you understand films, podcasts and conversations (<a href="/learn/comprehensible-input">comprehensible input</a>: Stephen Krashen's idea that we pick up a language by understanding messages, much as children pick up their first language). Active vocabulary lets you take part.</p>` },
+      { id: "colours", h2: "What the chameleon colours mean", html: (all, h) => {
+        const step = (tone, name, color, text) => `<div style="flex:1 1 140px;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:14px;display:flex;flex-direction:column;gap:6px">${h.chameleon(tone, 64, name)}<b style="color:${color};font-size:17px">${name}</b><span style="color:var(--muted);font-size:14px">${text}</span></div>`;
+        return `<p class="body">Every word you save in LinguaScript has a colour. The colours follow a word from "just met" to "yours for good":</p>
+<div style="display:flex;flex-wrap:wrap;gap:10px;margin:14px 0">
+${step("red", "Red", "#FF3B30", "New. You've met it and saved it. Passive, and still fragile.")}
+${step("orange", "Orange", "#FF8A00", "Learning. You recognised it once. Still passive.")}
+${step("green", "Green", "#34C759", "Known. You recognise it on your own: a stronger memory has started.")}
+${step("gold", "Gold", "#FFD54A", "Review time. Just before you'd forget, we check it. Right answer: back to green.")}
+${step("blue", "Blue", "#2F7BFF", "Long-term. Six well-timed reviews later, it's in long-term memory.")}
+</div>
+<p class="body">Red, orange and green mostly measure <strong>passive</strong> knowledge: can you recognise the word? Words become <strong>active</strong> when you use them in a lesson's wrap-up (say it to your coach, or write it in a sentence). In LinguaScript, using a new word correctly counts as a review too.</p>`; } },
+      { id: "forgetting", h2: "Why words go gold: the forgetting curve", html: `
+<p class="body">In 1885 Hermann Ebbinghaus measured how fast he forgot new material: very fast at first, then more slowly. That's the <strong>forgetting curve</strong>. He also found that each time you relearn something, you forget it more slowly afterwards. Later research confirmed that <strong>spaced</strong> reviews beat cramming (Cepeda et al., 2006) and that <strong>trying to remember</strong> strengthens memory more than rereading (Roediger &amp; Karpicke, 2006).</p>
+<figure style="margin:16px 0;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px">
+<svg viewBox="0 0 600 240" role="img" aria-label="Illustration: without reviews memory drops fast; with spaced reviews it is topped up each time and falls more slowly" style="width:100%;height:auto;display:block">
+<line x1="40" y1="200" x2="585" y2="200" stroke="#2A2A30"/><line x1="40" y1="14" x2="40" y2="200" stroke="#2A2A30"/>
+<text x="44" y="12" fill="#8E8E98" font-size="12">memory</text><text x="540" y="222" fill="#8E8E98" font-size="12">time</text>
+<path d="M40,24 C70,130 130,175 580,195" fill="none" stroke="#8E8E98" stroke-width="2.5" stroke-dasharray="6 6"/>
+<path d="M40,24 Q55,72 70,78 L70,24 Q95,84 120,90 L120,24 Q155,74 190,78 L190,24 Q230,58 270,62 L270,24 Q320,46 370,50 L370,24 Q435,36 500,40" fill="none" stroke="#34C759" stroke-width="3"/>
+<path d="M500,24 Q540,28 580,30" fill="none" stroke="#2F7BFF" stroke-width="3.5"/>
+<g fill="#FFD54A"><circle cx="70" cy="24" r="6"/><circle cx="120" cy="24" r="6"/><circle cx="190" cy="24" r="6"/><circle cx="270" cy="24" r="6"/><circle cx="370" cy="24" r="6"/><circle cx="500" cy="24" r="6"/></g>
+<g fill="#A1A1AA" font-size="11" text-anchor="middle"><text x="70" y="216">5 min</text><text x="120" y="216">1 day</text><text x="190" y="216">3 days</text><text x="270" y="216">7 days</text><text x="370" y="216">14 days</text><text x="500" y="216">30 days</text></g>
+</svg>
+<figcaption style="font-size:13px;color:var(--faint);margin-top:8px"><span style="color:#8E8E98">- - -</span> no reviews · <span style="color:#34C759">━</span> green, topped up at each <span style="color:#FFD54A">●</span> gold review · <span style="color:#2F7BFF">━</span> blue. An illustration of the idea, not measured data.</figcaption>
+</figure>
+<h3 style="margin:22px 0 10px;font-size:18px">The LinguaScript memory ladder</h3>
+<ol class="steps">
+<li><b>A word turns green.</b> You recognised it. Five minutes later it turns <b style="color:#FFD54A">gold</b>: the first quick check.</li>
+<li><b>Get it right, it goes back to green</b> and waits longer: 1 day, then 3, 7, 14 and 30 days. Each gold comes just before you'd be likely to forget.</li>
+<li><b>Six right answers in a row and it turns <span style="color:#2F7BFF">blue</span>.</b> Blue means long-term memory: reviews now come rarely (each gap 1.5× longer), so you keep it for a very long time with almost no effort.</li>
+<li><b>Get one wrong?</b> No problem: it simply comes back sooner. Forgetting a little and remembering again is exactly what makes memories last.</li>
+</ol>
+<p class="body" style="font-size:14px">Six reviews is LinguaScript's design, built on the research above; nobody can promise a word is never forgotten, but each well-timed review makes forgetting slower.</p>` },
+      { id: "plan", h2: "A realistic path from A1 to B1", html: `
+<ol class="steps">
+<li><b>Start with the most common words.</b> The <a href="/words">top 100</a> are about half of real speech; aim for the top 1,000 first.</li>
+<li><b>Understand lots.</b> Watch and listen to things you enjoy where you know about 95–98% of the words.</li>
+<li><b>Review a few minutes a day.</b> Let gold words come back on schedule instead of cramming.</li>
+<li><b>Use your new words.</b> Two or three sentences or a one-minute voice note a day turns passive words into active ones.</li>
+</ol>` },
+    ],
+    faqs: [
+      ["How many words do I need for A1?", "Learners at A1 usually recognise fewer than about 1,500 words; beginner courses typically teach around 400–700 words to use. There is no official CEFR word count."],
+      ["How many words do I need for B1 or B2?", "Research on learners' vocabulary sizes suggests roughly 2,750–3,250 words recognised at B1 and 3,250–3,750 at B2. These are rough ranges, not exam requirements."],
+      ["What is the difference between passive and active vocabulary?", "Passive (receptive) vocabulary is the words you recognise when reading or listening; active (productive) vocabulary is the words you can use yourself when speaking or writing. Passive vocabulary is always larger."],
+      ["What does a blue word mean in LinguaScript?", "Blue means a word has passed six spaced reviews in a row and is in long-term memory. Reviews then come only rarely, with each gap 1.5 times longer."],
+    ],
+    sources: [S.coe20, S.miltonAlexiou09, S.laufer98, S.webb08, S.ebbinghaus, S.cepeda06, S.roediger06, S.krashen82, S.freqwords],
   },
 ];

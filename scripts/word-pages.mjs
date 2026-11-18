@@ -351,9 +351,9 @@ ${cta({ name: "new", slug: "anki-guide" }).replace("every new word", "every word
 }
 
 
-const LEARN_ORDER = ["high-frequency-words", "comprehensible-input", "comprehensible-output", "output-hypothesis", "kato-lomb-chameleon-method"];
+const LEARN_ORDER = ["high-frequency-words", "cefr-vocabulary-size", "comprehensible-input", "comprehensible-output", "output-hypothesis", "kato-lomb-chameleon-method"];
 const articleCta = (slug) => `<div class="cta card"><p>Try the Chameleon Method free<span>Watch what you love; every word is coloured by how well you know it, and new words become flashcards in one tap.</span></p><div style="display:flex;gap:10px;flex-wrap:wrap"><a class="btn" href="/auth?mode=signup&amp;from=learn-${slug}">Start free</a><a class="btn ghost" href="/discover?from=learn-${slug}">Watch videos</a></div></div>`;
-const html = (x, all) => (typeof x.html === "function" ? x.html(all) : x.html);
+const html = (x, all) => (typeof x.html === "function" ? x.html(all, { chameleon, C, fmt }) : x.html);
 const words = (a, all) => [a.lead, a.answer, ...a.sections.map((x) => html(x, all))].join(" ").replace(/<[^>]+>/g, " ").split(/\s+/).filter(Boolean).length;
 
 function articlePage(a, builtAt, all) {
