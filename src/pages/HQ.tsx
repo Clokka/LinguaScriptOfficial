@@ -2,19 +2,19 @@
 // see and change the website. Lazy route behind a role check (admin,
 // marketer, engineer); visitors never download it.
 //
-//   Today       what visitors see now
-//   Studio      every design (Gallery, Builder, Loader lab) → Go live
-//   Go live     homepage / A/B test / intro + page loading screens, preview,
-//               history with roll back. Nothing changes until "OK, go live".
+//   Today       what visitors see now + "Which page is the homepage?" box:
+//               type any address (/landing, /landing5…) and press Go live
+//   Go live     intro, page and video loading screens, history with roll back.
+//               Nothing changes until "OK, go live".
 //   Results     homepage test numbers (AdminExperiments)
 //   Partners    affiliates (admin + marketer only)
 //   Every design all labs, real pages, loaders
 //   Plans       marketing docs + notes for engineers
 //   Team        HQ logins (admin only)
-import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { ExternalLink, Eye, Rocket, RotateCcw, Trash2 } from "lucide-react";
+import { ExternalLink, Eye, Rocket, RotateCcw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { PageLoading } from "@/components/PageLoading";
@@ -24,26 +24,25 @@ import { GlassCard, PremiumHeader, Eyebrow, Skeleton } from "@/components/premiu
 import { cn } from "@/lib/utils";
 import { PublishDialog, useSite, type Pending } from "@/components/hq/useSite";
 import {
-  BUILT_IN_LOADERS, DEFAULT_FILM_LOADER, DEFAULT_SITE, PAGE_LOADERS, REACT_PAGES, cleanConfig, describeLoader, describePage,
-  studioToPage, writePreview, type FilmLoaderConfig, type ReactPageId, type SiteArm, type SiteConfig, type SitePage,
+  BUILT_IN_LOADERS, DEFAULT_FILM_LOADER, DEFAULT_SITE, PAGE_LOADERS, cleanConfig, describeHome, describeLoader,
+  writePreview, type FilmLoaderConfig, type SiteConfig,
 } from "@/lib/site/config";
+import { cleanHomePath } from "@/lib/site/homeRoutes";
 
-const StudioFrame = lazy(() => import("@/components/hq/StudioFrame"));
 const TeamTools = lazy(() => import("@/components/partners/TeamTools"));
 const AdminExperiments = lazy(() => import("@/components/AdminExperiments").then((m) => ({ default: m.AdminExperiments })));
 const IntroLoader = lazy(() => import("@/components/landing/IntroLoader"));
 const FilmLoadingGate = lazy(() => import("@/components/FilmLoader").then((m) => ({ default: m.FilmLoadingGate })));
 const SchoolEnquiries = lazy(() => import("@/components/hq/SchoolEnquiries"));
 
-type Tab = "today" | "schools" | "studio" | "live" | "results" | "partners" | "library" | "docs" | "team";
+type Tab = "today" | "schools" | "live" | "results" | "partners" | "library" | "docs" | "team";
 const TABS: [Tab, string, string][] = [
-  ["today", "🏠 Today", "What visitors see right now, and where to change it."],
+  ["today", "🏠 Today", "What visitors see right now. Change the homepage with the box below."],
   ["schools", "🏫 Schools", "School requests received from the website. Follow up and track your quotes."],
-  ["studio", "🎨 Studio", "Every design we've made. Star, mix, build a page, then press 🚀 Go live."],
-  ["live", "🚀 Go live", "Pick the homepage, an A/B test and the loading screens. Nothing changes until you press OK."],
+  ["live", "🚀 Loading screens", "Pick the intro, page and video loading screens. Nothing changes until you press OK."],
   ["results", "📊 Results", "Which homepage gets more people to start. Wait for 1,000+ views per version before calling it."],
   ["partners", "🤝 Partners", "Affiliates: clicks, sign-ups, sales and payouts."],
-  ["library", "🧪 Every design", "All 16 design labs (748 designs), 9 real homepages and 146 loading screens. Tap to open."],
+  ["library", "🧪 Every design", "Every landing page and design lab. Tap to open."],
   ["docs", "📚 Plans", "The marketing plans, and notes for engineers."],
   ["team", "👥 Team", "Who has an HQ login. Give the marketing team and engineers their own."],
 ];
@@ -69,18 +68,24 @@ const LABS: [string, string, number, string][] = [
   ["loading-experiences", "Loading Experiences", 12, "Complete 10–30 s subtitle-wait experiences"],
   ["loading-screens", "Loading Screens", 100, "20 animations × 5 frame styles"],
   ["loading-motion", "Loading Motion", 30, "Loading-to-playing motion graphics"],
-  ["site-studio", "Site Studio", 0, "Gallery + Builder + Loader lab (also in the Studio tab)"],
 ];
-const REACT_SRC: Record<ReactPageId, string> = {
-  current: "/?lp=current", gold: "/?lp=gold", glass: "/?lp=glass", split: "/?lp=split", clear: "/?lp=clear",
-  landing: "/landing", v2: "/landingpage2", v3: "/landingpage3", v4: "/landingpage4",
-};
+/** Landing pages you can type in the homepage box (any other page address works too). */
+const HOME_PICKS: [string, string][] = [
+  ["/landing5", "Chameleon Method"],
+  ["/landing", "Tap-a-word demo"],
+  ["/landingpage2", "Product walkthrough"],
+  ["/landingpage3", "3D chameleon"],
+  ["/landingpage4", "Semantic dark"],
+  ["/landing-gold", "Black & gold"],
+  ["/landing-glass", "Liquid glass"],
+  ["/landing-split", "Black / white split"],
+  ["/landing-clear", "Clear page"],
+];
 const DOCS: [string, string, string][] = [
   ["/brand/docs/marketing-audit.html", "Marketing audit", "SEO, buyer's journey page map, personas, funnel, email, 90-day plan"],
   ["/brand/docs/marketing-flowcharts.html", "Marketing flowcharts", "13 flowcharts: funnel, journey, emails, proof loop"],
   ["/brand/docs/growth-team.html", "Growth team blueprint", "Humans + AI agents, channels, tools"],
   ["/brand/docs/partner-programme.html", "Partner programme plan", "How partners, logins and payouts work"],
-  ["/brand/site-studio.html#plan", "Site Studio plan & prompts", "How the Studio became the live site, with build prompts"],
 ];
 const DRIVE = "https://drive.google.com/drive/folders/1L7bFDi1OJJ6FE1xqjtH7sOkCK4mJbAE-";
 
@@ -139,9 +144,8 @@ function HQBody({ tab, setTab, visible, isAdmin, roleLabel }: {
   const site = useSite();
   const [days, setDays] = useState(30);
   const [pending, setPending] = useState<Pending | null>(null);
-  const wide = tab === "studio";
   return (
-    <Shell onBack={() => navigate("/admin")} badge={roleLabel} wide={wide}>
+    <Shell onBack={() => navigate("/admin")} badge={roleLabel}>
       <nav className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1" aria-label="HQ sections">
         {visible.map(([k, l]) => (
           <button key={k} onClick={() => setTab(k)} aria-current={tab === k ? "page" : undefined}
@@ -152,16 +156,15 @@ function HQBody({ tab, setTab, visible, isAdmin, roleLabel }: {
       <p className="text-sm text-muted-foreground">{visible.find(([k]) => k === tab)?.[2]}</p>
 
       <Suspense fallback={<Skeleton className="h-64" />}>
-        {tab === "today" && <Today site={site} go={setTab} />}
+        {tab === "today" && <Today site={site} go={setTab} setPending={setPending} />}
         {tab === "schools" && <SchoolEnquiries />}
-        {tab === "studio" && <StudioFrame site={site} />}
-        {tab === "live" && <GoLive site={site} setPending={setPending} openStudio={() => setTab("studio")} />}
+        {tab === "live" && <GoLive site={site} setPending={setPending} />}
         {tab === "results" && <GlassCard className="p-4"><AdminExperiments preferredKey={site.live?.home.mode === "test" ? site.live.home.key : undefined} /></GlassCard>}
         {tab === "partners" && (
           <TeamTools mode="team" isAdmin={isAdmin} days={days} setDays={setDays}
             onOpen={(id) => navigate(`/partners?view=${encodeURIComponent(id)}`)} />
         )}
-        {tab === "library" && <Library openStudio={() => setTab("studio")} />}
+        {tab === "library" && <Library />}
         {tab === "docs" && <Docs />}
         {tab === "team" && isAdmin && <Team />}
       </Suspense>
@@ -170,12 +173,12 @@ function HQBody({ tab, setTab, visible, isAdmin, roleLabel }: {
   );
 }
 
-function Shell({ children, onBack, badge, wide }: { children: React.ReactNode; onBack: () => void; badge?: string; wide?: boolean }) {
+function Shell({ children, onBack, badge }: { children: React.ReactNode; onBack: () => void; badge?: string }) {
   return (
     <div className="ls-aurora min-h-screen bg-background">
       <PremiumHeader title="LinguaScript HQ" onBack={onBack}
         right={badge ? <span className="rounded-full bg-emerald-400/15 px-2.5 py-1 font-mono text-[10px] font-bold tracking-widest text-emerald-300">{badge}</span> : null} />
-      <main className={cn("mx-auto grid gap-4 px-4 py-6 sm:px-6", wide ? "max-w-[1600px]" : "max-w-5xl")}>{children}</main>
+      <main className={"mx-auto grid max-w-5xl gap-4 px-4 py-6 sm:px-6"}>{children}</main>
     </div>
   );
 }
@@ -183,9 +186,7 @@ function Shell({ children, onBack, badge, wide }: { children: React.ReactNode; o
 /* ───────────── Today ───────────── */
 function summary(c: SiteConfig | null | undefined) {
   const s = c ?? DEFAULT_SITE;
-  const home = s.home.mode === "builtin" ? "Built-in test: Chameleon Method vs Gold vs Glass vs Split"
-    : s.home.mode === "single" ? describePage(s.home.page)
-    : `A/B test (${s.home.arms.length} versions): ${s.home.arms.map((a) => a.name).join(" · ")}`;
+  const home = describeHome(s.home);
   const intro = s.intro && s.intro.loader !== "none"
     ? `${describeLoader(s.intro.loader)} · ${s.intro.when === "always" ? "every visit" : s.intro.when === "first" ? "first visit only" : "once per visit"} · ${s.intro.end === "button" ? "waits for Enter" : "fades by itself"}`
     : "None";
@@ -194,11 +195,12 @@ function summary(c: SiteConfig | null | undefined) {
   return { home, intro, page: PAGE_LOADERS[s.pageLoader ?? "skeleton"], film };
 }
 
-function Today({ site, go }: { site: ReturnType<typeof useSite>; go: (t: Tab) => void }) {
+function Today({ site, go, setPending }: { site: ReturnType<typeof useSite>; go: (t: Tab) => void; setPending: (p: Pending) => void }) {
   const s = summary(site.live);
   const last = site.history[0];
   return (
     <div className="grid gap-4">
+      <HomepageBox site={site} setPending={setPending} />
       <GlassCard accent="green" className="p-5 space-y-3">
         <Eyebrow>Live on linguascript.co.uk</Eyebrow>
         {site.live === undefined ? <Skeleton className="h-20" /> : (
@@ -220,8 +222,7 @@ function Today({ site, go }: { site: ReturnType<typeof useSite>; go: (t: Tab) =>
       </GlassCard>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {([
-          ["studio", "🎨", "Design something", "Gallery of every design. Star them, mix them in the Builder, press Go live."],
-          ["live", "🚀", "Change the website", "Homepage, A/B test, intro and page loading screens. Preview first."],
+          ["live", "🚀", "Loading screens", "Intro, page and video loading screens. Preview first."],
           ["results", "📊", "See what works", "Views, starts and sign-ups per homepage version."],
           ["library", "🧪", "Every design", "All 16 labs, the real pages and every loading screen."],
           ["docs", "📚", "Plans", "Marketing audit, flowcharts, growth team, partner plan."],
@@ -240,15 +241,72 @@ function Today({ site, go }: { site: ReturnType<typeof useSite>; go: (t: Tab) =>
   );
 }
 
-/* ───────────── Go live ───────────── */
-type Choice = string; // "react:gold" | "draft:<id>"
+/* ───────────── Homepage box ───────────── */
+// Type the address of any page on the site → it becomes the homepage.
+function HomepageBox({ site, setPending }: { site: ReturnType<typeof useSite>; setPending: (p: Pending) => void }) {
+  const live = site.live;
+  const current = live?.home.mode === "path" ? live.home.path : "";
+  const [text, setText] = useState(current);
+  useEffect(() => { setText(current); }, [current]);
+  const path = cleanHomePath(text);
+  const bad = text.trim() !== "" && !path;
+  const same = !!path && path === current;
 
-function GoLive({ site, setPending, openStudio }: { site: ReturnType<typeof useSite>; setPending: (p: Pending) => void; openStudio: () => void }) {
+  const choose = (home: SiteConfig["home"]) => {
+    const c = cleanConfig({ ...site.base(), home });
+    if (!c) { toast.error("That address can't be the homepage."); return; }
+    setPending({ title: "Change the homepage?", lines: [`Homepage → ${describeHome(c.home)}`], config: c });
+  };
+
+  return (
+    <GlassCard accent="green" className="p-5 space-y-4">
+      <div>
+        <Eyebrow>🏠 Which page is the homepage?</Eyebrow>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Type the address of any page on the site, look at it, then press <b>Make it the homepage</b>.
+          Made a new landing page (like <code>/landing6</code>)? Just type its address here.
+        </p>
+      </div>
+
+      <label className="flex items-center overflow-hidden rounded-xl border border-white/15 bg-black/30 focus-within:border-emerald-400">
+        <span className="hidden pl-3 font-mono text-sm text-muted-foreground sm:inline">linguascript.co.uk</span>
+        <input value={text} onChange={(e) => setText(e.target.value)} placeholder="/landing" aria-label="Homepage address"
+          className="min-w-0 flex-1 bg-transparent px-3 py-3 font-mono text-lg outline-none" autoCapitalize="none" autoCorrect="off" spellCheck={false} />
+      </label>
+      {bad && <p className="text-sm text-amber-300">That address can't be used. Try something like <code>/landing</code>.</p>}
+
+      <div className="flex flex-wrap gap-1.5">
+        {HOME_PICKS.map(([p, n]) => (
+          <Chip key={p} on={path === p} onClick={() => setText(p)}>{n}{current === p ? " ✓" : ""}</Chip>
+        ))}
+      </div>
+
+      {path && (
+        <div className="space-y-2">
+          <p className="text-xs text-muted-foreground">Preview of <code>{path}</code>. If it says “page not found”, check the address.</p>
+          <iframe key={path} title="Homepage preview" src={path} loading="lazy"
+            className="h-[460px] w-full rounded-xl border border-white/10 bg-black" />
+        </div>
+      )}
+
+      <div className="flex flex-wrap items-center gap-2">
+        {path && <Button asChild variant="outline"><a href={path} target="_blank" rel="noopener"><Eye className="mr-1 h-4 w-4" /> Open full size</a></Button>}
+        <Button className="bg-gradient-to-r from-green-500 to-yellow-400 font-bold text-black" disabled={!path || same}
+          onClick={() => path && choose({ mode: "path", path })}>
+          <Rocket className="mr-1 h-4 w-4" /> {same ? "This is the homepage ✓" : "Make it the homepage"}
+        </Button>
+        {live && live.home.mode !== "builtin" && (
+          <Button variant="ghost" size="sm" onClick={() => choose({ mode: "builtin" })}>Go back to the built-in test</Button>
+        )}
+      </div>
+      <p className="text-xs text-muted-foreground">Right now: <b>{live === undefined ? "loading…" : describeHome((live ?? DEFAULT_SITE).home)}</b></p>
+    </GlassCard>
+  );
+}
+
+/* ───────────── Go live ───────────── */
+function GoLive({ site, setPending }: { site: ReturnType<typeof useSite>; setPending: (p: Pending) => void }) {
   const start = site.live ?? DEFAULT_SITE;
-  const pageToChoice = (p: SitePage): Choice => (p.kind === "react" ? `react:${p.page}` : "keep");
-  const [mode, setMode] = useState<"builtin" | "single" | "test">(start.home.mode);
-  const [single, setSingle] = useState<Choice>(start.home.mode === "single" ? pageToChoice(start.home.page) : "react:current");
-  const [arms, setArms] = useState<Choice[]>(start.home.mode === "test" ? start.home.arms.map((a) => pageToChoice(a.page)) : ["react:current", "react:gold"]);
   const [intro, setIntro] = useState(start.intro ?? DEFAULT_SITE.intro!);
   const [pageLoader, setPageLoader] = useState(start.pageLoader ?? "skeleton");
   const [playing, setPlaying] = useState(false);
@@ -258,55 +316,22 @@ function GoLive({ site, setPending, openStudio }: { site: ReturnType<typeof useS
   useEffect(() => {
     if (!site.live) return;
     const l = site.live;
-    setMode(l.home.mode);
-    if (l.home.mode === "single") setSingle(pageToChoice(l.home.page));
-    if (l.home.mode === "test") setArms(l.home.arms.map((a) => pageToChoice(a.page)));
     if (l.intro) setIntro(l.intro);
     setPageLoader(l.pageLoader ?? "skeleton");
     setFilm(l.filmLoader ?? DEFAULT_FILM_LOADER);
   }, [site.live?.published_id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const options = useMemo(() => [
-    ...Object.entries(REACT_PAGES).map(([k, n]) => [`react:${k}`, n] as [string, string]),
-    ...site.drafts.filter((d) => d.config?.sections).map((d) => [`draft:${d.id}`, `☁️ ${d.name}`] as [string, string]),
-  ], [site.drafts]);
-
-  const choiceToPage = (c: Choice, fallback?: SitePage): SitePage | null => {
-    if (c === "keep") return fallback ?? null;
-    if (c.startsWith("react:")) return { kind: "react", page: c.slice(6) as ReactPageId };
-    const d = site.drafts.find((x) => `draft:${x.id}` === c);
-    return d?.config?.sections ? studioToPage(d.config) : null;
-  };
-  const nameOf = (c: Choice, fallback?: string) => (c === "keep" ? fallback ?? "Current page" : options.find(([k]) => k === c)?.[1].replace("☁️ ", "") ?? c);
-
-  const build = (): SiteConfig | null => {
-    let home: SiteConfig["home"];
-    if (mode === "builtin") home = { mode: "builtin" };
-    else if (mode === "single") {
-      const p = choiceToPage(single, start.home.mode === "single" ? start.home.page : undefined);
-      if (!p) return null;
-      home = { mode: "single", page: p };
-    } else {
-      const prev = start.home.mode === "test" ? start.home.arms : [];
-      const list = arms.map((c, i) => {
-        const p = choiceToPage(c, prev[i]?.page);
-        return p ? { id: String.fromCharCode(97 + i), name: nameOf(c, prev[i]?.name), page: p } : null;
-      });
-      if (list.some((a) => !a) || list.length < 2) return null;
-      const same = start.home.mode === "test" && JSON.stringify(start.home.arms) === JSON.stringify(list);
-      home = { mode: "test", key: same && start.home.mode === "test" ? start.home.key : `landing_hq_${new Date().toISOString().slice(0, 16).replace(/\D/g, "")}`, arms: list as SiteArm[] };
-    }
-    return cleanConfig({ version: 2, home, intro, pageLoader, filmLoader: film });
-  };
+  // The homepage is changed on the Today tab; this keeps whatever is live.
+  const build = (): SiteConfig | null => cleanConfig({ ...start, intro, pageLoader, filmLoader: film });
 
   const goLive = () => {
     const c = build();
-    if (!c) { toast.error("Pick a page for every slot first."); return; }
+    if (!c) { toast.error("Something isn't set yet."); return; }
     const s = summary(c);
-    setPending({ title: "Change the live website?", lines: [`Homepage → ${s.home}`, `Intro loading screen → ${s.intro}`, `Page loading screen → ${s.page}`, `Video loading screen → ${s.film}`], config: c });
+    setPending({ title: "Change the live website?", lines: [`Intro loading screen → ${s.intro}`, `Page loading screen → ${s.page}`, `Video loading screen → ${s.film}`], config: c });
   };
   const preview = (c: SiteConfig | null = build()) => {
-    if (!c) { toast.error("Pick a page for every slot first."); return; }
+    if (!c) { toast.error("Something isn't set yet."); return; }
     writePreview(c);
     window.open("/?sitepreview=1", "_blank", "noopener");
   };
@@ -319,33 +344,7 @@ function GoLive({ site, setPending, openStudio }: { site: ReturnType<typeof useS
   return (
     <div className="grid gap-4">
       <GlassCard className="p-5 space-y-3">
-        <Eyebrow>1 · Homepage</Eyebrow>
-        <Radio value={mode} onChange={(v) => setMode(v as typeof mode)} options={[
-          ["builtin", "Built-in test", "Chameleon Method vs Gold vs Glass vs Split (what ran before HQ)"],
-          ["single", "One page", "Everyone sees the same homepage"],
-          ["test", "A/B test", "2–4 versions, each visitor always sees the same one"],
-        ]} />
-        {mode === "single" && (
-          <PagePick value={single} onChange={setSingle} options={options} keepLabel={start.home.mode === "single" && start.home.page.kind === "studio" ? `Keep the live Studio page (${describePage(start.home.page)})` : undefined} />
-        )}
-        {mode === "test" && (
-          <div className="grid gap-2">
-            {arms.map((c, i) => (
-              <div key={i} className="flex items-center gap-2">
-                <b className="w-6 font-mono">{String.fromCharCode(65 + i)}</b>
-                <div className="flex-1"><PagePick value={c} onChange={(v) => setArms(arms.map((x, j) => (j === i ? v : x)))} options={options}
-                  keepLabel={start.home.mode === "test" && start.home.arms[i] ? `Keep: ${start.home.arms[i].name}` : undefined} /></div>
-                {arms.length > 2 && <Button size="icon" variant="ghost" aria-label="Remove version" onClick={() => setArms(arms.filter((_, j) => j !== i))}><Trash2 className="h-4 w-4" /></Button>}
-              </div>
-            ))}
-            {arms.length < 4 && <Button variant="outline" size="sm" className="w-fit" onClick={() => setArms([...arms, "react:clear"])}>＋ Add a version</Button>}
-          </div>
-        )}
-        <p className="text-xs text-muted-foreground">Want a new page? Build it in the <button className="underline" onClick={openStudio}>Studio</button> and press “Save for the team”. It shows up here as ☁️.</p>
-      </GlassCard>
-
-      <GlassCard className="p-5 space-y-3">
-        <Eyebrow>2 · Intro loading screen</Eyebrow>
+        <Eyebrow>1 · Intro loading screen</Eyebrow>
         <p className="text-sm text-muted-foreground">Plays over the homepage before it shows. Visitors can always skip it.</p>
         <div className="flex flex-wrap gap-2">
           {Object.entries(BUILT_IN_LOADERS).map(([k, n]) => (
@@ -381,7 +380,7 @@ function GoLive({ site, setPending, openStudio }: { site: ReturnType<typeof useS
       </GlassCard>
 
       <GlassCard className="p-5 space-y-3">
-        <Eyebrow>3 · Page loading screen</Eyebrow>
+        <Eyebrow>2 · Page loading screen</Eyebrow>
         <p className="text-sm text-muted-foreground">Shows for a moment while any page opens.</p>
         <div className="flex flex-wrap gap-2">
           {Object.entries(PAGE_LOADERS).map(([k, n]) => (
@@ -409,21 +408,6 @@ function GoLive({ site, setPending, openStudio }: { site: ReturnType<typeof useS
               const c = cleanConfig(h.config);
               if (c) setPending({ title: "Roll back to this version?", lines: [`Homepage → ${summary(c).home}`, `Intro → ${summary(c).intro}`], config: c, note: `Roll back to #${h.id}` });
             }}><RotateCcw className="mr-1 h-4 w-4" /> Roll back</Button>}
-          </div>
-        ))}
-      </GlassCard>
-
-      <GlassCard className="p-5 space-y-2">
-        <Eyebrow>Team drafts</Eyebrow>
-        {site.drafts.filter((d) => d.config?.sections).length === 0 ? <p className="text-sm text-muted-foreground">No drafts yet. In the Studio, name a page and press “☁️ Save for the team”.</p> : site.drafts.filter((d) => d.config?.sections).map((d) => (
-          <div key={d.id} className="flex items-center gap-2 border-t border-white/5 pt-2 text-sm">
-            <span className="flex-1">☁️ <b>{d.name}</b> <span className="text-muted-foreground">· {new Date(d.updated_at).toLocaleDateString()}</span></span>
-            <Button size="sm" variant="ghost" onClick={() => {
-              const p = d.config?.sections ? studioToPage(d.config) : null;
-              const c = p && cleanConfig({ ...(site.live ?? DEFAULT_SITE), home: { mode: "single", page: p } });
-              preview(c ?? null);
-            }}><Eye className="h-4 w-4" /></Button>
-            <Button size="sm" variant="ghost" aria-label="Delete draft" onClick={() => { if (confirm(`Delete "${d.name}"?`)) void site.deleteDraft(d.id); }}><Trash2 className="h-4 w-4" /></Button>
           </div>
         ))}
       </GlassCard>
@@ -459,7 +443,7 @@ function FilmLoaderPicker({ film, setFilm }: { film: FilmLoaderConfig; setFilm: 
   };
   return (
     <GlassCard className="p-5 space-y-4">
-      <Eyebrow>4 · Video loading screens</Eyebrow>
+      <Eyebrow>3 · Video loading screens</Eyebrow>
       <p className="text-sm text-muted-foreground">While a film's subtitles load, the player shows these one after another, round and round (default: the “Through the languages → LinguaScript” decoder, then the Chameleon Method screen). Lab designs show the real progress as their caption. When the subtitles are ready, one “loading → playing” motion plays.</p>
 
       <div className="space-y-2">
@@ -526,35 +510,6 @@ function FilmLoaderPicker({ film, setFilm }: { film: FilmLoaderConfig; setFilm: 
   );
 }
 
-function PagePick({ value, onChange, options, keepLabel }: { value: string; onChange: (v: string) => void; options: [string, string][]; keepLabel?: string }) {
-  const src = value.startsWith("react:") ? REACT_SRC[value.slice(6) as ReactPageId] : null;
-  return (
-    <div className="flex flex-wrap items-center gap-2">
-      <select className="min-w-0 flex-1 rounded-md border border-white/10 bg-background px-2 py-2 text-sm" value={value} onChange={(e) => onChange(e.target.value)} aria-label="Page">
-        {keepLabel && <option value="keep">{keepLabel}</option>}
-        <optgroup label="Real pages">{options.filter(([k]) => k.startsWith("react:")).map(([k, n]) => <option key={k} value={k}>{n}</option>)}</optgroup>
-        {options.some(([k]) => k.startsWith("draft:")) && (
-          <optgroup label="Team drafts (from the Studio)">{options.filter(([k]) => k.startsWith("draft:")).map(([k, n]) => <option key={k} value={k}>{n}</option>)}</optgroup>
-        )}
-      </select>
-      {src && <a href={src} target="_blank" rel="noopener" className="inline-flex items-center gap-1 text-sm underline">Look <ExternalLink className="h-3.5 w-3.5" /></a>}
-    </div>
-  );
-}
-
-function Radio({ value, onChange, options }: { value: string; onChange: (v: string) => void; options: [string, string, string][] }) {
-  return (
-    <div className="grid gap-2 sm:grid-cols-3" role="radiogroup">
-      {options.map(([k, t, d]) => (
-        <button key={k} role="radio" aria-checked={value === k} onClick={() => onChange(k)}
-          className={cn("rounded-xl border p-3 text-left transition", value === k ? "border-emerald-400 bg-emerald-400/10" : "border-white/10 hover:border-white/30")}>
-          <b className="text-sm">{t}</b><p className="text-xs text-muted-foreground">{d}</p>
-        </button>
-      ))}
-    </div>
-  );
-}
-
 function Chip({ on, onClick, children }: { on: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
     <button onClick={onClick} aria-pressed={on}
@@ -565,20 +520,17 @@ function Chip({ on, onClick, children }: { on: boolean; onClick: () => void; chi
 }
 
 /* ───────────── Every design ───────────── */
-function Library({ openStudio }: { openStudio: () => void }) {
+function Library() {
   return (
     <div className="grid gap-4">
-      <GlassCard className="p-4 flex flex-wrap items-center gap-3">
-        <p className="flex-1 text-sm">The easiest way to look through everything is the <b>Gallery</b>: pictures, stars, search, and “Add to page”.</p>
-        <Button onClick={openStudio}>🖼️ Open the Gallery</Button>
-      </GlassCard>
-      <Eyebrow>Real homepages (9)</Eyebrow>
+      <Eyebrow>Landing pages ({HOME_PICKS.length})</Eyebrow>
+      <p className="text-sm text-muted-foreground">To make one the homepage, type its address in the box on the <b>Today</b> tab.</p>
       <div className="grid gap-2 sm:grid-cols-3">
-        {Object.entries(REACT_PAGES).map(([k, n]) => (
-          <a key={k} href={REACT_SRC[k as ReactPageId]} target="_blank" rel="noopener"><GlassCard className="p-3 text-sm font-semibold hover:-translate-y-0.5 transition">{n} ↗</GlassCard></a>
+        {HOME_PICKS.map(([path, n]) => (
+          <a key={path} href={path} target="_blank" rel="noopener"><GlassCard className="p-3 text-sm hover:-translate-y-0.5 transition"><b>{n} ↗</b><p className="font-mono text-xs text-muted-foreground">{path}</p></GlassCard></a>
         ))}
       </div>
-      <Eyebrow>Design labs (16)</Eyebrow>
+      <Eyebrow>Design labs ({LABS.length})</Eyebrow>
       <div className="grid gap-2 sm:grid-cols-2">
         {LABS.map(([k, n, c, d]) => (
           <a key={k} href={`/brand/${k}.html`} target="_blank" rel="noopener">
@@ -613,7 +565,7 @@ function Docs() {
         <Eyebrow>For engineers</Eyebrow>
         <ul className="list-disc space-y-1 pl-5">
           <li><b>What's live</b> = newest row of <code>site_publishes</code>; the homepage reads it with <code>get_live_site()</code> (<code>src/lib/site/config.ts</code>, cached 10 min on the device).</li>
-          <li><b>Homepage</b>: <code>src/components/landing/LiveHome.tsx</code> → React pages, or <code>StudioLanding.tsx</code> for Studio pages (kit: <code>public/brand/studio-kit.js/.css</code>; lab blocks via <code>isolate.js #only=N&amp;live=1</code>).</li>
+          <li><b>Homepage</b>: HQ stores <code>{'{ mode: "path", path: "/landing" }'}</code>; <code>src/components/landing/LiveHome.tsx</code> renders that route from App.tsx's <code>APP_ROUTES</code> at “/” (unknown address → built-in test). New landing page = add a route in App.tsx, then type its address in HQ.</li>
           <li><b>Loaders</b>: intro = <code>IntroLoader.tsx</code>; page loader = <code>PageLoading.tsx</code> (reads <code>ls.site.pageLoader</code>).</li>
           <li><b>Rules</b>: AGENTS.md (speed: first-load bundle stays small; consent before trackers; one review ladder).</li>
           <li><b>Roles</b>: admin · marketer · engineer (HQ) · partner (/partners). Admins give logins in Team.</li>

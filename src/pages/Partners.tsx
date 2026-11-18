@@ -1,7 +1,7 @@
 // /partners — LinguaScript Partners + growth team workspace.
 //
 //   partner  → their own numbers only (partner_dashboard: totals, groups < 5 hidden)
-//   marketer → every partner's numbers + Site Studio (no learner data, no payouts)
+//   marketer → every partner's numbers (no learner data, no payouts)
 //   admin    → everything, plus add partners, team roles, approve and pay
 //
 // Lazy-loaded route: visitors never download it (AGENTS.md "Visitors never
@@ -47,7 +47,7 @@ const PARTNER_TABS = [
   ["profile", "Profile", "Your name, socials, logo and where we send your money."],
   ["rules", "Rules", "The short version of the partner terms."],
 ] as const;
-type Tab = (typeof PARTNER_TABS)[number][0] | "team" | "studio";
+type Tab = (typeof PARTNER_TABS)[number][0] | "team";
 
 export default function Partners() {
   const navigate = useNavigate();
@@ -109,11 +109,10 @@ export default function Partners() {
   }
 
   const tabs: [Tab, string][] = [
-    ...(isTeam ? ([["team", "All partners"], ["studio", "Site Studio"]] as [Tab, string][]) : []),
+    ...(isTeam ? ([["team", "All partners"]] as [Tab, string][]) : []),
     ...((isPartner || viewing) ? PARTNER_TABS.map(([k, l]) => [k, l] as [Tab, string]) : []),
   ];
   const sentence = tab === "team" ? "Every partner at a glance. Tap one to see their dashboard."
-    : tab === "studio" ? "Mix the site's designs and test versions. Changes here don't touch the live site."
     : PARTNER_TABS.find(([k]) => k === tab)?.[2];
 
   return (
@@ -125,14 +124,14 @@ export default function Partners() {
               tab === k ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground")}>{l}</button>
         ))}
       </nav>
-      {viewing && tab !== "team" && tab !== "studio" && dash && (
+      {viewing && tab !== "team" && dash && (
         <p className="text-xs text-muted-foreground">Viewing <b className="text-foreground">{dash.partner.display_name || dash.partner.code}</b> as the team. <button className="underline" onClick={() => { setViewing(null); setTab("team"); }}>Back to all partners</button></p>
       )}
       <p className="text-sm text-muted-foreground">{sentence}</p>
 
-      {(tab === "team" || tab === "studio") ? (
+      {tab === "team" ? (
         <Suspense fallback={<Skeleton className="h-64" />}>
-          <TeamTools mode={tab} isAdmin={isAdmin} days={days} setDays={setDays}
+          <TeamTools mode="team" isAdmin={isAdmin} days={days} setDays={setDays}
             onOpen={(id) => { setViewing(id); setTab("home"); }} />
         </Suspense>
       ) : dash === undefined ? (
