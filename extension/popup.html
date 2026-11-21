@@ -85,6 +85,12 @@
       <span class="streak">🔥 <b id="streak">0</b> day streak</span>
       <span class="lang lang-row"><span id="lang-label"></span><button class="link-btn hidden" id="lang-change" type="button">change</button></span>
     </div>
+    <div class="card hidden" id="site-card">
+      <span class="goal-label" id="site-title">This page</span>
+      <p class="lead" id="site-text" style="font-size:12px; margin:6px 0 0;"></p>
+      <button class="btn btn-primary hidden" id="site-on" type="button" style="width:100%; margin-top:10px;">Turn on here</button>
+      <button class="link-btn hidden" id="site-off" type="button" style="margin-top:6px;">Turn off for this site</button>
+    </div>
     <p class="lead" style="font-size:12px;">Tip: on any website press <b>Alt+L</b> to colour the words you’ve saved. Highlight a word, then right-click → <b>Add to LinguaScript</b>.</p>
     <div class="row">
       <a class="btn btn-primary" style="flex:1" href="https://www.youtube.com" target="_blank" rel="noopener noreferrer">YouTube</a>
@@ -97,6 +103,7 @@
     </div>
   </main>
 
+  <script src="sites.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

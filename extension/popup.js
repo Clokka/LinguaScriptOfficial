@@ -61,6 +61,65 @@ async function loadLanguages() {
   $('lang-picker').classList.toggle('hidden', !info.needsChoice);
 }
 
+// ─── This page: switch LinguaScript on for any video site ─────────────────────
+// Asks Chrome for just this one site (or the site's player origins), at the
+// learner's click. Built-in sites (YouTube, Netflix, Crunchyroll, TV5MONDE)
+// need nothing.
+let siteOrigins = null;
+let siteTabId = null;
+
+function siteCard({ title, text, on = false, off = false }) {
+  $('site-card').classList.remove('hidden');
+  $('site-title').textContent = title;
+  $('site-text').textContent = text;
+  $('site-on').classList.toggle('hidden', !on);
+  $('site-off').classList.toggle('hidden', !off);
+}
+
+async function loadSite() {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true }).catch(() => []);
+  if (!tab?.url || !/^https?:/.test(tab.url) || /chromewebstore\.google\.com|chrome\.google\.com\/webstore/.test(tab.url)) return;
+  siteTabId = tab.id;
+  const host = new URL(tab.url).hostname.replace(/^www\./, '');
+  if (/(^|\.)youtube\.com$|(^|\.)netflix\.com$/.test(host)) {
+    siteCard({ title: '✅ Works here', text: 'Play a video with subtitles (CC) and tap any word.' });
+    return;
+  }
+  const known = self.LSSites?.siteFor(tab.url);
+  const name = known?.name || host;
+  siteOrigins = known ? known.origins : [self.LSSites.originPattern(tab.url)].filter(Boolean);
+  const granted = known?.builtIn || (siteOrigins.length && await chrome.permissions.contains({ origins: siteOrigins }).catch(() => false));
+  if (granted) {
+    siteCard({
+      title: `✅ On for ${name}`,
+      text: known?.note || 'Turn on the video’s subtitles (CC). No subtitles? Press 📄 on the LinguaScript bar to load a .srt or .vtt file.',
+      off: !known?.builtIn,
+    });
+  } else {
+    siteCard({
+      title: name,
+      text: known
+        ? `Turn LinguaScript on for ${name}: dual subtitles and tap a word to save it.`
+        : 'Is there a video on this page? Turn LinguaScript on for this site to get dual subtitles and tap-to-save.',
+      on: true,
+    });
+  }
+}
+
+$('site-on').addEventListener('click', () => {
+  if (!siteOrigins?.length) return;
+  // permissions.request must be the first thing the click does.
+  chrome.permissions.request({ origins: siteOrigins }, async (ok) => {
+    if (!ok) return;
+    await send({ type: 'ENABLE_VIDEO_TAB', tabId: siteTabId });
+    loadSite();
+  });
+});
+$('site-off').addEventListener('click', () => {
+  if (!siteOrigins?.length) return;
+  chrome.permissions.remove({ origins: siteOrigins }, () => { send({ type: 'SYNC_VIDEO_SITES' }); loadSite(); });
+});
+
 $('lang-change').addEventListener('click', () => $('lang-picker').classList.toggle('hidden'));
 
 async function init() {
@@ -70,6 +129,7 @@ async function init() {
   $('user-email').textContent = auth.session.user?.email || '';
   loadLanguages();
   loadToday();
+  loadSite();
 }
 
 $('login-form').addEventListener('submit', async (e) => {

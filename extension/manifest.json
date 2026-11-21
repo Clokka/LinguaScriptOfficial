@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
-  "name": "LinguaScript: Learn Languages with YouTube & Netflix",
+  "name": "LinguaScript: Learn Languages with Any Video",
   "short_name": "LinguaScript",
-  "version": "1.6.4",
-  "description": "Learn languages on YouTube, Netflix, TV5MONDE and Crunchyroll. Dual subtitles, tap or highlight any word, and save it to your LinguaScript flashcards.",
+  "version": "1.7.0",
+  "description": "Learn languages on YouTube, Netflix, Crunchyroll, Stremio, TikTok and any video site. Dual subtitles, tap any word, save it to your LinguaScript flashcards.",
   "homepage_url": "https://linguascript.co.uk",
   "minimum_chrome_version": "111",
   "permissions": [
@@ -27,6 +27,20 @@
     "service_worker": "background.js"
   },
   "content_scripts": [
+    {
+      "matches": [
+        "https://*.tv5mondeplus.com/*",
+        "https://*.tv5monde.com/*",
+        "https://www.crunchyroll.com/*",
+        "https://static.crunchyroll.com/*"
+      ],
+      "js": [
+        "caption-hook.js"
+      ],
+      "world": "MAIN",
+      "all_frames": true,
+      "run_at": "document_start"
+    },
     {
       "matches": [
         "https://www.youtube.com/*",
@@ -67,7 +81,9 @@
       ],
       "js": [
         "ls-core.js",
-        "adapters/stream.js"
+        "sites.js",
+        "subtitles.js",
+        "adapters/universal.js"
       ],
       "all_frames": true,
       "run_at": "document_idle"
@@ -116,5 +132,9 @@
       },
       "description": "Read this page with LinguaScript"
     }
-  }
+  },
+  "optional_host_permissions": [
+    "https://*/*",
+    "http://*/*"
+  ]
 }

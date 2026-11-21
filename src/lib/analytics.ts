@@ -45,6 +45,7 @@ export type AnalyticsEvent =
   | "speak_finished"
   | "studio_video_made"
   | "mcp_connect_clicked"
+  | "stremio_addon_install_clicked"
   | "phone_gold_enabled"
   | "phone_gold_disabled"
   | "phone_widget_requested"

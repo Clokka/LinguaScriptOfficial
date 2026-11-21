@@ -854,6 +854,9 @@
       setAutoPause(v) { autoPause = v; },
       getAutoPause: () => autoPause,
       hasText: () => lines.length > 0,
+      // Timed sources (subtitle files, <track> cues) change with the clock, not
+      // the DOM, so their adapter calls poke() a few times a second.
+      poke: () => onChange(),
     };
   }
 
@@ -1046,6 +1049,11 @@
       mk('⏭', 'D', () => spec.seekForward?.()),
       sep(), apBtn, speedBtn, sep(), panelBtn, hideBtn,
     ];
+    (spec.extraButtons || []).forEach(({ label, title, onClick, id }) => {
+      nodes.push(sep());
+      const b = mk(label, '', onClick, id); if (title) b.title = title;
+      nodes.push(b);
+    });
     (spec.extraLinks || []).forEach(({ label, href }) => {
       nodes.push(sep());
       const a = document.createElement('a'); a.className = 'ls-btn ls-link'; a.href = href; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.textContent = label;
