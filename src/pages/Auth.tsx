@@ -136,7 +136,7 @@ const Auth = () => {
   // embedded WebView — which Google silently refuses, leaving the button stuck on
   // its loading skeleton forever. Checking again in an effect (always after mount,
   // so after that injection) fixes it.
-  const [gis, setGis] = useState<"loading" | "ready" | "off">("off");
+  const [gis, setGis] = useState<"loading" | "ready" | "off" | "failed">("off");
   const gisRef = useRef<HTMLDivElement>(null);
   const nonceRef = useRef("");
   useEffect(() => {
@@ -174,7 +174,7 @@ const Auth = () => {
       google.accounts.id.renderButton(gisRef.current, { type: "standard", theme: "outline", size: "large", text: "continue_with", shape: "rectangular", width });
       setGis("ready");
     };
-    setup().catch(() => { if (alive) setGis("off"); });
+    setup().catch(() => { if (alive) setGis("failed"); }); // never fall back to the backend-address Google screen here
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gis]);
@@ -267,7 +267,12 @@ const Auth = () => {
           <div className="glass-panel-strong p-8 space-y-4">
 
             {/* Google Sign-In: Google's own button where allowed, else the redirect button */}
-            {gis !== "off" && (
+            {gis === "failed" && (
+              <Button type="button" variant="outline" size="lg" className="w-full" onClick={() => setGis("loading")}>
+                Google sign-in didn’t load — try again
+              </Button>
+            )}
+            {(gis === "loading" || gis === "ready") && (
               <div className="w-full space-y-2">
                 <div ref={gisRef} aria-busy={gis === "loading"} className={`flex min-h-[44px] w-full justify-center ${googleLoading ? "pointer-events-none opacity-60" : ""}`} />
                 {googleLoading && <p className="text-center text-xs text-muted-foreground">{t("signingIn")}</p>}
