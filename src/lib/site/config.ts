@@ -4,6 +4,7 @@
 // CHOOSE designs (never inject HTML). Kept tiny: it is in the first load.
 import { supabase } from "@/integrations/supabase/client";
 import { cleanHomePath } from "@/lib/site/homeRoutes";
+import { DEFAULT_HOME_PATH } from "@/lib/site/homepageChoices";
 
 export const REACT_PAGES = {
   current: "Chameleon Method homepage",
@@ -32,7 +33,7 @@ export type SitePage = { kind: "react"; page: ReactPageId } | { kind: "path"; pa
 export type SiteArm = { id: string; name: string; page: SitePage };
 export type SiteConfig = {
   version: 2;
-  /** builtin = the homepage test that ships in the code (LandingPageTest).
+  /** builtin = legacy setting, now resolved to the default single homepage.
    * path = show the page at this address (e.g. "/landing") as the homepage. */
   home: { mode: "builtin" } | { mode: "path"; path: string } | { mode: "single"; page: SitePage } | { mode: "test"; key: string; arms: SiteArm[] };
   intro?: { loader: string; when: "session" | "first" | "always"; end: "auto" | "button" };
@@ -161,7 +162,7 @@ export function routeForText(text: string): string | null {
 
 export const DEFAULT_SITE: SiteConfig = {
   version: 2,
-  home: { mode: "builtin" },
+  home: { mode: "path", path: DEFAULT_HOME_PATH },
   intro: { loader: "languages", when: "session", end: "auto" },
   pageLoader: "skeleton",
   filmLoader: DEFAULT_FILM_LOADER,
@@ -173,7 +174,7 @@ export function describePage(p: SitePage): string {
 }
 /** One line describing the homepage choice, for HQ. */
 export function describeHome(h: SiteConfig["home"]): string {
-  if (h.mode === "builtin") return "Built-in test: Chameleon Method vs Gold vs Glass vs Split";
+  if (h.mode === "builtin") return DEFAULT_HOME_PATH;
   if (h.mode === "path") return `The page at ${h.path}`;
   if (h.mode === "single") return describePage(h.page);
   return `A/B test: ${h.arms.map((a) => describePage(a.page)).join(" vs ")}`;

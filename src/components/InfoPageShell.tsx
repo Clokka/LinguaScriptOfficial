@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { STORE_LINKS } from "@/components/landing/StoreBadges";
 
 export const InfoSection = ({ title, children }: { title: string; children: React.ReactNode }) => (
   <section className="mb-10">
@@ -28,7 +29,7 @@ export const InfoPageShell = ({ title, intro, children }: { title: string; intro
         <h2 className="text-2xl font-semibold mb-2">Start learning where you already watch</h2>
         <p className="text-muted-foreground mb-5">Add the Chrome extension for YouTube and any website, or get the Android app.</p>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
-          <Button asChild size="lg"><a href="https://chromewebstore.google.com/search/linguascript" target="_blank" rel="noreferrer">Add to Chrome — free</a></Button>
+          <Button asChild size="lg"><a href={STORE_LINKS.chrome} target="_blank" rel="noreferrer">Add to Chrome — free</a></Button>
           <Button asChild size="lg" variant="outline"><Link to="/auth">Use the web app</Link></Button>
         </div>
       </section>

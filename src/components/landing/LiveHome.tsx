@@ -1,9 +1,9 @@
 // The homepage visitors see, as published from LinguaScript HQ (/hq).
 //
-//  · nothing published yet (or Supabase slow/unreachable) → LandingPageTest,
-//    the built-in test, exactly as before
+//  · nothing published yet (or backend slow/unreachable) → /landing6,
+//    one predictable homepage; testing only starts when HQ chooses it
 //  · "path"   → the page at that address (HQ box, e.g. /landing) shown at "/";
-//               an address that doesn't exist falls back to the built-in test
+//               an address that doesn't exist falls back to /landing6
 //  · "single" → one of the older built-in landing pages
 //  · "test"   → 2–4 arms, sticky per visitor (getVariant), views counted
 //  · the app-opening loading screen now lives in SiteIntro (all pages)
@@ -19,6 +19,7 @@ import LandingClear from "@/pages/LandingClear";
 import { PageLoading } from "@/components/PageLoading";
 import { getVariant, track } from "@/lib/experiments";
 import { useHomeRoutes } from "@/lib/site/homeRoutes";
+import { DEFAULT_HOME_PATH } from "@/lib/site/homepageChoices";
 import { cacheIsFresh, fetchLiveSite, readCache, readPreview, type SiteConfig, type SitePage } from "@/lib/site/config";
 
 const LabLanding = lazy(() => import("@/pages/landing/LabLanding"));
@@ -26,6 +27,7 @@ const Landing = lazy(() => import("@/pages/Landing"));
 const LandingPage2 = lazy(() => import("@/pages/LandingPage2"));
 const LandingPage3 = lazy(() => import("@/pages/LandingPage3"));
 const LandingPage4 = lazy(() => import("@/pages/LandingPage4"));
+const CoverflowLanding = lazy(() => import("@/pages/landing/CoverflowLanding"));
 
 const WAIT_MS = 900;
 
@@ -51,7 +53,7 @@ function PathHome({ path }: { path: string }) {
     const last = m?.[m.length - 1]?.route.path;
     return !!m && last !== "*" && last !== "/";
   }, [routes, path]);
-  if (!ok) return <LandingPageTest />;
+  if (!ok) return <CoverflowLanding />;
   return <Routes location={{ pathname: path, search: "", hash: "", state: null, key: "home" }}>{routes}</Routes>;
 }
 
@@ -62,7 +64,7 @@ export default function LiveHome() {
     if (preview) return preview;
     if (lpPreview) return null; // ?lp= previews the built-in pages
     const c = readCache();
-    return cacheIsFresh(c) ? c!.config : undefined;
+    return cacheIsFresh(c) ? c?.config : undefined;
   });
 
   useEffect(() => {
@@ -70,7 +72,7 @@ export default function LiveHome() {
     let settled = false;
     const t = setTimeout(() => { if (!settled) setSite((s) => (s === undefined ? readCache()?.config ?? null : s)); }, WAIT_MS);
     fetchLiveSite()
-      .then((c) => { settled = true; setSite((s) => (s === undefined ? c : s)); })
+      .then((c) => { settled = true; setSite(c); })
       .catch(() => { settled = true; setSite((s) => (s === undefined ? readCache()?.config ?? null : s)); });
     return () => clearTimeout(t);
   }, [preview, lpPreview]);
@@ -86,6 +88,7 @@ export default function LiveHome() {
   }, [site, arm, preview]);
 
   if (site === undefined) return <PageLoading />;
+  if (lpPreview) return <Suspense fallback={<PageLoading />}><LandingPageTest /></Suspense>;
 
   if (site?.home.mode === "path" && !site.disabledPages?.includes(site.home.path)) {
     return <Suspense fallback={<PageLoading />}><PathHome path={site.home.path} /></Suspense>;
@@ -94,7 +97,7 @@ export default function LiveHome() {
   if (page?.kind === "path" && site?.disabledPages?.includes(page.path)) page = null; // switched off in HQ
   return (
     <Suspense fallback={<PageLoading />}>
-      {page ? <HomePage page={page} /> : <LandingPageTest />}
+      {page ? <HomePage page={page} /> : <HomePage page={{ kind: "path", path: DEFAULT_HOME_PATH }} />}
     </Suspense>
   );
 }

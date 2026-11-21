@@ -2,6 +2,7 @@
 // is the homepage?" → e.g. /landing). App.tsx hands its route list down here;
 // LiveHome renders that list at the chosen address, so the URL stays "/".
 import { createContext, useContext, type ReactNode } from "react";
+import { createRoutesFromChildren, matchRoutes } from "react-router-dom";
 
 export const HomeRoutesContext = createContext<ReactNode>(null);
 export const useHomeRoutes = () => useContext(HomeRoutesContext);
@@ -19,4 +20,12 @@ export function cleanHomePath(input: string): string | null {
   p = p.replace(/\/+$/, "");
   if (!p || p === "/" || BLOCKED.test(p) || !/^\/[a-z0-9][a-z0-9\-/]{0,79}$/.test(p)) return null;
   return p;
+}
+
+/** Unknown addresses must never silently start a different homepage/test. */
+export function isHomeRoute(routes: ReactNode, path: string): boolean {
+  if (!routes || !cleanHomePath(path)) return false;
+  const matches = matchRoutes(createRoutesFromChildren(routes), path);
+  const last = matches?.[matches.length - 1]?.route.path;
+  return !!matches && last !== "*" && last !== "/";
 }

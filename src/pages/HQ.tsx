@@ -25,9 +25,11 @@ import { cn } from "@/lib/utils";
 import { PublishDialog, useSite, type Pending } from "@/components/hq/useSite";
 import {
   BUILT_IN_LOADERS, DEFAULT_FILM_LOADER, DEFAULT_SITE, PAGE_LOADERS, cleanConfig, describeHome, describeLoader,
-  writePreview, type FilmLoaderConfig, type SiteConfig, type SitePage,
+  writePreview, type FilmLoaderConfig, type SiteConfig,
 } from "@/lib/site/config";
 import { cleanHomePath } from "@/lib/site/homeRoutes";
+import { HOME_PICKS } from "@/lib/site/homepageChoices";
+import { HomepageBox } from "@/components/hq/HomepageBox";
 
 const TeamTools = lazy(() => import("@/components/partners/TeamTools"));
 const AdminExperiments = lazy(() => import("@/components/AdminExperiments").then((m) => ({ default: m.AdminExperiments })));
@@ -70,19 +72,6 @@ const LABS: [string, string, number, string][] = [
   ["loading-experiences", "Loading Experiences", 12, "Complete 10–30 s subtitle-wait experiences"],
   ["loading-screens", "Loading Screens", 100, "20 animations × 5 frame styles"],
   ["loading-motion", "Loading Motion", 30, "Loading-to-playing motion graphics"],
-];
-/** Landing pages you can type in the homepage box (any other page address works too). */
-const HOME_PICKS: [string, string][] = [
-  ["/landing6", "Films you'll understand (fan)"],
-  ["/landing5", "Chameleon Method"],
-  ["/landing", "Tap-a-word demo"],
-  ["/landingpage2", "Product walkthrough"],
-  ["/landingpage3", "3D chameleon"],
-  ["/landingpage4", "Semantic dark"],
-  ["/landing-gold", "Black & gold"],
-  ["/landing-glass", "Liquid glass"],
-  ["/landing-split", "Black / white split"],
-  ["/landing-clear", "Clear page"],
 ];
 const DOCS: [string, string, string][] = [
   ["/brand/docs/marketing-audit.html", "Marketing audit", "SEO, buyer's journey page map, personas, funnel, email, 90-day plan"],
@@ -205,7 +194,10 @@ function Today({ site, go, setPending }: { site: ReturnType<typeof useSite>; go:
   return (
     <div className="grid gap-4">
       <HomepageBox site={site} setPending={setPending} />
-      <PageSwitches site={site} setPending={setPending} />
+      <details className="rounded-lg border border-border p-4">
+        <summary className="cursor-pointer text-sm font-semibold">Page availability</summary>
+        <div className="mt-4"><PageSwitches site={site} setPending={setPending} /></div>
+      </details>
       <GlassCard accent="green" className="p-5 space-y-3">
         <Eyebrow>Live on linguascript.co.uk</Eyebrow>
         {site.live === undefined ? <Skeleton className="h-20" /> : (
@@ -244,82 +236,6 @@ function Today({ site, go, setPending }: { site: ReturnType<typeof useSite>; go:
         ))}
       </div>
     </div>
-  );
-}
-
-/* ───────────── Homepage box ───────────── */
-// Type the address of the landing page to run. Optional second box = A/B test.
-function PageInput({ id, value, onChange, label }: { id: string; value: string; onChange: (v: string) => void; label: string }) {
-  const path = cleanHomePath(value);
-  return (
-    <div className="space-y-1">
-      <label htmlFor={id} className="text-sm font-semibold">{label}</label>
-      <div className="flex items-center gap-2">
-        <input id={id} list="hq-pages" value={value} onChange={(e) => onChange(e.target.value)} placeholder="/landing"
-          className="min-w-0 flex-1 rounded-xl border border-white/15 bg-black/30 px-3 py-3 font-mono text-lg outline-none focus:border-emerald-400"
-          autoCapitalize="none" autoCorrect="off" spellCheck={false} />
-        {path && <a href={`${path}?hqpreview=1`} target="_blank" rel="noopener" className="shrink-0 text-xs text-muted-foreground underline">open ↗</a>}
-      </div>
-      {value.trim() !== "" && !path && <p className="text-xs text-amber-300">That address can't be used. Try something like /landing</p>}
-    </div>
-  );
-}
-
-function HomepageBox({ site, setPending }: { site: ReturnType<typeof useSite>; setPending: (p: Pending) => void }) {
-  const live = site.live;
-  const h = live?.home;
-  const pathOf = (p?: SitePage) => (p?.kind === "path" ? p.path : "");
-  const liveA = h?.mode === "path" ? h.path : h?.mode === "test" ? pathOf(h.arms[0]?.page) : "";
-  const liveB = h?.mode === "test" ? pathOf(h.arms[1]?.page) : "";
-  const [a, setA] = useState(liveA);
-  const [b, setB] = useState(liveB);
-  const [test, setTest] = useState(!!liveB);
-  useEffect(() => { setA(liveA); setB(liveB); setTest(!!liveB); }, [liveA, liveB]);
-
-  const pa = cleanHomePath(a);
-  const pb = test ? cleanHomePath(b) : null;
-  const off = (p: string | null) => !!p && !!live?.disabledPages?.includes(p);
-  const problem = !pa ? "Type the page to run." : test && !pb ? "Type the page to test against." : test && pa === pb ? "Pick two different pages." : off(pa) || off(pb) ? "One of these pages is switched off below. Switch it on first." : "";
-  const same = !problem && (test ? liveA === pa && liveB === pb : h?.mode === "path" && liveA === pa);
-
-  const run = () => {
-    if (problem || !pa) return;
-    let home: SiteConfig["home"];
-    if (test && pb) {
-      const key = h?.mode === "test" && liveA === pa && liveB === pb ? h.key : `landing_hq_${new Date().toISOString().slice(0, 16).replace(/\D/g, "")}`;
-      home = { mode: "test", key, arms: [{ id: "a", name: pa, page: { kind: "path", path: pa } }, { id: "b", name: pb, page: { kind: "path", path: pb } }] };
-    } else home = { mode: "path", path: pa };
-    const c = cleanConfig({ ...site.base(), home });
-    if (!c) { toast.error("That can't go live."); return; }
-    setPending({ title: test ? "Start this A/B test?" : "Change the homepage?",
-      lines: test ? [`Half of visitors see ${pa}`, `The other half see ${pb}`, "Each visitor always sees the same one. Results show in HQ → Results."] : [`Homepage → ${pa}`], config: c });
-  };
-
-  return (
-    <GlassCard accent="green" className="p-5 space-y-4">
-      <div>
-        <Eyebrow>🏠 Choose the landing page you want to run</Eyebrow>
-        <p className="mt-1 text-sm text-muted-foreground">Type the page address, like <code>/landing6</code>. Made a new page? Just type its address.</p>
-      </div>
-      <datalist id="hq-pages">{HOME_PICKS.map(([p, n]) => <option key={p} value={p}>{n}</option>)}</datalist>
-      <PageInput id="hq-page-a" value={a} onChange={setA} label={test ? "Page A" : "Landing page"} />
-      <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" checked={test} onChange={(e) => setTest(e.target.checked)} className="h-4 w-4 accent-emerald-400" />
-        A/B test it against another page
-      </label>
-      {test && <PageInput id="hq-page-b" value={b} onChange={setB} label="Page B" />}
-      {problem && (a || b) ? <p className="text-sm text-amber-300">{problem}</p> : null}
-      <div className="flex flex-wrap items-center gap-2">
-        <Button className="bg-gradient-to-r from-green-500 to-yellow-400 font-bold text-black" disabled={!!problem || same} onClick={run}>
-          <Rocket className="mr-1 h-4 w-4" /> {same ? "Running now ✓" : test ? "Start the A/B test" : "Make it the homepage"}
-        </Button>
-        {h && h.mode !== "builtin" && <Button variant="ghost" size="sm" onClick={() => {
-          const c = cleanConfig({ ...site.base(), home: { mode: "builtin" } });
-          if (c) setPending({ title: "Go back to the built-in homepage?", lines: ["Homepage → built-in test (Chameleon Method vs Gold vs Glass vs Split)"], config: c });
-        }}>Go back to the built-in homepage</Button>}
-      </div>
-      <p className="text-xs text-muted-foreground">Running now: <b>{live === undefined ? "loading…" : describeHome((live ?? DEFAULT_SITE).home)}</b></p>
-    </GlassCard>
   );
 }
 

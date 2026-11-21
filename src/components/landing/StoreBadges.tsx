@@ -3,12 +3,10 @@ import { cn } from "@/lib/utils";
 /**
  * Store CTAs for the hero.
  *
- * TODO(rowan): replace these with the real listing URLs. Every href below is a
- * placeholder — the buttons are deliberately rendered as disabled-looking and
- * are not clickable until a real URL is supplied, so we never ship a dead CTA.
+ * Only verified listing URLs are clickable; phone store listings are pending.
  */
 export const STORE_LINKS = {
-  chrome: "", // https://chromewebstore.google.com/detail/...
+  chrome: "https://chromewebstore.google.com/detail/linguascript-learn-langua/pdooaedahecfoajjgjkmfeejffipfjfe",
   ios: "", //    https://apps.apple.com/app/id...
   android: "", // https://play.google.com/store/apps/details?id=...
 } as const;
