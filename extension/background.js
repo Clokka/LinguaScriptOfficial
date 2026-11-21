@@ -34,32 +34,38 @@ async function signIn(email, password) {
   return data; // { access_token, refresh_token, user }
 }
 
-// Google sign-in: Supabase's own Google provider (the same one the website
-// uses) in a Chrome sign-in window. Supabase sends the tokens back to the
-// extension's redirect URL, which must be listed under Auth → URL Configuration
-// → Redirect URLs as https://<extension-id>.chromiumapp.org/**.
+// Google sign-in: Google's own sign-in window for OUR OAuth client, so Google
+// shows linguascript.co.uk (never the backend address). Google returns an ID
+// token to https://<extension-id>.chromiumapp.org/ (must be listed under
+// "Authorized redirect URIs" on the OAuth client), which we swap for a session.
+const GOOGLE_CLIENT_ID = '83696703346-d088shcldb678oec73jmh3o5lqjru132.apps.googleusercontent.com';
+async function sha256Hex(text) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
 async function signInWithGoogle() {
-  const redirectTo = chrome.identity.getRedirectURL();
-  const url = `${SUPABASE_URL}/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(redirectTo)}`;
+  const redirectUri = chrome.identity.getRedirectURL();
+  const rawNonce = crypto.randomUUID() + crypto.randomUUID();
+  const url = 'https://accounts.google.com/o/oauth2/v2/auth?' + new URLSearchParams({
+    client_id: GOOGLE_CLIENT_ID, response_type: 'id_token', redirect_uri: redirectUri,
+    scope: 'openid email profile', nonce: await sha256Hex(rawNonce), prompt: 'select_account',
+  });
   let finalUrl;
   try {
     finalUrl = await chrome.identity.launchWebAuthFlow({ url, interactive: true });
   } catch {
     throw new Error('Google sign-in didn’t finish. Try again or use email.');
   }
-  const params = new URLSearchParams(new URL(finalUrl).hash.slice(1));
-  const accessToken = params.get('access_token');
-  if (!accessToken) throw new Error(params.get('error_description') || 'Google sign-in failed');
-  const userRes = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
-    headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${accessToken}` },
+  const idToken = new URLSearchParams(new URL(finalUrl).hash.slice(1)).get('id_token');
+  if (!idToken) throw new Error('Google sign-in failed');
+  const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=id_token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
+    body: JSON.stringify({ provider: 'google', id_token: idToken, nonce: rawNonce }),
   });
-  if (!userRes.ok) throw new Error('Google sign-in failed');
-  return {
-    access_token: accessToken,
-    refresh_token: params.get('refresh_token'),
-    expires_in: Number(params.get('expires_in')) || 3600,
-    user: await userRes.json(),
-  };
+  const data = await res.json();
+  if (!res.ok || !data.access_token) throw new Error(data.error_description || data.msg || 'Google sign-in failed');
+  return data; // { access_token, refresh_token, expires_in, user }
 }
 
 async function refreshSession(refreshToken) {

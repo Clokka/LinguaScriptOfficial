@@ -271,9 +271,6 @@ const Auth = () => {
               <div className="w-full space-y-2">
                 <div ref={gisRef} aria-busy={gis === "loading"} className={`flex min-h-[44px] w-full justify-center ${googleLoading ? "pointer-events-none opacity-60" : ""}`} />
                 {googleLoading && <p className="text-center text-xs text-muted-foreground">{t("signingIn")}</p>}
-                <button type="button" onClick={handleGoogleFallback} className="block w-full text-center text-xs text-muted-foreground underline-offset-2 hover:underline">
-                  Trouble with Google? Try the other way
-                </button>
               </div>
             )}
             {gis === "off" && (
