@@ -56,6 +56,7 @@ const Write = lazy(() => import("./pages/Write"));
 const Speak = lazy(() => import("./pages/Speak"));
 const Studio = lazy(() => import("./pages/Studio"));
 const ConnectAI = lazy(() => import("./pages/ConnectAI"));
+const ConnectStremio = lazy(() => import("./pages/ConnectStremio"));
 const Partners = lazy(() => import("./pages/Partners"));
 const HQ = lazy(() => import("./pages/HQ"));
 const RefLink = lazy(() => import("./pages/RefLink"));
@@ -182,6 +183,7 @@ const APP_ROUTES = (
                 <Route path="/speak" element={<Speak />} />
                 <Route path="/studio" element={<Studio />} />
                 <Route path="/ai" element={<ConnectAI />} />
+                <Route path="/stremio" element={<ConnectStremio />} />
                 <Route path="/mcp" element={<Navigate to="/ai" replace />} />
                 <Route path="/chatgpt" element={<Navigate to="/ai" replace />} />
                 <Route path="/claude" element={<Navigate to="/ai" replace />} />

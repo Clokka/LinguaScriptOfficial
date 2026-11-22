@@ -9,6 +9,9 @@ const SUPABASE_URL = 'https://ffephracinqeylfhqkiz.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZmZXBocmFjaW5xZXlsZmhxa2l6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2MTc4MDgsImV4cCI6MjA5MDE5MzgwOH0.CzCejyUYY1i6-T_gCxkLqq_Cmc1OSRlXAhmPC-Ud4zA';
 const SITE_URL = 'https://linguascript.co.uk';
 
+// The list of video sites (shared with the pop-up and the universal adapter).
+importScripts('sites.js');
+
 // ─── Install: show the welcome page ──────────────────────────────────────────
 
 chrome.runtime.onInstalled.addListener(({ reason }) => {
@@ -688,6 +691,12 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     case 'GET_RING_POOL':
       return reply(getRingPool(msg.language), sendResponse);
 
+    case 'SYNC_VIDEO_SITES':
+      return reply(syncVideoSites().then(() => ({ ok: true })), sendResponse);
+
+    case 'ENABLE_VIDEO_TAB':
+      return reply(enableVideoTab(msg.tabId), sendResponse);
+
     case 'GET_XP':
       return reply((async () => {
         const session = await getValidSession().catch(() => null);
@@ -731,3 +740,58 @@ chrome.contextMenus?.onClicked.addListener(async (info, tab) => {
   await chrome.scripting.executeScript({ target, files: ['ls-core.js'] }).catch(() => {});
   await chrome.scripting.executeScript({ target, func: (text) => window.LSCore?.saveSelectionNow(text), args: [info.selectionText || ''] }).catch(() => {});
 });
+
+// ─── Any video site: Stremio Web, TikTok, Dailymotion, … ───────────────────────
+// YouTube, Netflix, Crunchyroll and TV5MONDE are in manifest.json. Every other
+// site is switched on by the learner in the pop-up (an optional permission for
+// just that site, asked at their click — no "all websites" warning at install).
+// We then register the same caption catcher + universal adapter there, so it
+// keeps working after a restart.
+const BUILT_IN_ORIGINS = new Set([
+  ...(chrome.runtime.getManifest().host_permissions || []),
+  ...(chrome.runtime.getManifest().content_scripts || []).flatMap((c) => c.matches || []),
+]);
+const VIDEO_FILES = ['ls-core.js', 'sites.js', 'subtitles.js', 'adapters/universal.js'];
+const VIDEO_SCRIPT_IDS = ['ls-video-hook', 'ls-video'];
+
+async function videoOrigins() {
+  const { origins = [] } = await chrome.permissions.getAll();
+  // Only single sites the learner chose — never a blanket "all sites" grant.
+  return origins.filter((o) => /^https?:\/\/[^*/]/.test(o) || /^https?:\/\/\*\.[^/]+\//.test(o))
+    .filter((o) => !BUILT_IN_ORIGINS.has(o));
+}
+
+// Install, startup and permission events can fire together: run one at a time.
+let syncChain = Promise.resolve();
+function syncVideoSites() {
+  syncChain = syncChain.catch(() => {}).then(doSyncVideoSites);
+  return syncChain;
+}
+
+async function doSyncVideoSites() {
+  const wanted = await videoOrigins();
+  const existing = await chrome.scripting.getRegisteredContentScripts({ ids: VIDEO_SCRIPT_IDS }).catch(() => []);
+  if (existing.length) await chrome.scripting.unregisterContentScripts({ ids: existing.map((s) => s.id) }).catch(() => {});
+  if (!wanted.length) return;
+  await chrome.scripting.registerContentScripts([
+    { id: 'ls-video-hook', matches: wanted, js: ['caption-hook.js'], world: 'MAIN', runAt: 'document_start', allFrames: true },
+    { id: 'ls-video', matches: wanted, js: VIDEO_FILES, runAt: 'document_idle', allFrames: true },
+  ]);
+}
+
+// Right after the learner switches a site on: start in the open tab too, no
+// reload needed. (The catcher only sees subtitle files fetched from now on, so
+// re-picking subtitles in the player, or a reload, fills in canvas subtitles.)
+async function enableVideoTab(tabId) {
+  await syncVideoSites();
+  if (!tabId) return { ok: true };
+  const target = { tabId, allFrames: true };
+  await chrome.scripting.executeScript({ target, files: ['caption-hook.js'], world: 'MAIN' }).catch(() => {});
+  await chrome.scripting.executeScript({ target, files: VIDEO_FILES }).catch(() => {});
+  return { ok: true };
+}
+
+chrome.runtime.onInstalled.addListener(() => { syncVideoSites().catch(() => {}); });
+chrome.runtime.onStartup?.addListener(() => { syncVideoSites().catch(() => {}); });
+chrome.permissions.onAdded.addListener(() => { syncVideoSites().catch(() => {}); });
+chrome.permissions.onRemoved.addListener(() => { syncVideoSites().catch(() => {}); });
