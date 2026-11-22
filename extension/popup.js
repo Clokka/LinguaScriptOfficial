@@ -154,7 +154,13 @@ $('login-form').addEventListener('submit', async (e) => {
   const res = await send({ type: 'SIGN_IN', email, password });
   $('login-btn').disabled = false;
   $('login-btn').textContent = 'Log in';
-  if (!res?.ok) { $('auth-error').textContent = res?.error || 'Login failed. Check your email and password.'; return; }
+  if (!res?.ok) {
+    // Accounts made with Google have no password yet.
+    $('auth-error').textContent = /invalid login credentials/i.test(res?.error || '')
+      ? 'Wrong email or password. Signed up with Google? Use "Continue with Google", or set a password with "Forgot password?" on linguascript.co.uk.'
+      : res?.error || 'Login failed. Check your email and password.';
+    return;
+  }
   $('password').value = '';
   // Shown small at the bottom, so it's easy to tell which copy of the extension this is.
 $('ext-version').textContent = `LinguaScript extension v${chrome.runtime.getManifest().version}`;

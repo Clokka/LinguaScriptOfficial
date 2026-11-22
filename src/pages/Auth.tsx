@@ -32,7 +32,13 @@ const authErrorMessage = (e: { message?: string } | null | undefined) => {
   const msg = e?.message ?? "Please try again";
   return /failed to fetch|networkerror|load failed|network request failed/i.test(msg)
     ? "Couldn't reach the LinguaScript server. Check your internet, turn off ad blockers for this site, and try again in a minute."
-    : msg;
+    // Accounts made with "Continue with Google" have no password yet, so a
+    // password Chrome remembered from elsewhere is "invalid". Say so.
+    : /invalid login credentials/i.test(msg)
+      ? "Wrong email or password. If you usually sign in with Google, you don't have a password yet: tap \"Forgot password?\" to make one."
+      : /email not confirmed/i.test(msg)
+        ? "Please confirm your email first: open the link we emailed you, then sign in."
+        : msg;
 };
 
 const Auth = () => {
@@ -207,7 +213,8 @@ const Auth = () => {
       if (error) {
         toast({ title: "Login failed", description: authErrorMessage(error), variant: "destructive" });
       } else {
-        await finishSignIn();
+        // Signed in; never leave the button spinning if opening the account stalls.
+        await Promise.race([finishSignIn(), new Promise((r) => setTimeout(r, 20000))]);
       }
     } else {
       track("signup_started", { method: "email", mode: "signup" });
