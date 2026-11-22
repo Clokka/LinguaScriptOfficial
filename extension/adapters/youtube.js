@@ -163,6 +163,7 @@
   // if it can't be reached, press the CC button instead.
   async function turnOnCaptions() {
     const res = await C.requestCaptions(C.learningLang);
+    if (res.ok && res.language) C.noteVideoLanguage(res.language, true);
     if (res.ok) return true;
     const btn = document.querySelector('.ytp-subtitles-button');
     if (btn && btn.getAttribute('aria-pressed') === 'false') btn.click();

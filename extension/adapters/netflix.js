@@ -39,6 +39,7 @@
     for (let i = 0; i < 15 && mounted; i++) {
       if (live.hasText()) return;
       const res = await C.requestCaptions(C.learningLang);
+      if (res.ok && res.language) C.noteVideoLanguage(res.language, true);
       if (res.ok) { await new Promise((r) => setTimeout(r, 2500)); if (live.hasText()) return; }
       await new Promise((r) => setTimeout(r, 1500));
     }

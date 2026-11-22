@@ -288,6 +288,38 @@ async function setLanguage(session, language) {
   return { ok: true, language: lang };
 }
 
+// The video turned out to be in another language (Spanish subtitles while the
+// account was on French). Switch to that deck if the learner has it; else say
+// it's missing so the page can offer to add it. Never the learner's own language.
+const MAX_LANGUAGES = 5; // same as src/lib/languageProfiles.ts
+async function videoLanguage(session, language) {
+  const lang = String(language || '').toLowerCase();
+  const { languages, nativeLanguage } = await getLanguages(session);
+  if (!lang || lang === nativeLanguage) return { ok: false, error: 'native' };
+  if (languages.includes(lang)) return { ...(await setLanguage(session, lang)), switched: true };
+  return { ok: false, error: 'missing', language: lang, languages, canAdd: languages.length < MAX_LANGUAGES };
+}
+
+// A new deck for a language (a language_profiles row, like "Add a language" on
+// the website), then watch in it.
+async function addLanguage(session, language) {
+  const lang = String(language || '').toLowerCase();
+  if (!/^[a-z]{2}$/.test(lang)) return { ok: false, error: 'bad_language' };
+  const { languages, nativeLanguage } = await getLanguages(session);
+  if (lang === nativeLanguage) return { ok: false, error: 'native' };
+  if (!languages.includes(lang)) {
+    if (languages.length >= MAX_LANGUAGES) return { ok: false, error: 'language_limit_reached' };
+    const res = await rest('language_profiles', session.access_token, {
+      method: 'POST',
+      headers: { Prefer: 'return=minimal' },
+      body: JSON.stringify({ user_id: session.user.id, language: lang }),
+    });
+    if (!res.ok && res.status !== 409) return { ok: false, error: `Couldn’t add the language (${res.status})` };
+    invalidateLanguages();
+  }
+  return setLanguage(session, lang);
+}
+
 async function storeSession(data) {
   const session = { ...data, expires_at: Math.floor(Date.now() / 1000) + data.expires_in };
   await chrome.storage.local.set({ ls_session: session });
@@ -607,6 +639,12 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         if (!session) return { ok: false };
         return { ok: true, ...(await getLanguages(session)) };
       })(), sendResponse);
+
+    case 'VIDEO_LANGUAGE':
+      return reply((async () => videoLanguage(await getValidSession(), msg.language))(), sendResponse);
+
+    case 'ADD_LANGUAGE':
+      return reply((async () => addLanguage(await getValidSession(), msg.language))(), sendResponse);
 
     case 'SET_LANGUAGE':
       return reply((async () => setLanguage(await getValidSession(), msg.language))(), sendResponse);
