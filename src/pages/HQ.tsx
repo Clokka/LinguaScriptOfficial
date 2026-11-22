@@ -79,6 +79,17 @@ const DOCS: [string, string, string][] = [
   ["/brand/docs/growth-team.html", "Growth team blueprint", "Humans + AI agents, channels, tools"],
   ["/brand/docs/partner-programme.html", "Partner programme plan", "How partners, logins and payouts work"],
 ];
+const AUTH_WAIT_MS = 10_000;
+const ROLE_WAIT_MS = 12_000;
+
+/** Rejects if the promise hasn't settled in `ms` (a hung request would otherwise load forever). */
+export function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error(`no answer from the server after ${Math.round(ms / 1000)} s`)), ms);
+    p.then((v) => { clearTimeout(t); resolve(v); }, (e) => { clearTimeout(t); reject(e); });
+  });
+}
+
 const DRIVE = "https://drive.google.com/drive/folders/1L7bFDi1OJJ6FE1xqjtH7sOkCK4mJbAE-";
 
 export default function HQ() {
@@ -91,16 +102,57 @@ export default function HQ() {
   });
   useEffect(() => { try { history.replaceState(null, "", `#${tab}`); } catch { /* ignore */ } }, [tab]);
 
+  // Never spin forever: if the sign-in check or the role check fails or hangs,
+  // show the reason and a "Try again" button instead of the loading screen.
+  const [roleError, setRoleError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
+  const [authSlow, setAuthSlow] = useState(false);
+  useEffect(() => {
+    if (!loading) return;
+    const t = setTimeout(() => setAuthSlow(true), AUTH_WAIT_MS);
+    return () => clearTimeout(t);
+  }, [loading]);
+
   useEffect(() => {
     if (!user) return;
-    supabase.from("user_roles").select("role").eq("user_id", user.id)
-      .then(({ data }) => setRoles(((data as { role: string }[]) ?? []).map((r) => r.role)));
-  }, [user]);
+    let alive = true;
+    setRoleError(null);
+    setRoles(null);
+    withTimeout(
+      Promise.resolve(supabase.from("user_roles").select("role").eq("user_id", user.id)),
+      ROLE_WAIT_MS,
+    ).then(({ data, error }) => {
+      if (!alive) return;
+      if (error) { setRoleError(error.message); return; }
+      setRoles(((data as { role: string }[]) ?? []).map((r) => r.role));
+    }).catch((e: unknown) => {
+      if (alive) setRoleError(e instanceof Error ? e.message : String(e));
+    });
+    return () => { alive = false; };
+  }, [user, attempt]);
 
   const isAdmin = !!roles?.includes("admin");
   const isMarketer = !!roles?.includes("marketer");
   const isTeam = isAdmin || isMarketer || !!roles?.includes("engineer");
 
+  if ((loading && authSlow) || roleError) {
+    return (
+      <Shell onBack={() => navigate("/")}>
+        <GlassCard className="p-8 text-center space-y-4">
+          <h2 className="text-2xl font-black">HQ couldn't load</h2>
+          <p className="text-muted-foreground">
+            {roleError
+              ? <>We couldn't check your team access: <span className="font-mono text-sm">{roleError}</span></>
+              : "Signing in is taking too long. Your connection may be slow, or the sign-in got stuck."}
+          </p>
+          <div className="flex flex-wrap justify-center gap-2">
+            <Button className="rounded-full" onClick={() => (roleError ? setAttempt((a) => a + 1) : window.location.reload())}>Try again</Button>
+            <Button variant="outline" className="rounded-full" onClick={() => navigate("/auth?redirect=/hq")}>Sign in again</Button>
+          </div>
+        </GlassCard>
+      </Shell>
+    );
+  }
   if (loading || (user && roles === null)) return <PageLoading />;
   if (!user) {
     return (

@@ -22,11 +22,19 @@ export function useSite() {
   const [history, setHistory] = useState<Publish[]>([]);
 
   const reload = useCallback(async () => {
-    const [l, d, h] = await Promise.all([
-      db.rpc("get_live_site"),
-      db.from("site_drafts").select("id,name,config,updated_at").order("updated_at", { ascending: false }),
-      db.rpc("site_publish_history", { _limit: 30 }),
-    ]);
+    let l: any, d: any, h: any;
+    try {
+      [l, d, h] = await Promise.all([
+        db.rpc("get_live_site"),
+        db.from("site_drafts").select("id,name,config,updated_at").order("updated_at", { ascending: false }),
+        db.rpc("site_publish_history", { _limit: 30 }),
+      ]);
+    } catch (e) {
+      // A failed request must not leave HQ on skeletons forever: show the built-in setup.
+      toast.error(`Couldn't read the live site: ${e instanceof Error ? e.message : String(e)}`);
+      setLive((v) => (v === undefined ? null : v));
+      return;
+    }
     if (l.error) toast.error(`Couldn't read the live site: ${l.error.message}`);
     setLive(cleanConfig(l.data));
     setDrafts((d.data as Draft[]) ?? []);
