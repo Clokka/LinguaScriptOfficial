@@ -120,6 +120,17 @@ $('site-off').addEventListener('click', () => {
   chrome.permissions.remove({ origins: siteOrigins }, () => { send({ type: 'SYNC_VIDEO_SITES' }); loadSite(); });
 });
 
+// Translation line: Peek (blurred until hover, the default), Always or Off.
+async function loadSecondary() {
+  const { ls_secondary: mode = 'peek' } = await chrome.storage.local.get('ls_secondary');
+  document.querySelectorAll('#secondary-options .lang-btn').forEach((b) => b.classList.toggle('on', b.dataset.mode === mode));
+}
+document.querySelectorAll('#secondary-options .lang-btn').forEach((b) => b.addEventListener('click', async () => {
+  await chrome.storage.local.set({ ls_secondary: b.dataset.mode });
+  loadSecondary();
+}));
+loadSecondary();
+
 $('lang-change').addEventListener('click', () => $('lang-picker').classList.toggle('hidden'));
 
 async function init() {

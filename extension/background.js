@@ -107,7 +107,10 @@ function rest(path, accessToken, init = {}) {
 function normalizeToken(raw) {
   return (raw || '')
     .toLowerCase()
-    .replace(/[.,!?;:"'`«»()\[\]…，。、！？；：「」『』（）《》〈〉“”‘’]/g, '')
+    .replace(/[.,!?;:"'`«»()\[\]…，。、！？；：「」『』（）《》〈〉“”‘’¿¡]/g, '')
+    .trim()
+    // Dialogue dashes ("-Impecable", "—¿Quién?") at the edges only: "peut-être" keeps its hyphen.
+    .replace(/^[-‐–—]+|[-‐–—]+$/g, '')
     .trim();
 }
 

@@ -26,7 +26,10 @@ export const baseCode = (lang: string) => toLangCode(lang).split("-")[0].toLower
 export const dictKey = (raw: string) =>
   String(raw || "")
     .toLowerCase()
-    .replace(/[.,!?;:"'`«»()\[\]…，。、！？；：「」『』（）《》〈〉“”‘’]/g, "")
+    .replace(/[.,!?;:"'`«»()\[\]…，。、！？；：「」『』（）《》〈〉“”‘’¿¡]/g, "")
+    .trim()
+    // Dialogue dashes ("-Impecable", "—¿Quién?") at the edges only: "peut-être" keeps its hyphen.
+    .replace(/^[-‐–—]+|[-‐–—]+$/g, "")
     .trim();
 
 /** "the translator gave up": same letters as the word. */
