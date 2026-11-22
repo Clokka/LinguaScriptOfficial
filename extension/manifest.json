@@ -3,7 +3,7 @@
   "name": "LinguaScript: Learn Languages with Any Video",
   "short_name": "LinguaScript",
   "version": "1.7.3",
-  "description": "Learn languages on YouTube, Netflix, Crunchyroll, Stremio, TikTok and any video site. Dual subtitles, tap any word, save it to your LinguaScript flashcards.",
+  "description": "Learn languages on YouTube, Netflix, Crunchyroll, Stremio and any video site. Tap any word to save it to your flashcards.",
   "homepage_url": "https://linguascript.co.uk",
   "minimum_chrome_version": "111",
   "permissions": [
