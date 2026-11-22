@@ -168,8 +168,13 @@ const Auth = () => {
               window.location.assign(phoneGoogleReturn(hash, phoneState));
               return;
             }
-            await signInWithGoogleCredential(credential, nonceRef.current);
-            await finishSignIn();
+            // Never "Signing in…" forever: each step gets 20 s, then a clear error and a fresh try.
+            const within = <T,>(p: Promise<T>, what: string) => Promise.race([
+              p,
+              new Promise<never>((_, reject) => setTimeout(() => reject(new Error(`${what} took too long. Check your connection and try again.`)), 20000)),
+            ]);
+            await within(signInWithGoogleCredential(credential, nonceRef.current), "Signing in with Google");
+            await within(finishSignIn(), "Opening your account");
           } catch (e) {
             toast({ title: "Google sign-in failed", description: e instanceof Error ? e.message : "Please try again", variant: "destructive" });
             setGoogleLoading(false);
