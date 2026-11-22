@@ -109,8 +109,9 @@ function normalizeToken(raw) {
     .toLowerCase()
     .replace(/[.,!?;:"'`«»()\[\]…，。、！？；：「」『』（）《》〈〉“”‘’¿¡]/g, '')
     .trim()
-    // Dialogue dashes ("-Impecable", "—¿Quién?") at the edges only: "peut-être" keeps its hyphen.
-    .replace(/^[-‐–—]+|[-‐–—]+$/g, '')
+    // ANY punctuation or symbol at the edges ("¿Sabes", "-Impecable", "hola!!", "«oui»"),
+    // never inside: "peut-être" keeps its hyphen.
+    .replace(/^[\p{P}\p{S}]+|[\p{P}\p{S}]+$/gu, '')
     .trim();
 }
 

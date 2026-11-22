@@ -36,8 +36,9 @@
       .toLowerCase()
       .replace(/[.,!?;:"'`«»()\[\]…，。、！？；：「」『』（）《》〈〉“”‘’¿¡]/g, '')
       .trim()
-      // Dialogue dashes ("-Impecable", "—¿Quién?") at the edges only: "peut-être" keeps its hyphen.
-      .replace(/^[-‐–—]+|[-‐–—]+$/g, '')
+      // ANY punctuation or symbol at the edges ("¿Sabes", "-Impecable", "hola!!", "«oui»"),
+      // never inside: "peut-être" keeps its hyphen.
+      .replace(/^[\p{P}\p{S}]+|[\p{P}\p{S}]+$/gu, '')
       .trim();
   }
 
@@ -169,14 +170,14 @@
     if (/^(zh|cmn|yue)/.test(c)) return 'zh';
     return c.split('-')[0];
   };
-  // Translation line under the subtitle: 'peek' | 'show' | 'off' (pop-up setting).
-  let secondaryMode = 'peek';
-  getStorage({ ls_secondary: 'peek' }).then((v) => { secondaryMode = v.ls_secondary; });
+  // Translation line under the subtitle: 'blur' | 'show' | 'off' (pop-up setting).
+  let secondaryMode = 'blur';
+  getStorage({ ls_secondary: 'blur' }).then((v) => { secondaryMode = v.ls_secondary; });
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === 'local' && changes.ls_secondary) {
-      secondaryMode = changes.ls_secondary.newValue || 'peek';
+      secondaryMode = changes.ls_secondary.newValue || 'blur';
       const el = document.getElementById('ls-secondary');
-      if (el) { el.classList.toggle('ls-peek', secondaryMode === 'peek'); if (secondaryMode === 'off') el.style.display = 'none'; }
+      if (el) { el.classList.toggle('ls-blurred', secondaryMode === 'blur'); if (secondaryMode === 'off') el.style.display = 'none'; }
     }
   });
   let videoLangVotes = { lang: null, n: 0 };
@@ -907,17 +908,17 @@
       Rings.beginLine();
       parts.forEach((p) => el.appendChild(p.word ? makeWordSpan(p.text, text, joiner, true) : document.createTextNode(p.text + joiner)));
     }
-    // The learner's own language under the line: "peek" (default, blurred until
+    // The learner's own language under the line: "blur" (default, blurred until
     // hovered/tapped, so they try the words first), "show" or "off". Pop-up setting.
     function renderSecondary(text) {
       const el = document.getElementById('ls-secondary'); if (!el) return;
       const mode = secondaryMode;
       el.textContent = mode === 'off' ? '' : text || '';
       el.style.display = el.textContent ? '' : 'none';
-      el.classList.toggle('ls-peek', mode === 'peek');
-      el.classList.remove('ls-peeking');
-      el.title = mode === 'peek' ? 'Stuck? Hover to see the translation' : '';
-      el.onclick = mode === 'peek' ? (e) => { e.stopPropagation(); el.classList.toggle('ls-peeking'); } : null;
+      el.classList.toggle('ls-blurred', mode === 'blur');
+      el.classList.remove('ls-revealed');
+      el.title = mode === 'blur' ? 'Hover to read the translation' : '';
+      el.onclick = mode === 'blur' ? (e) => { e.stopPropagation(); el.classList.toggle('ls-revealed'); } : null;
     }
     function clearOverlay() {
       if (!lastPrimary) return; lastPrimary = null; lastSecondarySource = null;
@@ -1305,8 +1306,8 @@
     #ls-primary:empty { display:none; }
     #ls-secondary { display:inline-block; font-size:calc(var(--ls-fs, 34px) * 0.6); font-weight:500; color:rgba(255,255,255,0.82); background:rgba(0,0,0,0.68); border-radius:4px; padding:.2em 1em .3em; pointer-events:none; text-shadow:0 1px 4px rgba(0,0,0,0.9); }
     #ls-overlay #ls-secondary { display:table; margin:0 auto; }
-    #ls-secondary.ls-peek { filter:blur(7px); pointer-events:auto; cursor:pointer; transition:filter .15s ease; }
-    #ls-secondary.ls-peek:hover, #ls-secondary.ls-peek.ls-peeking { filter:none; }
+    #ls-secondary.ls-blurred { filter:blur(7px); pointer-events:auto; cursor:pointer; transition:filter .15s ease; }
+    #ls-secondary.ls-blurred:hover, #ls-secondary.ls-blurred.ls-revealed { filter:none; }
 
     /* Video fills the window (Netflix, fullscreen): keep clear of the site's own
        controls along the bottom (subtitles, audio, settings, fullscreen). */
