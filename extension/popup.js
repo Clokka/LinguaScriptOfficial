@@ -148,13 +148,12 @@ $('login-form').addEventListener('submit', async (e) => {
   init();
 });
 
-// Chrome may close this pop-up while the Google window is open; the sign-in
-// still finishes in the background and the pop-up shows it next time.
+// Google sign-in happens on linguascript.co.uk (Google shows our domain); the
+// site then signs the extension in. The pop-up shows it next time it opens.
 $('google-btn').addEventListener('click', async () => {
   $('auth-error').textContent = '';
   const res = await send({ type: 'GOOGLE_SIGN_IN' });
-  if (!res?.ok) { $('auth-error').textContent = res?.error || 'Google sign-in didn’t finish. Try again or use email.'; return; }
-  init();
+  if (!res?.ok) $('auth-error').textContent = res?.error || 'Couldn’t open linguascript.co.uk. Try again or use email.';
 });
 
 $('logout-btn').addEventListener('click', async () => {
