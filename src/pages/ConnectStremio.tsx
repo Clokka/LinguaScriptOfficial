@@ -88,7 +88,7 @@ export default function ConnectStremio() {
           <li>Play a film or episode, open the subtitles menu and choose <strong>LinguaScript {LANGS[learn]} + {LANGS[native]}</strong>.</li>
           <li>Hear a word you want to keep? On a computer, use Stremio Web in Chrome with the LinguaScript extension to tap the word and save it to your flashcards.</li>
         </ol>
-        <p>Subtitles come from OpenSubtitles, and the second line is a machine translation, so it may not always be perfect. Some films don't have subtitles in every language yet.</p>
+        <p>Subtitles come from OpenSubtitles (through Stremio), and the second line is a machine translation, so it may not always be perfect. Some films don't have subtitles in every language yet.</p>
       </MarketingLayout>
     </>
   );

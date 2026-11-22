@@ -10,25 +10,29 @@
 // Routes (Stremio add-on protocol):
 //   /<cfg>/manifest.json
 //   /<cfg>/subtitles/<movie|series>/<tt…[:season:episode]>[/<extra>].json
-//   /<cfg>/sub/<fileId>.srt   → the dual subtitle file itself
+//   /<cfg>/sub/<source>.srt   → the dual subtitle file itself
 //
-// Subtitles come from OpenSubtitles (secret OPENSUBTITLES_API_KEY; optional
-// OPENSUBTITLES_USERNAME / OPENSUBTITLES_PASSWORD raise the daily download
-// quota). Translation: Google (official API when GOOGLE_TRANSLATE_API_KEY is
-// set, else the free endpoint) via googleTranslateMany. Finished files are
-// cached in the private storage bucket "stremio-subs" when it exists
-// (docs/sql/stremio-addon.sql), so each episode is downloaded once.
+// Same pieces as the rest of LinguaScript, no extra keys:
+//   • Source subtitles: Stremio's own public OpenSubtitles v3 add-on (the
+//     "OpenSubtitles v3" entry learners already see in Stremio). Only its
+//     strem.io file hosts are ever fetched.
+//   • public.caption_cache (shared with fetch-captions): parsed source lines,
+//     video_id "stremio:<hash>", checked with subtitlesLookLikeWrongLanguage.
+//   • googleTranslateMany (_shared/dictionary.ts): the second line.
+//   • Private storage bucket "stremio-subs" (docs/sql/stremio-addon.sql):
+//     the finished dual .srt, so each episode is translated once.
 // Deck colours (red/orange/green words) need a personal key: see
 // docs/MEDIA_COMPATIBILITY.md, phase 2.
+import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { googleTranslateMany } from "../_shared/dictionary.ts";
+import { subtitlesLookLikeWrongLanguage } from "../_shared/scriptCheck.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "*",
   "Access-Control-Allow-Methods": "GET, OPTIONS",
 };
-const OS_API = "https://api.opensubtitles.com/api/v1";
-const UA = "LinguaScript v1.0";
+const SOURCE_ADDON = "https://opensubtitles-v3.strem.io";
 const SITE = "https://linguascript.co.uk";
 const BUCKET = "stremio-subs";
 
@@ -37,6 +41,14 @@ const NAMES: Record<string, string> = {
   ko: "Korean", zh: "Chinese", ru: "Russian", ar: "Arabic", nl: "Dutch", pl: "Polish", sv: "Swedish",
   tr: "Turkish", hi: "Hindi", th: "Thai",
 };
+// Stremio labels subtitle languages with ISO 639-2 codes.
+const ISO3: Record<string, string[]> = {
+  en: ["eng"], es: ["spa", "spn", "ea"], fr: ["fre", "fra"], de: ["ger", "deu"], it: ["ita"], pt: ["por", "pob", "pt-br"],
+  ja: ["jpn"], ko: ["kor"], zh: ["chi", "zho", "zht", "zhe"], ru: ["rus"], ar: ["ara"], nl: ["dut", "nld"],
+  pl: ["pol"], sv: ["swe"], tr: ["tur"], hi: ["hin"], th: ["tha"],
+};
+
+interface Sub { start: number; end: number; text: string }
 
 const json = (body: unknown, maxAge = 3600) =>
   new Response(JSON.stringify(body), {
@@ -53,119 +65,123 @@ function parseConfig(cfg: string) {
 function manifest(cfg: string, learn: string, native: string) {
   return {
     id: `uk.co.linguascript.stremio.${cfg}`,
-    version: "1.0.0",
+    version: "1.1.0",
     name: `LinguaScript ${learn.toUpperCase()}+${native.toUpperCase()}`,
-    description: `${NAMES[learn]} subtitles with ${NAMES[native]} underneath, for learning ${NAMES[learn]} with films and series. From LinguaScript.`,
+    description: `${NAMES[learn]} subtitles with ${NAMES[native]} underneath, for learning ${NAMES[learn]} with films, series and anime. From LinguaScript.`,
     logo: `${SITE}/logo.svg`,
     resources: ["subtitles"],
     types: ["movie", "series"],
-    idPrefixes: ["tt"],
+    idPrefixes: ["tt", "kitsu"],
     catalogs: [],
     behaviorHints: { configurable: true },
   };
 }
 
-// ── OpenSubtitles ────────────────────────────────────────────────────────────
-let osToken: { value: string; at: number } | null = null;
-async function osHeaders(): Promise<Record<string, string>> {
-  const key = Deno.env.get("OPENSUBTITLES_API_KEY");
-  if (!key) throw new Error("OPENSUBTITLES_API_KEY is not set");
-  const h: Record<string, string> = { "Api-Key": key, "User-Agent": UA, Accept: "application/json", "Content-Type": "application/json" };
-  const username = Deno.env.get("OPENSUBTITLES_USERNAME");
-  const password = Deno.env.get("OPENSUBTITLES_PASSWORD");
-  if (username && password) {
-    if (!osToken || Date.now() - osToken.at > 12 * 3600_000) {
-      const res = await fetch(`${OS_API}/login`, { method: "POST", headers: h, body: JSON.stringify({ username, password }) });
-      if (res.ok) osToken = { value: (await res.json()).token, at: Date.now() };
-    }
-    if (osToken) h.Authorization = `Bearer ${osToken.value}`;
-  }
-  return h;
+// ── Source: Stremio's public OpenSubtitles v3 add-on ─────────────────────────
+const b64url = (s: string) => btoa(unescape(encodeURIComponent(s))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+const unb64url = (s: string) => decodeURIComponent(escape(atob(s.replace(/-/g, "+").replace(/_/g, "/"))));
+
+/** Only Stremio's own subtitle hosts — never an open proxy. */
+function allowedSource(url: string) {
+  try {
+    const u = new URL(url);
+    return u.protocol === "https:" && (u.hostname === "strem.io" || u.hostname.endsWith(".strem.io"));
+  } catch { return false; }
 }
 
-interface Found { fileId: number; hashMatch: boolean; downloads: number; release: string }
-
-async function searchSubtitles(id: string, lang: string, extra: URLSearchParams): Promise<Found[]> {
-  const [imdb, season, episode] = id.split(":");
-  const q = new URLSearchParams({ imdb_id: imdb.replace(/^tt/, ""), languages: lang });
-  if (season) q.set("season_number", season);
-  if (episode) q.set("episode_number", episode);
-  const hash = extra.get("videoHash");
-  if (hash && /^[0-9a-f]{16}$/i.test(hash)) q.set("moviehash", hash);
-  const res = await fetch(`${OS_API}/subtitles?${q}`, { headers: await osHeaders(), signal: AbortSignal.timeout(10000) });
-  if (!res.ok) throw new Error(`OpenSubtitles search ${res.status}`);
+async function findSources(type: string, id: string, extra: string, learn: string): Promise<string[]> {
+  const path = `${SOURCE_ADDON}/subtitles/${type}/${id}${extra ? `/${extra}` : ""}.json`;
+  const res = await fetch(path, { signal: AbortSignal.timeout(10000) });
+  if (!res.ok) throw new Error(`OpenSubtitles v3 ${res.status}`);
   const data = await res.json();
-  const found: Found[] = [];
-  for (const item of data?.data || []) {
-    const a = item.attributes || {};
-    const file = a.files?.[0];
-    if (!file?.file_id || a.ai_translated || a.machine_translated) continue;
-    found.push({ fileId: file.file_id, hashMatch: !!a.moviehash_match, downloads: a.download_count || 0, release: a.release || "" });
-  }
-  // A file made for this exact video first, then the most downloaded.
-  return found.sort((x, y) => Number(y.hashMatch) - Number(x.hashMatch) || y.downloads - x.downloads).slice(0, 3);
+  const want = new Set([learn, ...(ISO3[learn] || [])]);
+  return (data?.subtitles || [])
+    .filter((s: { lang?: string; url?: string }) => want.has(String(s.lang || "").toLowerCase()) && allowedSource(String(s.url || "")))
+    .map((s: { url: string }) => s.url)
+    .slice(0, 3);
 }
 
-async function downloadSubtitle(fileId: number): Promise<string> {
-  const res = await fetch(`${OS_API}/download`, {
-    method: "POST",
-    headers: await osHeaders(),
-    body: JSON.stringify({ file_id: fileId, sub_format: "srt" }),
-    signal: AbortSignal.timeout(10000),
-  });
-  if (!res.ok) throw new Error(`OpenSubtitles download ${res.status}`);
-  const { link } = await res.json();
-  const file = await fetch(link, { signal: AbortSignal.timeout(15000) });
-  if (!file.ok) throw new Error(`Subtitle file ${file.status}`);
-  return await file.text();
+// ── Subtitles in and out ─────────────────────────────────────────────────────
+function toSeconds(raw: string) {
+  const m = /(?:(\d+):)?(\d{1,2}):(\d{1,2})[,.](\d{1,3})/.exec(raw);
+  if (!m) return NaN;
+  return (Number(m[1] || 0) * 3600) + Number(m[2]) * 60 + Number(m[3]) + Number(`0.${m[4]}`);
 }
 
-// ── Dual subtitles ───────────────────────────────────────────────────────────
-interface Cue { time: string; text: string }
-
-function parseSrt(srt: string): Cue[] {
-  return srt.replace(/^﻿/, "").replace(/\r/g, "").split(/\n{2,}/).flatMap((block) => {
+/** SRT or WebVTT → lines (same shape as fetch-captions / caption_cache). */
+function parseSubs(text: string): Sub[] {
+  return text.replace(/^﻿/, "").replace(/\r/g, "").split(/\n{2,}/).flatMap((block) => {
     const lines = block.split("\n");
     const i = lines.findIndex((l) => l.includes("-->"));
     if (i < 0) return [];
-    const text = lines.slice(i + 1).join(" ").replace(/<[^>]+>/g, "").replace(/\{[^}]*\}/g, "").replace(/\s+/g, " ").trim();
-    return text ? [{ time: lines[i].trim(), text }] : [];
+    const [a, b] = lines[i].split("-->");
+    const start = toSeconds(a), end = toSeconds(b);
+    const body = lines.slice(i + 1).join(" ").replace(/<[^>]+>/g, "").replace(/\{[^}]*\}/g, "").replace(/\s+/g, " ").trim();
+    return !isNaN(start) && !isNaN(end) && body ? [{ start, end, text: body }] : [];
   });
 }
 
+function srtTime(sec: number) {
+  const ms = Math.max(0, Math.round(sec * 1000));
+  const p = (n: number, w = 2) => String(n).padStart(w, "0");
+  return `${p(Math.floor(ms / 3600000))}:${p(Math.floor(ms / 60000) % 60)}:${p(Math.floor(ms / 1000) % 60)},${p(ms % 1000, 3)}`;
+}
 const escapeSrt = (s: string) => s.replace(/</g, "‹").replace(/>/g, "›");
 
 /** Learning-language line on top, the learner's own language smaller and grey underneath. */
-async function makeDual(srt: string, learn: string, native: string): Promise<string> {
-  const cues = parseSrt(srt);
-  if (!cues.length) throw new Error("Empty subtitle file");
+async function makeDual(subs: Sub[], learn: string, native: string): Promise<string> {
   let translated: string[] = [];
-  try { translated = await googleTranslateMany(cues.map((c) => c.text), learn, native); } catch (e) { console.error("translate failed", e); }
-  return cues.map((c, i) => {
+  try { translated = await googleTranslateMany(subs.map((s) => s.text), learn, native); } catch (e) { console.error("translate failed", e); }
+  return subs.map((s, i) => {
     const tr = translated[i]?.trim();
-    const second = tr && tr.toLowerCase() !== c.text.toLowerCase() ? `\n<font color="#B8B8C0"><i>${escapeSrt(tr)}</i></font>` : "";
-    return `${i + 1}\n${c.time}\n${escapeSrt(c.text)}${second}`;
+    const second = tr && tr.toLowerCase() !== s.text.toLowerCase() ? `\n<font color="#B8B8C0"><i>${escapeSrt(tr)}</i></font>` : "";
+    return `${i + 1}\n${srtTime(s.start)} --> ${srtTime(s.end)}\n${escapeSrt(s.text)}${second}`;
   }).join("\n\n") + "\n";
 }
 
-// ── Cache (optional private bucket) ──────────────────────────────────────────
-const storageUrl = (key: string) => `${Deno.env.get("SUPABASE_URL")}/storage/v1/object/${BUCKET}/${key}`;
-const storageAuth = () => ({ Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""}` });
-
-async function cacheGet(key: string): Promise<string | null> {
-  try {
-    const res = await fetch(storageUrl(key), { headers: storageAuth() });
-    return res.ok ? await res.text() : null;
-  } catch { return null; }
+// ── Shared caches ────────────────────────────────────────────────────────────
+function serviceClient(): SupabaseClient | null {
+  const url = Deno.env.get("SUPABASE_URL");
+  const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  return url && key ? createClient(url, key, { auth: { persistSession: false } }) : null;
 }
-async function cachePut(key: string, body: string) {
-  try {
-    await fetch(storageUrl(key), {
-      method: "POST",
-      headers: { ...storageAuth(), "Content-Type": "text/plain; charset=utf-8", "x-upsert": "true" },
-      body,
-    });
-  } catch { /* the cache is optional */ }
+
+async function sha(s: string) {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
+  return Array.from(new Uint8Array(buf)).slice(0, 12).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+/** The source lines, from caption_cache or downloaded once and stored there. */
+async function sourceSubs(db: SupabaseClient | null, url: string, learn: string): Promise<Sub[]> {
+  const videoId = `stremio:${await sha(url)}`;
+  if (db) {
+    const { data } = await db.from("caption_cache").select("subtitles").eq("video_id", videoId).eq("language", learn).maybeSingle();
+    if (Array.isArray(data?.subtitles) && data.subtitles.length) return data.subtitles as Sub[];
+  }
+  const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
+  if (!res.ok) throw new Error(`Subtitle file ${res.status}`);
+  const subs = parseSubs(await res.text());
+  if (!subs.length) throw new Error("Empty subtitle file");
+  if (subtitlesLookLikeWrongLanguage(subs, learn)) throw new Error(`Track is not in ${learn}`);
+  if (db) {
+    const { error } = await db.from("caption_cache")
+      .upsert({ video_id: videoId, language: learn, subtitles: subs, source: "stremio-opensubtitles-v3" }, { onConflict: "video_id,language" });
+    if (error) console.log("caption_cache write failed:", error.message);
+  }
+  return subs;
+}
+
+async function bucketGet(db: SupabaseClient | null, key: string): Promise<string | null> {
+  if (!db) return null;
+  const { data } = await db.storage.from(BUCKET).download(key).catch(() => ({ data: null }));
+  return data ? await data.text() : null;
+}
+async function bucketPut(db: SupabaseClient | null, key: string, body: string) {
+  if (!db) return;
+  const { error } = await db.storage.from(BUCKET)
+    .upload(key, new Blob([body], { type: "text/plain" }), { upsert: true, contentType: "text/plain; charset=utf-8" })
+    .catch((e) => ({ error: e }));
+  if (error) console.log("stremio-subs write failed (run docs/sql/stremio-addon.sql):", error.message ?? error);
 }
 
 // ── Router ───────────────────────────────────────────────────────────────────
@@ -189,27 +205,30 @@ Deno.serve(async (req) => {
     if (rest[0] === "subtitles" && rest.length >= 3) {
       const type = rest[1];
       const id = decodeURIComponent(rest[2].replace(/\.json$/, ""));
-      const extra = new URLSearchParams(rest[3] ? decodeURIComponent(rest[3].replace(/\.json$/, "")) : "");
-      if (!["movie", "series"].includes(type) || !/^tt\d+(:\d+:\d+)?$/.test(id)) return json({ subtitles: [] });
-      const found = await searchSubtitles(id, learn, extra);
+      const extra = rest[3] ? rest[3].replace(/\.json$/, "") : "";
+      if (!["movie", "series"].includes(type) || !/^(tt\d+|kitsu:\d+)(:\d+){0,2}$/.test(id)) return json({ subtitles: [] });
+      const sources = await findSources(type, id, extra, learn);
       const base = `${url.origin}${url.pathname.slice(0, url.pathname.indexOf("/stremio-addon") + "/stremio-addon".length)}/${cfg}`;
       return json({
-        subtitles: found.map((f, i) => ({
-          id: `ls-${cfg}-${f.fileId}`,
-          url: `${base}/sub/${f.fileId}.srt`,
+        subtitles: sources.map((src, i) => ({
+          id: `ls-${cfg}-${i}`,
+          url: `${base}/sub/${b64url(src)}.srt`,
           lang: `LinguaScript ${NAMES[learn]} + ${NAMES[native]}${i ? ` (${i + 1})` : ""}`,
         })),
         cacheMaxAge: 6 * 3600,
       }, 6 * 3600);
     }
 
-    if (rest[0] === "sub" && /^\d+\.srt$/.test(rest[1] || "")) {
-      const fileId = Number(rest[1].replace(".srt", ""));
-      const key = `${cfg}/${fileId}.srt`;
-      let body = await cacheGet(key);
+    if (rest[0] === "sub" && /^[A-Za-z0-9_-]+\.srt$/.test(rest[1] || "")) {
+      let src = "";
+      try { src = unb64url(rest[1].replace(/\.srt$/, "")); } catch { /* bad link */ }
+      if (!allowedSource(src)) return new Response("Unknown subtitle source", { status: 400, headers: cors });
+      const db = serviceClient();
+      const key = `${cfg}/${await sha(src)}.srt`;
+      let body = await bucketGet(db, key);
       if (!body) {
-        body = await makeDual(await downloadSubtitle(fileId), learn, native);
-        await cachePut(key, body);
+        body = await makeDual(await sourceSubs(db, src, learn), learn, native);
+        await bucketPut(db, key, body);
       }
       return new Response(body, {
         headers: { ...cors, "Content-Type": "application/x-subrip; charset=utf-8", "Cache-Control": "public, max-age=604800" },

@@ -43,13 +43,12 @@ This is the recommended "Netflix / Crunchyroll desktop app" answer for now.
 
 ### Route B: Stremio add-on (built): Stremio desktop, Android, TV
 `supabase/functions/stremio-addon` speaks Stremio's official add-on protocol. It offers subtitles named **"LinguaScript French + English"**: the learning-language line, with the learner's own language underneath in grey italics. Install page: **linguascript.co.uk/stremio** (`src/pages/ConnectStremio.tsx`, direct URL for now).
-- Subtitles come from OpenSubtitles. A file made for the exact video (`videoHash`) comes first, then the most downloaded. Machine-/AI-translated files are skipped.
-- Translation goes through `googleTranslateMany` (official API when `GOOGLE_TRANSLATE_API_KEY` is set).
-- **Setup before it works live:**
-  1. Supabase secret `OPENSUBTITLES_API_KEY` (free key at opensubtitles.com → API consumers).
-  2. Optional `OPENSUBTITLES_USERNAME` / `OPENSUBTITLES_PASSWORD`. Without a login the daily download quota is very small and shared by every learner. A VIP account or an API agreement is needed at scale.
-  3. Run `docs/sql/stremio-addon.sql` (private `stremio-subs` bucket). Each episode is then downloaded and translated once, and served from the cache after that.
-  4. `supabase/config.toml` has `verify_jwt = false` for this function (Stremio can't send a login).
+- **No API keys.** It uses the same pieces as the rest of LinguaScript:
+  - Source files come from Stremio's own public **OpenSubtitles v3** add-on (the entry learners already see in Stremio). Only `*.strem.io` file links are ever fetched, so the function is never an open proxy.
+  - The parsed lines go in the shared `public.caption_cache` table (`video_id = "stremio:<hash>"`, the same table fetch-captions uses), checked with `subtitlesLookLikeWrongLanguage`.
+  - The second line comes from `googleTranslateMany`, which uses the official API when `GOOGLE_TRANSLATE_API_KEY` is set.
+  - The finished dual `.srt` is cached in the private `stremio-subs` bucket (`docs/sql/stremio-addon.sql`), so each episode is translated once.
+- `supabase/config.toml` has `verify_jwt = false` for this function, because Stremio can't send a login.
 - **Phase 2: deck colours.** Add a personal add-on key (`/<key>/manifest.json`, a table mapping key → user, revocable on /stremio). Serve **ASS** with red/orange/green word colours. Stremio desktop plays through mpv, which renders ASS colours; check the web and TV players before relying on it. Tap-to-save stays a browser/phone feature, because Stremio has no click API for subtitles.
 
 ### Route C: LinguaScript Desktop companion (next big build)
