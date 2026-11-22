@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useT } from "@/i18n";
 import { UiLanguageSwitcher } from "@/components/UiLanguageSwitcher";
 import { applyGuestOnboarding } from "@/lib/guestOnboarding";
-import { GOOGLE_WEB_CLIENT_ID, canUseGoogleButton, googleCredentialHash, loadGoogleScript, makeNonce, signInWithGoogleCredential } from "@/lib/googleSignIn";
+import { GOOGLE_WEB_CLIENT_ID, canUseGoogleButton, googleCredentialHash, loadGoogleScript, makeNonce, signInWithGoogleCredential, signInWithLovableGoogle } from "@/lib/googleSignIn";
 import { isPhoneGoogleState, phoneGoogleReturn } from "@linguascript/core/phoneGoogle";
 
 function GoogleIcon() {
@@ -68,7 +68,8 @@ const Auth = () => {
         pendingPhoneState.current = raw;
         bridge.postMessage(JSON.stringify({ type: "google-signin", state: raw }));
       } else {
-        window.open("https://linguascript.co.uk/auth", "_blank", "noopener,noreferrer");
+        await signInWithLovableGoogle();
+        if ((await supabase.auth.getSession()).data.session) await finishSignIn();
       }
     } catch (e) {
       toast({
@@ -173,7 +174,14 @@ const Auth = () => {
               p,
               new Promise<never>((_, reject) => setTimeout(() => reject(new Error(`${what} took too long. Check your connection and try again.`)), 20000)),
             ]);
-            await within(signInWithGoogleCredential(credential, nonceRef.current), "Signing in with Google");
+            try {
+              await within(signInWithGoogleCredential(credential, nonceRef.current), "Signing in with Google");
+            } catch {
+              // The branded check couldn't finish (google-auth not deployed): use
+              // Lovable Cloud's Google login with our own Google client instead.
+              await signInWithLovableGoogle();
+              if (!(await supabase.auth.getSession()).data.session) return; // redirected to Google; we come back here
+            }
             await within(finishSignIn(), "Opening your account");
           } catch (e) {
             toast({ title: "Google sign-in failed", description: e instanceof Error ? e.message : "Please try again", variant: "destructive" });

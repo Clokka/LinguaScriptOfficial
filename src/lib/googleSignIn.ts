@@ -10,6 +10,19 @@
 //      and nonce) → magic-link token_hash → supabase.auth.verifyOtp.
 // Phone sign-in opens this same branded page in the system browser.
 import { supabase } from "@/integrations/supabase/client";
+import { lovable } from "@/integrations/lovable";
+
+/**
+ * Backup when the branded button can't finish (the google-auth function isn't
+ * deployed on Lovable Cloud, and Supabase's own Google check isn't used there):
+ * Lovable Cloud's Google login, which runs through oauth.lovable.app with OUR
+ * Google client ("Your own credentials" in Cloud → Users → Google), never the
+ * <project>.supabase.co screen. Comes back to the same page (keeps ?ext=1).
+ */
+export async function signInWithLovableGoogle(): Promise<void> {
+  const result: any = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.href });
+  if (result?.error) throw result.error instanceof Error ? result.error : new Error(String(result.error));
+}
 
 /** Public OAuth client ID (Google Cloud project "test 1"); same one google-auth checks. */
 export const GOOGLE_WEB_CLIENT_ID =
