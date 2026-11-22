@@ -249,6 +249,13 @@ const Auth = () => {
           <p className="text-muted-foreground mt-2">
             {forgotMode ? t("resetPasswordSub") : isLogin ? t("signInSub") : t("signUpSub")}
           </p>
+          {/* Opened from the Chrome extension's "Continue with Google" (?ext=1):
+              ExtensionAccountSync signs the extension in once this tab is signed in. */}
+          {new URLSearchParams(window.location.search).get("ext") === "1" && (
+            <p className="mt-4 rounded-xl border border-primary/40 bg-primary/10 px-4 py-3 text-sm text-foreground">
+              🧩 Sign in to connect your LinguaScript Chrome extension. We'll take you straight back to your video.
+            </p>
+          )}
         </div>
 
         {forgotMode ? (
