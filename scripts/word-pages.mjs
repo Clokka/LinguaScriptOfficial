@@ -6,6 +6,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { ARTICLES } from "./learn-articles.mjs";
+import { vocabularyCoverage, FRENCH_EXAMPLES, FRENCH_MEANINGS } from "./word-list-data.mjs";
 
 const SITE = "https://linguascript.co.uk";
 const C = { red: "#FF3B30", orange: "#FF8A00", green: "#34C759", gold: "#FFD54A", blue: "#2F7BFF" };
@@ -25,7 +26,7 @@ const TIPS = {
   pt: "This is Brazilian Portuguese: você (you) is far more common than tu, and short words like que, não and é carry a huge share of every conversation.",
   en: "English is full of contractions: don't, didn't, I'm, it's. Subtitles split them, so “don” and “didn” on this list really mean do not and did not. Learn the full forms together.",
 };
-const SIZES = [100, 1000, 3000];
+const SIZES = [50, 100, 1000, 3000];
 export const GUIDE_PATH = "/words/anki-and-quizlet";
 export const wordPagePaths = () => ["/learn", ...ARTICLES.map((a) => `/learn/${a.slug}`), "/words", GUIDE_PATH, ...LANGS.flatMap((l) => SIZES.map((n) => pagePath(l, n)))];
 const pagePath = (l, n) => (n === 100 ? `/words/${l.slug}` : `/words/${l.slug}/top-${n}`);
@@ -114,21 +115,21 @@ const tierFor = (pct) => (pct >= 100 ? "blue" : pct >= 90 ? "gold" : pct >= 60 ?
 
 function langPage(l, data, n, cfg) {
   const words = data.words.slice(0, n);
-  const cov = data.coverage[n];
+  const cov = vocabularyCoverage(data, n);
   const url = pagePath(l, n);
   const label = l.note || l.name;
   // Titles ≤ 60 and descriptions ≤ 155 characters so Google shows them whole.
-  const title = n === 100 ? `100 Most Common ${l.name} Words (Free List + Audio)`
+  const title = n <= 100 ? `${n} Most Common ${l.name} Words (Free List + Audio)`
     : n === 1000 ? `1,000 Most Common ${l.name} Words: Free Frequency List`
     : `3,000 Most Common ${l.name} Words: Full Frequency List`;
-  const desc = `The ${fmt(n)} most common ${l.name} words cover ${cov}% of real speech. Free list with ${l.code === "en" ? "definitions" : "English meanings"}, audio and a CSV for Anki.`;
+  const desc = `The ${fmt(n)} most common ${l.name} word forms cover ${cov}% of our subtitle corpus. Free frequency list, ${l.code === "en" ? "meanings" : "English meanings"}, audio and Anki CSV.`;
   const csvPath = `${pagePath(l, n)}.csv`;
   const top3 = data.words.slice(0, 3);
   const q = (x) => `<strong lang="${l.code}" translate="no">${esc(x.w)}</strong>${x.m ? ` (“${esc(x.m.split(/[;,]/)[0].trim())}”)` : ""}`;
   const need = data.needFor || {};
   const faqs = [
-    [`How many ${l.name} words do I need?`, `The top 100 ${l.name} words already make up ${data.coverage[100]}% of what people say in films and TV, the top 1,000 make up ${data.coverage[1000]}%, and the top 3,000 make up ${data.coverage[3000]}%. About ${fmt(need[80] || 0)} words cover 80% and about ${fmt(need[90] || 0)} cover 90%. To follow a film comfortably you need about 95% of the words. That's why learning the most common words first is the fastest start.`],
-    ["Are these words or word forms?", `They are word forms exactly as they appear in subtitles, so “${data.words[0].w}” and similar forms are counted separately. That keeps the list true to real speech; your real coverage of dictionary words is a little higher.`],
+    [`How many ${l.name} words do I need?`, `The top 100 ${l.name} word forms cover ${data.coverage[100]}% of this subtitle corpus, the top 1,000 cover ${data.coverage[1000]}%, and the top 3,000 cover ${data.coverage[3000]}%. About ${fmt(need[80] || 0)} forms cover 80% and about ${fmt(need[90] || 0)} cover 90%. Knowing a word list is not the same as understanding a film: grammar, listening and context matter too.`],
+    ["Are these words or word forms?", `These are subtitle word forms, not dictionary headwords or word families. Inflections, contractions and elided forms may be separate entries. The percentages describe token coverage in this corpus, not your comprehension, CEFR level or fluency.`],
     ["Where does this list come from?", "From OpenSubtitles 2018 (millions of lines of film and TV subtitles) via the FrequencyWords project, shared under CC BY-SA 4.0. We removed abbreviations and broken fragments, and every percentage on this page is calculated from the word counts."],
   ];
   const jsonLd = [
@@ -142,7 +143,7 @@ function langPage(l, data, n, cfg) {
     { "@context": "https://schema.org", "@type": "Dataset", name: `${fmt(n)} most common ${label} words`,
       description: `Frequency list of the ${fmt(n)} most common ${label} words from film and TV subtitles, with coverage and ${l.code === "en" ? "definitions" : "English meanings"}.`,
       url: `${SITE}${url}`, license: "https://creativecommons.org/licenses/by-sa/4.0/", isAccessibleForFree: true,
-      creator: { "@type": "Organization", name: "LinguaScript", url: SITE }, isBasedOn: data.sourceUrl, dateModified: data.builtAt,
+      creator: { "@type": "Organization", name: "LinguaScript", url: SITE }, isBasedOn: data.sourceUrl,
       inLanguage: l.code, distribution: [{ "@type": "DataDownload", encodingFormat: "text/csv", contentUrl: `${SITE}${csvPath}` }] },
     { "@context": "https://schema.org", "@type": "FAQPage", mainEntity: faqs.map(([q, a]) => ({ "@type": "Question", name: q, acceptedAnswer: { "@type": "Answer", text: a } })) },
   ];
@@ -153,22 +154,25 @@ function langPage(l, data, n, cfg) {
 <p class="crumbs"><a href="/words">Most common words</a> › ${n === 100 ? esc(l.name) : `<a href="${pagePath(l, 100)}">${esc(l.name)}</a> › Top ${fmt(n)}`}</p>
 <div class="chams">${chameleon("red", 54, "New word")}${chameleon("orange", 54, "Learning")}${chameleon("green", 54, "Known")}${chameleon("gold", 54, "Review due")}${chameleon("blue", 54, "100% known")}</div>
 <h1>The ${fmt(n)} most common ${esc(l.name)} words</h1>
-<p class="lead">These ${fmt(n)} words are <strong>${cov}% of everything said in ${esc(l.name)} films and TV</strong>. Learn them first and real ${esc(l.name)} opens up months sooner.${l.note ? ` This list is <strong>${esc(l.note)}</strong>.` : ""}</p>
-<p class="answer">The most common ${esc(l.name)} word is ${q(top3[0])}, followed by ${q(top3[1])} and ${q(top3[2])}. Just ${fmt(need[50] || 0)} words make up half of everything people say, and the top ${fmt(n)} cover ${cov}%.</p>
-<p class="updated">Updated ${esc(data.builtAt)} · <a href="${csvPath}" download>Download CSV (works with Anki)</a> · <a href="${GUIDE_PATH}#anki">How to import it</a></p>
-<section class="card" aria-label="How much these words cover"><div class="big">${cov}%</div><div style="color:var(--muted);font-size:14px">of real ${esc(l.name)} speech, from just ${fmt(n)} words</div><div class="bars">${bars}</div>
+<p class="lead">These ${fmt(n)} word forms account for <strong>${cov}% of word occurrences in our ${esc(l.name)} film and TV subtitle corpus</strong>. Start with their meanings, then listen for them in short sentences.${l.note ? ` This list is <strong>${esc(l.note)}</strong>.` : ""}</p>
+<p class="answer">The most common ${esc(l.name)} word form in this corpus is ${q(top3[0])}, followed by ${q(top3[1])} and ${q(top3[2])}. The top ${fmt(n)} cover ${cov}% of corpus tokens. This is vocabulary coverage, not a promise to understand ${cov}% of a film.</p>
+<p class="updated"><a href="${csvPath}" download>Download CSV (works with Anki)</a> · <a href="${GUIDE_PATH}#anki">How to import it</a> · <a href="${data.sourceUrl}" rel="noopener">Corpus source and method</a></p>
+<nav class="toc" aria-label="Choose a list size">${SIZES.map((s) => `<a href="${pagePath(l, s)}"${s === n ? ' aria-current="page"' : ""}>Top ${fmt(s)}</a>`).join("")}</nav>
+<section class="card" aria-label="How much these words cover"><div class="big">${cov}%</div><div style="color:var(--muted);font-size:14px">of ${esc(l.name)} subtitle tokens in this corpus</div><div class="bars">${bars}</div>
 <p style="margin:14px 0 0;font-size:14px;color:var(--muted)">Why so few words go so far: <a href="/frequent-words">Zipf's law, explained</a>.</p></section>
 <h2>How many ${esc(l.name)} words do you need?</h2>
 <table class="need"><caption class="sr">Words needed for each share of real ${esc(l.name)} speech</caption><thead><tr><th>To understand</th><th>You need about</th></tr></thead><tbody>${[50, 75, 80, 90].filter((g) => need[g]).map((g) => `<tr><td>${g}% of words you hear</td><td><strong>${fmt(need[g])}</strong> words</td></tr>`).join("")}</tbody></table>
 <p style="color:var(--muted);font-size:15px">After the first few hundred words, each new word adds a little less. That's why the order matters: start at the top of this list.</p>
 <h2>Tip for ${esc(l.name)} learners</h2><p style="color:var(--muted)">${esc(TIPS[l.code] || "")}</p>
+${l.code === "fr" ? `<h2>Common French words in everyday sentences</h2><p class="body">Short grammar words have several uses. These original examples show why a single English gloss is only a starting point. Apostrophes join forms: je + ai becomes j’ai; à + le becomes au.</p><table><caption class="sr">Original French examples with English translations</caption><thead><tr><th>Word</th><th>French example</th><th>English</th></tr></thead><tbody>${FRENCH_EXAMPLES.map(([w, example, meaning]) => `<tr><td>${esc(w)}</td><td lang="fr" translate="no">${esc(example)}</td><td>${esc(meaning)}</td></tr>`).join("")}</tbody></table>` : ""}
+<h2>How to study ${n === 50 ? "your first 50" : "this frequency list"}</h2><ol class="steps"><li><b>Take a small group.</b> Choose a few unfamiliar forms, read their meanings and listen. Learn contractions as a phrase rather than isolated fragments.</li><li><b>Try to recall them.</b> Cover the meaning before checking your answer. Use the CSV if you already study in Anki.</li><li><b>Meet them in context.</b> Choose a short clip you can follow and listen for these forms. Rewatch before adding more words.</li></ol><p class="body">${n === 50 ? `Next: <a href="${pagePath(l, 100)}">the 100 most common ${esc(l.name)} words</a>.` : `A smaller starting point: <a href="${pagePath(l, 50)}">the top 50 ${esc(l.name)} words</a>.`} Read <a href="/learn/comprehensible-input">how to choose comprehensible input</a> rather than judging listening difficulty from a list alone.</p>
 <h2>Turn the list green</h2>
 <div class="card you"><span id="youCham">${chameleon("red", 58)}</span><div><div class="count"><span id="known">0</span> of ${fmt(n)} known</div><div style="font-size:14px;color:var(--muted)">Tap “I know it” on words you know. Red words are new; known words turn green. Saved on this device.</div></div><div class="ptrack" aria-hidden="true"><div class="pfill" id="pfill"></div></div></div>
 <h2>The list</h2>${jump}
 <table><caption class="sr">The ${fmt(n)} most common ${esc(l.name)} words with ${l.code === "en" ? "meanings" : "English meanings"}</caption><thead><tr><th>#</th><th>Word</th><th>${l.code === "en" ? "Meaning" : "In English"}</th><th></th></tr></thead><tbody>${rows}</tbody></table>
 ${cta(l)}
 <h2>Questions</h2>${faqs.map(([q, a]) => `<details><summary>${esc(q)}</summary><p>${esc(a)}</p></details>`).join("")}
-<h2>More word lists</h2><div class="langs">${LANGS.filter((x) => x.code !== l.code).map((x) => `<a href="${pagePath(x, 100)}"><b>${esc(x.name)}</b><small>Top 100 · 1,000 · 3,000</small></a>`).join("")}</div>
+<h2>More word lists</h2><div class="langs">${LANGS.filter((x) => x.code !== l.code).map((x) => `<a href="${pagePath(x, 100)}"><b>${esc(x.name)}</b><small>Top 50 · 100 · 1,000 · 3,000</small></a>`).join("")}</div>
 <p class="method" style="margin-top:26px">Method: word counts from OpenSubtitles 2018 (FrequencyWords, CC BY-SA 4.0); abbreviations and broken fragments removed; ${l.code === "en" ? "definitions written by LinguaScript" : l.code === "fr" ? "meanings from our French dictionary, the top 100 checked by hand" : "the top 100 meanings written and checked by LinguaScript; more meanings load from our dictionary"}. Built ${data.builtAt}.</p>
 ` + script(l, n, cfg) + foot() + "</body></html>";
 }
@@ -200,14 +204,15 @@ fetch(${JSON.stringify(cfg.supabaseUrl)}+"/rest/v1/word_dictionary?select=word,t
 
 function hubPage(all) {
   const title = "Most Common Words in 6 Languages: Free Frequency Lists";
-  const desc = "Free lists of the 100, 1,000 and 3,000 most common Spanish, French, German, Italian, Portuguese and English words, from real films and TV.";
+  const desc = "Free frequency lists: the 50, 100, 1,000 and 3,000 most common Spanish, French, German, Italian, Portuguese and English word forms, with audio and CSV.";
   const jsonLd = [{ "@context": "https://schema.org", "@type": "ItemList", name: "Most common words by language",
     itemListElement: LANGS.map((l, i) => ({ "@type": "ListItem", position: i + 1, name: `${l.name} most common words`, url: `${SITE}${pagePath(l, 100)}` })) }];
   return head({ title, desc, url: "/words", jsonLd }) + `
 <p class="crumbs">Most common words</p>
 <div class="chams">${["red", "orange", "green", "gold", "blue"].map((t) => chameleon(t, 54)).join("")}</div>
 <h1>Learn the most common words first</h1>
-<p class="lead">In every language a small group of words does almost all the work. <strong>The top 100 words are about half of everything people say.</strong> Pick a language, see the words, and turn them green.</p>
+<p class="lead">Start with the <strong>50 or 100 most common word forms</strong>, then work towards 1,000 and 3,000. These lists are ranked by occurrences in OpenSubtitles 2018, not by dictionary order or CEFR level.</p>
+<nav class="toc" aria-label="Beginner word lists">${LANGS.map((l) => `<a href="${pagePath(l, 50)}">Top 50 ${esc(l.name)} words</a>`).join("")}</nav>
 <div class="langs">${LANGS.map((l) => { const d = all[l.file]; return `<a href="${pagePath(l, 100)}"><b>${esc(l.name)}${l.note ? ` <small>(Brazil)</small>` : ""}</b><small>Top 100 = <strong style="color:${C.green}">${d.coverage[100]}%</strong> · top 1,000 = ${d.coverage[1000]}% · top 3,000 = ${d.coverage[3000]}%</small></a>`; }).join("")}</div>
 <p class="body" style="margin-top:18px">Every list downloads as a CSV for Anki or Quizlet. New to flashcards? Read <a href="${GUIDE_PATH}">how to use Anki and Quizlet to learn a language</a>.</p>
 <h2>Why this works</h2><p style="color:var(--muted)">Languages follow <a href="/frequent-words">Zipf's law</a>: the most common word appears about twice as often as the second, three times as often as the third, and so on. So a few hundred words cover most of a conversation, and LinguaScript always teaches those first.</p>
@@ -242,7 +247,7 @@ function guidePage(all) {
   const jsonLd = [
     { "@context": "https://schema.org", "@type": "Article", headline: title, description: desc, url: `${SITE}${url}`,
       author: { "@type": "Organization", name: "LinguaScript", url: SITE }, publisher: { "@type": "Organization", name: "LinguaScript", url: SITE },
-      dateModified: all.es.builtAt, inLanguage: "en" },
+      inLanguage: "en" },
     { "@context": "https://schema.org", "@type": "FAQPage", mainEntity: faqs.map(([q, a]) => ({ "@type": "Question", name: q, acceptedAnswer: { "@type": "Answer", text: a } })) },
     { "@context": "https://schema.org", "@type": "BreadcrumbList", itemListElement: [
       { "@type": "ListItem", position: 1, name: "Most common words", item: `${SITE}/words` },
@@ -356,13 +361,13 @@ const articleCta = (slug) => `<div class="cta card"><p>Try the Chameleon Method 
 const html = (x, all) => (typeof x.html === "function" ? x.html(all) : x.html);
 const words = (a, all) => [a.lead, a.answer, ...a.sections.map((x) => html(x, all))].join(" ").replace(/<[^>]+>/g, " ").split(/\s+/).filter(Boolean).length;
 
-function articlePage(a, builtAt, all) {
+function articlePage(a, all) {
   const url = `/learn/${a.slug}`;
   const mins = Math.max(1, Math.round(words(a, all) / 220));
   const jsonLd = [
     { "@context": "https://schema.org", "@type": "Article", headline: a.title, description: a.desc, url: `${SITE}${url}`,
       author: { "@type": "Organization", name: "LinguaScript", url: SITE }, publisher: { "@type": "Organization", name: "LinguaScript", url: SITE },
-      dateModified: builtAt, inLanguage: "en", citation: a.sources.map((x) => x.replace(/<[^>]+>/g, "").replace(/&amp;/g, "&")) },
+      inLanguage: "en", citation: a.sources.map((x) => x.replace(/<[^>]+>/g, "").replace(/&amp;/g, "&")) },
     { "@context": "https://schema.org", "@type": "FAQPage", mainEntity: a.faqs.map(([q, ans]) => ({ "@type": "Question", name: q, acceptedAnswer: { "@type": "Answer", text: ans } })) },
     { "@context": "https://schema.org", "@type": "BreadcrumbList", itemListElement: [
       { "@type": "ListItem", position: 1, name: "Learn", item: `${SITE}/learn` },
@@ -374,7 +379,7 @@ function articlePage(a, builtAt, all) {
 <div class="chams">${chameleon("red", 54, "New word")}${chameleon("orange", 54, "Learning")}${chameleon("green", 54, "Known")}${chameleon("gold", 54, "Review due")}${chameleon("blue", 54, "100% known")}</div>
 <h1>${esc(a.h1)}</h1>
 <p class="lead">${a.lead}</p>
-<p class="meta">${mins} min read · Updated ${esc(builtAt)} · Sources at the end</p>
+<p class="meta">${mins} min read · Written by LinguaScript · Sources at the end</p>
 <p class="answer">${a.answer}</p>
 <nav class="toc" aria-label="On this page">${a.sections.map((x) => `<a href="#${x.id}">${esc(x.h2.replace(/\s*\(.*\)$/, ""))}</a>`).join("")}</nav>
 ${a.sections.map((x, i) => `<h2 id="${x.id}">${esc(x.h2)}</h2>${html(x, all)}${i === 2 ? articleCta(a.slug) : ""}`).join("\n")}
@@ -386,7 +391,7 @@ ${articleCta(a.slug)}
 ` + foot() + "</body></html>";
 }
 
-function learnHub(builtAt) {
+function learnHub() {
   const title = "How Languages Are Learned: Simple, Cited Guides";
   const desc = "High-frequency words, comprehensible input and output, the output hypothesis and Kató Lomb's three pillars, explained simply with sources.";
   const list = LEARN_ORDER.map((s) => ARTICLES.find((x) => x.slug === s));
@@ -408,21 +413,26 @@ function learnHub(builtAt) {
 <li><b>Keep it fun and fearless.</b> (Motivation + Time) ÷ Inhibition = Result. <a href="/learn/kato-lomb-chameleon-method">Kató Lomb &amp; the Chameleon Method</a></li>
 </ol>
 ${articleCta("hub")}
-<p class="method">Updated ${esc(builtAt)}.</p>
+<p class="method">Original guides by LinguaScript, with research sources on each article.</p>
 ` + foot() + "</body></html>";
 }
 
 /** Writes dist/words/** as static HTML. Returns the paths written. */
 export function renderWordPages(distDir, root, cfg = {}) {
   const all = {};
-  for (const l of LANGS) all[l.file] = JSON.parse(fs.readFileSync(path.join(root, "src/data/wordlists", `${l.file}.json`), "utf8"));
+  for (const l of LANGS) {
+    const data = JSON.parse(fs.readFileSync(path.join(root, "src/data/wordlists", `${l.file}.json`), "utf8"));
+    data.coverage = Object.fromEntries(SIZES.map((n) => [n, vocabularyCoverage(data, n)]));
+    if (l.code === "fr") data.words = data.words.map((w) => ({ ...w, m: FRENCH_MEANINGS[w.w] || w.m }));
+    all[l.file] = data;
+  }
   // /words/spanish → dist/words/spanish.html: Cloudflare's default html_handling serves it at
   // the clean URL with no redirect (a folder index.html would 307 to a trailing slash).
   const write = (p, html) => { const file = path.join(distDir, `${p}.html`); fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, html); };
   write("words", hubPage(all));
   write(GUIDE_PATH.slice(1), guidePage(all));
-  write("learn", learnHub(all.es.builtAt));
-  for (const a of ARTICLES) write(`learn/${a.slug}`, articlePage(a, all.es.builtAt, all));
+  write("learn", learnHub());
+  for (const a of ARTICLES) write(`learn/${a.slug}`, articlePage(a, all));
   for (const l of LANGS) for (const n of SIZES) {
     write(pagePath(l, n).slice(1), langPage(l, all[l.file], n, cfg));
     // CSV next to the page (rank, word, meaning, count): imports straight into Anki. CC BY-SA like the source.

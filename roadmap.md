@@ -1,4 +1,5 @@
 # Current work
+- [ ] Improve crawlable frequency lists and articles, add top-50 lists, synchronize the sitemap, and verify search discovery without Lovable publishing.
 - [x] Implement branded phone Google sign-in with attempt-bound, one-use returns to the existing app page; callback tests and phone button/bridge checked.
 - [ ] Verify real phone Google sign-in: requires the website revision on Cloudflare and a new phone build/device; no native device is available here.
 - [x] Connect Search Console, check submitted sitemap/indexing/live SEO pages, and deliver UK/US evidence-backed organic acquisition priorities in docs/organic-search-audit-2026-11-22.md.
