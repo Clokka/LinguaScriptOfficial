@@ -7,6 +7,11 @@ package __PACKAGE__
 //   "common" — deck words coloured as in "text", PLUS a gold ring around
 //            common words not yet in a deck (same idea as the onboarding rings).
 // Tap any word found on screen → its card (meaning + Save). Tap anywhere else → close.
+//   live = true (🔴 Live colours, hold the bubble): a deck-coloured UNDERLINE under
+//            each word instead of a redraw, so the real subtitle stays visible —
+//            the next screen read must see the NEW subtitle, not our paint. The
+//            window is not touchable then (taps reach the video); setHits()
+//            swaps the words in place whenever the subtitle changes.
 
 import android.animation.ValueAnimator
 import android.annotation.SuppressLint
@@ -27,10 +32,11 @@ import android.view.animation.LinearInterpolator
 @SuppressLint("ViewConstructor")
 class WordOverlayView(
   context: Context,
-  private val hits: List<WordHit>,
+  private var hits: List<WordHit>,
   private val style: String,
   private val onWordTap: (WordHit) -> Unit,
   private val onDismiss: () -> Unit,
+  private val live: Boolean = false,
 ) : View(context) {
 
   private val density = resources.displayMetrics.density
@@ -57,8 +63,9 @@ class WordOverlayView(
   private var phase = 0f
   // "text": deck words recoloured. "common": deck words recoloured, plus a
   // gold ring around common words not yet in a deck (worth tapping to save).
-  private val coloured = hits.filter { it.colour != null && (style == "common" || it.colour != DeckStore.COMMON) }
-  private val hasGold = coloured.any { it.colour == DeckStore.GOLD }
+  private var coloured = pick(hits)
+  private var hasGold = coloured.any { it.colour == DeckStore.GOLD }
+  private fun pick(list: List<WordHit>) = list.filter { it.colour != null && (style == "common" || it.colour != DeckStore.COMMON) }
   private val animator = ValueAnimator.ofFloat(0f, 1f).apply {
     duration = 2200
     repeatCount = ValueAnimator.INFINITE
@@ -71,6 +78,16 @@ class WordOverlayView(
     if (hasGold) animator.start()
   }
 
+  /** Live mode: the subtitle changed — show the new words in place. */
+  fun setHits(next: List<WordHit>) {
+    hits = next
+    coloured = pick(next)
+    hasGold = coloured.any { it.colour == DeckStore.GOLD }
+    if (hasGold && isAttachedToWindow && !animator.isStarted) animator.start()
+    if (!hasGold) animator.cancel()
+    invalidate()
+  }
+
   override fun onDetachedFromWindow() {
     animator.cancel()
     super.onDetachedFromWindow()
@@ -78,7 +95,8 @@ class WordOverlayView(
 
   override fun onDraw(canvas: Canvas) {
     for (h in coloured) {
-      if (h.colour == DeckStore.COMMON || h.busy) drawRing(canvas, h) else drawText(canvas, h)
+      if (live) drawUnderline(canvas, h)
+      else if (h.colour == DeckStore.COMMON || h.busy) drawRing(canvas, h) else drawText(canvas, h)
     }
     drawPill(canvas)
   }
@@ -136,12 +154,26 @@ class WordOverlayView(
     canvas.drawRoundRect(box, radius, radius, stroke)
   }
 
+  // Live mode: a thick rounded bar just under the word, in its deck colour.
+  private fun drawUnderline(canvas: Canvas, h: WordHit) {
+    val r = h.rect
+    val thick = dp(3.5f)
+    val top = r.bottom + dp(2f)
+    fill.shader = null
+    fill.color = if (h.colour == DeckStore.COMMON) brand[DeckStore.GOLD]!! else brand[h.colour] ?: Color.RED
+    if (h.colour == DeckStore.GOLD) fill.setShadowLayer(dp(3f) + dp(5f) * pulse(), 0f, 0f, Color.argb(170, 255, 200, 60))
+    else fill.clearShadowLayer()
+    canvas.drawRoundRect(RectF(r.left.toFloat(), top, r.right.toFloat(), top + thick), thick / 2, thick / 2, fill)
+    fill.clearShadowLayer()
+  }
+
   /** 0..1..0 over one cycle. */
   private fun pulse() = if (phase < 0.5f) phase * 2f else (1f - phase) * 2f
 
   // "● ● ● ●  8 words · tap one" at the top.
   private fun drawPill(canvas: Canvas) {
-    val label = if (coloured.isEmpty()) "Tap any word to translate"
+    val label = if (live) "LIVE · ${coloured.size} word${if (coloured.size == 1) "" else "s"} · tap 🦎 to pause"
+      else if (coloured.isEmpty()) "Tap any word to translate"
       else "${coloured.size} word${if (coloured.size == 1) "" else "s"} · tap any word"
     pillPaint.textSize = dp(13f)
     pillPaint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
