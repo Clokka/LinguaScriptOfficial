@@ -56,7 +56,7 @@ ${colouredLine([["Mi", "g"], ["perro", "g"], ["siempre", "g"], ["duerme", "r"], 
 <tr><td><strong>95%</strong></td><td>Hard work, but you follow the main story.</td></tr>
 <tr><td><strong>90%</strong></td><td>1 word in 10 is unknown. For most people, too much.</td></tr>
 </tbody></table>
-<p class="body">For films, one study estimated that you need about <strong>3,000 word families</strong> (plus names) to know 95% of the words, and about 6,000 for 98% (Webb &amp; Rodgers, 2009). That's why <a href="/words">learning the most common words first</a> matters so much: they unlock comprehensible input faster than anything else.</p>` },
+<p class="body">For English-language films, Webb &amp; Rodgers (2009) estimated about <strong>3,000 word families</strong> (plus proper nouns and marginal words) for 95% coverage, and about 6,000 for 98%. Word families are not the same unit as the individual forms on our <a href="/words">frequency lists</a>. These figures describe vocabulary coverage, not guaranteed understanding of a scene.</p>` },
       { id: "debate", h2: "Is it true? What critics say", html: `
 <p class="body">Almost everyone agrees that <strong>lots of understandable input is essential</strong>. The debate is about whether it's <i>enough</i>:</p>
 <ul class="body">
@@ -65,6 +65,16 @@ ${colouredLine([["Mi", "g"], ["perro", "g"], ["siempre", "g"], ["duerme", "r"], 
 <li>Many researchers today think noticing, practice and some explicit teaching speed things up, on top of input.</li>
 </ul>
 <p class="body">The fair summary: comprehensible input is the <strong>foundation</strong>, not the whole house.</p>` },
+      { id: "french", h2: "Comprehensible input for French beginners", html: `
+<p class="body">If you are starting French, an unadapted film can be too difficult even with translations. Choose short, slow explanations supported by gestures, pictures and repeated phrases. The goal is to follow a message, not translate every word.</p>
+<table><caption class="sr">Choosing French input by starting level</caption><thead><tr><th>Starting point</th><th>Try</th><th>Check</th></tr></thead><tbody>
+<tr><td>Below A1</td><td>A short visual story about familiar objects or actions</td><td>Can you explain what happened using the pictures and familiar words?</td></tr>
+<tr><td>A1</td><td>A simple narrated routine or beginner dialogue with French captions</td><td>Can you follow the main message without pausing every sentence?</td></tr>
+<tr><td>A2 and beyond</td><td>A short clip on a familiar interest, then gradually less familiar material</td><td>Are the unknown words occasional rather than constant?</td></tr>
+</tbody></table>
+<p class="body">CEFR labels are only starting points: two A1 learners can know different words. Begin with <a href="/words/french/top-50">50 common French word forms</a> or the <a href="/words/french">top 100 French words</a>, practise them in phrases, and keep listening alongside the list. The <a href="/words/french/top-1000">French top-1,000 list</a> is a longer reference, not a requirement before you can watch anything.</p>
+<h3>A short French listening routine</h3><ol class="steps"><li><b>Watch once for meaning.</b> Pick a short segment and tell yourself the main idea. If you cannot follow it, choose something easier.</li><li><b>Check a few phrases.</b> Replay with captions. Look up the words that block the message, not every unfamiliar detail.</li><li><b>Replay and listen.</b> Listen for those phrases again. Use translations as support, then try the segment with French captions only.</li><li><b>Recall one message.</b> Explain what happened or repeat a useful phrase. Come back to it on another day.</li></ol>
+<p class="body">This is a practical study suggestion, not a tested LinguaScript outcome or a fixed timetable for reaching fluency. A vocabulary-coverage score can guide your choice when a transcript is available; it cannot measure listening speed, grammar knowledge or attention.</p>` },
       { id: "find", h2: "How to get comprehensible input every day", html: `
 <ol class="steps">
 <li><b>Choose things you actually enjoy.</b> Interest keeps the "affective filter" low and keeps you coming back. A cooking channel you love beats a boring textbook dialogue.</li>

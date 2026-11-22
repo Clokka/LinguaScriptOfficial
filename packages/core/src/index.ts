@@ -10,3 +10,4 @@ export * from './notifications';
 export * from './xp';
 export * from './pillars';
 export * from './export';
+export * from './phoneGoogle';
