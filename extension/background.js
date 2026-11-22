@@ -107,7 +107,11 @@ function rest(path, accessToken, init = {}) {
 function normalizeToken(raw) {
   return (raw || '')
     .toLowerCase()
-    .replace(/[.,!?;:"'`«»()\[\]…，。、！？；：「」『』（）《》〈〉“”‘’]/g, '')
+    .replace(/[.,!?;:"'`«»()\[\]…，。、！？；：「」『』（）《》〈〉“”‘’¿¡]/g, '')
+    .trim()
+    // ANY punctuation or symbol at the edges ("¿Sabes", "-Impecable", "hola!!", "«oui»"),
+    // never inside: "peut-être" keeps its hyphen.
+    .replace(/^[\p{P}\p{S}]+|[\p{P}\p{S}]+$/gu, '')
     .trim();
 }
 

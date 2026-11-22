@@ -5,7 +5,17 @@ package __PACKAGE__
 // your deck words light up over that screen (Colour or Rings style). Tap ANY
 // word (deck or not — e.g. YouTube subtitles) for its meaning and Save; tap
 // anywhere else to close. Drag to move (drop it on the ✕ at the bottom to turn
-// it off), long-press to open LinguaScript.
+// it off). HOLD it for a menu: Colour this screen · 🔴 Live colours · Open app.
+//
+// 🔴 Live colours: one "share your screen?" yes, then the projection stays on.
+// Android only sends a frame when the screen changes, so a still screen costs
+// nothing. Each frame is read with ML Kit, one read at a time, as often as the
+// phone keeps up (gap = half the last read time, ≥120 ms; quicker for 3 s after
+// a subtitle change, slower when nothing changes). Only a CHANGED line redraws.
+// Words get deck-coloured UNDERLINES (the real subtitle stays visible, or the
+// next read would see our paint), and the overlay lets taps through to the
+// video. Tap the bubble → pause on this line and tap words; hold → Stop.
+// Stops by itself after 20 min without a new line.
 //
 // Turned on and off from the app (BubbleStartActivity). Started by
 // plugins/withWordBubble.js.
@@ -72,6 +82,10 @@ class BubbleService : Service() {
   private var hits: List<WordHit> = emptyList()
   private var busy = false
   private var style = "text"
+  /** The consent screen was opened for 🔴 Live colours, not one screenshot. */
+  private var pendingLive = false
+  private var live: Live? = null
+  private var menu: View? = null
 
   private val density get() = resources.displayMetrics.density
   private fun dp(v: Int) = (v * density).toInt()
@@ -105,13 +119,17 @@ class BubbleService : Service() {
         val code = intent.getIntExtra(EXTRA_RESULT_CODE, 0)
         @Suppress("DEPRECATION")
         val data: Intent? = if (Build.VERSION.SDK_INT >= 33) intent.getParcelableExtra(EXTRA_RESULT_DATA, Intent::class.java) else intent.getParcelableExtra(EXTRA_RESULT_DATA)
-        if (data != null) capture(code, data) else { busy = false; bubble?.visibility = View.VISIBLE }
+        if (data == null) { busy = false; pendingLive = false; bubble?.visibility = View.VISIBLE }
+        else if (pendingLive) { pendingLive = false; startLive(code, data) }
+        else capture(code, data)
       }
     }
     return START_STICKY
   }
 
   override fun onDestroy() {
+    stopLive()
+    hideMenu()
     hideCloseTarget()
     closeOverlay()
     bubble?.let { runCatching { wm.removeView(it) } }
@@ -179,26 +197,29 @@ class BubbleService : Service() {
     }
     placeOnScreen(params)
 
-    // Drag to move (snaps to the nearest edge), tap to colour, long-press to open the app.
+    // Drag to move (snaps to the nearest edge), tap to colour, HOLD for the menu.
     // While dragging, a ✕ shows at the bottom: drop the bubble on it to turn it off.
-    var downX = 0f; var downY = 0f; var startX = 0; var startY = 0; var downAt = 0L; var moved = false
+    var downX = 0f; var downY = 0f; var startX = 0; var startY = 0; var moved = false; var held = false
+    val holdRunnable = Runnable { held = true; view.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS); showMenu() }
     view.setOnTouchListener { _, e ->
       when (e.action) {
         MotionEvent.ACTION_DOWN -> {
           downX = e.rawX; downY = e.rawY; startX = params.x; startY = params.y
-          downAt = SystemClock.uptimeMillis(); moved = false
+          moved = false; held = false
+          main.postDelayed(holdRunnable, 450)
         }
         MotionEvent.ACTION_MOVE -> {
           val dx = e.rawX - downX; val dy = e.rawY - downY
-          if (!moved && (abs(dx) > dp(6) || abs(dy) > dp(6))) { moved = true; showCloseTarget() }
+          if (!moved && !held && (abs(dx) > dp(6) || abs(dy) > dp(6))) { moved = true; main.removeCallbacks(holdRunnable); showCloseTarget() }
           if (moved) {
             params.x = startX + dx.toInt(); params.y = startY + dy.toInt()
             runCatching { wm.updateViewLayout(view, params) }
             highlightCloseTarget(overCloseTarget(e.rawX, e.rawY))
           }
         }
-        MotionEvent.ACTION_CANCEL -> hideCloseTarget()
+        MotionEvent.ACTION_CANCEL -> { main.removeCallbacks(holdRunnable); hideCloseTarget() }
         MotionEvent.ACTION_UP -> {
+          main.removeCallbacks(holdRunnable)
           val dismiss = moved && overCloseTarget(e.rawX, e.rawY)
           hideCloseTarget()
           if (dismiss) {
@@ -208,9 +229,7 @@ class BubbleService : Service() {
             getSharedPreferences("ls-bubble", MODE_PRIVATE).edit().putBoolean("left", left).putInt("y", params.y).apply()
             placeOnScreen(params)
             runCatching { wm.updateViewLayout(view, params) }
-          } else if (SystemClock.uptimeMillis() - downAt > 600) {
-            openApp()
-          } else {
+          } else if (!held) {
             onBubbleTap()
           }
         }
@@ -245,6 +264,8 @@ class BubbleService : Service() {
     super.onConfigurationChanged(newConfig)
     // Coloured words were drawn for the old screen shape, so they'd be in the wrong place now.
     closeOverlay()
+    hideMenu()
+    live?.let { resizeLive(it) }
     val view = bubble ?: return
     val p = bubbleParams ?: return
     placeOnScreen(p)
@@ -313,28 +334,40 @@ class BubbleService : Service() {
   }
 
   private fun onBubbleTap() {
+    if (live != null) { pauseLive(); return }
     if (overlay != null) { closeOverlay(); return }
     if (busy) return
-    DeckStore.load(this)
-    // Any word can be tapped now, so all we need is the learner's language.
-    if (DeckStore.language.isEmpty()) {
-      Toast.makeText(this, "Open LinguaScript once so the bubble knows your words", Toast.LENGTH_LONG).show()
-      return
-    }
-    if (!WordFinder.supports(DeckStore.language)) {
-      Toast.makeText(this, "The bubble can't read this language yet", Toast.LENGTH_LONG).show()
-      return
-    }
+    if (!readyToRead()) return
     busy = true
     bubble?.visibility = View.GONE // keep the bubble out of the screenshot
+    askScreen()
+  }
+
+  private fun askScreen() {
     startActivity(Intent(this, BubbleStartActivity::class.java)
       .setAction(BubbleStartActivity.ACTION_CAPTURE)
       .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
   }
 
+  /** The learner's language is known and ML Kit can read it. */
+  private fun readyToRead(): Boolean {
+    DeckStore.load(this)
+    // Any word can be tapped now, so all we need is the learner's language.
+    if (DeckStore.language.isEmpty()) {
+      Toast.makeText(this, "Open LinguaScript once so the bubble knows your words", Toast.LENGTH_LONG).show()
+      return false
+    }
+    if (!WordFinder.supports(DeckStore.language)) {
+      Toast.makeText(this, "The bubble can't read this language yet", Toast.LENGTH_LONG).show()
+      return false
+    }
+    return true
+  }
+
   /** The consent screen was cancelled. */
   fun captureCancelled() {
     busy = false
+    pendingLive = false
     bubble?.visibility = View.VISIBLE
   }
 
@@ -408,12 +441,8 @@ class BubbleService : Service() {
       val image = runCatching { r.acquireLatestImage() }.getOrNull() ?: return@setOnImageAvailableListener
       // Skip the first frames: the consent dialog may still be fading out.
       if (SystemClock.uptimeMillis() - startedAt < 350) { image.close(); return@setOnImageAvailableListener }
-      val plane = image.planes[0]
-      val rowPadding = plane.rowStride - plane.pixelStride * w
-      val full = Bitmap.createBitmap(w + rowPadding / plane.pixelStride, h, Bitmap.Config.ARGB_8888)
-      full.copyPixelsFromBuffer(plane.buffer)
+      val bmp = toBitmap(image, w, h)
       image.close()
-      val bmp = if (full.width != w) Bitmap.createBitmap(full, 0, 0, w, h) else full
       finish(bmp)
     }, main)
 
@@ -424,6 +453,14 @@ class BubbleService : Service() {
       if (display == null) finish(null)
     }, 250)
     main.postDelayed({ finish(null) }, 4000) // never hang
+  }
+
+  private fun toBitmap(image: android.media.Image, w: Int, h: Int): Bitmap {
+    val plane = image.planes[0]
+    val rowPadding = plane.rowStride - plane.pixelStride * w
+    val full = Bitmap.createBitmap(w + rowPadding / plane.pixelStride, h, Bitmap.Config.ARGB_8888)
+    full.copyPixelsFromBuffer(plane.buffer)
+    return if (full.width != w) Bitmap.createBitmap(full, 0, 0, w, h) else full
   }
 
   /** True when (almost) every sampled pixel is black — a protected screen. */
@@ -507,5 +544,247 @@ class BubbleService : Service() {
   fun setStyle(s: String) {
     style = s
     if (overlay != null) showOverlay()
+  }
+
+  // ── Hold menu ───────────────────────────────────────────────────────────────
+
+  @SuppressLint("ClickableViewAccessibility")
+  private fun showMenu() {
+    hideMenu()
+    hideCloseTarget()
+    val items: List<Pair<String, () -> Unit>> = if (live != null) listOf(
+      "⏸  Pause and tap words" to { pauseLive() },
+      "⏹  Stop live colours" to { stopLive(); Toast.makeText(this, "Live colours off", Toast.LENGTH_SHORT).show() },
+      "📱  Open LinguaScript" to { openApp() },
+    ) else listOf(
+      "🎨  Colour this screen" to { onBubbleTap() },
+      "🔴  Live colours" to { startLiveRequest() },
+      "📱  Open LinguaScript" to { openApp() },
+    )
+    val box = android.widget.LinearLayout(this).apply {
+      orientation = android.widget.LinearLayout.VERTICAL
+      setPadding(dp(6), dp(6), dp(6), dp(6))
+      background = GradientDrawable().apply {
+        setColor(Color.parseColor("#F208080B"))
+        cornerRadius = dp(16).toFloat()
+        setStroke(dp(1), Color.parseColor("#33FFFFFF"))
+      }
+      elevation = dp(10).toFloat()
+    }
+    for ((label, action) in items) {
+      box.addView(TextView(this).apply {
+        text = label
+        textSize = 15f
+        setTextColor(Color.parseColor("#F5F5F7"))
+        setPadding(dp(14), dp(12), dp(18), dp(12))
+        setOnClickListener { hideMenu(); action() }
+      })
+    }
+    val bp = bubbleParams ?: return
+    val left = bp.x < resources.displayMetrics.widthPixels / 2
+    val p = WindowManager.LayoutParams(
+      WindowManager.LayoutParams.WRAP_CONTENT, WindowManager.LayoutParams.WRAP_CONTENT, overlayType(),
+      WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH,
+      PixelFormat.TRANSLUCENT,
+    ).apply {
+      gravity = Gravity.TOP or (if (left) Gravity.START else Gravity.END)
+      x = dp(68)
+      y = (bp.y - dp(40)).coerceAtLeast(dp(24))
+    }
+    box.setOnTouchListener { _, e -> if (e.action == MotionEvent.ACTION_OUTSIDE) { hideMenu(); true } else false }
+    runCatching { wm.addView(box, p); menu = box }
+  }
+
+  private fun hideMenu() {
+    menu?.let { runCatching { wm.removeView(it) } }
+    menu = null
+  }
+
+  // ── 🔴 Live colours ─────────────────────────────────────────────────────────
+
+  private inner class Live(val projection: MediaProjection, var reader: ImageReader, var w: Int, var h: Int) {
+    var display: VirtualDisplay? = null
+    var view: WordOverlayView? = null
+    var held: android.media.Image? = null // newest frame not read yet
+    var reading = false
+    var scheduled = false
+    var nextAt = 0L
+    var quietUntil = 0L                   // our own toast is on screen: don't read it as subtitles
+    var readMs = 250L                     // how long this phone takes to read a frame
+    var lastLine = ""
+    var lastChangeAt = SystemClock.uptimeMillis()
+    var checkedBlack = false
+  }
+
+  private fun startLiveRequest() {
+    if (overlay != null) closeOverlay()
+    if (busy || live != null || !readyToRead()) return
+    busy = true
+    pendingLive = true
+    askScreen()
+  }
+
+  private fun startLive(resultCode: Int, data: Intent) {
+    goForeground(capturing = true)
+    val mpm = getSystemService(MediaProjectionManager::class.java)
+    val projection: MediaProjection = try {
+      mpm.getMediaProjection(resultCode, data) ?: return captureFailed()
+    } catch (_: Exception) { return captureFailed() }
+    val (w, h, dpi) = screenSize()
+    val s = Live(projection, ImageReader.newInstance(w, h, PixelFormat.RGBA_8888, 3), w, h)
+    live = s
+    busy = false
+    bubble?.visibility = View.VISIBLE
+    setBubbleLive(true)
+    projection.registerCallback(object : MediaProjection.Callback() {
+      override fun onStop() { main.post { if (live === s) stopLive() } }
+    }, main)
+    s.reader.setOnImageAvailableListener({ r -> onLiveFrame(s, r) }, main)
+    s.display = runCatching {
+      projection.createVirtualDisplay("ls-live", w, h, dpi, DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR, s.reader.surface, null, main)
+    }.getOrNull()
+    if (s.display == null) { stopLive(); captureFailed(); return }
+    showLiveOverlay(s)
+    s.quietUntil = SystemClock.uptimeMillis() + 2600
+    Toast.makeText(this, "🔴 Live colours on. Tap 🦎 to pause and tap a word", Toast.LENGTH_SHORT).show()
+    main.postDelayed(liveIdleCheck, 60_000)
+  }
+
+  private fun onLiveFrame(s: Live, r: ImageReader) {
+    val image = runCatching { r.acquireLatestImage() }.getOrNull() ?: return
+    if (live !== s) { image.close(); return }
+    s.held?.close()
+    s.held = image
+    scheduleLiveRead(s)
+  }
+
+  private fun scheduleLiveRead(s: Live) {
+    if (s.reading || s.scheduled) return
+    val now = SystemClock.uptimeMillis()
+    val wait = maxOf(0L, maxOf(s.nextAt, s.quietUntil, if (menu != null) now + 300 else 0L) - now)
+    s.scheduled = true
+    main.postDelayed({ s.scheduled = false; readLive(s) }, wait)
+  }
+
+  private fun readLive(s: Live) {
+    if (live !== s || s.reading) return
+    if (menu != null || SystemClock.uptimeMillis() < s.quietUntil) { scheduleLiveRead(s); return }
+    val image = s.held ?: return
+    s.held = null
+    val bmp = runCatching { toBitmap(image, s.w, s.h) }.getOrNull()
+    image.close()
+    if (bmp == null) return
+    s.reading = true
+    val started = SystemClock.uptimeMillis()
+    val blocked = !s.checkedBlack && looksBlack(bmp)
+    WordFinder.find(bmp) { found ->
+      main.post {
+        s.reading = false
+        if (live !== s) return@post
+        val now = SystemClock.uptimeMillis()
+        s.readMs = (s.readMs * 2 + (now - started)) / 3
+        if (!s.checkedBlack) {
+          s.checkedBlack = true
+          if (blocked && found.isEmpty()) {
+            stopLive()
+            Toast.makeText(this, "This app hides its screen (Netflix does this), so LinguaScript can't read it here", Toast.LENGTH_LONG).show()
+            return@post
+          }
+        }
+        val words = found.filterNot { overOurOwnUi(it) }
+        val line = words.joinToString(" ") { it.text }
+        if (line != s.lastLine) {
+          s.lastLine = line
+          s.lastChangeAt = now
+          hits = words
+          s.view?.setHits(words)
+        }
+        // As fast as this phone reads; quicker just after a new line, slower when it's still.
+        val gap = maxOf(120L, s.readMs / 2)
+        s.nextAt = now + if (now - s.lastChangeAt < 3000) gap else minOf(700L, gap * 3)
+        if (s.held != null) scheduleLiveRead(s)
+      }
+    }
+  }
+
+  /** Words inside our own pill or bubble aren't subtitles. */
+  private fun overOurOwnUi(h: WordHit): Boolean {
+    val r = h.rect
+    val m = resources.displayMetrics
+    val pill = android.graphics.Rect(m.widthPixels / 2 - dp(170), dp(44), m.widthPixels / 2 + dp(170), dp(94))
+    if (android.graphics.Rect.intersects(r, pill)) return true
+    val bp = bubbleParams ?: return false
+    val size = dp(56)
+    return android.graphics.Rect.intersects(r, android.graphics.Rect(bp.x, bp.y, bp.x + size, bp.y + size))
+  }
+
+  private fun showLiveOverlay(s: Live) {
+    closeOverlay()
+    val view = WordOverlayView(this, emptyList(), style, ::onWordTap, ::closeOverlay, live = true)
+    val params = WindowManager.LayoutParams(
+      WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT, overlayType(),
+      WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+        WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+      PixelFormat.TRANSLUCENT,
+    ).apply {
+      gravity = Gravity.TOP or Gravity.START
+      if (Build.VERSION.SDK_INT >= 30) layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+      else if (Build.VERSION.SDK_INT >= 28) layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+    }
+    runCatching { wm.addView(view, params); s.view = view }
+    bubble?.let { b -> bubbleParams?.let { p -> runCatching { wm.removeView(b); wm.addView(b, p) } } }
+  }
+
+  /** The phone turned (a film went full screen): read the new screen shape. */
+  private fun resizeLive(s: Live) {
+    val (w, h, dpi) = screenSize()
+    if (w == s.w && h == s.h) return
+    s.held?.close(); s.held = null
+    val old = s.reader
+    s.reader = ImageReader.newInstance(w, h, PixelFormat.RGBA_8888, 3)
+    s.reader.setOnImageAvailableListener({ r -> onLiveFrame(s, r) }, main)
+    s.w = w; s.h = h
+    runCatching { s.display?.resize(w, h, dpi); s.display?.surface = s.reader.surface }
+    runCatching { old.close() }
+    s.lastLine = ""
+    showLiveOverlay(s)
+  }
+
+  /** Tap the bubble while live: keep this line on screen and let the learner tap its words. */
+  private fun pauseLive() {
+    val words = hits
+    stopLive()
+    hits = words
+    if (words.isEmpty()) Toast.makeText(this, "No words on screen right now", Toast.LENGTH_SHORT).show()
+    else showOverlay()
+  }
+
+  private fun stopLive() {
+    val s = live ?: return
+    live = null
+    main.removeCallbacks(liveIdleCheck)
+    s.held?.close(); s.held = null
+    runCatching { s.display?.release() }
+    runCatching { s.projection.stop() }
+    runCatching { s.reader.close() }
+    s.view?.let { runCatching { wm.removeView(it) } }
+    s.view = null
+    goForeground(capturing = false)
+    setBubbleLive(false)
+  }
+
+  private val liveIdleCheck: Runnable = object : Runnable {
+    override fun run() {
+      val s = live ?: return
+      if (SystemClock.uptimeMillis() - s.lastChangeAt > 20 * 60_000L) {
+        stopLive()
+        Toast.makeText(this@BubbleService, "Live colours stopped: no new subtitles for 20 minutes", Toast.LENGTH_LONG).show()
+      } else main.postDelayed(this, 60_000)
+    }
+  }
+
+  /** Red ring while live, green otherwise. */
+  private fun setBubbleLive(on: Boolean) {
+    (bubble?.background as? GradientDrawable)?.setStroke(dp(if (on) 3 else 2), Color.parseColor(if (on) "#FF3B30" else "#34C759"))
   }
 }

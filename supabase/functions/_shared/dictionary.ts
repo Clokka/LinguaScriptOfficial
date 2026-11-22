@@ -26,7 +26,11 @@ export const baseCode = (lang: string) => toLangCode(lang).split("-")[0].toLower
 export const dictKey = (raw: string) =>
   String(raw || "")
     .toLowerCase()
-    .replace(/[.,!?;:"'`«»()\[\]…，。、！？；：「」『』（）《》〈〉“”‘’]/g, "")
+    .replace(/[.,!?;:"'`«»()\[\]…，。、！？；：「」『』（）《》〈〉“”‘’¿¡]/g, "")
+    .trim()
+    // ANY punctuation or symbol at the edges ("¿Sabes", "-Impecable", "hola!!", "«oui»"),
+    // never inside: "peut-être" keeps its hyphen.
+    .replace(/^[\p{P}\p{S}]+|[\p{P}\p{S}]+$/gu, "")
     .trim();
 
 /** "the translator gave up": same letters as the word. */
