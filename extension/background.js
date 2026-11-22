@@ -44,9 +44,28 @@ async function signIn(email, password) {
 // store build and any unpacked copy alike (their extension IDs differ, which
 // broke Google's redirect check with "redirect_uri_mismatch").
 const SIGN_IN_PAGE = `${SITE_URL}/auth?ext=1`;
+// Remember the tab the learner came from (their Netflix video), so once the
+// site has signed the extension in we close the sign-in tab and go back there.
 async function openSiteSignIn() {
-  await chrome.tabs.create({ url: SIGN_IN_PAGE });
+  const [from] = await chrome.tabs.query({ active: true, lastFocusedWindow: true }).catch(() => []);
+  const tab = await chrome.tabs.create({ url: SIGN_IN_PAGE });
+  await chrome.storage.session.set({ ls_sign_in: { tabId: tab.id, returnTabId: from?.id ?? null } }).catch(() => {});
   return { ok: true, opened: true };
+}
+
+async function backToVideo(signInTabId) {
+  const { ls_sign_in: s } = await chrome.storage.session.get('ls_sign_in').catch(() => ({}));
+  await chrome.storage.session.remove('ls_sign_in').catch(() => {});
+  const back = s?.returnTabId != null ? await chrome.tabs.get(s.returnTabId).catch(() => null) : null;
+  if (back) {
+    await chrome.tabs.update(back.id, { active: true }).catch(() => {});
+    await chrome.windows.update(back.windowId, { focused: true }).catch(() => {});
+    // Every frame of the video tab reloads the account (colours, goal, language).
+    chrome.tabs.sendMessage(back.id, { type: 'LS_SIGNED_IN' }).catch(() => {});
+  }
+  // Leave the site's "signed in" message up for a moment, then close the tab
+  // we opened (never a tab the learner opened themselves).
+  if (signInTabId != null && (s?.tabId === signInTabId || !s)) setTimeout(() => chrome.tabs.remove(signInTabId).catch(() => {}), back ? 1200 : 4000);
 }
 
 /** One-time magic-link token from the website → the extension's own session. */
@@ -613,7 +632,13 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     // linguascript.co.uk (signed in, opened with ?ext=1) signs the extension in.
     case 'SITE_SESSION':
       if (!/^https:\/\/(www\.)?linguascript\.co\.uk$/.test(sender.origin || '') || !msg.tokenHash) return false;
-      return reply((async () => storeSession(await sessionFromTokenHash(String(msg.tokenHash))))(), sendResponse);
+      return reply((async () => {
+        const res = await storeSession(await sessionFromTokenHash(String(msg.tokenHash)));
+        const { ls_sign_in: pending } = await chrome.storage.session.get('ls_sign_in').catch(() => ({}));
+        // Only the tab the pop-up opened goes away; a learner signing in on the site normally keeps theirs.
+        if (pending && pending.tabId === sender.tab?.id) backToVideo(sender.tab.id);
+        return res;
+      })(), sendResponse);
 
     case 'SIGN_OUT':
       return reply((async () => {

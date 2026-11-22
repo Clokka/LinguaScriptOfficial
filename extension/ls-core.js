@@ -157,6 +157,15 @@
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === 'local' && changes.ls_language) applyLanguage(changes.ls_language.newValue);
   });
+  // Just signed in on linguascript.co.uk (from the pop-up): back on the video,
+  // load the account's words and language without a page reload.
+  try {
+    chrome.runtime.onMessage.addListener((msg) => {
+      if (msg?.type !== 'LS_SIGNED_IN') return;
+      loadLangs().then(() => { Deck.refresh(true); Deck.startAutoRefresh?.(); Goal.refresh(); });
+      if (window === window.top) showToast('✓ Signed in to LinguaScript');
+    });
+  } catch { /* extension reloaded */ }
   const log = (...a) => { if (DEBUG) console.log('[LinguaScript]', ...a); };
 
   // ── The video's real language ──────────────────────────────────────────────
