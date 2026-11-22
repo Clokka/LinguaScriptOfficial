@@ -37,38 +37,28 @@ async function signIn(email, password) {
   return data; // { access_token, refresh_token, user }
 }
 
-// Google sign-in: Google's own sign-in window for OUR OAuth client, so Google
-// shows linguascript.co.uk (never the backend address). Google returns an ID
-// token to https://<extension-id>.chromiumapp.org/ (must be listed under
-// "Authorized redirect URIs" on the OAuth client), which we swap for a session.
-const GOOGLE_CLIENT_ID = '83696703346-d088shcldb678oec73jmh3o5lqjru132.apps.googleusercontent.com';
-async function sha256Hex(text) {
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
-  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
+// Google sign-in happens ON linguascript.co.uk: the pop-up opens /auth?ext=1,
+// the learner uses the website's own Google button (Google shows our domain),
+// and the site hands the extension a one-time sign-in token (SITE_SESSION
+// below, via site-bridge.js). No chrome.identity redirect, so it works for the
+// store build and any unpacked copy alike (their extension IDs differ, which
+// broke Google's redirect check with "redirect_uri_mismatch").
+const SIGN_IN_PAGE = `${SITE_URL}/auth?ext=1`;
+async function openSiteSignIn() {
+  await chrome.tabs.create({ url: SIGN_IN_PAGE });
+  return { ok: true, opened: true };
 }
-async function signInWithGoogle() {
-  const redirectUri = chrome.identity.getRedirectURL();
-  const rawNonce = crypto.randomUUID() + crypto.randomUUID();
-  const url = 'https://accounts.google.com/o/oauth2/v2/auth?' + new URLSearchParams({
-    client_id: GOOGLE_CLIENT_ID, response_type: 'id_token', redirect_uri: redirectUri,
-    scope: 'openid email profile', nonce: await sha256Hex(rawNonce), prompt: 'select_account',
-  });
-  let finalUrl;
-  try {
-    finalUrl = await chrome.identity.launchWebAuthFlow({ url, interactive: true });
-  } catch {
-    throw new Error('Google sign-in didn’t finish. Try again or use email.');
-  }
-  const idToken = new URLSearchParams(new URL(finalUrl).hash.slice(1)).get('id_token');
-  if (!idToken) throw new Error('Google sign-in failed');
-  const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=id_token`, {
+
+/** One-time magic-link token from the website → the extension's own session. */
+async function sessionFromTokenHash(tokenHash) {
+  const res = await fetch(`${SUPABASE_URL}/auth/v1/verify`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
-    body: JSON.stringify({ provider: 'google', id_token: idToken, nonce: rawNonce }),
+    body: JSON.stringify({ type: 'magiclink', token_hash: tokenHash }),
   });
-  const data = await res.json();
-  if (!res.ok || !data.access_token) throw new Error(data.error_description || data.msg || 'Google sign-in failed');
-  return data; // { access_token, refresh_token, expires_in, user }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.access_token) throw new Error(data.error_description || data.msg || 'Sign-in from linguascript.co.uk failed');
+  return data;
 }
 
 async function refreshSession(refreshToken) {
@@ -582,7 +572,12 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       })(), sendResponse);
 
     case 'GOOGLE_SIGN_IN':
-      return reply((async () => storeSession(await signInWithGoogle()))(), sendResponse);
+      return reply(openSiteSignIn(), sendResponse);
+
+    // linguascript.co.uk (signed in, opened with ?ext=1) signs the extension in.
+    case 'SITE_SESSION':
+      if (!/^https:\/\/(www\.)?linguascript\.co\.uk$/.test(sender.origin || '') || !msg.tokenHash) return false;
+      return reply((async () => storeSession(await sessionFromTokenHash(String(msg.tokenHash))))(), sendResponse);
 
     case 'SIGN_OUT':
       return reply((async () => {
