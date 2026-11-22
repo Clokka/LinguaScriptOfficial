@@ -129,8 +129,17 @@
     return null;
   }
 
+  // Tell the core what language this video's subtitles are, when the file or
+  // <track> says (the core also reads the words themselves).
+  let reportedLang = null;
+  function reportLang(code) {
+    if (code && code !== reportedLang) { reportedLang = code; C.noteVideoLanguage(code, true); }
+  }
+
   function getText() {
     const track = pickTrack();
+    if (track?.lang) reportLang(track.lang);
+    else if (!track && pickedTrack?.language) reportLang(pickedTrack.language);
     const v = video();
     if (track) return v ? P.textAt(track.cues, v.currentTime + offset) : null;
     return trackText() || domText();

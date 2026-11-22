@@ -153,6 +153,86 @@
   });
   const log = (...a) => { if (DEBUG) console.log('[LinguaScript]', ...a); };
 
+  // ── The video's real language ──────────────────────────────────────────────
+  // The session language is the account's pick (say French), but a learner may
+  // put on a Spanish film. Words, colours and the Review link must follow the
+  // SUBTITLES, never be saved into the wrong deck. Adapters report the
+  // player's track language; LiveCaptions also reads the words themselves
+  // (Chrome's built-in language detector). Two matching reports before acting.
+  const baseLang = (code) => {
+    const c = String(code || '').toLowerCase().replace('_', '-');
+    if (/^(zh|cmn|yue)/.test(c)) return 'zh';
+    return c.split('-')[0];
+  };
+  let videoLangVotes = { lang: null, n: 0 };
+  const videoLangAsked = new Set();
+  async function noteVideoLanguage(code, sure = false) {
+    const lang = baseLang(code);
+    if (!LANGUAGES[lang] || lang === learningLang || lang === nativeLang) { videoLangVotes = { lang: null, n: 0 }; return; }
+    videoLangVotes = videoLangVotes.lang === lang ? { lang, n: videoLangVotes.n + 1 } : { lang, n: 1 };
+    if (!sure && videoLangVotes.n < 2) return;
+    if (videoLangAsked.has(lang)) return;
+    videoLangAsked.add(lang);
+    const auth = await send({ type: 'GET_AUTH' });
+    if (!auth?.session) {
+      // Signed out: just follow the video (the guest deck lives on the site).
+      videoLangAsked.delete(lang);
+      chrome.storage.local.set({ ls_language: lang });
+      showToast(`${langFlag(lang)} ${langName(lang)} video: LinguaScript switched to ${langName(lang)}`);
+      return;
+    }
+    const res = await send({ type: 'VIDEO_LANGUAGE', language: lang });
+    if (res?.ok || res?.error !== 'missing') videoLangAsked.delete(lang); // switching back and forth keeps working
+    if (res?.ok) {
+      showToast(`${langFlag(lang)} ${langName(lang)} video: new words go to your ${langName(lang)} deck`);
+    } else if (res?.error === 'missing') {
+      offerLanguage(lang, res.canAdd);
+    }
+  }
+
+  // "This video is in Spanish. Add a Spanish deck?" — one small bar, once per language.
+  function offerLanguage(lang, canAdd) {
+    document.getElementById('ls-lang-offer')?.remove();
+    const bar = document.createElement('div');
+    bar.id = 'ls-lang-offer';
+    bar.setAttribute('translate', 'no');
+    bar.style.cssText = 'position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:2147483647;background:#0B0B0D;color:#F5F5F7;border:1px solid #2A2A30;border-radius:14px;padding:10px 12px;font:600 14px Inter,system-ui,sans-serif;display:flex;gap:10px;align-items:center;box-shadow:0 8px 30px rgba(0,0,0,.5);max-width:92vw;';
+    const text = document.createElement('span');
+    text.textContent = canAdd
+      ? `${langFlag(lang)} This video is in ${langName(lang)}. Keep its words in a separate ${langName(lang)} deck?`
+      : `${langFlag(lang)} This video is in ${langName(lang)}. You already have 5 languages, so remove one on linguascript.co.uk to add ${langName(lang)}.`;
+    bar.appendChild(text);
+    const btn = (label, primary, onClick) => {
+      const b = document.createElement('button');
+      b.textContent = label;
+      b.style.cssText = `border:0;border-radius:999px;padding:7px 12px;font:700 13px Inter,system-ui,sans-serif;cursor:pointer;${primary ? 'background:#22C55E;color:#0B0B0D;' : 'background:#1C1C21;color:#F5F5F7;'}`;
+      b.addEventListener('click', (e) => { e.stopPropagation(); onClick(); });
+      return b;
+    };
+    if (canAdd) {
+      bar.appendChild(btn(`Add ${langName(lang)}`, true, async () => {
+        text.textContent = 'Adding…';
+        const res = await send({ type: 'ADD_LANGUAGE', language: lang });
+        bar.remove();
+        showToast(res?.ok ? `${langFlag(lang)} ${langName(lang)} deck added. New words go there` : 'Couldn’t add that language. Try on linguascript.co.uk');
+      }));
+    }
+    bar.appendChild(btn(canAdd ? 'Not now' : 'OK', false, () => bar.remove()));
+    layerHost().appendChild(bar);
+    setTimeout(() => bar.remove(), 30000);
+  }
+
+  // Chrome's own detector on the last few subtitle lines (no network).
+  function detectFromText(text) {
+    if (!text || text.length < 60 || !chrome.i18n?.detectLanguage) return;
+    try {
+      chrome.i18n.detectLanguage(text, (r) => {
+        const top = r?.languages?.[0];
+        if (r?.isReliable && top && top.percentage >= 70) noteVideoLanguage(top.language);
+      });
+    } catch { /* extension reloaded */ }
+  }
+
   // ── Translation (GTX direct → background chain) ─────────────────────────────
   async function translate(text, targetLang, sourceLang = 'auto') {
     const sl = sourceLang && sourceLang !== 'auto' ? sourceLang : learningLang;
@@ -776,10 +856,15 @@
       current = lines.length - 1;
       addPanelLine(current);
     }
+    let linesAtDetect = 0;
     function logLines(text) {
       const parts = getLines ? getLines() : [text];
       (parts.length ? parts : [text]).forEach(logOne);
       updatePanelCurrent();
+      if (lines.length - linesAtDetect >= 4) {
+        linesAtDetect = lines.length;
+        detectFromText(lines.slice(-8).map((l) => l.text).join(' '));
+      }
     }
 
     function renderPrimary(text) {
@@ -964,7 +1049,7 @@
       const onMsg = (e) => { if (e.source === window && e.data?.source === 'ls-bridge' && e.data.id === id) done(e.data); };
       const timer = setTimeout(() => done({ ok: false, reason: 'timeout' }), 1500);
       addEventListener('message', onMsg);
-      window.postMessage({ source: 'ls-content', type: 'captions-on', id, lang }, '*');
+      window.postMessage({ source: 'ls-content', type: 'captions-on', id, lang, native: nativeLang }, '*');
     });
   }
 
@@ -1377,6 +1462,6 @@
     stopWordsRefresh: () => Deck.stopAutoRefresh(),
     Rings, showToast, openCard, closeCard, makeWordSpan, makeWordSpansFor, splitWords, playDing, escapeHtml,
     SubtitleShield, LiveCaptions, SpeedKeeper, watchLayout, requestCaptions, setStatus, buildOverlay, layerHost, buildPanelShell, togglePanel, buildControls, attachKeyboardShortcuts,
-    injectStyles, openSelectionCard, saveSelectionNow,
+    injectStyles, openSelectionCard, saveSelectionNow, noteVideoLanguage, get accountLangs() { return accountLangs; },
   };
 })();

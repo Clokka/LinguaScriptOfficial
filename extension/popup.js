@@ -145,7 +145,10 @@ $('login-form').addEventListener('submit', async (e) => {
   $('login-btn').textContent = 'Log in';
   if (!res?.ok) { $('auth-error').textContent = res?.error || 'Login failed. Check your email and password.'; return; }
   $('password').value = '';
-  init();
+  // Shown small at the bottom, so it's easy to tell which copy of the extension this is.
+$('ext-version').textContent = `LinguaScript extension v${chrome.runtime.getManifest().version}`;
+
+init();
 });
 
 // Google sign-in happens on linguascript.co.uk (Google shows our domain); the
@@ -160,5 +163,8 @@ $('logout-btn').addEventListener('click', async () => {
   await send({ type: 'SIGN_OUT' });
   show('auth');
 });
+
+// Shown small at the bottom, so it's easy to tell which copy of the extension this is.
+$('ext-version').textContent = `LinguaScript extension v${chrome.runtime.getManifest().version}`;
 
 init();
