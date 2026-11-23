@@ -190,7 +190,7 @@ const Auth = () => {
             }
             await within(finishSignIn(), "Opening your account");
           } catch (e) {
-            toast({ title: "Google sign-in failed", description: e instanceof Error ? e.message : "Please try again", variant: "destructive" });
+            toast({ title: "Google sign-in failed", description: authErrorMessage(e instanceof Error ? e : null), variant: "destructive" });
             setGoogleLoading(false);
             setGis("loading"); // fresh nonce for the next try
           }

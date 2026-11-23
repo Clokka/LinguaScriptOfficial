@@ -158,7 +158,10 @@ $('login-form').addEventListener('submit', async (e) => {
     // Accounts made with Google have no password yet.
     $('auth-error').textContent = /invalid login credentials/i.test(res?.error || '')
       ? 'Wrong email or password. Signed up with Google? Use "Continue with Google", or set a password with "Forgot password?" on linguascript.co.uk.'
-      : res?.error || 'Login failed. Check your email and password.';
+      // "Failed to fetch" = the browser never reached the LinguaScript server (paused/down, network or ad blocker).
+      : /failed to fetch|networkerror|load failed/i.test(res?.error || '')
+        ? "Couldn't reach the LinguaScript server. Check your internet, turn off ad blockers for this site, and try again in a minute."
+        : res?.error || 'Login failed. Check your email and password.';
     return;
   }
   $('password').value = '';
