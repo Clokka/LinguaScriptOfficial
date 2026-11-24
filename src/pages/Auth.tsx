@@ -28,9 +28,16 @@ function GoogleIcon() {
 
 // "Failed to fetch" means the browser never reached the login server
 // (server paused/down, ad blocker, or network filter) — say that plainly.
+// Gives up after `ms` so a server that never answers can't leave the button spinning.
+const withTimeout = <T,>(p: PromiseLike<T>, ms: number): Promise<T> =>
+  Promise.race([
+    Promise.resolve(p),
+    new Promise<never>((_, reject) => setTimeout(() => reject(new Error("timed out waiting for the server")), ms)),
+  ]);
+
 const authErrorMessage = (e: { message?: string } | null | undefined) => {
   const msg = e?.message ?? "Please try again";
-  return /failed to fetch|networkerror|load failed|network request failed/i.test(msg)
+  return /failed to fetch|networkerror|load failed|network request failed|timed out/i.test(msg)
     ? "Couldn't reach the LinguaScript server. Check your internet, turn off ad blockers for this site, and try again in a minute."
     // Accounts made with "Continue with Google" have no password yet, so a
     // password Chrome remembered from elsewhere is "invalid". Say so.
@@ -209,7 +216,8 @@ const Auth = () => {
     e.preventDefault();
     setLoading(true);
     if (isLogin) {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      const { error } = await withTimeout(supabase.auth.signInWithPassword({ email, password }), 20000)
+        .catch((e: unknown) => ({ error: e instanceof Error ? e : new Error(String(e)) }));
       if (error) {
         toast({ title: "Login failed", description: authErrorMessage(error), variant: "destructive" });
       } else {
