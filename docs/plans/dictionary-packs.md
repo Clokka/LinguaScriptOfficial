@@ -67,10 +67,13 @@ Pack files that include CC BY-SA data are themselves CC BY-SA: credit every sour
 | 4 | On-demand builder for any pair + `dictionary_packs` table + HQ view (status, re-build, hold for review) | Scales to every pair without manual work | ~1–2 days |
 | 5 | Dictionary-based word splitting for zh/ja (我又 → 我 + 又) | Better taps in CJK | ~1 day |
 
-## 7. Open decisions ⚖️
+## 7. Decisions
 
-1. Name of the feature/button ("Make taps instant" / "Offline dictionary" / "Instant dictionary").
-2. When to offer it (after N taps / on the first video / only in Settings).
-3. First pairs to build (suggested: en→zh, en→ja, en→es, then fr→zh).
-4. Pre-build popular pairs vs build on demand only.
-5. Show one meaning or up to three (with pinyin/reading for zh/ja).
+Decided by Rowan, 25 Nov 2026:
+
+1. **Name: "Offline dictionary"** (button: "🦎 Download your French → Chinese offline dictionary · 0.4 MB"; benefit line: "Taps become instant and work without internet").
+2. **Offer it on the first video** — as a small, non-blocking card beside the player when the first video of a pair loads (never a pop-up over the video; dismissable; also always in Settings → Offline dictionary).
+3. **First pairs: English → Chinese, English → Japanese, English → Spanish, French → Chinese** (i.e. packs zh-en, ja-en, es-en, zh-fr).
+4. **Up to 3 meanings + reading** (pinyin for Chinese, kana for Japanese) — needs pack format v2.
+
+Still open ⚖️: pre-build popular pairs vs build on demand only (suggestion: pre-build the four above, on demand for the rest).
