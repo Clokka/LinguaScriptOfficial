@@ -9,11 +9,9 @@ node -e "const m=require('./manifest.json'); if (m.description.length > 132 || m
 OUT="../extension-build/linguascript-extension-${VERSION}.zip"
 mkdir -p ../extension-build
 rm -f "$OUT"
-for f in background.js ls-core.js page-bridge.js site-bridge.js adapters/youtube.js adapters/netflix.js popup.js welcome.js; do node --check "$f"; done
-zip -q -X -r "$OUT" \
-  manifest.json background.js ls-core.js page-bridge.js site-bridge.js adapters/youtube.js adapters/netflix.js \
-  popup.html popup.js welcome.html welcome.js brand.css \
-  icons/icon16.png icons/icon32.png icons/icon48.png icons/icon128.png icons/logo.svg \
-  fonts/inter-latin-wght-normal.woff2 fonts/inter-latin-ext-wght-normal.woff2 fonts/OFL-Inter.txt
+# Every file the extension uses goes in; only notes (*.md) stay out, so a new
+# file (word packs, adapters, sites.js…) can never be forgotten again.
+for f in $(find . -name '*.js' -not -path './node_modules/*'); do node --check "$f"; done
+zip -q -X -r "$OUT" . -x '*.md' -x 'node_modules/*' -x '.DS_Store'
 echo "Built $OUT"
 unzip -l "$OUT"
