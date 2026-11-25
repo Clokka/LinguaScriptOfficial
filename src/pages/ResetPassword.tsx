@@ -8,11 +8,12 @@ import { BrandMark } from "@/components/BrandMark";
 import { useToast } from "@/hooks/use-toast";
 import { useT } from "@/i18n";
 
-// Reached from the password-reset email link. Supabase appends a recovery
-// token to the URL and exchanges it for a short-lived session automatically
-// (via supabase-js's detectSessionInUrl) before this component mounts — so by
-// the time we're here, supabase.auth.updateUser() is all that's needed to
-// actually set the new password on that now-authenticated session.
+// Reached from the password-reset email. Our auth-email-hook links here with
+// ?token_hash=…&type=recovery (our own domain, no Supabase address). The
+// one-time token is only used when the learner presses Save — so an email
+// scanner opening the link can't use it up. Older links (Supabase's verify
+// URL) arrive with a session already made by detectSessionInUrl; a signed-in
+// learner (e.g. a Google account adding a password) can use the page too.
 const ResetPassword = () => {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -21,26 +22,37 @@ const ResetPassword = () => {
   const navigate = useNavigate();
   const { t } = useT();
   const { toast } = useToast();
+  const params = new URLSearchParams(window.location.search);
+  const tokenHash = params.get("token_hash");
+  const isRecoveryLink = !!tokenHash && params.get("type") === "recovery";
 
   useEffect(() => {
-    // A recovery link lands here already carrying a session if the token was
-    // valid; anything else (expired/reused link) means no session appears.
+    if (isRecoveryLink) { setReady(true); return; }
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) setReady(true);
       else setInvalid(true);
     });
-  }, []);
+  }, [isRecoveryLink]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    if (isRecoveryLink && !(await supabase.auth.getSession()).data.session) {
+      const { error: linkError } = await supabase.auth.verifyOtp({ token_hash: tokenHash!, type: "recovery" });
+      if (linkError) {
+        setLoading(false);
+        setInvalid(true); // expired or already used: offer a new link
+        return;
+      }
+    }
     const { error } = await supabase.auth.updateUser({ password });
     setLoading(false);
     if (error) {
       toast({ title: "Couldn't update password", description: error.message, variant: "destructive" });
     } else {
       toast({ title: t("passwordUpdated"), description: t("passwordUpdatedDesc") });
-      navigate("/auth", { replace: true });
+      // The learner is signed in now: open the app, not the sign-in page.
+      navigate("/discover", { replace: true });
     }
   };
 
@@ -56,7 +68,12 @@ const ResetPassword = () => {
 
         <div className="glass-panel-strong p-8 space-y-4">
           {invalid ? (
-            <p className="text-center text-destructive text-sm">{t("invalidResetLink")}</p>
+            <div className="space-y-4 text-center">
+              <p className="text-destructive text-sm">{t("invalidResetLink")}</p>
+              <Button type="button" variant="hero" size="lg" className="w-full" onClick={() => navigate("/auth?mode=forgot", { replace: true })}>
+                {t("sendResetLink")}
+              </Button>
+            </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="relative">
