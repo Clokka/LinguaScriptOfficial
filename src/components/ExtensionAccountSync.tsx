@@ -3,6 +3,7 @@ import { setPerson, trackOnce } from "@/lib/analytics";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { markExtensionSignInTab } from "@/lib/popups";
 
 /**
  * Signs the website into the same account as the LinguaScript Chrome
@@ -51,7 +52,10 @@ export function ExtensionAccountSync() {
 
   useEffect(() => {
     try {
-      if (new URLSearchParams(window.location.search).get("ext") === "1") sessionStorage.setItem(EXT_LOGIN_KEY, "1");
+      if (new URLSearchParams(window.location.search).get("ext") === "1") {
+        sessionStorage.setItem(EXT_LOGIN_KEY, "1");
+        markExtensionSignInTab(); // no welcome pop-ups in this tab: it goes back to the video
+      }
     } catch { /* storage blocked */ }
   }, []);
 
