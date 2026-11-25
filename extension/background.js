@@ -540,6 +540,7 @@ async function saveWordOnce(msg) {
     ease_factor: 2.5,
     state: 'red',
     video_saved_at: now,
+    is_phrase: /\s/.test(word),
   };
   const insertRes = await rest('saved_words', token, {
     method: 'POST',
