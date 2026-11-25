@@ -134,3 +134,14 @@ Every way of signing in ends at the project server, so one outage breaks all of 
 
 ### 6.4 Quick health check (anyone, any time)
 > In the LinguaScriptOfficial repo run `bash scripts/check-backend.sh` and tell me which lines fail. 522 = backend server off; 400 on the password line = backend healthy.
+
+## 7. Resolution (25 Nov 2026)
+
+Moved to the owner's own Supabase project `wxlvxkeqhdlknthmliql` (created Nov 2025, already configured for linguascript.co.uk with the same Google client):
+
+- Old 2025 sample tables (0 users; 6 genres, 1 content row, 3 plans) moved — not deleted — to schema `legacy_2025`.
+- All 99 dated `supabase/migrations`, 3 undated LinguaScripts files (`create_linguascripts_system`, `create_linguascripts_from_saved_words`, `add_review_tracking`) and all 21 `drizzle/migrations` applied in date order (drizzle files made duplicate-safe). 62/63 tables and 88/95 functions of `types.ts` exist; the 8 missing objects (`comprehension_snapshots`, `check_achievements`, `claim_return_gift`, `email_queue_dispatch`, `grant_xp`, `keep_streak`, `local_midnight`, `local_today`) are not used anywhere in the app.
+- Auth: `www.linguascript.co.uk/**` added to redirect URLs; "Confirm email" OFF until custom SMTP (Resend) is set up — Supabase's default sender only emails project members.
+- All 39 edge functions deployed. Existing secrets: GEMINI, OPENAI, RESEND, YOUTUBE, TMDB. Still missing (non-login features): LOVABLE_API_KEY users → switch to GEMINI, STRIPE_LIVE_API_KEY, GOOGLE_CLIENT_ID/SECRET (calendar), SITE_URL, RETENTION_DISPATCH_SECRET, LOVABLE_SEND_URL, SUPADATA_API_KEY, GOOGLE_TRANSLATE_API_KEY.
+- `scripts/check-backend.sh`: 4/4 OK. Real login page (local build, headless Chromium): test account signed in → /onboarding, session saved.
+- Not done yet: old users and data (need the Lovable backend running to export), Chrome Web Store upload of extension 1.7.6, phone app rebuild (mobile/.env), cron jobs that call the old project's URL.

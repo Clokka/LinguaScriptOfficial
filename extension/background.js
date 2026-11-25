@@ -5,8 +5,8 @@
 // The same Supabase project as linguascript.co.uk, so everything lines up
 // with the app.
 
-const SUPABASE_URL = 'https://ffephracinqeylfhqkiz.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZmZXBocmFjaW5xZXlsZmhxa2l6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2MTc4MDgsImV4cCI6MjA5MDE5MzgwOH0.CzCejyUYY1i6-T_gCxkLqq_Cmc1OSRlXAhmPC-Ud4zA';
+const SUPABASE_URL = 'https://wxlvxkeqhdlknthmliql.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind4bHZ4a2VxaGRsa250aG1saXFsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI3MjAwODEsImV4cCI6MjA3ODI5NjA4MX0.PJUPL6IUAAH6MRtb07m_BtyF1NG39-kI9f2Kwp0h3g8';
 const SITE_URL = 'https://linguascript.co.uk';
 
 // The list of video sites (shared with the pop-up and the universal adapter).
