@@ -39,6 +39,19 @@
     .langs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
     .lang-btn { padding: 8px 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface-2); color: var(--fg); font: 600 13px var(--font); cursor: pointer; }
     .lang-btn:hover, .lang-btn.on { border-color: var(--green); }
+    .growth-big { display: flex; align-items: baseline; gap: 8px; }
+    .growth-big b { font-size: 36px; font-weight: 800; color: var(--green); letter-spacing: -0.02em; line-height: 1; }
+    .growth-big span { font-size: 12px; color: var(--muted); line-height: 1.35; }
+    .growth-week { font-size: 12px; font-weight: 700; color: var(--green); }
+    .cov-bar { position: relative; height: 10px; margin: 12px 0 4px; background: var(--surface-2); border-radius: 999px; overflow: hidden; }
+    .cov-bar i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 999px; transition: width .6s ease; }
+    .cov-bar .decks { background: rgba(255,138,0,0.45); }
+    .cov-bar .known { background: var(--green); }
+    .cov-ticks { position: relative; height: 14px; font-size: 10px; color: var(--muted); }
+    .cov-ticks span { position: absolute; transform: translateX(-50%); }
+    .spark { display: block; width: 100%; height: 38px; margin-top: 6px; }
+    .growth-src { font-size: 10px; color: var(--muted); margin-top: 8px; line-height: 1.4; }
+    .growth-src a { color: var(--muted); }
     .switch-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
     .switch { position: relative; width: 42px; height: 24px; flex: none; border: 0; border-radius: 999px; background: var(--surface-2); cursor: pointer; transition: background .2s ease; }
     .switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #F5F5F7; transition: transform .2s ease; }
@@ -104,6 +117,21 @@
         <button class="lang-btn" data-mode="show" type="button">Always</button>
         <button class="lang-btn" data-mode="off" type="button">Off</button>
       </div>
+    </div>
+    <div class="card hidden" id="growth-card">
+      <div class="goal-top" style="margin-bottom:8px;">
+        <span class="goal-label">📈 Vocabulary growth</span>
+        <span class="growth-week" id="growth-week"></span>
+      </div>
+      <div class="growth-big"><b id="growth-known">0%</b><span id="growth-what">of the words in films &amp; TV are words you know</span></div>
+      <div class="cov-bar" aria-hidden="true"><i class="decks" id="growth-decks-bar"></i><i class="known" id="growth-known-bar"></i></div>
+      <div class="cov-ticks" aria-hidden="true"><span style="left:50%">50%</span><span style="left:75%">75%</span><span style="left:90%">90%</span></div>
+      <p class="lead" id="growth-decks" style="font-size:12px; margin:4px 0 0;"></p>
+      <svg class="spark" id="growth-spark" viewBox="0 0 280 38" preserveAspectRatio="none" aria-hidden="true"></svg>
+      <p class="lead" id="growth-next" style="font-size:12px; margin:6px 0 0;"></p>
+      <button class="btn btn-primary" id="share-btn" type="button" style="width:100%; margin-top:10px;">Share my progress</button>
+      <p class="lead hidden" id="share-note" style="font-size:12px; margin:6px 0 0; color:var(--green);"></p>
+      <p class="growth-src">Counted from real word counts in films &amp; TV: OpenSubtitles 2018 via <a href="https://github.com/hermitdave/FrequencyWords" target="_blank" rel="noopener noreferrer">FrequencyWords</a> (CC BY-SA 4.0).</p>
     </div>
     <div class="card">
       <div class="switch-row">

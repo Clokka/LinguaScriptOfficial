@@ -714,6 +714,12 @@
     setXpChip(res.xpTotal);
     Rings.saved(key);
     showToast(Goal.known ? `+${res.xp} XP · ${Math.min(Goal.saved, Goal.goal)}/${Goal.goal} words today` : `+${res.xp} XP`);
+    // Vocabulary growth: how much of film & TV this word adds (real counts).
+    send({ type: 'GET_PROGRESS', language: learningLang, word: key }).then((p) => {
+      if (!p?.ok || !p.supported || !(p.wordShare >= 0.01)) return;
+      const pct = (n) => (n >= 10 ? n.toFixed(1) : n.toFixed(2)).replace(/\.?0+$/, '');
+      setTimeout(() => showToast(`📈 +${pct(p.wordShare)}% · your ${langName(p.language)} words now cover ${p.decks.toFixed(1)}% of film & TV`), 2300);
+    });
   }
 
   // Ask which of the learner's languages they're watching in. Only their own

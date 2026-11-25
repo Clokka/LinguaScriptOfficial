@@ -141,6 +141,7 @@ async function init() {
   loadLanguages();
   loadToday();
   loadSite();
+  loadGrowth();
 }
 
 $('login-form').addEventListener('submit', async (e) => {
@@ -205,3 +206,137 @@ $('rings-switch').addEventListener('click', async () => {
   showRings();
 });
 showRings();
+
+// ─── Vocabulary growth + Share my progress ───────────────────────────────────
+// background.js getProgress: share of all words spoken in films & TV that are
+// in the learner's decks, from real OpenSubtitles counts (never typed numbers).
+// The share card is a testimonial: "In 3 weeks I went from 0% to 58%".
+let growth = null;
+const pct = (n) => `${n >= 10 || n === 0 ? n.toFixed(0) : n.toFixed(1)}%`;
+const langOnly = (c) => LANGUAGES[c]?.[0] || String(c || '').toUpperCase();
+function spanText(days) {
+  if (days < 14) return `${days} day${days === 1 ? '' : 's'}`;
+  if (days < 60) return `${Math.round(days / 7)} weeks`;
+  return `${Math.round(days / 30)} months`;
+}
+// The story for the share card. Known words lead; a brand-new learner with
+// only red words gets the "collected" line instead, so it is never overstated.
+function story(g) {
+  const lang = langOnly(g.language);
+  const first = g.series[0] || { known: 0, decks: 0 };
+  const useKnown = g.known >= 1;
+  const from = useKnown ? first.known : first.decks;
+  const to = useKnown ? g.known : g.decks;
+  const what = useKnown ? `of the words in ${lang} films & TV are now words I know` : `of the words in ${lang} films & TV are now in my flashcards`;
+  return { lang, from, to, what, span: spanText(g.days), useKnown };
+}
+function shareText(g) {
+  const s = story(g);
+  return `In ${s.span} with LinguaScript I went from ${pct(s.from)} to ${pct(s.to)} — ${pct(s.to)} ${s.what} 🦎📈 linguascript.co.uk`;
+}
+
+async function loadGrowth() {
+  const g = await send({ type: 'GET_PROGRESS' });
+  if (!g?.ok || !g.supported) { $('growth-card').classList.add('hidden'); return; }
+  growth = g;
+  const lang = langOnly(g.language);
+  $('growth-card').classList.remove('hidden');
+  $('growth-known').textContent = pct(g.known);
+  $('growth-what').textContent = `of the words in ${lang} films & TV are words you know`;
+  $('growth-known-bar').style.width = `${g.known}%`;
+  $('growth-decks-bar').style.width = `${g.decks}%`;
+  const extra = Math.max(0, g.decks - g.known);
+  $('growth-decks').textContent = extra >= 0.1
+    ? `+${pct(extra)} more waiting in your red & orange decks — review them to turn them green.`
+    : 'Save words while you watch to grow this number.';
+  const wk = g.known >= 1 ? g.weekGain.known : g.weekGain.decks;
+  $('growth-week').textContent = wk >= 0.05 ? `+${pct(wk)} this week` : '';
+  $('growth-next').textContent = g.next.count
+    ? `⭕ Save the next ${g.next.count} most common words: +${pct(g.next.gain)}`
+    : '';
+  drawSpark(g.series);
+  $('share-btn').disabled = g.decks < 0.5;
+}
+
+function drawSpark(series) {
+  const svg = $('growth-spark');
+  if (!series || series.length < 2) { svg.innerHTML = ''; return; }
+  const max = Math.max(1, ...series.map((p) => p.decks));
+  const line = (key) => series.map((p, i) => `${(i / (series.length - 1) * 280).toFixed(1)},${(36 - p[key] / max * 34).toFixed(1)}`).join(' ');
+  svg.innerHTML = `<polyline points="${line('decks')}" fill="none" stroke="rgba(255,138,0,0.6)" stroke-width="2" vector-effect="non-scaling-stroke"/>` +
+    `<polyline points="${line('known')}" fill="none" stroke="#34C759" stroke-width="2.5" vector-effect="non-scaling-stroke"/>`;
+}
+
+// 1080×1350 card (Instagram portrait), drawn on a canvas so it works offline.
+async function shareImage(g) {
+  const s = story(g);
+  const W = 1080, H = 1350;
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const x = c.getContext('2d');
+  const font = (w, px) => `${w} ${px}px Inter, system-ui, -apple-system, sans-serif`;
+  const grd = x.createLinearGradient(0, 0, 0, H); grd.addColorStop(0, '#0B0B0F'); grd.addColorStop(1, '#101A12');
+  x.fillStyle = grd; x.fillRect(0, 0, W, H);
+  // Logo (the same SVG as the pop-up header).
+  await new Promise((done) => {
+    const img = new Image();
+    img.onload = () => { const h = 120, w = h * (img.naturalWidth / img.naturalHeight || 2); x.drawImage(img, 80, 80, w, h); done(); };
+    img.onerror = done;
+    // As a data: URL so the canvas never counts as "tainted" and can export.
+    fetch('icons/logo.svg').then((r) => r.text())
+      .then((svg) => { img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`; })
+      .catch(done);
+  });
+  x.fillStyle = '#F5F5F7'; x.font = font(800, 54); x.fillText('Lingua', 330, 160);
+  const lw = x.measureText('Lingua').width; x.fillStyle = '#34C759'; x.fillText('Script', 330 + lw, 160);
+  x.fillStyle = '#A1A1AA'; x.font = font(600, 44); x.fillText(`In ${s.span} of learning ${s.lang}`, 80, 340);
+  // From → to.
+  x.font = font(800, 120); x.fillStyle = '#71717A'; x.fillText(pct(s.from), 80, 520);
+  const fw = x.measureText(pct(s.from)).width;
+  x.fillStyle = '#F5F5F7'; x.font = font(700, 90); x.fillText('→', 110 + fw, 510);
+  x.font = font(900, 230); x.fillStyle = '#34C759'; x.fillText(pct(s.to), 80, 760);
+  // Wrap the sentence.
+  x.fillStyle = '#F5F5F7'; x.font = font(700, 52);
+  const words = s.what.replace(/^of/, 'of').split(' '); let line = '', y = 860;
+  for (const w of words) {
+    if (x.measureText(line + w).width > W - 160) { x.fillText(line.trim(), 80, y); line = ''; y += 66; }
+    line += w + ' ';
+  }
+  x.fillText(line.trim(), 80, y);
+  // Progress bar with 50 / 75 / 90 marks.
+  const by = 1080, bw = W - 160;
+  x.fillStyle = '#1F1F27'; x.beginPath(); x.roundRect(80, by, bw, 36, 18); x.fill();
+  x.fillStyle = 'rgba(255,138,0,0.45)'; x.beginPath(); x.roundRect(80, by, Math.max(36, bw * g.decks / 100), 36, 18); x.fill();
+  if (s.useKnown) { x.fillStyle = '#34C759'; x.beginPath(); x.roundRect(80, by, Math.max(36, bw * g.known / 100), 36, 18); x.fill(); }
+  x.fillStyle = '#A1A1AA'; x.font = font(600, 28);
+  for (const m of [50, 75, 90]) { x.textAlign = 'center'; x.fillText(`${m}%`, 80 + bw * m / 100, by + 80); }
+  x.textAlign = 'left';
+  x.fillStyle = '#F5F5F7'; x.font = font(800, 40); x.fillText('linguascript.co.uk', 80, 1250);
+  x.fillStyle = '#71717A'; x.font = font(500, 22);
+  x.fillText('Share of all words spoken in films & TV · OpenSubtitles 2018 (CC BY-SA 4.0)', 80, 1295);
+  return new Promise((r) => c.toBlob(r, 'image/png'));
+}
+
+$('share-btn').addEventListener('click', async () => {
+  if (!growth) return;
+  const btn = $('share-btn'); const note = $('share-note');
+  btn.disabled = true; btn.textContent = 'Making your card…';
+  const text = shareText(growth);
+  try {
+    const blob = await shareImage(growth);
+    const file = new File([blob], 'my-linguascript-progress.png', { type: 'image/png' });
+    if (navigator.canShare?.({ files: [file] })) {
+      await navigator.share({ files: [file], text });
+      note.textContent = 'Thanks for sharing! 🦎';
+    } else {
+      await navigator.clipboard.writeText(text).catch(() => {});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob); a.download = file.name; a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+      note.textContent = 'Image saved and words copied — paste them into your post! 🦎';
+    }
+  } catch (e) {
+    if (e?.name !== 'AbortError') note.textContent = 'Couldn’t make the card. Try again.';
+  }
+  note.classList.remove('hidden');
+  btn.disabled = false; btn.textContent = 'Share my progress';
+});
