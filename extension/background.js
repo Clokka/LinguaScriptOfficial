@@ -449,29 +449,32 @@ async function instantMeaning(text, sl, tl) {
 }
 loadPack(); // warm it when the service worker starts
 
-// ─── Ringed words: the app's common-words list ───────────────────────────────
+// ─── Ringed words: the app's common-words decks, 50 at a time ────────────────
 // core_vocabulary ranked by frequency is what the app's Common Words decks
-// (Top 50, 100, 150…) are built from. The extension rings this list's words,
-// so learners get the next most useful words from it, minus anything already
-// in their decks. Readable without logging in.
-const RING_POOL_SIZE = 500;
+// (Top 50, 100, 150…) are built from. The extension circles the words of the
+// learner's CURRENT deck only: the first block of 50 that still has a word not
+// in their decks. Once every Top 50 word is saved it moves on to Top 100, and
+// so on, like the decks on /common-words. Readable without logging in (then
+// it's always Top 50). The pop-up switch "Circle common words" (ls_rings)
+// turns it off.
+const RING_STEP = 50;
 // Rings are only for languages that are written with spaces between words, in
 // the Latin alphabet, where the frequency list's words match what the subtitles
 // are split into. Japanese, Chinese and Thai are split by Intl.Segmenter into
 // pieces that don't line up with the list yet, so they get no rings for now.
 const RING_LANGS = new Set(['fr', 'es', 'de', 'it', 'pt', 'en', 'nl', 'pl', 'sv']);
 const COMMON_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
-const _commonCache = new Map(); // language → { ts, words }
+const _commonCache = new Map(); // language → { ts, words: [{ word, rank }] }
 const SEGMENTED = new Set(['zh', 'ja', 'th']);
 
 async function getCommonWords(lang) {
   const hit = _commonCache.get(lang);
   if (hit && Date.now() - hit.ts < COMMON_CACHE_TTL_MS) return hit.words;
   const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/core_vocabulary?language=eq.${encodeURIComponent(lang)}&select=word&order=rank.asc&limit=2000`,
+    `${SUPABASE_URL}/rest/v1/core_vocabulary?language=eq.${encodeURIComponent(lang)}&select=word,rank&order=rank.asc&limit=3000`,
     { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` } }
-  );
-  if (!res.ok) return hit?.words || [];
+  ).catch(() => null);
+  if (!res?.ok) return hit?.words || [];
   const seen = new Set();
   const words = [];
   for (const row of await res.json()) {
@@ -479,9 +482,9 @@ async function getCommonWords(lang) {
     // Phrases can't match a single subtitle word; single letters are mostly noise.
     if (!w || seen.has(w) || /\s/.test(w) || (!SEGMENTED.has(lang) && w.length < 2)) continue;
     seen.add(w);
-    words.push(w);
+    words.push({ word: w, rank: Number(row.rank) || words.length + 1 });
   }
-  _commonCache.set(lang, { ts: Date.now(), words });
+  if (words.length) _commonCache.set(lang, { ts: Date.now(), words });
   return words;
 }
 
@@ -494,15 +497,14 @@ async function getRingPool(language) {
     if (!langs.languages.includes(lang)) lang = langs.language || lang;
     if (lang) deck = await getDeckIndexCached(session.user.id, lang, session.access_token);
   }
-  if (!lang || !RING_LANGS.has(lang)) return { ok: true, words: [], language: lang };
+  if (!lang || !RING_LANGS.has(lang)) return { ok: true, words: [], language: lang, band: 0, left: 0 };
   const common = await getCommonWords(lang);
-  const words = [];
-  for (const w of common) {
-    if (deck.has(w)) continue;
-    words.push(w);
-    if (words.length >= RING_POOL_SIZE) break;
-  }
-  return { ok: true, words, language: lang };
+  // The current deck: the block of 50 holding the most frequent unsaved word.
+  const first = common.find((c) => !deck.has(c.word));
+  if (!first) return { ok: true, words: [], language: lang, band: 0, left: 0, done: common.length > 0 };
+  const band = Math.ceil(first.rank / RING_STEP) * RING_STEP;
+  const words = common.filter((c) => c.rank <= band && !deck.has(c.word)).map((c) => c.word);
+  return { ok: true, words, language: lang, band, left: words.length };
 }
 
 // ─── XP ───────────────────────────────────────────────────────────────────────

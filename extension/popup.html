@@ -39,6 +39,12 @@
     .langs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
     .lang-btn { padding: 8px 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface-2); color: var(--fg); font: 600 13px var(--font); cursor: pointer; }
     .lang-btn:hover, .lang-btn.on { border-color: var(--green); }
+    .switch-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .switch { position: relative; width: 42px; height: 24px; flex: none; border: 0; border-radius: 999px; background: var(--surface-2); cursor: pointer; transition: background .2s ease; }
+    .switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #F5F5F7; transition: transform .2s ease; }
+    .switch[aria-checked="true"] { background: var(--orange); }
+    .switch[aria-checked="true"]::after { transform: translateX(18px); }
+    .ring-demo { display: inline-block; padding: 0 5px; border-radius: 8px; box-shadow: 0 0 0 2px rgba(249,115,22,0.95); color: var(--fg); }
   </style>
 </head>
 <body>
@@ -98,6 +104,13 @@
         <button class="lang-btn" data-mode="show" type="button">Always</button>
         <button class="lang-btn" data-mode="off" type="button">Off</button>
       </div>
+    </div>
+    <div class="card">
+      <div class="switch-row">
+        <span class="goal-label" id="rings-label"><span class="ring-demo">⭕</span>&nbsp; Circle common words</span>
+        <button class="switch" id="rings-switch" type="button" role="switch" aria-checked="true" aria-labelledby="rings-label"></button>
+      </div>
+      <p class="lead" id="rings-text" style="font-size:12px; margin:6px 0 0;">Circles the most common words you haven’t saved yet, 50 at a time: Top 50 first, then Top 100, 150…</p>
     </div>
     <p class="lead" style="font-size:12px;">Tip: on any website press <b>Alt+L</b> to colour the words you’ve saved. Highlight a word, then right-click → <b>Add to LinguaScript</b>.</p>
     <div class="row">

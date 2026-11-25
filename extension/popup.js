@@ -188,3 +188,20 @@ $('logout-btn').addEventListener('click', async () => {
 $('ext-version').textContent = `LinguaScript extension v${chrome.runtime.getManifest().version}`;
 
 init();
+
+// "Circle common words": the current Common Words deck (Top 50, 100, 150…) is
+// circled in videos. ls-core.js writes ls_ring_status so we can say which deck.
+async function showRings() {
+  const { ls_rings: on = true, ls_ring_status: st } = await chrome.storage.local.get(['ls_rings', 'ls_ring_status']);
+  $('rings-switch').setAttribute('aria-checked', String(on !== false));
+  const text = $('rings-text');
+  if (on === false) text.textContent = 'Off. Turn it on to circle the most common words you haven’t saved yet, 50 at a time.';
+  else if (st?.done) text.textContent = 'You’ve saved every common word in the list. Amazing! 🎉';
+  else if (st?.band) text.textContent = `Now circling: Top ${st.band} · ${st.left} word${st.left === 1 ? '' : 's'} left to save. Save them all to unlock Top ${st.band + 50}.`;
+}
+$('rings-switch').addEventListener('click', async () => {
+  const on = $('rings-switch').getAttribute('aria-checked') !== 'true';
+  await chrome.storage.local.set({ ls_rings: on });
+  showRings();
+});
+showRings();

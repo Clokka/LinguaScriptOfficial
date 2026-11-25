@@ -384,14 +384,13 @@
   };
 
   // ══ Rings — the common words to learn in this video ════════════════════════
-  // The same frequency list as the app's Common Words decks (core_vocabulary,
-  // most frequent first), minus everything already in the learner's decks. Any
-  // of those that turn up in a video get the app's orange "tap me" ring
-  // (.ls-target-ring in src/index.css), at every appearance, until saved. The
-  // extension only ever sees the line on screen, so there is no per-video cap:
-  // the list of unsaved common words is the limit, and it shrinks as the
-  // learner saves them. Per line it stops at RINGS_PER_LINE so a line of very
-  // common words never turns into a wall of circles.
+  // The learner's CURRENT Common Words deck (Top 50, then Top 100, 150… — the
+  // same core_vocabulary list as the app), minus everything already in their
+  // decks. Any of those that turn up in a video get the app's orange "tap me"
+  // ring (.ls-target-ring in src/index.css), at every appearance, until saved.
+  // When the last word of a deck is saved, the next 50 load. Per line it stops
+  // at RINGS_PER_LINE so a line of very common words never turns into a wall
+  // of circles. The pop-up switch "Circle common words" (ls_rings) turns it off.
   const RINGS_PER_LINE = 4;
   const GOLD_HEX = { core: '#FFD54A', glow: 'rgba(255,200,60,0.55)' }; // GOLD in src/lib/goldenReveal.ts
   const Rings = {
@@ -399,6 +398,8 @@
     _video: null,
     _picked: new Set(),
     _lineCount: 0,
+    _on: true,
+    band: 0,
 
     // YouTube keeps the video in ?v=, Netflix in the path.
     _sync() {
@@ -408,13 +409,19 @@
     },
     async load() {
       const lang = learningLang;
+      const { ls_rings } = await getStorage({ ls_rings: true });
+      this._on = ls_rings !== false;
+      if (!this._on) { this._pool = new Set(); this._picked.clear(); this.band = 0; Deck.repaintAll(); return; }
       const res = await send({ type: 'GET_RING_POOL', language: lang });
-      if (!res?.ok || lang !== learningLang) return;
+      if (!res?.ok || lang !== learningLang || !this._on) return;
       this._pool = new Set((res.words || []).map(normalizeToken));
+      if (this.band && res.band > this.band) showToast(`⭕ Top ${this.band} done! Now circling Top ${res.band}`);
+      this.band = res.band || 0;
+      chrome.storage.local.set({ ls_ring_status: { language: lang, band: res.band || 0, left: res.left || 0, done: !!res.done } });
       Deck.repaintAll();
     },
     beginLine() { this._sync(); this._lineCount = 0; },
-    isPicked(key) { this._sync(); return this._picked.has(key); },
+    isPicked(key) { this._sync(); return this._on && this._picked.has(key); },
     // For each word of a new subtitle line: true if this occurrence gets a ring.
     // Every ring on the line counts toward RINGS_PER_LINE, new words and ones
     // ringed on earlier lines alike.
@@ -428,8 +435,16 @@
       }
       return true;
     },
-    saved(key) { this._pool.delete(key); },
+    saved(key) {
+      if (!this._pool.delete(key)) return;
+      // That was the last word of this deck: open the next 50.
+      if (this._pool.size === 0) setTimeout(() => this.load(), 1500);
+      else chrome.storage.local.set({ ls_ring_status: { language: learningLang, band: this.band, left: this._pool.size } });
+    },
   };
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && changes.ls_rings) Rings.load();
+  });
 
   // ══ Today's word goal — the same count as the app ════════════════════════════
   // Background GET_TODAY counts words met in a video since local midnight in
