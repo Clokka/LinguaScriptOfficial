@@ -10,18 +10,22 @@
 //      and nonce) → magic-link token_hash → supabase.auth.verifyOtp.
 // Phone sign-in opens this same branded page in the system browser.
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable";
 
 /**
- * Backup when the branded button can't finish (the google-auth function isn't
- * deployed on Lovable Cloud, and Supabase's own Google check isn't used there):
- * Lovable Cloud's Google login, which runs through oauth.lovable.app with OUR
- * Google client ("Your own credentials" in Cloud → Users → Google), never the
- * <project>.supabase.co screen. Comes back to the same page (keeps ?ext=1).
+ * Backup when the branded button can't finish, and the only Google option
+ * where Google's button isn't allowed (iframes, other domains): Supabase's own
+ * Google login. It redirects to Google and back to this same page (keeps
+ * ?ext=1 / ?next=). Google's screen shows the backend address here, which is
+ * why it's only the fallback. Needs
+ * https://<project>.supabase.co/auth/v1/callback in the Google OAuth client's
+ * "Authorized redirect URIs". (Replaces the Lovable Cloud login, which stopped.)
  */
-export async function signInWithLovableGoogle(): Promise<void> {
-  const result: any = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.href });
-  if (result?.error) throw result.error instanceof Error ? result.error : new Error(String(result.error));
+export async function signInWithGoogleRedirect(): Promise<void> {
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: { redirectTo: window.location.href },
+  });
+  if (error) throw error;
 }
 
 /** Public OAuth client ID (Google Cloud project "test 1"); same one google-auth checks. */

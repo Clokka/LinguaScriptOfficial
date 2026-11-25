@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useT } from "@/i18n";
 import { UiLanguageSwitcher } from "@/components/UiLanguageSwitcher";
 import { applyGuestOnboarding } from "@/lib/guestOnboarding";
-import { GOOGLE_WEB_CLIENT_ID, canUseGoogleButton, googleCredentialHash, loadGoogleScript, makeNonce, signInWithGoogleCredential, signInWithLovableGoogle } from "@/lib/googleSignIn";
+import { GOOGLE_WEB_CLIENT_ID, canUseGoogleButton, googleCredentialHash, loadGoogleScript, makeNonce, signInWithGoogleCredential, signInWithGoogleRedirect } from "@/lib/googleSignIn";
 import { isPhoneGoogleState, phoneGoogleReturn } from "@linguascript/core/phoneGoogle";
 
 function GoogleIcon() {
@@ -71,7 +71,8 @@ const Auth = () => {
   const phoneState = searchParams.get("phone");
   const pendingPhoneState = useRef("");
 
-  // Never open the backend-address OAuth screen: phones use our page in a real browser.
+  // Fallback Google login. Phones use our page in a real browser; elsewhere
+  // Supabase's redirect login (Google shows the backend address, so it's only the backup).
   const handleGoogleFallback = async () => {
     setGoogleLoading(true);
     try {
@@ -83,7 +84,7 @@ const Auth = () => {
         pendingPhoneState.current = raw;
         bridge.postMessage(JSON.stringify({ type: "google-signin", state: raw }));
       } else {
-        await signInWithLovableGoogle();
+        await signInWithGoogleRedirect();
         if ((await supabase.auth.getSession()).data.session) await finishSignIn();
       }
     } catch (e) {
@@ -119,6 +120,19 @@ const Auth = () => {
     if (done) { try { localStorage.removeItem("ls.onboardingState.v1"); } catch { /* ignore */ } }
     navigate(done ? next : "/onboarding", { replace: true });
   };
+
+  // Back from Google's redirect login (signInWithGoogleRedirect): supabase-js has
+  // turned the #access_token / ?code= into a session — open the account instead
+  // of showing the sign-in form again. The extension's sign-in tab (?ext=1)
+  // stays: ExtensionAccountSync hands the session over and closes it.
+  useEffect(() => {
+    const url = window.location.hash + window.location.search;
+    if (!/access_token=|[?&]code=/.test(url) || searchParams.get("ext") === "1") return;
+    void supabase.auth.getSession().then(({ data }) => {
+      if (data.session) void finishSignIn();
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const receive = (event: Event) => {
@@ -192,9 +206,9 @@ const Auth = () => {
             try {
               await within(signInWithGoogleCredential(credential, nonceRef.current), "Signing in with Google");
             } catch {
-              // The branded check couldn't finish (google-auth not deployed): use
-              // Lovable Cloud's Google login with our own Google client instead.
-              await signInWithLovableGoogle();
+              // The branded check couldn't finish: fall back to Supabase's own
+              // Google login (redirects to Google and back to this page).
+              await signInWithGoogleRedirect();
               if (!(await supabase.auth.getSession()).data.session) return; // redirected to Google; we come back here
             }
             await within(finishSignIn(), "Opening your account");
