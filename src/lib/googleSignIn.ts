@@ -8,9 +8,21 @@
 //      accepts this client ID), else
 //   2. google-auth edge function (verifies the token itself, incl. email_verified
 //      and nonce) → magic-link token_hash → supabase.auth.verifyOtp.
-// The old redirect button stays as the fallback (and is the only option inside
-// the phone app and the Lovable editor preview).
+// Phone sign-in opens this same branded page in the system browser.
 import { supabase } from "@/integrations/supabase/client";
+import { lovable } from "@/integrations/lovable";
+
+/**
+ * Backup when the branded button can't finish (the google-auth function isn't
+ * deployed on Lovable Cloud, and Supabase's own Google check isn't used there):
+ * Lovable Cloud's Google login, which runs through oauth.lovable.app with OUR
+ * Google client ("Your own credentials" in Cloud → Users → Google), never the
+ * <project>.supabase.co screen. Comes back to the same page (keeps ?ext=1).
+ */
+export async function signInWithLovableGoogle(): Promise<void> {
+  const result: any = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.href });
+  if (result?.error) throw result.error instanceof Error ? result.error : new Error(String(result.error));
+}
 
 /** Public OAuth client ID (Google Cloud project "test 1"); same one google-auth checks. */
 export const GOOGLE_WEB_CLIENT_ID =
@@ -64,10 +76,16 @@ export async function signInWithGoogleCredential(idToken: string, rawNonce: stri
   const direct = await supabase.auth.signInWithIdToken({ provider: "google", token: idToken, nonce: rawNonce });
   if (!direct.error && direct.data?.session) return;
 
-  const { data, error } = await supabase.functions.invoke("google-auth", { body: { id_token: idToken, nonce: rawNonce } });
-  const tokenHash = (data as any)?.token_hash as string | undefined;
-  // Only the fixed function (v2: checks email_verified + nonce) may sign people in.
-  if (error || !tokenHash || (data as any)?.v !== 2) throw new Error("Google sign-in didn't work this time. Please use the other Google button below.");
+  const tokenHash = await googleCredentialHash(idToken, rawNonce);
   const { error: otpError } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: "magiclink" });
-  if (otpError) throw new Error("Google sign-in didn't work this time. Please use the other Google button below.");
+  if (otpError) throw new Error("Google sign-in didn't work this time. Please try again.");
+}
+
+/** Phone return: do not consume the one-use hash in the external browser. */
+export async function googleCredentialHash(idToken: string, rawNonce: string): Promise<string> {
+  const { data, error } = await supabase.functions.invoke("google-auth", { body: { id_token: idToken, nonce: rawNonce } });
+  if (error || typeof data?.token_hash !== "string" || data?.v !== 2) {
+    throw new Error("Google sign-in didn't work this time. Please try again.");
+  }
+  return data.token_hash;
 }

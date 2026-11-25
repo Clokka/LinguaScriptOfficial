@@ -30,11 +30,11 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
-          supabase functions deploy --project-ref ffephracinqeylfhqkiz
+          supabase functions deploy --project-ref wxlvxkeqhdlknthmliql
 
       - name: Deploy single function
         if: ${{ github.event.inputs.function != '' }}
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
-          supabase functions deploy ${{ github.event.inputs.function }} --project-ref ffephracinqeylfhqkiz
+          supabase functions deploy ${{ github.event.inputs.function }} --project-ref wxlvxkeqhdlknthmliql

@@ -12,6 +12,7 @@ import { FlashcardReview } from "@/components/FlashcardReview";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { ScanPageButton } from "@/components/ScanPageButton";
+import { STORE_LINKS } from "@/components/landing/StoreBadges";
 import { getGuestWords } from "@/lib/guestWords";
 import { DeckState, isReviewDue, normalizeToken } from "@/lib/vocab";
 import { cn } from "@/lib/utils";
@@ -434,7 +435,7 @@ const Flashcards = () => {
                 <ScanPageButton onSaved={() => fetchCards(false)} />
                 <Button asChild variant="default" size="lg">
                   <a
-                    href="https://chromewebstore.google.com/search/linguascript"
+                    href={STORE_LINKS.chrome}
                     target="_blank"
                     rel="noopener noreferrer"
                   >

@@ -14,10 +14,13 @@ function wordPages(mode: string): Plugin {
     async closeBundle() {
       const env = loadEnv(mode, process.cwd(), "VITE_");
       const { renderWordPages } = await import("./scripts/word-pages.mjs");
+      const { writeSitemap } = await import("./scripts/generate-sitemap");
       const paths = renderWordPages(path.resolve(__dirname, "dist"), __dirname, {
         supabaseUrl: env.VITE_SUPABASE_URL, supabaseKey: env.VITE_SUPABASE_PUBLISHABLE_KEY,
       });
       console.log(`word pages: ${paths.length} written`);
+      // Cloudflare invokes vite directly, bypassing package.json's prebuild hook.
+      await writeSitemap(path.resolve(__dirname, "dist/sitemap.xml"), env);
     },
   };
 }

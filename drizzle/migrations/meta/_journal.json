@@ -141,6 +141,13 @@
       "when": 1794648007556,
       "tag": "0019_classroom_setup",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1795293363299,
+      "tag": "0020_hq_allow_page_address_homepage",
+      "breakpoints": true
     }
   ]
 }

@@ -1,4 +1,10 @@
 # Current work
+- [ ] Improve crawlable frequency lists and articles, add top-50 lists, synchronize the sitemap, and verify search discovery without Lovable publishing.
+- [x] Implement branded phone Google sign-in with attempt-bound, one-use returns to the existing app page; callback tests and phone button/bridge checked.
+- [ ] Verify real phone Google sign-in: requires the website revision on Cloudflare and a new phone build/device; no native device is available here.
+- [x] Connect Search Console, check submitted sitemap/indexing/live SEO pages, and deliver UK/US evidence-backed organic acquisition priorities in docs/organic-search-audit-2026-11-22.md.
+- [x] Deploy Stremio add-on without source/config changes; live French/English manifest.json returned version 1.1.0 and subtitle resources. Requested manifest.jso returns Not found; use .json.
+- [x] Simplify HQ homepage selection, remove automatic built-in testing in favour of /landing6, and activate the official Chrome extension link; signed-in selection/cancel and isolated save/read-back, visitor homepage and mobile layout verified without changing live HQ settings or publishing through Lovable.
 - [x] Audit school sales, public pages, HQ and payment readiness; repair saved enquiries/HQ inbox, missing active-language reporting, email-bound invite redemption, test baselines and publish validation; check public/mobile pages and signed-in HQ/teacher. Populated class and payment fulfilment are not verified: no pupils joined and Stripe live approval is pending.
 - [x] Match the video-frame typography and staggered caption, waveform and class-chart motion on the connected school tour, preserving the black/green theme.
 - [x] Match newer Gallery mobile references with charcoal surfaces, original coloured chameleons and connected goals/friends and Pro AI tour pages; mobile interactions/layout checked and signed-in teacher opened. Native Android binary and audio remain unverified.

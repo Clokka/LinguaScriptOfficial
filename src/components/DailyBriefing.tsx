@@ -1,4 +1,5 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
+import { claimPopup, popupsAllowed, releasePopup, useCurrentPopup } from "@/lib/popups";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocation, useNavigate } from "react-router-dom";
 import { ArrowRight, X } from "lucide-react";
@@ -105,9 +106,15 @@ export const DailyBriefing = () => {
     void streak.refresh();
   };
 
-  // Team tools (HQ, partners, admin) are work screens: the learner pop-up would cover the Studio.
-  const onTeamPage = /^\/(hq|partners|admin|teacher|for-schools|schools)(\/|$)/.test(location.pathname);
-  if (!open || introPlaying || onTeamPage || !profileChecked || wordGoal == null) return null;
+  // One pop-up at a time, and none on sign-in/setup/team pages or in a tab the
+  // Chrome extension opened to sign in (src/lib/popups.ts).
+  const currentPopup = useCurrentPopup();
+  const wantsToShow = open && !introPlaying && popupsAllowed(location.pathname) && profileChecked && wordGoal != null;
+  useEffect(() => {
+    if (wantsToShow) claimPopup("briefing"); else releasePopup("briefing");
+  }, [wantsToShow, currentPopup]);
+  useEffect(() => () => releasePopup("briefing"), []);
+  if (!wantsToShow || currentPopup !== "briefing" || wordGoal == null) return null;
 
   const remaining = Math.max(0, wordGoal - streak.wordsReviewed);
   const done = remaining === 0;

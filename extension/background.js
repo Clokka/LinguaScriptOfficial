@@ -5,9 +5,12 @@
 // The same Supabase project as linguascript.co.uk, so everything lines up
 // with the app.
 
-const SUPABASE_URL = 'https://ffephracinqeylfhqkiz.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZmZXBocmFjaW5xZXlsZmhxa2l6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2MTc4MDgsImV4cCI6MjA5MDE5MzgwOH0.CzCejyUYY1i6-T_gCxkLqq_Cmc1OSRlXAhmPC-Ud4zA';
+const SUPABASE_URL = 'https://wxlvxkeqhdlknthmliql.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind4bHZ4a2VxaGRsa250aG1saXFsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI3MjAwODEsImV4cCI6MjA3ODI5NjA4MX0.PJUPL6IUAAH6MRtb07m_BtyF1NG39-kI9f2Kwp0h3g8';
 const SITE_URL = 'https://linguascript.co.uk';
+
+// The list of video sites (shared with the pop-up and the universal adapter).
+importScripts('sites.js');
 
 // ─── Install: show the welcome page ──────────────────────────────────────────
 
@@ -23,43 +26,70 @@ chrome.runtime.onConnect.addListener(port => {
 
 // ─── Auth ────────────────────────────────────────────────────────────────────
 
+// The login server sometimes answers with a web page (an error or block page)
+// instead of data; JSON.parse then said "Unexpected token '<'". Say what happened.
+async function readAuthJson(res) {
+  const text = await res.text();
+  try { return JSON.parse(text); } catch {
+    const blocked = /<!doctype|<html/i.test(text);
+    throw new Error(blocked
+      ? `LinguaScript's login server sent a web page instead of an answer (code ${res.status}). Try again in a minute, or use Continue with Google. If it keeps happening, an ad blocker or network filter may be blocking supabase.co.`
+      : `Unexpected reply from the login server (code ${res.status}). Try again in a minute.`);
+  }
+}
+
 async function signIn(email, password) {
   const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
     body: JSON.stringify({ email, password }),
   });
-  const data = await res.json();
+  const data = await readAuthJson(res);
   if (!res.ok) throw new Error(data.error_description || data.message || 'Sign-in failed');
   return data; // { access_token, refresh_token, user }
 }
 
-// Google sign-in: Supabase's own Google provider (the same one the website
-// uses) in a Chrome sign-in window. Supabase sends the tokens back to the
-// extension's redirect URL, which must be listed under Auth → URL Configuration
-// → Redirect URLs as https://<extension-id>.chromiumapp.org/**.
-async function signInWithGoogle() {
-  const redirectTo = chrome.identity.getRedirectURL();
-  const url = `${SUPABASE_URL}/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(redirectTo)}`;
-  let finalUrl;
-  try {
-    finalUrl = await chrome.identity.launchWebAuthFlow({ url, interactive: true });
-  } catch {
-    throw new Error('Google sign-in didn’t finish. Try again or use email.');
+// Google sign-in happens ON linguascript.co.uk: the pop-up opens /auth?ext=1,
+// the learner uses the website's own Google button (Google shows our domain),
+// and the site hands the extension a one-time sign-in token (SITE_SESSION
+// below, via site-bridge.js). No chrome.identity redirect, so it works for the
+// store build and any unpacked copy alike (their extension IDs differ, which
+// broke Google's redirect check with "redirect_uri_mismatch").
+const SIGN_IN_PAGE = `${SITE_URL}/auth?ext=1`;
+// Remember the tab the learner came from (their Netflix video), so once the
+// site has signed the extension in we close the sign-in tab and go back there.
+async function openSiteSignIn() {
+  const [from] = await chrome.tabs.query({ active: true, lastFocusedWindow: true }).catch(() => []);
+  const tab = await chrome.tabs.create({ url: SIGN_IN_PAGE });
+  await chrome.storage.session.set({ ls_sign_in: { tabId: tab.id, returnTabId: from?.id ?? null } }).catch(() => {});
+  return { ok: true, opened: true };
+}
+
+async function backToVideo(signInTabId) {
+  const { ls_sign_in: s } = await chrome.storage.session.get('ls_sign_in').catch(() => ({}));
+  await chrome.storage.session.remove('ls_sign_in').catch(() => {});
+  const back = s?.returnTabId != null ? await chrome.tabs.get(s.returnTabId).catch(() => null) : null;
+  if (back) {
+    await chrome.tabs.update(back.id, { active: true }).catch(() => {});
+    await chrome.windows.update(back.windowId, { focused: true }).catch(() => {});
+    // Every frame of the video tab reloads the account (colours, goal, language).
+    chrome.tabs.sendMessage(back.id, { type: 'LS_SIGNED_IN' }).catch(() => {});
   }
-  const params = new URLSearchParams(new URL(finalUrl).hash.slice(1));
-  const accessToken = params.get('access_token');
-  if (!accessToken) throw new Error(params.get('error_description') || 'Google sign-in failed');
-  const userRes = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
-    headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${accessToken}` },
+  // Leave the site's "signed in" message up for a moment, then close the tab
+  // we opened (never a tab the learner opened themselves).
+  if (signInTabId != null && (s?.tabId === signInTabId || !s)) setTimeout(() => chrome.tabs.remove(signInTabId).catch(() => {}), back ? 1200 : 4000);
+}
+
+/** One-time magic-link token from the website → the extension's own session. */
+async function sessionFromTokenHash(tokenHash) {
+  const res = await fetch(`${SUPABASE_URL}/auth/v1/verify`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
+    body: JSON.stringify({ type: 'magiclink', token_hash: tokenHash }),
   });
-  if (!userRes.ok) throw new Error('Google sign-in failed');
-  return {
-    access_token: accessToken,
-    refresh_token: params.get('refresh_token'),
-    expires_in: Number(params.get('expires_in')) || 3600,
-    user: await userRes.json(),
-  };
+  const data = await readAuthJson(res);
+  if (!res.ok || !data.access_token) throw new Error(data.error_description || data.msg || 'Sign-in from linguascript.co.uk failed');
+  return data;
 }
 
 async function refreshSession(refreshToken) {
@@ -108,7 +138,11 @@ function rest(path, accessToken, init = {}) {
 function normalizeToken(raw) {
   return (raw || '')
     .toLowerCase()
-    .replace(/[.,!?;:"'`«»()\[\]…，。、！？；：「」『』（）《》〈〉“”‘’]/g, '')
+    .replace(/[.,!?;:"'`«»()\[\]…，。、！？；：「」『』（）《》〈〉“”‘’¿¡]/g, '')
+    .trim()
+    // ANY punctuation or symbol at the edges ("¿Sabes", "-Impecable", "hola!!", "«oui»"),
+    // never inside: "peut-être" keeps its hyphen.
+    .replace(/^[\p{P}\p{S}]+|[\p{P}\p{S}]+$/gu, '')
     .trim();
 }
 
@@ -287,6 +321,38 @@ async function setLanguage(session, language) {
   await chrome.storage.local.set({ ls_chosen_language: lang, ls_language: lang });
   invalidateDeckCache();
   return { ok: true, language: lang };
+}
+
+// The video turned out to be in another language (Spanish subtitles while the
+// account was on French). Switch to that deck if the learner has it; else say
+// it's missing so the page can offer to add it. Never the learner's own language.
+const MAX_LANGUAGES = 5; // same as src/lib/languageProfiles.ts
+async function videoLanguage(session, language) {
+  const lang = String(language || '').toLowerCase();
+  const { languages, nativeLanguage } = await getLanguages(session);
+  if (!lang || lang === nativeLanguage) return { ok: false, error: 'native' };
+  if (languages.includes(lang)) return { ...(await setLanguage(session, lang)), switched: true };
+  return { ok: false, error: 'missing', language: lang, languages, canAdd: languages.length < MAX_LANGUAGES };
+}
+
+// A new deck for a language (a language_profiles row, like "Add a language" on
+// the website), then watch in it.
+async function addLanguage(session, language) {
+  const lang = String(language || '').toLowerCase();
+  if (!/^[a-z]{2}$/.test(lang)) return { ok: false, error: 'bad_language' };
+  const { languages, nativeLanguage } = await getLanguages(session);
+  if (lang === nativeLanguage) return { ok: false, error: 'native' };
+  if (!languages.includes(lang)) {
+    if (languages.length >= MAX_LANGUAGES) return { ok: false, error: 'language_limit_reached' };
+    const res = await rest('language_profiles', session.access_token, {
+      method: 'POST',
+      headers: { Prefer: 'return=minimal' },
+      body: JSON.stringify({ user_id: session.user.id, language: lang }),
+    });
+    if (!res.ok && res.status !== 409) return { ok: false, error: `Couldn’t add the language (${res.status})` };
+    invalidateLanguages();
+  }
+  return setLanguage(session, lang);
 }
 
 async function storeSession(data) {
@@ -574,7 +640,18 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       })(), sendResponse);
 
     case 'GOOGLE_SIGN_IN':
-      return reply((async () => storeSession(await signInWithGoogle()))(), sendResponse);
+      return reply(openSiteSignIn(), sendResponse);
+
+    // linguascript.co.uk (signed in, opened with ?ext=1) signs the extension in.
+    case 'SITE_SESSION':
+      if (!/^https:\/\/(www\.)?linguascript\.co\.uk$/.test(sender.origin || '') || !msg.tokenHash) return false;
+      return reply((async () => {
+        const res = await storeSession(await sessionFromTokenHash(String(msg.tokenHash)));
+        const { ls_sign_in: pending } = await chrome.storage.session.get('ls_sign_in').catch(() => ({}));
+        // Only the tab the pop-up opened goes away; a learner signing in on the site normally keeps theirs.
+        if (pending && pending.tabId === sender.tab?.id) backToVideo(sender.tab.id);
+        return res;
+      })(), sendResponse);
 
     case 'SIGN_OUT':
       return reply((async () => {
@@ -604,6 +681,12 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         if (!session) return { ok: false };
         return { ok: true, ...(await getLanguages(session)) };
       })(), sendResponse);
+
+    case 'VIDEO_LANGUAGE':
+      return reply((async () => videoLanguage(await getValidSession(), msg.language))(), sendResponse);
+
+    case 'ADD_LANGUAGE':
+      return reply((async () => addLanguage(await getValidSession(), msg.language))(), sendResponse);
 
     case 'SET_LANGUAGE':
       return reply((async () => setLanguage(await getValidSession(), msg.language))(), sendResponse);
@@ -683,6 +766,12 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     case 'GET_RING_POOL':
       return reply(getRingPool(msg.language), sendResponse);
 
+    case 'SYNC_VIDEO_SITES':
+      return reply(syncVideoSites().then(() => ({ ok: true })), sendResponse);
+
+    case 'ENABLE_VIDEO_TAB':
+      return reply(enableVideoTab(msg.tabId), sendResponse);
+
     case 'GET_XP':
       return reply((async () => {
         const session = await getValidSession().catch(() => null);
@@ -726,3 +815,58 @@ chrome.contextMenus?.onClicked.addListener(async (info, tab) => {
   await chrome.scripting.executeScript({ target, files: ['ls-core.js'] }).catch(() => {});
   await chrome.scripting.executeScript({ target, func: (text) => window.LSCore?.saveSelectionNow(text), args: [info.selectionText || ''] }).catch(() => {});
 });
+
+// ─── Any video site: Stremio Web, TikTok, Dailymotion, … ───────────────────────
+// YouTube, Netflix, Crunchyroll and TV5MONDE are in manifest.json. Every other
+// site is switched on by the learner in the pop-up (an optional permission for
+// just that site, asked at their click — no "all websites" warning at install).
+// We then register the same caption catcher + universal adapter there, so it
+// keeps working after a restart.
+const BUILT_IN_ORIGINS = new Set([
+  ...(chrome.runtime.getManifest().host_permissions || []),
+  ...(chrome.runtime.getManifest().content_scripts || []).flatMap((c) => c.matches || []),
+]);
+const VIDEO_FILES = ['ls-core.js', 'sites.js', 'subtitles.js', 'adapters/universal.js'];
+const VIDEO_SCRIPT_IDS = ['ls-video-hook', 'ls-video'];
+
+async function videoOrigins() {
+  const { origins = [] } = await chrome.permissions.getAll();
+  // Only single sites the learner chose — never a blanket "all sites" grant.
+  return origins.filter((o) => /^https?:\/\/[^*/]/.test(o) || /^https?:\/\/\*\.[^/]+\//.test(o))
+    .filter((o) => !BUILT_IN_ORIGINS.has(o));
+}
+
+// Install, startup and permission events can fire together: run one at a time.
+let syncChain = Promise.resolve();
+function syncVideoSites() {
+  syncChain = syncChain.catch(() => {}).then(doSyncVideoSites);
+  return syncChain;
+}
+
+async function doSyncVideoSites() {
+  const wanted = await videoOrigins();
+  const existing = await chrome.scripting.getRegisteredContentScripts({ ids: VIDEO_SCRIPT_IDS }).catch(() => []);
+  if (existing.length) await chrome.scripting.unregisterContentScripts({ ids: existing.map((s) => s.id) }).catch(() => {});
+  if (!wanted.length) return;
+  await chrome.scripting.registerContentScripts([
+    { id: 'ls-video-hook', matches: wanted, js: ['caption-hook.js'], world: 'MAIN', runAt: 'document_start', allFrames: true },
+    { id: 'ls-video', matches: wanted, js: VIDEO_FILES, runAt: 'document_idle', allFrames: true },
+  ]);
+}
+
+// Right after the learner switches a site on: start in the open tab too, no
+// reload needed. (The catcher only sees subtitle files fetched from now on, so
+// re-picking subtitles in the player, or a reload, fills in canvas subtitles.)
+async function enableVideoTab(tabId) {
+  await syncVideoSites();
+  if (!tabId) return { ok: true };
+  const target = { tabId, allFrames: true };
+  await chrome.scripting.executeScript({ target, files: ['caption-hook.js'], world: 'MAIN' }).catch(() => {});
+  await chrome.scripting.executeScript({ target, files: VIDEO_FILES }).catch(() => {});
+  return { ok: true };
+}
+
+chrome.runtime.onInstalled.addListener(() => { syncVideoSites().catch(() => {}); });
+chrome.runtime.onStartup?.addListener(() => { syncVideoSites().catch(() => {}); });
+chrome.permissions.onAdded.addListener(() => { syncVideoSites().catch(() => {}); });
+chrome.permissions.onRemoved.addListener(() => { syncVideoSites().catch(() => {}); });

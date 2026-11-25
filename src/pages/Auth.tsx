@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import { track } from "@/lib/analytics";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable/index";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,15 +11,16 @@ import { useToast } from "@/hooks/use-toast";
 import { useT } from "@/i18n";
 import { UiLanguageSwitcher } from "@/components/UiLanguageSwitcher";
 import { applyGuestOnboarding } from "@/lib/guestOnboarding";
-import { GOOGLE_WEB_CLIENT_ID, canUseGoogleButton, loadGoogleScript, makeNonce, signInWithGoogleCredential } from "@/lib/googleSignIn";
+import { GOOGLE_WEB_CLIENT_ID, canUseGoogleButton, googleCredentialHash, loadGoogleScript, makeNonce, signInWithGoogleCredential, signInWithLovableGoogle } from "@/lib/googleSignIn";
+import { isPhoneGoogleState, phoneGoogleReturn } from "@linguascript/core/phoneGoogle";
 
 function GoogleIcon() {
   return (
-    <svg width="18" height="18" viewBox="0 0 48 48" className="mr-2 shrink-0">
-      <path fill="#4285F4" d="M44.5 20H24v8.5h11.8C34.7 33.9 30.1 37 24 37c-7.2 0-13-5.8-13-13s5.8-13 13-13c3.1 0 5.9 1.1 8.1 2.9l6.4-6.4C34.6 4.1 29.6 2 24 2 11.8 2 2 11.8 2 24s9.8 22 22 22c11 0 21-8 21-22 0-1.3-.2-2.7-.5-4z"/>
-      <path fill="#34A853" d="M6.3 14.7l7 5.1C15 16.1 19.1 13 24 13c3.1 0 5.9 1.1 8.1 2.9l6.4-6.4C34.6 4.1 29.6 2 24 2 16.3 2 9.7 7.3 6.3 14.7z"/>
-      <path fill="#FBBC05" d="M24 46c5.8 0 10.8-1.9 14.8-5.2l-6.8-5.6C30 36.7 27.1 37.5 24 37.5c-6.1 0-11.2-4.1-13-9.7l-7 5.4C7.5 41.2 15.2 46 24 46z"/>
-      <path fill="#EA4335" d="M44.5 20H24v8.5h11.8c-.8 2.3-2.3 4.3-4.3 5.8l6.8 5.6C42.2 36.3 46 30.7 46 24c0-1.3-.2-2.7-.5-4z"/>
+    <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" className="mr-2 shrink-0">
+      <path fill="#4285F4" d="M23.49 12.27c0-.79-.07-1.54-.19-2.27H12v4.51h6.47c-.29 1.48-1.14 2.73-2.4 3.58v3h3.86c2.26-2.09 3.56-5.17 3.56-8.82z"/>
+      <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.86-3c-1.08.72-2.45 1.16-4.07 1.16-3.13 0-5.78-2.11-6.73-4.96H1.29v3.09C3.26 21.3 7.31 24 12 24z"/>
+      <path fill="#FBBC05" d="M5.27 14.29c-.25-.72-.38-1.49-.38-2.29s.14-1.57.38-2.29V6.62H1.29C.47 8.24 0 10.06 0 12s.47 3.76 1.29 5.38l3.98-3.09z"/>
+      <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.62l3.98 3.09c.95-2.85 3.6-4.96 6.73-4.96z"/>
     </svg>
   );
 }
@@ -28,11 +28,26 @@ function GoogleIcon() {
 
 // "Failed to fetch" means the browser never reached the login server
 // (server paused/down, ad blocker, or network filter) — say that plainly.
+// Gives up after `ms` so a server that never answers can't leave the button spinning.
+const withTimeout = <T,>(p: PromiseLike<T>, ms: number): Promise<T> =>
+  Promise.race([
+    Promise.resolve(p),
+    new Promise<never>((_, reject) => setTimeout(() => reject(new Error("timed out waiting for the server")), ms)),
+  ]);
+
 const authErrorMessage = (e: { message?: string } | null | undefined) => {
   const msg = e?.message ?? "Please try again";
-  return /failed to fetch|networkerror|load failed|network request failed/i.test(msg)
+  return /failed to fetch|networkerror|load failed|network request failed|timed out/i.test(msg)
     ? "Couldn't reach the LinguaScript server. Check your internet, turn off ad blockers for this site, and try again in a minute."
-    : msg;
+    // Accounts made with "Continue with Google" have no password yet, so a
+    // password Chrome remembered from elsewhere is "invalid". Say so.
+    : /invalid login credentials/i.test(msg)
+      ? "Wrong email or password. If you usually sign in with Google, you don't have a password yet: tap \"Forgot password?\" to make one."
+      : /already registered|already been registered/i.test(msg)
+        ? "You already have an account with this email. Sign in instead — or, if you made it with Google, use the Google button (\"Forgot password?\" adds a password)."
+      : /email not confirmed/i.test(msg)
+        ? "Please confirm your email first: open the link we emailed you, then sign in."
+        : msg;
 };
 
 const Auth = () => {
@@ -53,50 +68,31 @@ const Auth = () => {
   const inviteToken = searchParams.get("invite");
   const next = searchParams.get("next") || "/discover";
   const { toast } = useToast();
+  const phoneState = searchParams.get("phone");
+  const pendingPhoneState = useRef("");
 
-  // Google sign-in via the project's own Google OAuth provider.
-  // Google redirects to the Supabase callback
-  // (https://<project>.supabase.co/auth/v1/callback), which then returns the
-  // browser to this app's origin. Post-login routing (new user -> /onboarding,
-  // existing user -> /discover) is handled by the root route (Index.tsx).
+  // Never open the backend-address OAuth screen: phones use our page in a real browser.
   const handleGoogleFallback = async () => {
     setGoogleLoading(true);
-    // Safety valve: if nothing navigates away within 10s (e.g. a popup
-    // blocker silently ate the redirect), stop showing "Signing in…" forever.
-    const stuckTimer = setTimeout(() => setGoogleLoading(false), 10000);
     try {
       if (inviteToken) localStorage.setItem("pendingSchoolInvite", inviteToken);
       if (next && next !== "/discover") localStorage.setItem("pendingAuthNext", next);
-
-      // Google's accounts.google.com actively refuses to render inside an
-      // iframe (it sends X-Frame-Options/CSP frame-ancestors headers), so
-      // when this page is embedded — e.g. the Lovable editor preview — a
-      // same-window redirect to the consent screen silently does nothing:
-      // no popup, no error, just a dead click. Ask Supabase for the URL
-      // without letting it navigate, then push the TOP window there so the
-      // OAuth screen always breaks out of any frame it's running in.
-      const framed = window.top !== window.self;
-      track("signup_started", { method: "google", mode: isLogin ? "login" : "signup" });
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: window.location.origin,
-          queryParams: { prompt: "select_account" },
-          skipBrowserRedirect: framed,
-        },
-      });
-      if (error) throw error;
-      if (framed && data?.url) {
-        window.top!.location.href = data.url;
+      const bridge = (window as any).ReactNativeWebView;
+      if (bridge) {
+        const { raw } = await makeNonce();
+        pendingPhoneState.current = raw;
+        bridge.postMessage(JSON.stringify({ type: "google-signin", state: raw }));
+      } else {
+        await signInWithLovableGoogle();
+        if ((await supabase.auth.getSession()).data.session) await finishSignIn();
       }
-      // Unframed: supabase-js already navigated this window to Google.
     } catch (e) {
-      clearTimeout(stuckTimer);
       toast({
         title: "Google sign-in failed",
         description: authErrorMessage(e instanceof Error ? e : null),
         variant: "destructive",
       });
+    } finally {
       setGoogleLoading(false);
     }
   };
@@ -124,8 +120,30 @@ const Auth = () => {
     navigate(done ? next : "/onboarding", { replace: true });
   };
 
+  useEffect(() => {
+    const receive = (event: Event) => {
+      const detail = (event as CustomEvent).detail;
+      if (!(window as any).ReactNativeWebView || !pendingPhoneState.current ||
+          detail?.state !== pendingPhoneState.current || typeof detail?.tokenHash !== "string") return;
+      pendingPhoneState.current = "";
+      void (async () => {
+        setGoogleLoading(true);
+        try {
+          const { error } = await supabase.auth.verifyOtp({ token_hash: detail.tokenHash, type: "magiclink" });
+          if (error) throw error;
+          await finishSignIn();
+        } catch {
+        toast({ title: "Google sign-in failed", description: "Please try signing in again.", variant: "destructive" });
+        } finally { setGoogleLoading(false); }
+      })();
+    };
+    window.addEventListener("ls:phone-google-return", receive);
+    return () => window.removeEventListener("ls:phone-google-return", receive);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Google's own button (src/lib/googleSignIn.ts): Google shows linguascript.co.uk,
-  // not the Supabase address. "off" = not allowed here or failed → old button.
+  // not the backend address. "off" opens our branded page in a real browser.
   //
   // canUseGoogleButton() checks window.ReactNativeWebView, which react-native-webview
   // injects into the page — but that can land a tick after this component's first
@@ -136,7 +154,7 @@ const Auth = () => {
   // embedded WebView — which Google silently refuses, leaving the button stuck on
   // its loading skeleton forever. Checking again in an effect (always after mount,
   // so after that injection) fixes it.
-  const [gis, setGis] = useState<"loading" | "ready" | "off">("off");
+  const [gis, setGis] = useState<"loading" | "ready" | "off" | "failed">("off");
   const gisRef = useRef<HTMLDivElement>(null);
   const nonceRef = useRef("");
   useEffect(() => {
@@ -161,10 +179,27 @@ const Auth = () => {
           setGoogleLoading(true);
           track("signup_started", { method: "google_button", mode: isLogin ? "login" : "signup" });
           try {
-            await signInWithGoogleCredential(credential, nonceRef.current);
-            await finishSignIn();
+            if (isPhoneGoogleState(phoneState)) {
+              const hash = await googleCredentialHash(credential, nonceRef.current);
+              window.location.assign(phoneGoogleReturn(hash, phoneState));
+              return;
+            }
+            // Never "Signing in…" forever: each step gets 20 s, then a clear error and a fresh try.
+            const within = <T,>(p: Promise<T>, what: string) => Promise.race([
+              p,
+              new Promise<never>((_, reject) => setTimeout(() => reject(new Error(`${what} took too long. Check your connection and try again.`)), 20000)),
+            ]);
+            try {
+              await within(signInWithGoogleCredential(credential, nonceRef.current), "Signing in with Google");
+            } catch {
+              // The branded check couldn't finish (google-auth not deployed): use
+              // Lovable Cloud's Google login with our own Google client instead.
+              await signInWithLovableGoogle();
+              if (!(await supabase.auth.getSession()).data.session) return; // redirected to Google; we come back here
+            }
+            await within(finishSignIn(), "Opening your account");
           } catch (e) {
-            toast({ title: "Google sign-in failed", description: e instanceof Error ? e.message : "Please try again", variant: "destructive" });
+            toast({ title: "Google sign-in failed", description: authErrorMessage(e instanceof Error ? e : null), variant: "destructive" });
             setGoogleLoading(false);
             setGis("loading"); // fresh nonce for the next try
           }
@@ -174,7 +209,7 @@ const Auth = () => {
       google.accounts.id.renderButton(gisRef.current, { type: "standard", theme: "outline", size: "large", text: "continue_with", shape: "rectangular", width });
       setGis("ready");
     };
-    setup().catch(() => { if (alive) setGis("off"); });
+    setup().catch(() => { if (alive) setGis("failed"); }); // never fall back to the backend-address Google screen here
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gis]);
@@ -183,15 +218,17 @@ const Auth = () => {
     e.preventDefault();
     setLoading(true);
     if (isLogin) {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      const { error } = await withTimeout(supabase.auth.signInWithPassword({ email, password }), 20000)
+        .catch((e: unknown) => ({ error: e instanceof Error ? e : new Error(String(e)) }));
       if (error) {
         toast({ title: "Login failed", description: authErrorMessage(error), variant: "destructive" });
       } else {
-        await finishSignIn();
+        // Signed in; never leave the button spinning if opening the account stalls.
+        await Promise.race([finishSignIn(), new Promise((r) => setTimeout(r, 20000))]);
       }
     } else {
       track("signup_started", { method: "email", mode: "signup" });
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -203,6 +240,18 @@ const Auth = () => {
       });
       if (error) {
         toast({ title: "Signup failed", description: authErrorMessage(error), variant: "destructive" });
+      } else if (data.session) {
+        // Email confirmation is off: the account is ready, so go straight in
+        // instead of telling the learner to wait for an email that never comes.
+        toast({ title: "Account created 🎉", description: "Welcome to LinguaScript!" });
+        await Promise.race([finishSignIn(), new Promise((r) => setTimeout(r, 20000))]);
+      } else if (data.user && (data.user.identities?.length ?? 0) === 0) {
+        // The login server hides "already registered" behind a fake success.
+        toast({
+          title: "You already have an account",
+          description: "Sign in instead. If you made it with Google, use the Google button (or \"Forgot password?\" to add a password).",
+        });
+        setIsLogin(true);
       } else {
         toast({
           title: "Check your email ✉️",
@@ -242,6 +291,13 @@ const Auth = () => {
           <p className="text-muted-foreground mt-2">
             {forgotMode ? t("resetPasswordSub") : isLogin ? t("signInSub") : t("signUpSub")}
           </p>
+          {/* Opened from the Chrome extension's "Continue with Google" (?ext=1):
+              ExtensionAccountSync signs the extension in once this tab is signed in. */}
+          {new URLSearchParams(window.location.search).get("ext") === "1" && (
+            <p className="mt-4 rounded-xl border border-primary/40 bg-primary/10 px-4 py-3 text-sm text-foreground">
+              🧩 Sign in to connect your LinguaScript Chrome extension. We'll take you straight back to your video.
+            </p>
+          )}
         </div>
 
         {forgotMode ? (
@@ -267,13 +323,15 @@ const Auth = () => {
           <div className="glass-panel-strong p-8 space-y-4">
 
             {/* Google Sign-In: Google's own button where allowed, else the redirect button */}
-            {gis !== "off" && (
+            {gis === "failed" && (
+              <Button type="button" variant="outline" size="lg" className="w-full" onClick={() => setGis("loading")}>
+                Google sign-in didn’t load — try again
+              </Button>
+            )}
+            {(gis === "loading" || gis === "ready") && (
               <div className="w-full space-y-2">
                 <div ref={gisRef} aria-busy={gis === "loading"} className={`flex min-h-[44px] w-full justify-center ${googleLoading ? "pointer-events-none opacity-60" : ""}`} />
                 {googleLoading && <p className="text-center text-xs text-muted-foreground">{t("signingIn")}</p>}
-                <button type="button" onClick={handleGoogleFallback} className="block w-full text-center text-xs text-muted-foreground underline-offset-2 hover:underline">
-                  Trouble with Google? Try the other way
-                </button>
               </div>
             )}
             {gis === "off" && (
@@ -282,7 +340,7 @@ const Auth = () => {
                   type="button"
                   variant="outline"
                   size="lg"
-                  className="w-full bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                  className="w-full"
                   onClick={handleGoogleFallback}
                   disabled={googleLoading}
                 >

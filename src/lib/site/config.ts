@@ -3,6 +3,8 @@
 // Every value is checked against these lists before use, so a config can only
 // CHOOSE designs (never inject HTML). Kept tiny: it is in the first load.
 import { supabase } from "@/integrations/supabase/client";
+import { cleanHomePath } from "@/lib/site/homeRoutes";
+import { DEFAULT_HOME_PATH } from "@/lib/site/homepageChoices";
 
 export const REACT_PAGES = {
   current: "Chameleon Method homepage",
@@ -26,18 +28,21 @@ export const BUILT_IN_LOADERS = {
 export const LOADER_LABS = ["loading-experiences", "loading-screens", "loading-motion"] as const;
 export const PAGE_LOADERS = { skeleton: "Grey skeleton (fastest)", brand: "Chameleon + colour word" } as const;
 
-export type StudioSection = { id: string; variant?: string; lab?: string; element?: number };
-export type SitePage = { kind: "react"; page: ReactPageId } | { kind: "studio"; theme: string; sections: StudioSection[] };
+/** Older HQ choices (kept so History / roll back still work). New choices use `path`. */
+export type SitePage = { kind: "react"; page: ReactPageId } | { kind: "path"; path: string };
 export type SiteArm = { id: string; name: string; page: SitePage };
 export type SiteConfig = {
   version: 2;
-  /** builtin = the homepage test that ships in the code (LandingPageTest). */
-  home: { mode: "builtin" } | { mode: "single"; page: SitePage } | { mode: "test"; key: string; arms: SiteArm[] };
+  /** builtin = legacy setting, now resolved to the default single homepage.
+   * path = show the page at this address (e.g. "/landing") as the homepage. */
+  home: { mode: "builtin" } | { mode: "path"; path: string } | { mode: "single"; page: SitePage } | { mode: "test"; key: string; arms: SiteArm[] };
   intro?: { loader: string; when: "session" | "first" | "always"; end: "auto" | "button" };
   pageLoader?: keyof typeof PAGE_LOADERS;
   /** Video player while subtitles load: one design per film from `designs`,
    * then one "loading → playing" motion from `reveals` (empty = straight in). */
   filmLoader?: FilmLoaderConfig;
+  /** Page addresses switched off in HQ (visitors are sent to the homepage). */
+  disabledPages?: string[];
   published_id?: number;
   published_at?: string;
 };
@@ -74,8 +79,8 @@ export const isLoaderId = (v: unknown): v is string =>
 
 function validPage(p: any): p is SitePage {
   if (!p || typeof p !== "object") return false;
-  if (p.kind === "react") return typeof p.page === "string" && p.page in REACT_PAGES;
-  return p.kind === "studio" && typeof p.theme === "string" && Array.isArray(p.sections) && p.sections.length <= 40;
+  if (p.kind === "path") return typeof p.path === "string" && cleanHomePath(p.path) === p.path;
+  return p.kind === "react" && typeof p.page === "string" && p.page in REACT_PAGES;
 }
 
 /** Returns a safe config, or null when it doesn't look like one we can show. */
@@ -83,17 +88,24 @@ export function cleanConfig(c: any): SiteConfig | null {
   if (!c || c.version !== 2 || !c.home) return null;
   const h = c.home;
   if (h.mode === "single" && !validPage(h.page)) return null;
+  if (h.mode === "path") {
+    const path = cleanHomePath(h.path);
+    if (!path) return null;
+    c = { ...c, home: { mode: "path", path } };
+  }
   if (h.mode === "test") {
     if (!/^[a-z0-9_]{3,40}$/.test(h.key) || !Array.isArray(h.arms) || h.arms.length < 2 || h.arms.length > 4) return null;
     if (!h.arms.every((a: any) => /^[a-z0-9]{1,12}$/.test(a?.id) && validPage(a.page))) return null;
   }
-  if (h.mode !== "single" && h.mode !== "test" && h.mode !== "builtin") return null;
+  if (!["single", "test", "builtin", "path"].includes(h.mode)) return null;
   const intro = c.intro && isLoaderId(c.intro.loader) ? {
     loader: c.intro.loader,
     when: ["session", "first", "always"].includes(c.intro.when) ? c.intro.when : "session",
     end: c.intro.end === "button" ? "button" : "auto",
   } : undefined;
-  return { ...c, intro, pageLoader: c.pageLoader === "brand" ? "brand" : "skeleton", filmLoader: cleanFilm(c.filmLoader) } as SiteConfig;
+  const disabledPages = Array.from(new Set((Array.isArray(c.disabledPages) ? c.disabledPages : [])
+    .map((p: unknown) => (typeof p === "string" ? cleanHomePath(p) : null)).filter(Boolean) as string[])).slice(0, 50);
+  return { ...c, intro, pageLoader: c.pageLoader === "brand" ? "brand" : "skeleton", filmLoader: cleanFilm(c.filmLoader), disabledPages } as SiteConfig;
 }
 
 const CACHE = "ls.site.live.v1";
@@ -150,27 +162,22 @@ export function routeForText(text: string): string | null {
 
 export const DEFAULT_SITE: SiteConfig = {
   version: 2,
-  home: { mode: "builtin" },
+  home: { mode: "path", path: DEFAULT_HOME_PATH },
   intro: { loader: "languages", when: "session", end: "auto" },
   pageLoader: "skeleton",
   filmLoader: DEFAULT_FILM_LOADER,
 };
 
-/** Studio Builder state (theme + sections with on/off) → a publishable page. */
-export function studioToPage(c: { theme: string; sections: { id: string; v?: string; lab?: string; n?: number; on?: boolean }[] }): SitePage {
-  return {
-    kind: "studio",
-    theme: c.theme,
-    sections: c.sections.filter((s) => s.on !== false).map((s) =>
-      s.id === "lib" ? { id: "lib", lab: s.lab, element: s.n } : { id: s.id, variant: s.v }),
-  };
-}
-
 /** One line describing a page, for HQ. */
 export function describePage(p: SitePage): string {
-  if (p.kind === "react") return REACT_PAGES[p.page] ?? p.page;
-  const libs = p.sections.filter((s) => s.id === "lib").length;
-  return `Studio page · ${p.theme} · ${p.sections.length} sections${libs ? ` (${libs} from the library)` : ""}`;
+  return p.kind === "path" ? p.path : REACT_PAGES[p.page] ?? p.page;
+}
+/** One line describing the homepage choice, for HQ. */
+export function describeHome(h: SiteConfig["home"]): string {
+  if (h.mode === "builtin") return DEFAULT_HOME_PATH;
+  if (h.mode === "path") return `The page at ${h.path}`;
+  if (h.mode === "single") return describePage(h.page);
+  return `A/B test: ${h.arms.map((a) => describePage(a.page)).join(" vs ")}`;
 }
 export function describeLoader(id: string | undefined): string {
   if (!id || id === "none") return "No intro";

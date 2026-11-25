@@ -61,6 +61,76 @@ async function loadLanguages() {
   $('lang-picker').classList.toggle('hidden', !info.needsChoice);
 }
 
+// ─── This page: switch LinguaScript on for any video site ─────────────────────
+// Asks Chrome for just this one site (or the site's player origins), at the
+// learner's click. Built-in sites (YouTube, Netflix, Crunchyroll, TV5MONDE)
+// need nothing.
+let siteOrigins = null;
+let siteTabId = null;
+
+function siteCard({ title, text, on = false, off = false }) {
+  $('site-card').classList.remove('hidden');
+  $('site-title').textContent = title;
+  $('site-text').textContent = text;
+  $('site-on').classList.toggle('hidden', !on);
+  $('site-off').classList.toggle('hidden', !off);
+}
+
+async function loadSite() {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true }).catch(() => []);
+  if (!tab?.url || !/^https?:/.test(tab.url) || /chromewebstore\.google\.com|chrome\.google\.com\/webstore/.test(tab.url)) return;
+  siteTabId = tab.id;
+  const host = new URL(tab.url).hostname.replace(/^www\./, '');
+  if (/(^|\.)youtube\.com$|(^|\.)netflix\.com$/.test(host)) {
+    siteCard({ title: '✅ Works here', text: 'Play a video with subtitles (CC) and tap any word.' });
+    return;
+  }
+  const known = self.LSSites?.siteFor(tab.url);
+  const name = known?.name || host;
+  siteOrigins = known ? known.origins : [self.LSSites.originPattern(tab.url)].filter(Boolean);
+  const granted = known?.builtIn || (siteOrigins.length && await chrome.permissions.contains({ origins: siteOrigins }).catch(() => false));
+  if (granted) {
+    siteCard({
+      title: `✅ On for ${name}`,
+      text: known?.note || 'Turn on the video’s subtitles (CC). No subtitles? Press 📄 on the LinguaScript bar to load a .srt or .vtt file.',
+      off: !known?.builtIn,
+    });
+  } else {
+    siteCard({
+      title: name,
+      text: known
+        ? `Turn LinguaScript on for ${name}: dual subtitles and tap a word to save it.`
+        : 'Is there a video on this page? Turn LinguaScript on for this site to get dual subtitles and tap-to-save.',
+      on: true,
+    });
+  }
+}
+
+$('site-on').addEventListener('click', () => {
+  if (!siteOrigins?.length) return;
+  // permissions.request must be the first thing the click does.
+  chrome.permissions.request({ origins: siteOrigins }, async (ok) => {
+    if (!ok) return;
+    await send({ type: 'ENABLE_VIDEO_TAB', tabId: siteTabId });
+    loadSite();
+  });
+});
+$('site-off').addEventListener('click', () => {
+  if (!siteOrigins?.length) return;
+  chrome.permissions.remove({ origins: siteOrigins }, () => { send({ type: 'SYNC_VIDEO_SITES' }); loadSite(); });
+});
+
+// Translation line: Blurred (hover to read it, the default), Always or Off.
+async function loadSecondary() {
+  const { ls_secondary: mode = 'blur' } = await chrome.storage.local.get('ls_secondary');
+  document.querySelectorAll('#secondary-options .lang-btn').forEach((b) => b.classList.toggle('on', b.dataset.mode === mode));
+}
+document.querySelectorAll('#secondary-options .lang-btn').forEach((b) => b.addEventListener('click', async () => {
+  await chrome.storage.local.set({ ls_secondary: b.dataset.mode });
+  loadSecondary();
+}));
+loadSecondary();
+
 $('lang-change').addEventListener('click', () => $('lang-picker').classList.toggle('hidden'));
 
 async function init() {
@@ -70,6 +140,7 @@ async function init() {
   $('user-email').textContent = auth.session.user?.email || '';
   loadLanguages();
   loadToday();
+  loadSite();
 }
 
 $('login-form').addEventListener('submit', async (e) => {
@@ -83,23 +154,37 @@ $('login-form').addEventListener('submit', async (e) => {
   const res = await send({ type: 'SIGN_IN', email, password });
   $('login-btn').disabled = false;
   $('login-btn').textContent = 'Log in';
-  if (!res?.ok) { $('auth-error').textContent = res?.error || 'Login failed. Check your email and password.'; return; }
+  if (!res?.ok) {
+    // Accounts made with Google have no password yet.
+    $('auth-error').textContent = /invalid login credentials/i.test(res?.error || '')
+      ? 'Wrong email or password. Signed up with Google? Use "Continue with Google", or set a password with "Forgot password?" on linguascript.co.uk.'
+      // "Failed to fetch" = the browser never reached the LinguaScript server (paused/down, network or ad blocker).
+      : /failed to fetch|networkerror|load failed/i.test(res?.error || '')
+        ? "Couldn't reach the LinguaScript server. Check your internet, turn off ad blockers for this site, and try again in a minute."
+        : res?.error || 'Login failed. Check your email and password.';
+    return;
+  }
   $('password').value = '';
-  init();
+  // Shown small at the bottom, so it's easy to tell which copy of the extension this is.
+$('ext-version').textContent = `LinguaScript extension v${chrome.runtime.getManifest().version}`;
+
+init();
 });
 
-// Chrome may close this pop-up while the Google window is open; the sign-in
-// still finishes in the background and the pop-up shows it next time.
+// Google sign-in happens on linguascript.co.uk (Google shows our domain); the
+// site then signs the extension in. The pop-up shows it next time it opens.
 $('google-btn').addEventListener('click', async () => {
   $('auth-error').textContent = '';
   const res = await send({ type: 'GOOGLE_SIGN_IN' });
-  if (!res?.ok) { $('auth-error').textContent = res?.error || 'Google sign-in didn’t finish. Try again or use email.'; return; }
-  init();
+  if (!res?.ok) $('auth-error').textContent = res?.error || 'Couldn’t open linguascript.co.uk. Try again or use email.';
 });
 
 $('logout-btn').addEventListener('click', async () => {
   await send({ type: 'SIGN_OUT' });
   show('auth');
 });
+
+// Shown small at the bottom, so it's easy to tell which copy of the extension this is.
+$('ext-version').textContent = `LinguaScript extension v${chrome.runtime.getManifest().version}`;
 
 init();

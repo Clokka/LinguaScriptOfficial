@@ -8,14 +8,13 @@ import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 import { onPendingLink, takePendingLink } from '@/lib/pendingLink';
 import * as Application from 'expo-application';
-import { APP_NATIVE_LEVEL } from '@linguascript/core';
+import { APP_NATIVE_LEVEL, PHONE_GOOGLE_CALLBACK, isPhoneGoogleState, readPhoneGoogleReturn } from '@linguascript/core';
 import { createClient } from '@supabase/supabase-js';
 import { ensurePermissions, registerForPushAsync } from '@/native/notifications';
 
 const APP_URL = 'https://linguascript.co.uk';
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL!;
 const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!;
-const AUTH_CALLBACK = 'linguascript://auth-callback';
 
 // The website keeps its Supabase session in localStorage. Send its access token
 // to native so the push token is saved as that user — device_tokens RLS only
@@ -64,7 +63,7 @@ function authCallbackParams(url: string): string | null {
 function siteUrlFromLink(url: string | null): string | null {
   if (!url) return null;
   const auth = authCallbackParams(url);
-  if (auth) return `${APP_URL}/${auth}`;
+  if (auth !== null) return `${APP_URL}/auth`; // A cold/stale return has no pending state: retry safely.
   // linguascript://open/flashcards — the home-screen widget and the gold-word card.
   const open = url.match(/^linguascript:\/\/\/?open\/?(.*)$/);
   if (open) return `${APP_URL}/${open[1]}`;
@@ -201,34 +200,34 @@ export default function AppScreen() {
     return () => sub.remove();
   }, [goTo]);
 
-  // Google refuses to show its sign-in page inside an embedded WebView
-  // (403 disallowed_useragent). When the site starts Google OAuth, run it in
-  // a Chrome Custom Tab that returns to the app, then hand the result back to
-  // the site as if Google had redirected there — the site's Supabase client
-  // reads the session from the URL (#access_token=… or ?code=…).
-  const signInWithGoogle = useCallback(async (authorizeUrl: string) => {
-    const url = new URL(authorizeUrl);
-    const original = url.searchParams.get('redirect_to') ?? '';
-    const back = original.startsWith(APP_URL) ? original : `${APP_URL}/`;
-    url.searchParams.set('redirect_to', AUTH_CALLBACK);
-    const result = await WebBrowser.openAuthSessionAsync(url.toString(), AUTH_CALLBACK);
-    if (result.type !== 'success') return;
-    // Whatever Supabase appended (?code=… and/or #access_token=…).
-    const rest = authCallbackParams(result.url) ?? '';
-    if (rest.startsWith('?')) {
-      goTo(back + (back.includes('?') ? '&' : '?') + rest.slice(1));
-    } else {
-      goTo(back.split('#')[0] + rest);
-    }
+  // Google refuses embedded WebViews. Use the SAME branded GIS page in the
+  // system browser, then consume a one-use hash only for this pending attempt.
+  const googlePending = useRef(false);
+  const signInWithGoogle = useCallback(async (state: string) => {
+    if (!isPhoneGoogleState(state) || googlePending.current) return;
+    googlePending.current = true;
+    try {
+      const result = await WebBrowser.openAuthSessionAsync(`${APP_URL}/auth?phone=${state}`, PHONE_GOOGLE_CALLBACK);
+      if (result.type !== 'success') return;
+      const hash = readPhoneGoogleReturn(result.url, state);
+      if (!hash) throw new Error('Sign-in return did not match this attempt');
+      // Return to the existing page: keeps school invites and next-page choices,
+      // and never puts a credential into the WebView URL/history.
+      const detail = JSON.stringify({ tokenHash: hash, state });
+      webRef.current?.injectJavaScript(`window.dispatchEvent(new CustomEvent('ls:phone-google-return',{detail:${detail}}));true;`);
+    } catch {
+      webRef.current?.injectJavaScript(`window.dispatchEvent(new CustomEvent('ls:app-link-failed',{detail:{error:'Google sign-in did not finish. Please try again.'}}));true;`);
+    } finally { googlePending.current = false; }
   }, [goTo]);
 
   const onShouldStartLoadWithRequest = useCallback((req: WebViewNavigation) => {
     if (req.url.startsWith(`${SUPABASE_URL}/auth/v1/authorize`) && req.url.includes('provider=google')) {
-      signInWithGoogle(req.url);
+      // Never fall back to the old provider-address consent screen.
+      goTo(`${APP_URL}/auth`);
       return false;
     }
     return true;
-  }, [signInWithGoogle]);
+  }, [goTo]);
 
   if (!startUrl) {
     return <View style={styles.loading}><Text style={styles.brand}>🦎 LinguaScript</Text></View>;
@@ -268,6 +267,10 @@ export default function AppScreen() {
             });
           try {
             const msg = JSON.parse(e.nativeEvent.data);
+            if (msg.type === 'google-signin' && e.nativeEvent.url.startsWith(`${APP_URL}/`) && isPhoneGoogleState(msg.state)) {
+              void signInWithGoogle(msg.state);
+              return;
+            }
             if (msg.type === 'inbox-ready') { flushInbox(); return; }
             if (msg.type === 'inbox-saved' && Array.isArray(msg.ats)) { removeFromInbox(msg.ats); return; }
             // The 🦎 bubble (plugins/withWordBubble.js): its copy of the deck, and on/off.

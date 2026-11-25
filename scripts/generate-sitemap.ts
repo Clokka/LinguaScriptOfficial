@@ -1,4 +1,5 @@
-import { readFileSync } from "node:fs";
+import { pathToFileURL } from "node:url";
+import { wordPagePaths } from "./word-pages.mjs";
 // Runs before `vite dev` and `vite build` (predev/prebuild hooks); writes public/sitemap.xml.
 // Static marketing routes are listed here; published blog posts are pulled from
 // the database at build time so new articles enter the sitemap on the next deploy.
@@ -41,25 +42,15 @@ const staticEntries: SitemapEntry[] = [
   { path: "/english/a1/checklist", changefreq: "monthly", priority: "0.7" },
   { path: "/english/exams", changefreq: "monthly", priority: "0.7" },
   { path: "/english/a1/sources", changefreq: "yearly", priority: "0.4" },
-  // Most common words (static pages from scripts/word-pages.mjs — keep in sync with its LANGS).
-  { path: "/words", changefreq: "monthly", priority: "0.8" },
-  { path: "/words/anki-and-quizlet", changefreq: "monthly", priority: "0.7" },
-  // /learn articles (static, scripts/learn-articles.mjs).
-  { path: "/learn", changefreq: "monthly", priority: "0.7" },
-  ...["high-frequency-words", "comprehensible-input", "comprehensible-output", "output-hypothesis", "kato-lomb-chameleon-method"].map((s) => ({ path: `/learn/${s}`, changefreq: "monthly", priority: "0.7" })),
-  ...["spanish", "french", "german", "italian", "portuguese", "english"].flatMap((l): SitemapEntry[] => [
-    { path: `/words/${l}`, changefreq: "monthly", priority: "0.8" },
-    { path: `/words/${l}/top-1000`, changefreq: "monthly", priority: "0.7" },
-    { path: `/words/${l}/top-3000`, changefreq: "monthly", priority: "0.6" },
-  ]),
-  { path: "/linguascripts", changefreq: "monthly", priority: "0.6" },
+  // Use the actual renderer's paths so new lists/articles cannot be omitted.
+  ...wordPagePaths().map((path): SitemapEntry => ({ path, changefreq: "monthly", priority: "0.7" })),
   { path: "/privacy", changefreq: "yearly", priority: "0.3" },
   { path: "/terms", changefreq: "yearly", priority: "0.3" },
 ];
 
-async function fetchBlogEntries(): Promise<SitemapEntry[]> {
-  const url = process.env.VITE_SUPABASE_URL;
-  const key = process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+async function fetchBlogEntries(env: Record<string, string | undefined>): Promise<SitemapEntry[]> {
+  const url = env.VITE_SUPABASE_URL;
+  const key = env.VITE_SUPABASE_PUBLISHABLE_KEY;
   if (!url || !key) return [];
   try {
     const res = await fetch(
@@ -81,14 +72,7 @@ async function fetchBlogEntries(): Promise<SitemapEntry[]> {
 }
 
 function generateSitemap(entries: SitemapEntry[]) {
-  // Real "last updated" dates for the static SEO pages, so Google knows they're fresh:
-  // /words = when the word lists were built; /learn = when the articles last changed.
-  const wordsBuilt = (() => { try { return JSON.parse(readFileSync(resolve(process.cwd(), "src/data/wordlists/es.json"), "utf8")).builtAt as string; } catch { return undefined; } })();
-  const LEARN_UPDATED = "2026-11-16";
-  for (const e of entries) {
-    if (!e.lastmod && e.path.startsWith("/words")) e.lastmod = wordsBuilt;
-    if (!e.lastmod && e.path.startsWith("/learn")) e.lastmod = LEARN_UPDATED;
-  }
+  // No build dates or cross-page date fallbacks: only authoritative post dates.
   const urls = entries.map((e) =>
     [
       `  <url>`,
@@ -110,6 +94,12 @@ function generateSitemap(entries: SitemapEntry[]) {
   ].join("\n");
 }
 
-const entries = [...staticEntries, ...(await fetchBlogEntries())];
-writeFileSync(resolve("public/sitemap.xml"), generateSitemap(entries));
-console.log(`sitemap.xml written (${entries.length} entries)`);
+export async function writeSitemap(destination: string, env: Record<string, string | undefined> = process.env) {
+  const entries = [...staticEntries, ...(await fetchBlogEntries(env))];
+  writeFileSync(destination, generateSitemap(entries));
+  return entries.length;
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
+  console.log(`sitemap.xml written (${await writeSitemap(resolve("public/sitemap.xml"))} entries)`);
+}

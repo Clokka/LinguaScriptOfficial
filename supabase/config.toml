@@ -1,4 +1,4 @@
-project_id = "ffephracinqeylfhqkiz"
+project_id = "wxlvxkeqhdlknthmliql"
 
 [functions]
   [functions.auth-email-hook]
@@ -41,3 +41,6 @@ verify_jwt = false
 
 [functions.google-calendar]
 verify_jwt = true
+
+[functions.stremio-addon]
+verify_jwt = false

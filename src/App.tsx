@@ -46,6 +46,8 @@ import { SelectionSave } from "./components/SelectionSave";
 import { OverlayPermissionPrompt } from "./components/OverlayPermissionPrompt";
 import { CookieConsent } from "./components/CookieConsent";
 import { SiteIntro } from "@/components/SiteIntro";
+import { HomeRoutesContext } from "@/lib/site/homeRoutes";
+import { DisabledPageGuard } from "@/components/DisabledPageGuard";
 import Cookies from "./pages/Cookies";
 import Explain from "./pages/Explain";
 import Manual from "./pages/Manual";
@@ -54,6 +56,7 @@ const Write = lazy(() => import("./pages/Write"));
 const Speak = lazy(() => import("./pages/Speak"));
 const Studio = lazy(() => import("./pages/Studio"));
 const ConnectAI = lazy(() => import("./pages/ConnectAI"));
+const ConnectStremio = lazy(() => import("./pages/ConnectStremio"));
 const Partners = lazy(() => import("./pages/Partners"));
 const HQ = lazy(() => import("./pages/HQ"));
 const RefLink = lazy(() => import("./pages/RefLink"));
@@ -73,6 +76,9 @@ const LandingPage2 = lazy(() => import("./pages/LandingPage2"));
 const LandingPage3 = lazy(() => import("./pages/LandingPage3"));
 const LandingPage4 = lazy(() => import("./pages/LandingPage4"));
 const Landing5 = lazy(() => import("./pages/Landing5"));
+const LabLanding = lazy(() => import("./pages/landing/LabLanding"));
+const LandingClear = lazy(() => import("./pages/LandingClear"));
+const CoverflowLanding = lazy(() => import("./pages/landing/CoverflowLanding"));
 const GapDemo = lazy(() => import("./pages/GapDemo"));
 const Demo = lazy(() => import("./pages/Demo"));
 const Browse = lazy(() => import("./pages/Browse"));
@@ -143,26 +149,10 @@ if (typeof window !== "undefined") {
   }, { once: true });
 }
 
-const App = () => (
-  <HelmetProvider>
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <LanguageProvider>
-        <Toaster />
-        <Sonner />
-        <ExtensionAccountSync />
-        <BrowserRouter>
-          <XpProvider>
-            <PetProvider>
-            <I18nProvider><TourProvider>
-              <FunnelTracker />
-              <AppInbox />
-              <SelectionSave />
-              <OverlayPermissionPrompt />
-              <SiteIntro />
-              <CookieConsent />
-              <Suspense fallback={<RouteFallback />}>
-              <Routes>
+// Every page of the site. Also handed to the homepage (HomeRoutesContext) so
+// HQ can make any of these addresses the homepage.
+const APP_ROUTES = (
+              <>
                 <Route path="/" element={<Index />} />
                 <Route path="/index" element={<Navigate to="/" replace />} />
                 <Route path="/landing" element={<Landing />} />
@@ -170,6 +160,11 @@ const App = () => (
                 <Route path="/landingpage3" element={<LandingPage3 />} />
                 <Route path="/landingpage4" element={<LandingPage4 />} />
                 <Route path="/landing5" element={<Landing5 />} />
+                <Route path="/landing-gold" element={<LabLanding theme="gold" />} />
+                <Route path="/landing-glass" element={<LabLanding theme="glass" />} />
+                <Route path="/landing-split" element={<LabLanding theme="split" />} />
+                <Route path="/landing-clear" element={<LandingClear />} />
+                <Route path="/landing6" element={<CoverflowLanding />} />
                 <Route path="/gap-demo" element={<GapDemo />} />
                 <Route path="/demo" element={<Demo />} />
                 <Route path="/browse" element={<Navigate to="/discover" replace />} />
@@ -188,6 +183,7 @@ const App = () => (
                 <Route path="/speak" element={<Speak />} />
                 <Route path="/studio" element={<Studio />} />
                 <Route path="/ai" element={<ConnectAI />} />
+                <Route path="/stremio" element={<ConnectStremio />} />
                 <Route path="/mcp" element={<Navigate to="/ai" replace />} />
                 <Route path="/chatgpt" element={<Navigate to="/ai" replace />} />
                 <Route path="/claude" element={<Navigate to="/ai" replace />} />
@@ -263,7 +259,31 @@ const App = () => (
                 <Route path="/lingoscript" element={<Navigate to="/the-chameleon-method" replace />} />
                 <Route path="/language-script" element={<Navigate to="/the-chameleon-method" replace />} />
                 <Route path="*" element={<NotFound />} />
-              </Routes>
+              </>
+);
+
+const App = () => (
+  <HelmetProvider>
+  <QueryClientProvider client={queryClient}>
+    <TooltipProvider>
+      <LanguageProvider>
+        <Toaster />
+        <Sonner />
+        <ExtensionAccountSync />
+        <BrowserRouter>
+          <XpProvider>
+            <PetProvider>
+            <I18nProvider><TourProvider>
+              <FunnelTracker />
+              <AppInbox />
+              <SelectionSave />
+              <OverlayPermissionPrompt />
+              <SiteIntro />
+              <CookieConsent />
+              <Suspense fallback={<RouteFallback />}>
+              <HomeRoutesContext.Provider value={APP_ROUTES}>
+              <DisabledPageGuard><Routes>{APP_ROUTES}</Routes></DisabledPageGuard>
+              </HomeRoutesContext.Provider>
               </Suspense>
               <TourOverlay />
               <DailyBriefing />
