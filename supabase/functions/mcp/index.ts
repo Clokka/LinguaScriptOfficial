@@ -392,8 +392,8 @@ function proOnly(tool) {
       try {
         const runtime = globalThis;
         const env = (key2) => runtime.Deno?.env.get(key2) ?? (typeof process !== "undefined" ? process.env[key2] : void 0);
-        const url = env("SUPABASE_URL") ?? "https://ffephracinqeylfhqkiz.supabase.co";
-        const key = env("SUPABASE_PUBLISHABLE_KEY") ?? env("SUPABASE_ANON_KEY") ?? "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZmZXBocmFjaW5xZXlsZmhxa2l6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2MTc4MDgsImV4cCI6MjA5MDE5MzgwOH0.CzCejyUYY1i6-T_gCxkLqq_Cmc1OSRlXAhmPC-Ud4zA";
+        const url = env("SUPABASE_URL") ?? "https://wxlvxkeqhdlknthmliql.supabase.co";
+        const key = env("SUPABASE_PUBLISHABLE_KEY") ?? env("SUPABASE_ANON_KEY") ?? "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind4bHZ4a2VxaGRsa250aG1saXFsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI3MjAwODEsImV4cCI6MjA3ODI5NjA4MX0.PJUPL6IUAAH6MRtb07m_BtyF1NG39-kI9f2Kwp0h3g8";
         if (!url || !key) return unable("server settings missing");
         const sb = createClient8(url, key, {
           global: { headers: { Authorization: `Bearer ${token}` } },
@@ -411,7 +411,7 @@ function proOnly(tool) {
 }
 
 // src/lib/mcp/index.ts
-var projectRef = "ffephracinqeylfhqkiz";
+var projectRef = "wxlvxkeqhdlknthmliql";
 var mcp_default = defineMcp({
   name: "lingua-script",
   title: "Lingua Script",
