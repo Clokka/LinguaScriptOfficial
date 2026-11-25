@@ -43,6 +43,8 @@ const authErrorMessage = (e: { message?: string } | null | undefined) => {
     // password Chrome remembered from elsewhere is "invalid". Say so.
     : /invalid login credentials/i.test(msg)
       ? "Wrong email or password. If you usually sign in with Google, you don't have a password yet: tap \"Forgot password?\" to make one."
+      : /already registered|already been registered/i.test(msg)
+        ? "You already have an account with this email. Sign in instead — or, if you made it with Google, use the Google button (\"Forgot password?\" adds a password)."
       : /email not confirmed/i.test(msg)
         ? "Please confirm your email first: open the link we emailed you, then sign in."
         : msg;
@@ -226,7 +228,7 @@ const Auth = () => {
       }
     } else {
       track("signup_started", { method: "email", mode: "signup" });
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -238,6 +240,18 @@ const Auth = () => {
       });
       if (error) {
         toast({ title: "Signup failed", description: authErrorMessage(error), variant: "destructive" });
+      } else if (data.session) {
+        // Email confirmation is off: the account is ready, so go straight in
+        // instead of telling the learner to wait for an email that never comes.
+        toast({ title: "Account created 🎉", description: "Welcome to LinguaScript!" });
+        await Promise.race([finishSignIn(), new Promise((r) => setTimeout(r, 20000))]);
+      } else if (data.user && (data.user.identities?.length ?? 0) === 0) {
+        // The login server hides "already registered" behind a fake success.
+        toast({
+          title: "You already have an account",
+          description: "Sign in instead. If you made it with Google, use the Google button (or \"Forgot password?\" to add a password).",
+        });
+        setIsLogin(true);
       } else {
         toast({
           title: "Check your email ✉️",
