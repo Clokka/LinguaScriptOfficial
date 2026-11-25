@@ -157,12 +157,17 @@
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === 'local' && changes.ls_language) applyLanguage(changes.ls_language.newValue);
   });
+  /** A word card waiting for Google sign-in to finish in the site tab. */
+  let afterSignIn = null;
   // Just signed in on linguascript.co.uk (from the pop-up): back on the video,
   // load the account's words and language without a page reload.
   try {
     chrome.runtime.onMessage.addListener((msg) => {
       if (msg?.type !== 'LS_SIGNED_IN') return;
-      loadLangs().then(() => { Deck.refresh(true); Deck.startAutoRefresh?.(); Goal.refresh(); });
+      loadLangs().then(() => {
+        Deck.refresh(true); Deck.startAutoRefresh?.(); Goal.refresh();
+        const next = afterSignIn; afterSignIn = null; next?.(); // the word card was waiting to save
+      });
       if (window === window.top) showToast('✓ Signed in to LinguaScript');
     });
   } catch { /* extension reloaded */ }
@@ -768,8 +773,11 @@
     wrap.querySelector('#ls-mini-google').addEventListener('click', async () => {
       errEl.textContent = '';
       const res = await send({ type: 'GOOGLE_SIGN_IN' });
-      if (!res?.ok) { errEl.textContent = res?.error || 'Google sign-in didn’t finish. Try again or use email.'; return; }
-      afterLogin(card, word, context, getTranslation);
+      if (!res?.ok) { errEl.textContent = res?.error || 'Couldn’t open linguascript.co.uk. Try again or use email.'; return; }
+      // Google sign-in happens in a linguascript.co.uk tab: wait for it to finish
+      // (LS_SIGNED_IN brings this tab back), THEN save the word.
+      setCardAction(card, cardNote('Finish signing in on the LinguaScript tab. We’ll bring you back here and save the word.'));
+      afterSignIn = () => { if (activeCard === card) afterLogin(card, word, context, getTranslation); };
     });
     return wrap;
   }

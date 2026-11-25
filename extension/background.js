@@ -26,13 +26,25 @@ chrome.runtime.onConnect.addListener(port => {
 
 // ─── Auth ────────────────────────────────────────────────────────────────────
 
+// The login server sometimes answers with a web page (an error or block page)
+// instead of data; JSON.parse then said "Unexpected token '<'". Say what happened.
+async function readAuthJson(res) {
+  const text = await res.text();
+  try { return JSON.parse(text); } catch {
+    const blocked = /<!doctype|<html/i.test(text);
+    throw new Error(blocked
+      ? `LinguaScript's login server sent a web page instead of an answer (code ${res.status}). Try again in a minute, or use Continue with Google. If it keeps happening, an ad blocker or network filter may be blocking supabase.co.`
+      : `Unexpected reply from the login server (code ${res.status}). Try again in a minute.`);
+  }
+}
+
 async function signIn(email, password) {
   const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
     body: JSON.stringify({ email, password }),
   });
-  const data = await res.json();
+  const data = await readAuthJson(res);
   if (!res.ok) throw new Error(data.error_description || data.message || 'Sign-in failed');
   return data; // { access_token, refresh_token, user }
 }
@@ -75,7 +87,7 @@ async function sessionFromTokenHash(tokenHash) {
     headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
     body: JSON.stringify({ type: 'magiclink', token_hash: tokenHash }),
   });
-  const data = await res.json().catch(() => ({}));
+  const data = await readAuthJson(res);
   if (!res.ok || !data.access_token) throw new Error(data.error_description || data.msg || 'Sign-in from linguascript.co.uk failed');
   return data;
 }

@@ -6,6 +6,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { INTERESTS } from "@/lib/interests";
 import { toast } from "sonner";
+import { useLocation } from "react-router-dom";
+import { claimPopup, popupsAllowed, releasePopup, useCurrentPopup } from "@/lib/popups";
 
 const DISMISS_KEY = "ls.interestsPrompt.dismissed.v1";
 
@@ -14,6 +16,14 @@ export const InterestsPromptModal = () => {
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+  // One pop-up at a time (src/lib/popups.ts): wait while another is on screen.
+  const location = useLocation();
+  const currentPopup = useCurrentPopup();
+  const wantsToShow = open && popupsAllowed(location.pathname);
+  useEffect(() => {
+    if (wantsToShow) claimPopup("interests"); else releasePopup("interests");
+  }, [wantsToShow, currentPopup]);
+  useEffect(() => () => releasePopup("interests"), []);
 
   useEffect(() => {
     if (loading || !user) return;
@@ -55,7 +65,7 @@ export const InterestsPromptModal = () => {
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) dismiss(); }}>
+    <Dialog open={wantsToShow && currentPopup === "interests"} onOpenChange={(o) => { if (!o) dismiss(); }}>
       <DialogContent className="max-w-2xl bg-white text-neutral-900">
         <DialogHeader>
           <div className="inline-flex items-center gap-2 bg-orange-50 border border-orange-200/70 rounded-full px-3 py-1 mb-2 text-orange-600 text-xs font-medium w-fit">
