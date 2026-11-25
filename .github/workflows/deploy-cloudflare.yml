@@ -38,7 +38,7 @@ jobs:
       - uses: actions/setup-node@v4
         if: steps.secrets.outputs.ok == 'true'
         with:
-          node-version: 20
+          node-version: 22  # Wrangler 4 needs Node >= 22.12
           cache: npm
 
       - name: Install
