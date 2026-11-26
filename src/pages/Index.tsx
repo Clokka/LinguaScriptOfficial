@@ -10,7 +10,7 @@ import { AppWelcome, isInApp } from "@/components/AppWelcome";
 // Root route: unauthenticated visitors get the homepage published in HQ
 // (LiveHome; falls back to the built-in LandingPageTest) — or, inside the phone app,
 // the app's own welcome screens (AppWelcome).
-// Authenticated users go to /discover — unless they've never completed
+// Authenticated users go to /home (the learner home, "remote control") — unless they've never completed
 // onboarding (e.g. brand-new Google sign-ups), in which case they are
 // sent through the onboarding flow first.
 const isHomePreview = () => /[?&](lp|sitepreview)=/.test(window.location.search);
@@ -61,7 +61,7 @@ const Index = () => {
   if (loading) return <PageLoading />;
   if (!user) return isInApp() ? <AppWelcome /> : <LiveHome />;
   if (onboarded === null) return <PageLoading />;
-  return <Navigate to={onboarded ? next ?? "/discover" : "/onboarding"} replace />;
+  return <Navigate to={onboarded ? next ?? "/home" : "/onboarding"} replace />;
 };
 
 

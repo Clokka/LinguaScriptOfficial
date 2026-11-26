@@ -54,6 +54,8 @@ import Manual from "./pages/Manual";
 const Landing = lazy(() => import("./pages/Landing"));
 const Write = lazy(() => import("./pages/Write"));
 const Build = lazy(() => import("./pages/Build"));
+const Home = lazy(() => import("./pages/Home"));
+const MinimalLanding = lazy(() => import("./pages/landing/MinimalLanding"));
 const Speak = lazy(() => import("./pages/Speak"));
 const Studio = lazy(() => import("./pages/Studio"));
 const ConnectAI = lazy(() => import("./pages/ConnectAI"));
@@ -182,6 +184,8 @@ const APP_ROUTES = (
                 <Route path="/vocabulary" element={<Vocabulary />} />
                 <Route path="/write" element={<Write />} />
                 <Route path="/build" element={<Build />} />
+                <Route path="/home" element={<Home />} />
+                <Route path="/landing7" element={<MinimalLanding />} />
                 <Route path="/speak" element={<Speak />} />
                 <Route path="/studio" element={<Studio />} />
                 <Route path="/ai" element={<ConnectAI />} />

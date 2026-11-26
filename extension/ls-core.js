@@ -738,6 +738,9 @@
   // and otherwise a toast (⭕ 23/50 Top 50 words · or 📈 +0.4%). Numbers come
   // from real OpenSubtitles counts (background getProgress), never typed.
   const BUILD_EVERY = 5; // BUILD_EVERY_N_SAVES in packages/core/src/phrases
+  // Parked (Rowan, 26 Nov): start simple. The phrase + "build a sentence" chips
+  // come back once phrases follow each learner's course, goal and hobby.
+  const PHRASE_PROMPTS = false;
   const pctText = (n) => `${n >= 10 || n === 0 ? n.toFixed(0) : n.toFixed(1)}%`;
   const buildUrl = (lang, phraseId) => `${SITE}/build?lang=${encodeURIComponent(lang)}${phraseId ? `&phrase=${encodeURIComponent(phraseId)}` : ''}&from=extension`;
 
@@ -766,7 +769,7 @@
       return;
     }
     // 2. A phrase this word unlocked.
-    if (a.newPhrases?.length) {
+    if (PHRASE_PROMPTS && a.newPhrases?.length) {
       const ph = a.newPhrases[0];
       celebrate({ icon: '🔓', html: `New phrase: <b translate="no">${escapeHtml(ph.text)}</b>`, action: { label: 'Build', href: buildUrl(lang, ph.id) } });
       setCount(0);
@@ -778,7 +781,7 @@
       return;
     }
     // 4. Every 5 new words: use them.
-    if (count >= BUILD_EVERY) {
+    if (PHRASE_PROMPTS && count >= BUILD_EVERY) {
       celebrate({ icon: '✍️', html: `${BUILD_EVERY} new words: use them in a sentence`, action: { label: 'Build', href: buildUrl(lang) } });
       setCount(0);
       return;
