@@ -37,8 +37,8 @@ export interface EssentialPhrase {
 
 export const PHRASE_LEVELS: CefrLevel[] = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 const BOOKS: Record<string, EssentialPhrase[]> = {
-  es: (es as { phrases: EssentialPhrase[] }).phrases,
-  fr: (fr as { phrases: EssentialPhrase[] }).phrases,
+  es: (es as unknown as { phrases: EssentialPhrase[] }).phrases,
+  fr: (fr as unknown as { phrases: EssentialPhrase[] }).phrases,
 };
 
 /** Every LinguaScript is prompted after this many newly saved words. */
