@@ -400,6 +400,7 @@
     _lineCount: 0,
     _on: true,
     band: 0,
+    total: 0,
 
     // YouTube keeps the video in ?v=, Netflix in the path.
     _sync() {
@@ -415,8 +416,16 @@
       const res = await send({ type: 'GET_RING_POOL', language: lang });
       if (!res?.ok || lang !== learningLang || !this._on) return;
       this._pool = new Set((res.words || []).map(normalizeToken));
-      if (this.band && res.band > this.band) showToast(`⭕ Top ${this.band} done! Now circling Top ${res.band}`);
       this.band = res.band || 0;
+      this.total = res.total || 0;
+      // Where this deck started, for "your words went from X% to Y%" at the end.
+      if (this.band) {
+        const { ls_ring_start: st = {} } = await getStorage({ ls_ring_start: {} });
+        if (st[lang]?.band !== this.band) {
+          const p = await send({ type: 'GET_PROGRESS', language: lang });
+          if (p?.ok && p.supported) chrome.storage.local.set({ ls_ring_start: { ...st, [lang]: { band: this.band, decks: p.decks } } });
+        }
+      }
       chrome.storage.local.set({ ls_ring_status: { language: lang, band: res.band || 0, left: res.left || 0, done: !!res.done } });
       Deck.repaintAll();
     },
@@ -435,6 +444,7 @@
       }
       return true;
     },
+    has(key) { return this._pool.has(key); },
     saved(key) {
       if (!this._pool.delete(key)) return;
       // That was the last word of this deck: open the next 50.
@@ -712,14 +722,135 @@
 
   function celebrateSave(key, res) {
     setXpChip(res.xpTotal);
+    const ring = Rings.has(key) ? { band: Rings.band, total: Rings.total } : null;
     Rings.saved(key);
+    if (ring) { ring.left = Rings._pool.size; ring.completed = ring.left === 0; }
     showToast(Goal.known ? `+${res.xp} XP · ${Math.min(Goal.saved, Goal.goal)}/${Goal.goal} words today` : `+${res.xp} XP`);
-    // Vocabulary growth: how much of film & TV this word adds (real counts).
-    send({ type: 'GET_PROGRESS', language: learningLang, word: key }).then((p) => {
-      if (!p?.ok || !p.supported || !(p.wordShare >= 0.01)) return;
-      const pct = (n) => (n >= 10 ? n.toFixed(1) : n.toFixed(2)).replace(/\.?0+$/, '');
-      setTimeout(() => showToast(`📈 +${pct(p.wordShare)}% · your ${langName(p.language)} words now cover ${p.decks.toFixed(1)}% of film & TV`), 2300);
-    });
+    afterSaveCelebrations(key, ring).catch(() => {});
+  }
+
+  // ══ Celebrations: the moments worth stopping for ═════════════════════════════
+  // After a save, at most ONE card shows, the most important first:
+  //   1. 🎉 Common Words deck complete (Top 50 → unlocks Top 100), with "from X% to Y%" + Share
+  //   2. 🔓 New phrase unlocked → build it on linguascript.co.uk/build
+  //   3. 📈 Your % of film & TV words went up a whole percent + Share
+  //   4. ✍️ Every 5 new words: build a LinguaScript with them
+  // and otherwise a toast (⭕ 23/50 Top 50 words · or 📈 +0.4%). Numbers come
+  // from real OpenSubtitles counts (background getProgress), never typed.
+  const BUILD_EVERY = 5; // BUILD_EVERY_N_SAVES in packages/core/src/phrases
+  const pctText = (n) => `${n >= 10 || n === 0 ? n.toFixed(0) : n.toFixed(1)}%`;
+  const buildUrl = (lang, phraseId) => `${SITE}/build?lang=${encodeURIComponent(lang)}${phraseId ? `&phrase=${encodeURIComponent(phraseId)}` : ''}&from=extension`;
+
+  async function afterSaveCelebrations(key, ring) {
+    // Read the deck's starting % first: finishing a deck loads the next one.
+    const store = await getStorage({ ls_build_counter: {}, ls_ring_start: {} });
+    const a = await send({ type: 'AFTER_SAVE', language: learningLang, word: key });
+    if (!a?.ok) return;
+    const lang = a.language, name = langName(lang), p = a.progress;
+    const count = (store.ls_build_counter[lang] || 0) + 1;
+    const setCount = (n) => chrome.storage.local.set({ ls_build_counter: { ...store.ls_build_counter, [lang]: n } });
+    setCount(count);
+    const shareParams = (from, to, headline) => ({ lang, from: from.toFixed(1), to: to.toFixed(1), headline });
+
+    // 1. Deck complete.
+    if (ring?.completed) {
+      const start = store.ls_ring_start[lang];
+      const from = start?.band === ring.band ? start.decks : null;
+      const to = p?.decks;
+      celebrate({
+        emoji: '🎉', title: `Top ${ring.band} complete!`,
+        body: from != null && to != null
+          ? `Your ${name} words went from <b>${pctText(from)}</b> to <b>${pctText(to)}</b> of everything said in films & TV. Top ${ring.band + 50} is unlocked: we'll circle those words now.`
+          : `You've saved all of the Top ${ring.band} ${name} words. Top ${ring.band + 50} is unlocked: we'll circle those words now.`,
+        actions: [
+          ...(from != null && to != null ? [{ label: '📸 Share my progress', primary: true, onClick: () => send({ type: 'OPEN_SHARE', params: shareParams(from, to, `Top ${ring.band} complete`) }) }] : []),
+          { label: `Review Top ${ring.band}`, href: `${SITE}/flashcards/common?band=${ring.band}&from=extension` },
+        ],
+        confetti: true,
+      });
+      return;
+    }
+    // 2. A phrase this word unlocked.
+    if (a.newPhrases?.length) {
+      const ph = a.newPhrases[0];
+      celebrate({
+        emoji: '🔓', title: 'New phrase unlocked!',
+        body: `<span class="ls-cel-phrase" translate="no">“${escapeHtml(ph.text)}”</span><span class="ls-cel-sub">${escapeHtml(ph.en)} · ${ph.level} · ${escapeHtml(ph.fn)}</span>Go and build your own LinguaScript with it.`,
+        actions: [{ label: 'Build it now ✍️', primary: true, href: buildUrl(lang, ph.id) }],
+      });
+      setCount(0);
+      return;
+    }
+    // 3. A whole percent more of film & TV.
+    if (p && a.wordShare > 0 && Math.floor(p.decks) > Math.floor(p.decks - a.wordShare)) {
+      const from = p.decks - a.wordShare;
+      celebrate({
+        emoji: '📈', title: `You just reached ${Math.floor(p.decks)}%!`,
+        body: `Your ${name} words now cover <b>${pctText(p.decks)}</b> of all the words said in films & TV.`,
+        actions: [{ label: '📸 Share', primary: true, onClick: () => send({ type: 'OPEN_SHARE', params: shareParams(p.series?.[0]?.decks ?? from, p.decks, `${Math.floor(p.decks)}% reached`) }) }],
+      });
+      return;
+    }
+    // 4. Every 5 new words: use them.
+    if (count >= BUILD_EVERY) {
+      celebrate({
+        emoji: '✍️', title: `${BUILD_EVERY} new words saved!`,
+        body: 'Words stick when you use them. Build a LinguaScript, a sentence you’d really say, with your new words.',
+        actions: [{ label: 'Build a LinguaScript', primary: true, href: buildUrl(lang) }, { label: 'Later', onClick: () => {} }],
+      });
+      setCount(0);
+      return;
+    }
+    // Otherwise a quick toast after the XP one.
+    setTimeout(() => {
+      if (ring && ring.total) {
+        const have = ring.total - ring.left;
+        showToast(`⭕ ${have} / ${ring.total} Top ${ring.band} words · finish the deck to unlock Top ${ring.band + 50}`);
+      } else if (p && a.wordShare >= 0.01) {
+        showToast(`📈 +${pctText(a.wordShare)} · your ${name} words now cover ${pctText(p.decks)} of film & TV`);
+      }
+    }, 2300);
+  }
+
+  // One card at a time, top-centre over the video; never steals the video's keys.
+  let celebrateTimer = null;
+  function celebrate({ emoji, title, body, actions = [], confetti = false }) {
+    document.getElementById('ls-cel')?.remove();
+    clearTimeout(celebrateTimer);
+    const el = document.createElement('div');
+    el.id = 'ls-cel'; el.setAttribute('role', 'status');
+    el.innerHTML = `<button class="ls-cel-x" aria-label="Close">✕</button><div class="ls-cel-emoji">${emoji}</div><div class="ls-cel-title">${escapeHtml(title)}</div><div class="ls-cel-body">${body}</div><div class="ls-cel-actions"></div>`;
+    const row = el.querySelector('.ls-cel-actions');
+    for (const act of actions) {
+      const b = document.createElement(act.href ? 'a' : 'button');
+      b.className = 'ls-cel-btn' + (act.primary ? ' ls-cel-primary' : '');
+      b.textContent = act.label;
+      if (act.href) { b.href = act.href; b.target = '_blank'; b.rel = 'noopener noreferrer'; }
+      b.addEventListener('click', (e) => { e.stopPropagation(); act.onClick?.(); close(); });
+      row.appendChild(b);
+    }
+    const close = () => { el.classList.remove('ls-show'); setTimeout(() => el.remove(), 250); };
+    el.querySelector('.ls-cel-x').addEventListener('click', (e) => { e.stopPropagation(); close(); });
+    el.addEventListener('click', (e) => e.stopPropagation());
+    layerHost().appendChild(el);
+    if (confetti) burstConfetti(el);
+    playDing();
+    requestAnimationFrame(() => el.classList.add('ls-show'));
+    // Stays while the mouse is on it; otherwise goes after 10 s.
+    const arm = () => { clearTimeout(celebrateTimer); celebrateTimer = setTimeout(close, 10000); };
+    el.addEventListener('mouseenter', () => clearTimeout(celebrateTimer));
+    el.addEventListener('mouseleave', arm);
+    arm();
+  }
+  function burstConfetti(host) {
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const colours = [Deck.PALETTE.red, Deck.PALETTE.orange, Deck.PALETTE.green, Deck.PALETTE.gold, '#4DA3FF'];
+    for (let i = 0; i < 28; i++) {
+      const c = document.createElement('i'); c.className = 'ls-confetti';
+      c.style.cssText = `left:${50 + (Math.random() - 0.5) * 30}%;background:${colours[i % colours.length]};--dx:${(Math.random() - 0.5) * 360}px;--dy:${-80 - Math.random() * 160}px;--r:${Math.random() * 720}deg;animation-delay:${Math.random() * 0.15}s`;
+      host.appendChild(c);
+      setTimeout(() => c.remove(), 1400);
+    }
   }
 
   // Ask which of the learner's languages they're watching in. Only their own
@@ -1378,6 +1509,21 @@
     #ls-overlay.ls-panel-hidden { right:var(--ls-vrh, 0px); }
     #ls-primary { display:inline-block; background:rgba(0,0,0,0.82); border-radius:6px; padding:.3em .8em .4em; margin-bottom:.18em; font-size:var(--ls-fs, 34px); font-weight:800; color:#fff; line-height:1.45; pointer-events:auto; cursor:pointer; text-shadow:0 2px 8px rgba(0,0,0,0.95); max-width:100%; box-sizing:border-box; }
     #ls-primary:empty { display:none; }
+    #ls-cel { position:fixed; top:72px; left:50%; transform:translate(-50%,-12px) scale(.97); opacity:0; z-index:2147483647; width:min(380px, calc(100vw - 32px)); background:#131316; color:#F5F5F7; border:1px solid #24242D; border-radius:20px; padding:20px 20px 16px; box-shadow:0 18px 50px rgba(0,0,0,.55); font-family:'LS Inter','Inter',system-ui,sans-serif; text-align:center; transition:opacity .25s ease, transform .25s ease; overflow:visible; }
+    #ls-cel.ls-show { opacity:1; transform:translate(-50%,0) scale(1); }
+    .ls-cel-x { position:absolute; top:10px; right:12px; background:none; border:0; color:#8A8A96; font-size:15px; cursor:pointer; }
+    .ls-cel-emoji { font-size:38px; line-height:1; margin-bottom:8px; }
+    .ls-cel-title { font-size:19px; font-weight:800; margin-bottom:6px; }
+    .ls-cel-body { font-size:14px; line-height:1.5; color:#C9C9D1; }
+    .ls-cel-body b { color:#34C759; }
+    .ls-cel-phrase { display:block; font-size:18px; font-weight:800; color:#F5F5F7; margin:2px 0 2px; }
+    .ls-cel-sub { display:block; font-size:12px; color:#8A8A96; margin-bottom:8px; }
+    .ls-cel-actions { display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-top:14px; }
+    .ls-cel-btn { display:inline-flex; align-items:center; justify-content:center; height:38px; padding:0 14px; border-radius:999px; border:1px solid #2A2A33; background:transparent; color:#F5F5F7; font:600 13px 'LS Inter','Inter',system-ui,sans-serif; cursor:pointer; text-decoration:none; }
+    .ls-cel-primary { background:#34C759; border-color:#34C759; color:#0B1A10; }
+    .ls-confetti { position:absolute; top:40px; width:8px; height:12px; border-radius:2px; pointer-events:none; animation:ls-confetti 1.2s ease-out forwards; }
+    @keyframes ls-confetti { to { transform:translate(var(--dx), var(--dy)) rotate(var(--r)); opacity:0; } }
+    @media (prefers-reduced-motion: reduce) { #ls-cel { transition:none; } }
     #ls-overlay #ls-primary, #ls-overlay #ls-primary .ls-word { -webkit-user-select:text !important; user-select:text !important; }
     #ls-primary ::selection { background:rgba(52,199,89,0.45); }
     #ls-secondary { display:inline-block; font-size:calc(var(--ls-fs, 34px) * 0.6); font-weight:500; color:rgba(255,255,255,0.82); background:rgba(0,0,0,0.68); border-radius:4px; padding:.2em 1em .3em; pointer-events:none; text-shadow:0 1px 4px rgba(0,0,0,0.9); }
@@ -1543,6 +1689,7 @@
     });
     if (res?.ok) {
       Deck.markSaved(word); playDing();
+      if (res.xp) { celebrateSave(normalizeToken(word), res); return true; }
       showToast(res.already ? '✓ Already in your flashcards' : `🔴 Saved “${word}” to your flashcards`);
     } else if (res?.error === 'not_your_language' || res?.error === 'wrong_language') {
       showToast('That isn’t your learning language');
@@ -1581,6 +1728,6 @@
     stopWordsRefresh: () => Deck.stopAutoRefresh(),
     Rings, showToast, openCard, closeCard, makeWordSpan, makeWordSpansFor, splitWords, playDing, escapeHtml,
     SubtitleShield, LiveCaptions, SpeedKeeper, watchLayout, requestCaptions, setStatus, buildOverlay, layerHost, buildPanelShell, togglePanel, buildControls, attachKeyboardShortcuts,
-    injectStyles, openSelectionCard, saveSelectionNow, LineHold, noteVideoLanguage, get accountLangs() { return accountLangs; },
+    injectStyles, openSelectionCard, saveSelectionNow, LineHold, celebrate, noteVideoLanguage, get accountLangs() { return accountLangs; },
   };
 })();
