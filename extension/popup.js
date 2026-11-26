@@ -267,53 +267,13 @@ function drawSpark(series) {
     `<polyline points="${line('known')}" fill="none" stroke="#34C759" stroke-width="2.5" vector-effect="non-scaling-stroke"/>`;
 }
 
-// 1080×1350 card (Instagram portrait), drawn on a canvas so it works offline.
-async function shareImage(g) {
+// The card itself is drawn by share-card.js (also used by share.html).
+function shareImage(g) {
   const s = story(g);
-  const W = 1080, H = 1350;
-  const c = document.createElement('canvas'); c.width = W; c.height = H;
-  const x = c.getContext('2d');
-  const font = (w, px) => `${w} ${px}px Inter, system-ui, -apple-system, sans-serif`;
-  const grd = x.createLinearGradient(0, 0, 0, H); grd.addColorStop(0, '#0B0B0F'); grd.addColorStop(1, '#101A12');
-  x.fillStyle = grd; x.fillRect(0, 0, W, H);
-  // Logo (the same SVG as the pop-up header).
-  await new Promise((done) => {
-    const img = new Image();
-    img.onload = () => { const h = 120, w = h * (img.naturalWidth / img.naturalHeight || 2); x.drawImage(img, 80, 80, w, h); done(); };
-    img.onerror = done;
-    // As a data: URL so the canvas never counts as "tainted" and can export.
-    fetch('icons/logo.svg').then((r) => r.text())
-      .then((svg) => { img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`; })
-      .catch(done);
+  return LSShareCard.draw({
+    kicker: `In ${s.span} of learning ${s.lang}`, from: s.from, to: s.to, what: s.what,
+    known: s.useKnown ? g.known : 0, decks: g.decks, format: 'post',
   });
-  x.fillStyle = '#F5F5F7'; x.font = font(800, 54); x.fillText('Lingua', 330, 160);
-  const lw = x.measureText('Lingua').width; x.fillStyle = '#34C759'; x.fillText('Script', 330 + lw, 160);
-  x.fillStyle = '#A1A1AA'; x.font = font(600, 44); x.fillText(`In ${s.span} of learning ${s.lang}`, 80, 340);
-  // From → to.
-  x.font = font(800, 120); x.fillStyle = '#71717A'; x.fillText(pct(s.from), 80, 520);
-  const fw = x.measureText(pct(s.from)).width;
-  x.fillStyle = '#F5F5F7'; x.font = font(700, 90); x.fillText('→', 110 + fw, 510);
-  x.font = font(900, 230); x.fillStyle = '#34C759'; x.fillText(pct(s.to), 80, 760);
-  // Wrap the sentence.
-  x.fillStyle = '#F5F5F7'; x.font = font(700, 52);
-  const words = s.what.replace(/^of/, 'of').split(' '); let line = '', y = 860;
-  for (const w of words) {
-    if (x.measureText(line + w).width > W - 160) { x.fillText(line.trim(), 80, y); line = ''; y += 66; }
-    line += w + ' ';
-  }
-  x.fillText(line.trim(), 80, y);
-  // Progress bar with 50 / 75 / 90 marks.
-  const by = 1080, bw = W - 160;
-  x.fillStyle = '#1F1F27'; x.beginPath(); x.roundRect(80, by, bw, 36, 18); x.fill();
-  x.fillStyle = 'rgba(255,138,0,0.45)'; x.beginPath(); x.roundRect(80, by, Math.max(36, bw * g.decks / 100), 36, 18); x.fill();
-  if (s.useKnown) { x.fillStyle = '#34C759'; x.beginPath(); x.roundRect(80, by, Math.max(36, bw * g.known / 100), 36, 18); x.fill(); }
-  x.fillStyle = '#A1A1AA'; x.font = font(600, 28);
-  for (const m of [50, 75, 90]) { x.textAlign = 'center'; x.fillText(`${m}%`, 80 + bw * m / 100, by + 80); }
-  x.textAlign = 'left';
-  x.fillStyle = '#F5F5F7'; x.font = font(800, 40); x.fillText('linguascript.co.uk', 80, 1250);
-  x.fillStyle = '#71717A'; x.font = font(500, 22);
-  x.fillText('Share of all words spoken in films & TV · OpenSubtitles 2018 (CC BY-SA 4.0)', 80, 1295);
-  return new Promise((r) => c.toBlob(r, 'image/png'));
 }
 
 $('share-btn').addEventListener('click', async () => {

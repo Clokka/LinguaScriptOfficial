@@ -11,3 +11,4 @@ export * from './xp';
 export * from './pillars';
 export * from './export';
 export * from './phoneGoogle';
+export * from './phrases';

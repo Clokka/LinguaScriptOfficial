@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Share your progress · LinguaScript</title>
+  <link rel="stylesheet" href="brand.css" />
+  <style>
+    body { min-height: 100vh; display: grid; place-items: start center; padding: 32px 16px; }
+    main { width: min(920px, 100%); display: grid; grid-template-columns: minmax(0, 360px) minmax(0, 1fr); gap: 32px; align-items: start; }
+    @media (max-width: 760px) { main { grid-template-columns: 1fr; } }
+    .preview { width: 100%; border-radius: 20px; border: 1px solid var(--line); background: var(--surface); aspect-ratio: 1080 / 1920; object-fit: contain; }
+    h1 { font-size: 28px; font-weight: 800; letter-spacing: -0.02em; margin: 6px 0 8px; }
+    .lead { color: var(--muted); font-size: 15px; line-height: 1.55; }
+    .big { font-size: 15px; margin: 16px 0 20px; padding: 14px 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; line-height: 1.5; }
+    .big b { color: var(--green); }
+    .btns { display: grid; gap: 10px; }
+    .btn { height: 48px; font-size: 15px; }
+    .btn-wa { background: #25D366; color: #06210F; }
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .note { font-size: 13px; color: var(--green); min-height: 20px; margin-top: 10px; }
+    .tabs { display: flex; gap: 6px; margin-bottom: 10px; }
+    .tab { padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface-2); color: var(--fg); font: 600 12px var(--font); cursor: pointer; }
+    .tab.on { border-color: var(--green); }
+    .small { font-size: 12px; color: var(--muted); margin-top: 18px; line-height: 1.5; }
+  </style>
+</head>
+<body>
+  <main>
+    <div>
+      <img class="preview" id="preview" alt="Your LinguaScript progress card" />
+    </div>
+    <div>
+      <div class="brand"><img src="icons/logo.svg" alt="" /><span>Lingua<span class="script">Script</span></span></div>
+      <h1 id="headline">Share your progress 🎉</h1>
+      
+      <p class="big" id="sentence"></p>
+      <button class="btn btn-primary" id="share-btn" type="button" style="width:auto; padding:0 22px;">Share</button>
+      <p class="note" id="note" role="status"></p>
+    </div>
+  </main>
+  <script src="share-card.js"></script>
+  <script src="share.js"></script>
+</body>
+</html>

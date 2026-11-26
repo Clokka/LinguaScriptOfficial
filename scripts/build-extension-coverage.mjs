@@ -1,4 +1,4 @@
-// Copies the film & TV word counts (src/data/wordlists/<lang>.json, from
+// Copies the essential phrases (below) and the film & TV word counts (src/data/wordlists/<lang>.json, from
 // OpenSubtitles 2018 via FrequencyWords, CC BY-SA 4.0) into the extension as
 // extension/dict/coverage/<lang>.json, so the pop-up's "Vocabulary growth"
 // card can say what share of the words in films & TV the learner's words are.
@@ -23,4 +23,16 @@ for (const file of readdirSync(SRC).filter((f) => f.endsWith('.json'))) {
   };
   writeFileSync(`${OUT}/${file}`, JSON.stringify(out));
   console.log(`${OUT}/${file}: ${counts.length} words, top 100 = ${(counts.slice(0, 100).reduce((a, c) => a + c, 0) / total * 100).toFixed(1)}%`);
+}
+
+// Essential phrases (packages/core/src/phrases/<lang>.json): the extension's
+// "🔓 New phrase unlocked" pop-up reads the same blueprint as the website.
+const PH = 'packages/core/src/phrases';
+mkdirSync('extension/dict/phrases', { recursive: true });
+for (const file of readdirSync(PH).filter((f) => f.endsWith('.json'))) {
+  const d = JSON.parse(readFileSync(`${PH}/${file}`, 'utf8'));
+  // The extension only needs what the pop-up shows and checks.
+  const slim = { lang: d.lang, phrases: d.phrases.map(({ id, level, fn, text, en, keys }) => ({ id, level, fn, text, en, keys })) };
+  writeFileSync(`extension/dict/phrases/${file}`, JSON.stringify(slim));
+  console.log(`extension/dict/phrases/${file}: ${slim.phrases.length} phrases`);
 }

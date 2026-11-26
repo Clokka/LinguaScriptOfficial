@@ -400,6 +400,7 @@
     _lineCount: 0,
     _on: true,
     band: 0,
+    total: 0,
 
     // YouTube keeps the video in ?v=, Netflix in the path.
     _sync() {
@@ -415,8 +416,16 @@
       const res = await send({ type: 'GET_RING_POOL', language: lang });
       if (!res?.ok || lang !== learningLang || !this._on) return;
       this._pool = new Set((res.words || []).map(normalizeToken));
-      if (this.band && res.band > this.band) showToast(`⭕ Top ${this.band} done! Now circling Top ${res.band}`);
       this.band = res.band || 0;
+      this.total = res.total || 0;
+      // Where this deck started, for "your words went from X% to Y%" at the end.
+      if (this.band) {
+        const { ls_ring_start: st = {} } = await getStorage({ ls_ring_start: {} });
+        if (st[lang]?.band !== this.band) {
+          const p = await send({ type: 'GET_PROGRESS', language: lang });
+          if (p?.ok && p.supported) chrome.storage.local.set({ ls_ring_start: { ...st, [lang]: { band: this.band, decks: p.decks } } });
+        }
+      }
       chrome.storage.local.set({ ls_ring_status: { language: lang, band: res.band || 0, left: res.left || 0, done: !!res.done } });
       Deck.repaintAll();
     },
@@ -435,6 +444,7 @@
       }
       return true;
     },
+    has(key) { return this._pool.has(key); },
     saved(key) {
       if (!this._pool.delete(key)) return;
       // That was the last word of this deck: open the next 50.
@@ -712,15 +722,100 @@
 
   function celebrateSave(key, res) {
     setXpChip(res.xpTotal);
+    const ring = Rings.has(key) ? { band: Rings.band, total: Rings.total } : null;
     Rings.saved(key);
+    if (ring) { ring.left = Rings._pool.size; ring.completed = ring.left === 0; }
     showToast(Goal.known ? `+${res.xp} XP · ${Math.min(Goal.saved, Goal.goal)}/${Goal.goal} words today` : `+${res.xp} XP`);
-    // Vocabulary growth: how much of film & TV this word adds (real counts).
-    send({ type: 'GET_PROGRESS', language: learningLang, word: key }).then((p) => {
-      if (!p?.ok || !p.supported || !(p.wordShare >= 0.01)) return;
-      const pct = (n) => (n >= 10 ? n.toFixed(1) : n.toFixed(2)).replace(/\.?0+$/, '');
-      setTimeout(() => showToast(`📈 +${pct(p.wordShare)}% · your ${langName(p.language)} words now cover ${p.decks.toFixed(1)}% of film & TV`), 2300);
-    });
+    afterSaveCelebrations(key, ring).catch(() => {});
   }
+
+  // ══ Celebrations: the moments worth stopping for ═════════════════════════════
+  // After a save, at most ONE card shows, the most important first:
+  //   1. 🎉 Common Words deck complete (Top 50 → unlocks Top 100), with "from X% to Y%" + Share
+  //   2. 🔓 New phrase unlocked → build it on linguascript.co.uk/build
+  //   3. 📈 Your % of film & TV words went up a whole percent + Share
+  //   4. ✍️ Every 5 new words: build a LinguaScript with them
+  // and otherwise a toast (⭕ 23/50 Top 50 words · or 📈 +0.4%). Numbers come
+  // from real OpenSubtitles counts (background getProgress), never typed.
+  const BUILD_EVERY = 5; // BUILD_EVERY_N_SAVES in packages/core/src/phrases
+  const pctText = (n) => `${n >= 10 || n === 0 ? n.toFixed(0) : n.toFixed(1)}%`;
+  const buildUrl = (lang, phraseId) => `${SITE}/build?lang=${encodeURIComponent(lang)}${phraseId ? `&phrase=${encodeURIComponent(phraseId)}` : ''}&from=extension`;
+
+  async function afterSaveCelebrations(key, ring) {
+    // Read the deck's starting % first: finishing a deck loads the next one.
+    const store = await getStorage({ ls_build_counter: {}, ls_ring_start: {} });
+    const a = await send({ type: 'AFTER_SAVE', language: learningLang, word: key });
+    if (!a?.ok) return;
+    const lang = a.language, name = langName(lang), p = a.progress;
+    const count = (store.ls_build_counter[lang] || 0) + 1;
+    const setCount = (n) => chrome.storage.local.set({ ls_build_counter: { ...store.ls_build_counter, [lang]: n } });
+    setCount(count);
+    const share = (from, to, headline) => ({ label: 'Share', onClick: () => send({ type: 'OPEN_SHARE', params: { lang, from: from.toFixed(1), to: to.toFixed(1), headline } }) });
+
+    // 1. Deck complete.
+    if (ring?.completed) {
+      const start = store.ls_ring_start[lang];
+      const from = start?.band === ring.band ? start.decks : null;
+      const to = p?.decks;
+      const moved = from != null && to != null;
+      celebrate({
+        icon: '🎉',
+        html: moved ? `Top ${ring.band} done · <b>${pctText(from)} → ${pctText(to)}</b> of film & TV` : `Top ${ring.band} done · Top ${ring.band + 50} unlocked`,
+        action: moved ? share(from, to, `Top ${ring.band} complete`) : null,
+      });
+      return;
+    }
+    // 2. A phrase this word unlocked.
+    if (a.newPhrases?.length) {
+      const ph = a.newPhrases[0];
+      celebrate({ icon: '🔓', html: `New phrase: <b translate="no">${escapeHtml(ph.text)}</b>`, action: { label: 'Build', href: buildUrl(lang, ph.id) } });
+      setCount(0);
+      return;
+    }
+    // 3. A whole percent more of film & TV.
+    if (p && a.wordShare > 0 && Math.floor(p.decks) > Math.floor(p.decks - a.wordShare)) {
+      celebrate({ icon: '📈', html: `<b>${pctText(p.decks)}</b> of ${escapeHtml(name)} film & TV words are yours`, action: share(p.series?.[0]?.decks ?? p.decks - a.wordShare, p.decks, `${Math.floor(p.decks)}% reached`) });
+      return;
+    }
+    // 4. Every 5 new words: use them.
+    if (count >= BUILD_EVERY) {
+      celebrate({ icon: '✍️', html: `${BUILD_EVERY} new words: use them in a sentence`, action: { label: 'Build', href: buildUrl(lang) } });
+      setCount(0);
+      return;
+    }
+    // Otherwise a quick toast after the XP one.
+    setTimeout(() => {
+      if (ring && ring.total) showToast(`⭕ ${ring.total - ring.left} / ${ring.total} Top ${ring.band} words`);
+      else if (p && a.wordShare >= 0.01) showToast(`📈 +${pctText(a.wordShare)} · ${pctText(p.decks)} of film & TV`);
+    }, 2300);
+  }
+
+  // A small, quiet chip in the corner: one line, at most one small button.
+  // No sound, no confetti; it fades after 6 s (stays while hovered).
+  let celebrateTimer = null;
+  function celebrate({ icon, html, action = null }) {
+    document.getElementById('ls-cel')?.remove();
+    clearTimeout(celebrateTimer);
+    const el = document.createElement('div');
+    el.id = 'ls-cel'; el.setAttribute('role', 'status');
+    el.innerHTML = `<span class="ls-cel-icon">${icon}</span><span class="ls-cel-text">${html}</span>`;
+    const close = () => { el.classList.remove('ls-show'); setTimeout(() => el.remove(), 250); };
+    if (action) {
+      const b = document.createElement(action.href ? 'a' : 'button');
+      b.className = 'ls-cel-btn'; b.textContent = action.label;
+      if (action.href) { b.href = action.href; b.target = '_blank'; b.rel = 'noopener noreferrer'; }
+      b.addEventListener('click', (e) => { e.stopPropagation(); action.onClick?.(); close(); });
+      el.appendChild(b);
+    }
+    el.addEventListener('click', (e) => e.stopPropagation());
+    layerHost().appendChild(el);
+    requestAnimationFrame(() => el.classList.add('ls-show'));
+    const arm = () => { clearTimeout(celebrateTimer); celebrateTimer = setTimeout(close, 6000); };
+    el.addEventListener('mouseenter', () => clearTimeout(celebrateTimer));
+    el.addEventListener('mouseleave', arm);
+    arm();
+  }
+
 
   // Ask which of the learner's languages they're watching in. Only their own
   // LinguaScript languages are offered.
@@ -806,6 +901,36 @@
   // ── Word spans ───────────────────────────────────────────────────────────────
   // claimRing: this is a new on-screen subtitle line, so its common words may
   // get a ring (the transcript only shows the ones already picked).
+  // ── Line hold: select a whole subtitle line (or part of one) to save it ─────
+  // While the mouse is down on the line, or some of it is selected, the line
+  // is frozen: a new subtitle would replace the text and wipe the selection.
+  // Letting go with words selected pauses the video so "🦎 Add to
+  // LinguaScript" can be pressed, and the drag's click never seeks the video.
+  const LineHold = {
+    down: false,
+    selected() {
+      const s = window.getSelection();
+      if (!s || s.isCollapsed || !s.rangeCount || !s.toString().trim()) return false;
+      const p = document.getElementById('ls-primary');
+      return !!p && (p.contains(s.anchorNode) || p.contains(s.focusNode));
+    },
+    held() { return this.down || this.selected(); },
+  };
+  let lineWasHeld = false;
+  document.addEventListener('mousedown', (e) => {
+    if (e.button === 0 && e.target?.closest?.('#ls-primary')) { LineHold.down = true; lineWasHeld = true; }
+  }, true);
+  document.addEventListener('mouseup', () => {
+    if (!LineHold.down) return;
+    LineHold.down = false;
+    setTimeout(() => {
+      if (LineHold.selected()) { try { document.querySelector('video')?.pause(); } catch {} }
+    }, 0);
+  }, true);
+  document.addEventListener('selectionchange', () => {
+    if (lineWasHeld && !LineHold.held()) { lineWasHeld = false; document.dispatchEvent(new CustomEvent('ls-line-release')); }
+  });
+
   function makeWordSpan(word, fullLine, joiner = ' ', claimRing = false) {
     const clean = normalizeToken(word);
     if (!clean) return document.createTextNode(word + joiner);
@@ -815,7 +940,11 @@
     // A common word past this line's ring limit stays plain on screen.
     if (claimRing && !Rings.claim(clean) && Rings.isPicked(clean)) span.dataset.noRing = '1';
     Deck.paint(span, clean);
-    span.addEventListener('click', (e) => { e.stopPropagation(); openCard({ word, clean, fullLine, anchorEl: span }); });
+    span.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (LineHold.selected() && /\s/.test(window.getSelection().toString().trim())) return; // dragged over several words
+      openCard({ word, clean, fullLine, anchorEl: span });
+    });
     return span;
   }
   function makeWordSpansFor(text) {
@@ -937,11 +1066,11 @@
     }
 
     function renderPrimary(text) {
-      if (text === lastPrimary) return; lastPrimary = text;
+      if (text === lastPrimary || LineHold.held()) return; lastPrimary = text;
       logLines(text);
       const el = document.getElementById('ls-primary'); if (!el) return;
       el.style.cssText = ''; el.innerHTML = '';
-      el.onclick = () => { const v = getVideo(); if (v) v.currentTime = Math.max(0, v.currentTime - 4); };
+      el.onclick = () => { if (LineHold.selected()) return; const v = getVideo(); if (v) v.currentTime = Math.max(0, v.currentTime - 4); };
       const { parts, joiner } = splitWords(text, learningLang);
       Rings.beginLine();
       parts.forEach((p) => el.appendChild(p.word ? makeWordSpan(p.text, text, joiner, true) : document.createTextNode(p.text + joiner)));
@@ -959,7 +1088,7 @@
       el.onclick = mode === 'blur' ? (e) => { e.stopPropagation(); el.classList.toggle('ls-revealed'); } : null;
     }
     function clearOverlay() {
-      if (!lastPrimary) return; lastPrimary = null; lastSecondarySource = null;
+      if (!lastPrimary || LineHold.held()) return; lastPrimary = null; lastSecondarySource = null;
       const el = document.getElementById('ls-primary'); if (el) el.innerHTML = '';
       renderSecondary('');
       const overlay = document.getElementById('ls-overlay'); if (overlay) overlay.style.opacity = '0';
@@ -967,7 +1096,7 @@
     }
 
     function onChange() {
-      if (!visible) return;
+      if (!visible || LineHold.held()) return; // frozen while the learner selects the line
       const text = getText();
       if (!text) {
         clearTimeout(clearDebounce);
@@ -1006,10 +1135,12 @@
         shield.start(() => visible && !!lastPrimary && getText() === lastPrimary && !!document.getElementById('ls-primary')?.textContent);
         observer = new MutationObserver(onChange);
         observer.observe(getTarget() || document.body, { childList: true, subtree: true, characterData: true });
+        document.addEventListener('ls-line-release', onChange);
         onChange();
       },
       stop() {
         observer?.disconnect(); observer = null;
+        document.removeEventListener('ls-line-release', onChange);
         clearTimeout(clearDebounce); clearTimeout(translateDebounce);
         shield.stop(); shield.show();
         lines.length = 0; current = -1; listEl = null; lastPrimary = null; lastSecondarySource = null;
@@ -1342,6 +1473,16 @@
     #ls-overlay.ls-panel-hidden { right:var(--ls-vrh, 0px); }
     #ls-primary { display:inline-block; background:rgba(0,0,0,0.82); border-radius:6px; padding:.3em .8em .4em; margin-bottom:.18em; font-size:var(--ls-fs, 34px); font-weight:800; color:#fff; line-height:1.45; pointer-events:auto; cursor:pointer; text-shadow:0 2px 8px rgba(0,0,0,0.95); max-width:100%; box-sizing:border-box; }
     #ls-primary:empty { display:none; }
+    #ls-cel { position:fixed; top:16px; left:16px; z-index:2147483647; display:flex; align-items:center; gap:8px; max-width:min(420px, calc(100vw - 32px)); padding:7px 8px 7px 12px; background:rgba(19,19,22,0.92); color:#E8E8EE; border:1px solid #26262E; border-radius:999px; box-shadow:0 6px 18px rgba(0,0,0,.35); font:500 13px/1.3 'LS Inter','Inter',system-ui,sans-serif; opacity:0; transform:translateY(-6px); transition:opacity .2s ease, transform .2s ease; backdrop-filter:blur(8px); }
+    #ls-cel.ls-show { opacity:1; transform:none; }
+    .ls-cel-icon { font-size:14px; line-height:1; }
+    .ls-cel-text { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .ls-cel-text b { color:#34C759; font-weight:700; }
+    .ls-cel-btn { flex:none; height:26px; padding:0 10px; border-radius:999px; border:1px solid #34C759; background:transparent; color:#34C759; font:600 12px 'LS Inter','Inter',system-ui,sans-serif; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; }
+    .ls-cel-btn:hover { background:rgba(52,199,89,0.12); }
+    @media (prefers-reduced-motion: reduce) { #ls-cel { transition:none; } }
+    #ls-overlay #ls-primary, #ls-overlay #ls-primary .ls-word { -webkit-user-select:text !important; user-select:text !important; }
+    #ls-primary ::selection { background:rgba(52,199,89,0.45); }
     #ls-secondary { display:inline-block; font-size:calc(var(--ls-fs, 34px) * 0.6); font-weight:500; color:rgba(255,255,255,0.82); background:rgba(0,0,0,0.68); border-radius:4px; padding:.2em 1em .3em; pointer-events:none; text-shadow:0 1px 4px rgba(0,0,0,0.9); }
     #ls-overlay #ls-secondary { display:table; margin:0 auto; }
     #ls-secondary.ls-blurred { filter:blur(7px); pointer-events:auto; cursor:pointer; transition:filter .15s ease; }
@@ -1469,7 +1610,7 @@
   function selectionInfo() {
     const sel = window.getSelection();
     const text = sel ? sel.toString().replace(/\s+/g, ' ').trim() : '';
-    if (!text || text.length > 80 || !sel.rangeCount) return null;
+    if (!text || text.length > 200 || !sel.rangeCount) return null;
     const rect = sel.getRangeAt(0).getBoundingClientRect();
     if (!rect.width && !rect.height) return null;
     const node = sel.anchorNode && (sel.anchorNode.nodeType === 1 ? sel.anchorNode : sel.anchorNode.parentElement);
@@ -1485,7 +1626,7 @@
     await langsReady;
     const anchor = document.createElement('span');
     anchor.style.cssText = `position:fixed;left:${info.rect.left}px;top:${info.rect.top}px;width:${info.rect.width}px;height:${info.rect.height}px;pointer-events:none;`;
-    document.body.appendChild(anchor);
+    layerHost().appendChild(anchor);
     openCard({ word: info.text, clean: normalizeToken(info.text), fullLine: info.ctx, anchorEl: anchor });
     setTimeout(() => anchor.remove(), 0);
     return true;
@@ -1505,6 +1646,7 @@
     });
     if (res?.ok) {
       Deck.markSaved(word); playDing();
+      if (res.xp) { celebrateSave(normalizeToken(word), res); return true; }
       showToast(res.already ? '✓ Already in your flashcards' : `🔴 Saved “${word}” to your flashcards`);
     } else if (res?.error === 'not_your_language' || res?.error === 'wrong_language') {
       showToast('That isn’t your learning language');
@@ -1526,7 +1668,7 @@
       selBtn.style.cssText = `position:fixed;z-index:2147483647;left:${Math.max(8, info.rect.left)}px;top:${Math.max(8, info.rect.top - 40)}px;background:#34C759;color:#0b1a10;border:0;border-radius:999px;padding:7px 12px;font:600 13px system-ui,sans-serif;box-shadow:0 4px 14px rgba(0,0,0,.35);cursor:pointer;`;
       selBtn.addEventListener('mousedown', (ev) => ev.preventDefault());
       selBtn.addEventListener('click', (ev) => { ev.stopPropagation(); hideSelBtn(); openSelectionCard(info); });
-      document.body.appendChild(selBtn);
+      layerHost().appendChild(selBtn);
     }, 10);
   }, true);
   document.addEventListener('scroll', hideSelBtn, true);
@@ -1543,6 +1685,6 @@
     stopWordsRefresh: () => Deck.stopAutoRefresh(),
     Rings, showToast, openCard, closeCard, makeWordSpan, makeWordSpansFor, splitWords, playDing, escapeHtml,
     SubtitleShield, LiveCaptions, SpeedKeeper, watchLayout, requestCaptions, setStatus, buildOverlay, layerHost, buildPanelShell, togglePanel, buildControls, attachKeyboardShortcuts,
-    injectStyles, openSelectionCard, saveSelectionNow, noteVideoLanguage, get accountLangs() { return accountLangs; },
+    injectStyles, openSelectionCard, saveSelectionNow, LineHold, celebrate, noteVideoLanguage, get accountLangs() { return accountLangs; },
   };
 })();

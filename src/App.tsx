@@ -53,6 +53,7 @@ import Explain from "./pages/Explain";
 import Manual from "./pages/Manual";
 const Landing = lazy(() => import("./pages/Landing"));
 const Write = lazy(() => import("./pages/Write"));
+const Build = lazy(() => import("./pages/Build"));
 const Speak = lazy(() => import("./pages/Speak"));
 const Studio = lazy(() => import("./pages/Studio"));
 const ConnectAI = lazy(() => import("./pages/ConnectAI"));
@@ -180,6 +181,7 @@ const APP_ROUTES = (
                 <Route path="/flashcards/common" element={<CommonWordsDeck />} />
                 <Route path="/vocabulary" element={<Vocabulary />} />
                 <Route path="/write" element={<Write />} />
+                <Route path="/build" element={<Build />} />
                 <Route path="/speak" element={<Speak />} />
                 <Route path="/studio" element={<Studio />} />
                 <Route path="/ai" element={<ConnectAI />} />

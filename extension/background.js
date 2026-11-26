@@ -504,8 +504,9 @@ async function getRingPool(language) {
   const first = common.find((c) => !deck.has(c.word));
   if (!first) return { ok: true, words: [], language: lang, band: 0, left: 0, done: common.length > 0 };
   const band = Math.ceil(first.rank / RING_STEP) * RING_STEP;
-  const words = common.filter((c) => c.rank <= band && !deck.has(c.word)).map((c) => c.word);
-  return { ok: true, words, language: lang, band, left: words.length };
+  const inBand = common.filter((c) => c.rank <= band);
+  const words = inBand.filter((c) => !deck.has(c.word)).map((c) => c.word);
+  return { ok: true, words, language: lang, band, left: words.length, total: inBand.length };
 }
 
 // ─── Vocabulary growth: what share of film & TV words are yours ──────────────
@@ -602,6 +603,53 @@ async function getProgress(language) {
   };
   _progressCache = { key, value, ts: Date.now() };
   return value;
+}
+
+// ─── Essential phrases: "🔓 New phrase unlocked" ─────────────────────────────
+// extension/dict/phrases/<lang>.json is a slim copy of the blueprint in
+// packages/core/src/phrases (scripts/build-extension-coverage.mjs). Same rule
+// as phraseUnlocks there: a phrase unlocks when every key (forms split by "|")
+// is in the learner's flashcards, any colour.
+const PHRASE_LANGS = new Set(['es', 'fr']);
+const _phrases = new Map();
+function loadPhrases(lang) {
+  if (!PHRASE_LANGS.has(lang)) return Promise.resolve([]);
+  if (!_phrases.has(lang)) {
+    _phrases.set(lang, fetch(chrome.runtime.getURL(`dict/phrases/${lang}.json`)).then((r) => r.json()).then((d) => d.phrases)
+      .catch(() => { _phrases.delete(lang); return []; }));
+  }
+  return _phrases.get(lang);
+}
+const phraseKeyForms = (k) => k.split('|').map(normalizeToken);
+const phraseUnlocked = (p, deck) => p.keys.every((k) => phraseKeyForms(k).some((f) => deck.has(f)));
+
+// Everything the video page celebrates after a save, in one round trip.
+async function afterSave(language, word) {
+  const session = await getValidSession();
+  const { language: def, languages } = await getLanguages(session);
+  const lang = languages.includes(language) ? language : def;
+  const key = normalizeToken(word);
+  const [deck, progress, book] = await Promise.all([
+    getDeckIndexCached(session.user.id, lang, session.access_token),
+    getProgress(lang).catch(() => null),
+    loadPhrases(lang),
+  ]);
+  const unlocked = book.filter((p) => phraseUnlocked(p, deck));
+  const newly = unlocked.filter((p) => p.keys.some((k) => phraseKeyForms(k).includes(key)));
+  const cov = progress?.supported ? await loadCoverage(lang) : null;
+  return {
+    ok: true, language: lang,
+    progress: progress?.supported ? progress : null,
+    wordShare: cov?.share.get(key) || 0,
+    newPhrases: newly.map(({ id, level, fn, text, en }) => ({ id, level, fn, text, en })),
+    unlockedPhrases: unlocked.length, totalPhrases: book.length,
+  };
+}
+
+// A celebration's "Share" opens our own share page (Instagram story, WhatsApp…).
+function openShare(params) {
+  const q = new URLSearchParams(Object.entries(params || {}).map(([k, v]) => [k, String(v)]));
+  return chrome.tabs.create({ url: chrome.runtime.getURL(`share.html?${q}`) }).then(() => ({ ok: true }));
 }
 
 // ─── XP ───────────────────────────────────────────────────────────────────────
@@ -864,6 +912,12 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     // The next common words to ring for this language.
     case 'GET_RING_POOL':
       return reply(getRingPool(msg.language), sendResponse);
+
+    case 'AFTER_SAVE':
+      return reply(afterSave(msg.language, msg.word), sendResponse);
+
+    case 'OPEN_SHARE':
+      return reply(openShare(msg.params), sendResponse);
 
     // Vocabulary growth card (pop-up) and the "+0.4%" after a save.
     case 'GET_PROGRESS':

@@ -23,7 +23,8 @@
     "video:launch:ja": "remotion render src/remotion/index.ts LaunchReel-Japanese out/launch-reel-ja.mp4",
     "voiceover": "bunx tsx scripts/generate-voiceover.ts",
     "predev": "bunx tsx scripts/generate-sitemap.ts",
-    "prebuild": "bunx tsx scripts/generate-sitemap.ts"
+    "prebuild": "bunx tsx scripts/generate-sitemap.ts",
+    "test:phrases": "npx -y tsx scripts/test-phrases.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

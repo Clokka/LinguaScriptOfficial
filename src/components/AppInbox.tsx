@@ -75,7 +75,7 @@ export function AppInbox() {
       const sheet: SavedWord[] = [];
       const done: number[] = [];
       for (const it of items) {
-        const word = normalizeToken(String(it.word || "")).slice(0, 120);
+        const word = normalizeToken(String(it.word || "")).slice(0, 200);
         if (word && (it as any).kind !== "review") {
           const isNew = !have.has(word.toLowerCase());
           if (isNew) saveGuestWord({ word, translation: String(it.translation || "").slice(0, 300), pronunciation: "", ipa: "", context: String(it.context || "").slice(0, 500), language: lang });
@@ -115,7 +115,7 @@ export function AppInbox() {
         const sheet: SavedWord[] = [];
         let reviewed = 0;
         for (const it of items) {
-          const word = normalizeToken(String(it.word || "")).slice(0, 120);
+          const word = normalizeToken(String(it.word || "")).slice(0, 200);
           if (!word) { done.push(it.at); continue; }
           // ✨ An answer from the lock-screen gold widget: same rule as a
           // flashcard answer (promote + applySrsReview from review.ts).
