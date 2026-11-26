@@ -806,6 +806,36 @@
   // ── Word spans ───────────────────────────────────────────────────────────────
   // claimRing: this is a new on-screen subtitle line, so its common words may
   // get a ring (the transcript only shows the ones already picked).
+  // ── Line hold: select a whole subtitle line (or part of one) to save it ─────
+  // While the mouse is down on the line, or some of it is selected, the line
+  // is frozen: a new subtitle would replace the text and wipe the selection.
+  // Letting go with words selected pauses the video so "🦎 Add to
+  // LinguaScript" can be pressed, and the drag's click never seeks the video.
+  const LineHold = {
+    down: false,
+    selected() {
+      const s = window.getSelection();
+      if (!s || s.isCollapsed || !s.rangeCount || !s.toString().trim()) return false;
+      const p = document.getElementById('ls-primary');
+      return !!p && (p.contains(s.anchorNode) || p.contains(s.focusNode));
+    },
+    held() { return this.down || this.selected(); },
+  };
+  let lineWasHeld = false;
+  document.addEventListener('mousedown', (e) => {
+    if (e.button === 0 && e.target?.closest?.('#ls-primary')) { LineHold.down = true; lineWasHeld = true; }
+  }, true);
+  document.addEventListener('mouseup', () => {
+    if (!LineHold.down) return;
+    LineHold.down = false;
+    setTimeout(() => {
+      if (LineHold.selected()) { try { document.querySelector('video')?.pause(); } catch {} }
+    }, 0);
+  }, true);
+  document.addEventListener('selectionchange', () => {
+    if (lineWasHeld && !LineHold.held()) { lineWasHeld = false; document.dispatchEvent(new CustomEvent('ls-line-release')); }
+  });
+
   function makeWordSpan(word, fullLine, joiner = ' ', claimRing = false) {
     const clean = normalizeToken(word);
     if (!clean) return document.createTextNode(word + joiner);
@@ -815,7 +845,11 @@
     // A common word past this line's ring limit stays plain on screen.
     if (claimRing && !Rings.claim(clean) && Rings.isPicked(clean)) span.dataset.noRing = '1';
     Deck.paint(span, clean);
-    span.addEventListener('click', (e) => { e.stopPropagation(); openCard({ word, clean, fullLine, anchorEl: span }); });
+    span.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (LineHold.selected() && /\s/.test(window.getSelection().toString().trim())) return; // dragged over several words
+      openCard({ word, clean, fullLine, anchorEl: span });
+    });
     return span;
   }
   function makeWordSpansFor(text) {
@@ -937,11 +971,11 @@
     }
 
     function renderPrimary(text) {
-      if (text === lastPrimary) return; lastPrimary = text;
+      if (text === lastPrimary || LineHold.held()) return; lastPrimary = text;
       logLines(text);
       const el = document.getElementById('ls-primary'); if (!el) return;
       el.style.cssText = ''; el.innerHTML = '';
-      el.onclick = () => { const v = getVideo(); if (v) v.currentTime = Math.max(0, v.currentTime - 4); };
+      el.onclick = () => { if (LineHold.selected()) return; const v = getVideo(); if (v) v.currentTime = Math.max(0, v.currentTime - 4); };
       const { parts, joiner } = splitWords(text, learningLang);
       Rings.beginLine();
       parts.forEach((p) => el.appendChild(p.word ? makeWordSpan(p.text, text, joiner, true) : document.createTextNode(p.text + joiner)));
@@ -959,7 +993,7 @@
       el.onclick = mode === 'blur' ? (e) => { e.stopPropagation(); el.classList.toggle('ls-revealed'); } : null;
     }
     function clearOverlay() {
-      if (!lastPrimary) return; lastPrimary = null; lastSecondarySource = null;
+      if (!lastPrimary || LineHold.held()) return; lastPrimary = null; lastSecondarySource = null;
       const el = document.getElementById('ls-primary'); if (el) el.innerHTML = '';
       renderSecondary('');
       const overlay = document.getElementById('ls-overlay'); if (overlay) overlay.style.opacity = '0';
@@ -967,7 +1001,7 @@
     }
 
     function onChange() {
-      if (!visible) return;
+      if (!visible || LineHold.held()) return; // frozen while the learner selects the line
       const text = getText();
       if (!text) {
         clearTimeout(clearDebounce);
@@ -1006,10 +1040,12 @@
         shield.start(() => visible && !!lastPrimary && getText() === lastPrimary && !!document.getElementById('ls-primary')?.textContent);
         observer = new MutationObserver(onChange);
         observer.observe(getTarget() || document.body, { childList: true, subtree: true, characterData: true });
+        document.addEventListener('ls-line-release', onChange);
         onChange();
       },
       stop() {
         observer?.disconnect(); observer = null;
+        document.removeEventListener('ls-line-release', onChange);
         clearTimeout(clearDebounce); clearTimeout(translateDebounce);
         shield.stop(); shield.show();
         lines.length = 0; current = -1; listEl = null; lastPrimary = null; lastSecondarySource = null;
@@ -1342,6 +1378,8 @@
     #ls-overlay.ls-panel-hidden { right:var(--ls-vrh, 0px); }
     #ls-primary { display:inline-block; background:rgba(0,0,0,0.82); border-radius:6px; padding:.3em .8em .4em; margin-bottom:.18em; font-size:var(--ls-fs, 34px); font-weight:800; color:#fff; line-height:1.45; pointer-events:auto; cursor:pointer; text-shadow:0 2px 8px rgba(0,0,0,0.95); max-width:100%; box-sizing:border-box; }
     #ls-primary:empty { display:none; }
+    #ls-overlay #ls-primary, #ls-overlay #ls-primary .ls-word { -webkit-user-select:text !important; user-select:text !important; }
+    #ls-primary ::selection { background:rgba(52,199,89,0.45); }
     #ls-secondary { display:inline-block; font-size:calc(var(--ls-fs, 34px) * 0.6); font-weight:500; color:rgba(255,255,255,0.82); background:rgba(0,0,0,0.68); border-radius:4px; padding:.2em 1em .3em; pointer-events:none; text-shadow:0 1px 4px rgba(0,0,0,0.9); }
     #ls-overlay #ls-secondary { display:table; margin:0 auto; }
     #ls-secondary.ls-blurred { filter:blur(7px); pointer-events:auto; cursor:pointer; transition:filter .15s ease; }
@@ -1469,7 +1507,7 @@
   function selectionInfo() {
     const sel = window.getSelection();
     const text = sel ? sel.toString().replace(/\s+/g, ' ').trim() : '';
-    if (!text || text.length > 80 || !sel.rangeCount) return null;
+    if (!text || text.length > 200 || !sel.rangeCount) return null;
     const rect = sel.getRangeAt(0).getBoundingClientRect();
     if (!rect.width && !rect.height) return null;
     const node = sel.anchorNode && (sel.anchorNode.nodeType === 1 ? sel.anchorNode : sel.anchorNode.parentElement);
@@ -1485,7 +1523,7 @@
     await langsReady;
     const anchor = document.createElement('span');
     anchor.style.cssText = `position:fixed;left:${info.rect.left}px;top:${info.rect.top}px;width:${info.rect.width}px;height:${info.rect.height}px;pointer-events:none;`;
-    document.body.appendChild(anchor);
+    layerHost().appendChild(anchor);
     openCard({ word: info.text, clean: normalizeToken(info.text), fullLine: info.ctx, anchorEl: anchor });
     setTimeout(() => anchor.remove(), 0);
     return true;
@@ -1526,7 +1564,7 @@
       selBtn.style.cssText = `position:fixed;z-index:2147483647;left:${Math.max(8, info.rect.left)}px;top:${Math.max(8, info.rect.top - 40)}px;background:#34C759;color:#0b1a10;border:0;border-radius:999px;padding:7px 12px;font:600 13px system-ui,sans-serif;box-shadow:0 4px 14px rgba(0,0,0,.35);cursor:pointer;`;
       selBtn.addEventListener('mousedown', (ev) => ev.preventDefault());
       selBtn.addEventListener('click', (ev) => { ev.stopPropagation(); hideSelBtn(); openSelectionCard(info); });
-      document.body.appendChild(selBtn);
+      layerHost().appendChild(selBtn);
     }, 10);
   }, true);
   document.addEventListener('scroll', hideSelBtn, true);
@@ -1543,6 +1581,6 @@
     stopWordsRefresh: () => Deck.stopAutoRefresh(),
     Rings, showToast, openCard, closeCard, makeWordSpan, makeWordSpansFor, splitWords, playDing, escapeHtml,
     SubtitleShield, LiveCaptions, SpeedKeeper, watchLayout, requestCaptions, setStatus, buildOverlay, layerHost, buildPanelShell, togglePanel, buildControls, attachKeyboardShortcuts,
-    injectStyles, openSelectionCard, saveSelectionNow, noteVideoLanguage, get accountLangs() { return accountLangs; },
+    injectStyles, openSelectionCard, saveSelectionNow, LineHold, noteVideoLanguage, get accountLangs() { return accountLangs; },
   };
 })();

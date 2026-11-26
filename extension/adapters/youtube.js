@@ -76,10 +76,11 @@
   let lastText = null, lastSecondarySource = null, autoPause = false, autoPausedAt = -1, overlayVisible = true;
 
   function renderPrimary(text) {
-    if (text === lastText) return; lastText = text;
+    if (text === lastText || C.LineHold?.held()) return; lastText = text; // frozen while selecting
+
     const el = document.getElementById('ls-primary'); if (!el) return;
     el.innerHTML = '';
-    el.onclick = () => { const sub = primarySubs[currentSubIdx]; if (sub && videoEl) videoEl.currentTime = sub.start; };
+    el.onclick = () => { if (C.LineHold?.selected()) return; const sub = primarySubs[currentSubIdx]; if (sub && videoEl) videoEl.currentTime = sub.start; };
     const { parts, joiner } = C.splitWords(text, C.learningLang);
     C.Rings.beginLine();
     parts.forEach((p) => el.appendChild(p.word ? C.makeWordSpan(p.text, text, joiner, true) : document.createTextNode(p.text + joiner)));
@@ -101,7 +102,7 @@
   function startSync() {
     if (syncInterval) clearInterval(syncInterval);
     syncInterval = setInterval(() => {
-      if (!videoEl || !overlayVisible) return;
+      if (!videoEl || !overlayVisible || C.LineHold?.held()) return; // line frozen while the learner selects it
       const t = videoEl.currentTime;
       const idx = primarySubs.findIndex((s) => t >= s.start && t < s.end);
       const overlay = document.getElementById('ls-overlay'); if (!overlay) return;
