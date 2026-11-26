@@ -14,7 +14,6 @@ const text = `My ${name} words went from ${pct(from)} to ${pct(to)} of everythin
 
 $('headline').textContent = headline ? `${headline}! 🎉` : 'Share your progress 🎉';
 $('sentence').innerHTML = `Your ${name} words went from <b>${pct(from)}</b> to <b>${pct(to)}</b> of everything said in films & TV.`;
-$('wa-btn').href = `https://wa.me/?text=${encodeURIComponent(`${text} ${LINK}`)}`;
 
 const cards = {};
 function card(format) {
@@ -24,48 +23,23 @@ function card(format) {
   });
   return cards[format];
 }
-let format = 'story';
-async function showPreview() {
-  const blob = await card(format);
-  $('preview').src = URL.createObjectURL(blob);
-  $('preview').style.aspectRatio = format === 'story' ? '1080 / 1920' : '1080 / 1350';
-}
-document.querySelectorAll('.tab').forEach((t) => t.addEventListener('click', () => {
-  format = t.dataset.format;
-  document.querySelectorAll('.tab').forEach((x) => x.classList.toggle('on', x === t));
-  showPreview();
-}));
+// One picture (story size, also fine for posts) and ONE Share button:
+// phones open the share sheet (Instagram story, WhatsApp…); computers save the
+// picture and copy the caption.
+async function showPreview() { $('preview').src = URL.createObjectURL(await card('story')); }
 showPreview();
 
 const note = (m) => { $('note').textContent = m; };
-function download(blob, file) {
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob); a.download = file; a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-}
-async function shareFile(fmt) {
-  const blob = await card(fmt);
-  const file = new File([blob], `linguascript-${fmt}.png`, { type: 'image/png' });
+$('share-btn').addEventListener('click', async () => {
+  const blob = await card('story');
+  const file = new File([blob], 'linguascript-progress.png', { type: 'image/png' });
   if (navigator.canShare?.({ files: [file] })) {
-    try { await navigator.share({ files: [file], text: `${text} ${LINK}` }); return true; }
-    catch (e) { if (e?.name === 'AbortError') return true; }
+    try { await navigator.share({ files: [file], text: `${text} ${LINK}` }); return; }
+    catch (e) { if (e?.name === 'AbortError') return; }
   }
-  download(blob, file.name);
-  return false;
-}
-
-$('story-btn').addEventListener('click', async () => {
-  const shared = await shareFile('story');
-  if (!shared) {
-    await navigator.clipboard.writeText(LINK).catch(() => {});
-    note('Story picture saved ✓ Open Instagram → Your story → pick it. The link is copied for a link sticker.');
-  }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = file.name; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  await navigator.clipboard.writeText(`${text} ${LINK}`).catch(() => {});
+  note('Picture saved and caption copied ✓ Post it anywhere, or add it to your story.');
 });
-$('copy-btn').addEventListener('click', async () => {
-  await navigator.clipboard.writeText(`${text} ${LINK}`).then(() => note('Copied ✓ Paste it anywhere.'), () => note('Couldn’t copy. Select the text above instead.'));
-});
-$('dl-btn').addEventListener('click', async () => { download(await card(format), `linguascript-${format}.png`); note('Picture saved ✓'); });
-if (navigator.share) {
-  $('native-btn').classList.remove('hidden');
-  $('native-btn').addEventListener('click', () => shareFile(format));
-}

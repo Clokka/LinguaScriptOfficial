@@ -750,108 +750,72 @@
     const count = (store.ls_build_counter[lang] || 0) + 1;
     const setCount = (n) => chrome.storage.local.set({ ls_build_counter: { ...store.ls_build_counter, [lang]: n } });
     setCount(count);
-    const shareParams = (from, to, headline) => ({ lang, from: from.toFixed(1), to: to.toFixed(1), headline });
+    const share = (from, to, headline) => ({ label: 'Share', onClick: () => send({ type: 'OPEN_SHARE', params: { lang, from: from.toFixed(1), to: to.toFixed(1), headline } }) });
 
     // 1. Deck complete.
     if (ring?.completed) {
       const start = store.ls_ring_start[lang];
       const from = start?.band === ring.band ? start.decks : null;
       const to = p?.decks;
+      const moved = from != null && to != null;
       celebrate({
-        emoji: '🎉', title: `Top ${ring.band} complete!`,
-        body: from != null && to != null
-          ? `Your ${name} words went from <b>${pctText(from)}</b> to <b>${pctText(to)}</b> of everything said in films & TV. Top ${ring.band + 50} is unlocked: we'll circle those words now.`
-          : `You've saved all of the Top ${ring.band} ${name} words. Top ${ring.band + 50} is unlocked: we'll circle those words now.`,
-        actions: [
-          ...(from != null && to != null ? [{ label: '📸 Share my progress', primary: true, onClick: () => send({ type: 'OPEN_SHARE', params: shareParams(from, to, `Top ${ring.band} complete`) }) }] : []),
-          { label: `Review Top ${ring.band}`, href: `${SITE}/flashcards/common?band=${ring.band}&from=extension` },
-        ],
-        confetti: true,
+        icon: '🎉',
+        html: moved ? `Top ${ring.band} done · <b>${pctText(from)} → ${pctText(to)}</b> of film & TV` : `Top ${ring.band} done · Top ${ring.band + 50} unlocked`,
+        action: moved ? share(from, to, `Top ${ring.band} complete`) : null,
       });
       return;
     }
     // 2. A phrase this word unlocked.
     if (a.newPhrases?.length) {
       const ph = a.newPhrases[0];
-      celebrate({
-        emoji: '🔓', title: 'New phrase unlocked!',
-        body: `<span class="ls-cel-phrase" translate="no">“${escapeHtml(ph.text)}”</span><span class="ls-cel-sub">${escapeHtml(ph.en)} · ${ph.level} · ${escapeHtml(ph.fn)}</span>Go and build your own LinguaScript with it.`,
-        actions: [{ label: 'Build it now ✍️', primary: true, href: buildUrl(lang, ph.id) }],
-      });
+      celebrate({ icon: '🔓', html: `New phrase: <b translate="no">${escapeHtml(ph.text)}</b>`, action: { label: 'Build', href: buildUrl(lang, ph.id) } });
       setCount(0);
       return;
     }
     // 3. A whole percent more of film & TV.
     if (p && a.wordShare > 0 && Math.floor(p.decks) > Math.floor(p.decks - a.wordShare)) {
-      const from = p.decks - a.wordShare;
-      celebrate({
-        emoji: '📈', title: `You just reached ${Math.floor(p.decks)}%!`,
-        body: `Your ${name} words now cover <b>${pctText(p.decks)}</b> of all the words said in films & TV.`,
-        actions: [{ label: '📸 Share', primary: true, onClick: () => send({ type: 'OPEN_SHARE', params: shareParams(p.series?.[0]?.decks ?? from, p.decks, `${Math.floor(p.decks)}% reached`) }) }],
-      });
+      celebrate({ icon: '📈', html: `<b>${pctText(p.decks)}</b> of ${escapeHtml(name)} film & TV words are yours`, action: share(p.series?.[0]?.decks ?? p.decks - a.wordShare, p.decks, `${Math.floor(p.decks)}% reached`) });
       return;
     }
     // 4. Every 5 new words: use them.
     if (count >= BUILD_EVERY) {
-      celebrate({
-        emoji: '✍️', title: `${BUILD_EVERY} new words saved!`,
-        body: 'Words stick when you use them. Build a LinguaScript, a sentence you’d really say, with your new words.',
-        actions: [{ label: 'Build a LinguaScript', primary: true, href: buildUrl(lang) }, { label: 'Later', onClick: () => {} }],
-      });
+      celebrate({ icon: '✍️', html: `${BUILD_EVERY} new words: use them in a sentence`, action: { label: 'Build', href: buildUrl(lang) } });
       setCount(0);
       return;
     }
     // Otherwise a quick toast after the XP one.
     setTimeout(() => {
-      if (ring && ring.total) {
-        const have = ring.total - ring.left;
-        showToast(`⭕ ${have} / ${ring.total} Top ${ring.band} words · finish the deck to unlock Top ${ring.band + 50}`);
-      } else if (p && a.wordShare >= 0.01) {
-        showToast(`📈 +${pctText(a.wordShare)} · your ${name} words now cover ${pctText(p.decks)} of film & TV`);
-      }
+      if (ring && ring.total) showToast(`⭕ ${ring.total - ring.left} / ${ring.total} Top ${ring.band} words`);
+      else if (p && a.wordShare >= 0.01) showToast(`📈 +${pctText(a.wordShare)} · ${pctText(p.decks)} of film & TV`);
     }, 2300);
   }
 
-  // One card at a time, top-centre over the video; never steals the video's keys.
+  // A small, quiet chip in the corner: one line, at most one small button.
+  // No sound, no confetti; it fades after 6 s (stays while hovered).
   let celebrateTimer = null;
-  function celebrate({ emoji, title, body, actions = [], confetti = false }) {
+  function celebrate({ icon, html, action = null }) {
     document.getElementById('ls-cel')?.remove();
     clearTimeout(celebrateTimer);
     const el = document.createElement('div');
     el.id = 'ls-cel'; el.setAttribute('role', 'status');
-    el.innerHTML = `<button class="ls-cel-x" aria-label="Close">✕</button><div class="ls-cel-emoji">${emoji}</div><div class="ls-cel-title">${escapeHtml(title)}</div><div class="ls-cel-body">${body}</div><div class="ls-cel-actions"></div>`;
-    const row = el.querySelector('.ls-cel-actions');
-    for (const act of actions) {
-      const b = document.createElement(act.href ? 'a' : 'button');
-      b.className = 'ls-cel-btn' + (act.primary ? ' ls-cel-primary' : '');
-      b.textContent = act.label;
-      if (act.href) { b.href = act.href; b.target = '_blank'; b.rel = 'noopener noreferrer'; }
-      b.addEventListener('click', (e) => { e.stopPropagation(); act.onClick?.(); close(); });
-      row.appendChild(b);
-    }
+    el.innerHTML = `<span class="ls-cel-icon">${icon}</span><span class="ls-cel-text">${html}</span>`;
     const close = () => { el.classList.remove('ls-show'); setTimeout(() => el.remove(), 250); };
-    el.querySelector('.ls-cel-x').addEventListener('click', (e) => { e.stopPropagation(); close(); });
+    if (action) {
+      const b = document.createElement(action.href ? 'a' : 'button');
+      b.className = 'ls-cel-btn'; b.textContent = action.label;
+      if (action.href) { b.href = action.href; b.target = '_blank'; b.rel = 'noopener noreferrer'; }
+      b.addEventListener('click', (e) => { e.stopPropagation(); action.onClick?.(); close(); });
+      el.appendChild(b);
+    }
     el.addEventListener('click', (e) => e.stopPropagation());
     layerHost().appendChild(el);
-    if (confetti) burstConfetti(el);
-    playDing();
     requestAnimationFrame(() => el.classList.add('ls-show'));
-    // Stays while the mouse is on it; otherwise goes after 10 s.
-    const arm = () => { clearTimeout(celebrateTimer); celebrateTimer = setTimeout(close, 10000); };
+    const arm = () => { clearTimeout(celebrateTimer); celebrateTimer = setTimeout(close, 6000); };
     el.addEventListener('mouseenter', () => clearTimeout(celebrateTimer));
     el.addEventListener('mouseleave', arm);
     arm();
   }
-  function burstConfetti(host) {
-    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    const colours = [Deck.PALETTE.red, Deck.PALETTE.orange, Deck.PALETTE.green, Deck.PALETTE.gold, '#4DA3FF'];
-    for (let i = 0; i < 28; i++) {
-      const c = document.createElement('i'); c.className = 'ls-confetti';
-      c.style.cssText = `left:${50 + (Math.random() - 0.5) * 30}%;background:${colours[i % colours.length]};--dx:${(Math.random() - 0.5) * 360}px;--dy:${-80 - Math.random() * 160}px;--r:${Math.random() * 720}deg;animation-delay:${Math.random() * 0.15}s`;
-      host.appendChild(c);
-      setTimeout(() => c.remove(), 1400);
-    }
-  }
+
 
   // Ask which of the learner's languages they're watching in. Only their own
   // LinguaScript languages are offered.
@@ -1509,20 +1473,13 @@
     #ls-overlay.ls-panel-hidden { right:var(--ls-vrh, 0px); }
     #ls-primary { display:inline-block; background:rgba(0,0,0,0.82); border-radius:6px; padding:.3em .8em .4em; margin-bottom:.18em; font-size:var(--ls-fs, 34px); font-weight:800; color:#fff; line-height:1.45; pointer-events:auto; cursor:pointer; text-shadow:0 2px 8px rgba(0,0,0,0.95); max-width:100%; box-sizing:border-box; }
     #ls-primary:empty { display:none; }
-    #ls-cel { position:fixed; top:72px; left:50%; transform:translate(-50%,-12px) scale(.97); opacity:0; z-index:2147483647; width:min(380px, calc(100vw - 32px)); background:#131316; color:#F5F5F7; border:1px solid #24242D; border-radius:20px; padding:20px 20px 16px; box-shadow:0 18px 50px rgba(0,0,0,.55); font-family:'LS Inter','Inter',system-ui,sans-serif; text-align:center; transition:opacity .25s ease, transform .25s ease; overflow:visible; }
-    #ls-cel.ls-show { opacity:1; transform:translate(-50%,0) scale(1); }
-    .ls-cel-x { position:absolute; top:10px; right:12px; background:none; border:0; color:#8A8A96; font-size:15px; cursor:pointer; }
-    .ls-cel-emoji { font-size:38px; line-height:1; margin-bottom:8px; }
-    .ls-cel-title { font-size:19px; font-weight:800; margin-bottom:6px; }
-    .ls-cel-body { font-size:14px; line-height:1.5; color:#C9C9D1; }
-    .ls-cel-body b { color:#34C759; }
-    .ls-cel-phrase { display:block; font-size:18px; font-weight:800; color:#F5F5F7; margin:2px 0 2px; }
-    .ls-cel-sub { display:block; font-size:12px; color:#8A8A96; margin-bottom:8px; }
-    .ls-cel-actions { display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-top:14px; }
-    .ls-cel-btn { display:inline-flex; align-items:center; justify-content:center; height:38px; padding:0 14px; border-radius:999px; border:1px solid #2A2A33; background:transparent; color:#F5F5F7; font:600 13px 'LS Inter','Inter',system-ui,sans-serif; cursor:pointer; text-decoration:none; }
-    .ls-cel-primary { background:#34C759; border-color:#34C759; color:#0B1A10; }
-    .ls-confetti { position:absolute; top:40px; width:8px; height:12px; border-radius:2px; pointer-events:none; animation:ls-confetti 1.2s ease-out forwards; }
-    @keyframes ls-confetti { to { transform:translate(var(--dx), var(--dy)) rotate(var(--r)); opacity:0; } }
+    #ls-cel { position:fixed; top:16px; left:16px; z-index:2147483647; display:flex; align-items:center; gap:8px; max-width:min(420px, calc(100vw - 32px)); padding:7px 8px 7px 12px; background:rgba(19,19,22,0.92); color:#E8E8EE; border:1px solid #26262E; border-radius:999px; box-shadow:0 6px 18px rgba(0,0,0,.35); font:500 13px/1.3 'LS Inter','Inter',system-ui,sans-serif; opacity:0; transform:translateY(-6px); transition:opacity .2s ease, transform .2s ease; backdrop-filter:blur(8px); }
+    #ls-cel.ls-show { opacity:1; transform:none; }
+    .ls-cel-icon { font-size:14px; line-height:1; }
+    .ls-cel-text { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .ls-cel-text b { color:#34C759; font-weight:700; }
+    .ls-cel-btn { flex:none; height:26px; padding:0 10px; border-radius:999px; border:1px solid #34C759; background:transparent; color:#34C759; font:600 12px 'LS Inter','Inter',system-ui,sans-serif; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; }
+    .ls-cel-btn:hover { background:rgba(52,199,89,0.12); }
     @media (prefers-reduced-motion: reduce) { #ls-cel { transition:none; } }
     #ls-overlay #ls-primary, #ls-overlay #ls-primary .ls-word { -webkit-user-select:text !important; user-select:text !important; }
     #ls-primary ::selection { background:rgba(52,199,89,0.45); }

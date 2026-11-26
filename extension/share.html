@@ -28,28 +28,15 @@
 <body>
   <main>
     <div>
-      <div class="tabs" role="tablist" aria-label="Picture size">
-        <button class="tab on" data-format="story" type="button">Story</button>
-        <button class="tab" data-format="post" type="button">Post</button>
-      </div>
       <img class="preview" id="preview" alt="Your LinguaScript progress card" />
     </div>
     <div>
       <div class="brand"><img src="icons/logo.svg" alt="" /><span>Lingua<span class="script">Script</span></span></div>
       <h1 id="headline">Share your progress 🎉</h1>
-      <p class="lead">Your friends can see how fast real words add up. Every number here comes from real word counts in films & TV.</p>
+      
       <p class="big" id="sentence"></p>
-      <div class="btns">
-        <button class="btn btn-primary" id="story-btn" type="button">📸 Add to my Instagram story</button>
-        <a class="btn btn-wa" id="wa-btn" target="_blank" rel="noopener noreferrer">Share on WhatsApp</a>
-        <div class="row2">
-          <button class="btn btn-ghost" id="copy-btn" type="button">🔗 Copy link & text</button>
-          <button class="btn btn-ghost" id="dl-btn" type="button">⬇️ Download picture</button>
-        </div>
-        <button class="btn btn-ghost hidden" id="native-btn" type="button">Share…</button>
-      </div>
+      <button class="btn btn-primary" id="share-btn" type="button" style="width:auto; padding:0 22px;">Share</button>
       <p class="note" id="note" role="status"></p>
-      <p class="small">Instagram has no "post from a website" button. We save the story picture for you: open Instagram on your phone → <b>Your story</b> → pick the picture. On a phone, "Add to my Instagram story" opens the share sheet straight away.</p>
     </div>
   </main>
   <script src="share-card.js"></script>
