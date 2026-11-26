@@ -9,6 +9,7 @@ import { DeckCards } from "@/components/landing/DeckCards";
 import { MagneticButton } from "@/components/landing/MagneticButton";
 import { StoreBadges } from "@/components/landing/StoreBadges";
 import { FreeChameleonGift } from "@/components/landing/FreeChameleonGift";
+import { STORE_LINKS } from "@/components/landing/StoreBadges";
 import { ChameleonMascot } from "@/components/ChameleonMascot";
 import { LandingChameleonDemo } from "@/components/LandingChameleonDemo";
 import { DECK } from "@/lib/deck-colors";
@@ -110,6 +111,14 @@ export default function ChameleonMethod() {
             <span style={{ color: DECK.green }}>Script</span>
           </span>
           <div className="flex items-center gap-1">
+            <a
+              href={STORE_LINKS.chrome}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="px-3 py-2 text-sm text-white/60 hover:text-white transition-colors hidden sm:inline-block"
+            >
+              Chrome extension
+            </a>
             <button
               onClick={() => navigate("/auth")}
               className="px-3 py-2 text-sm text-white/60 hover:text-white transition-colors"
@@ -161,7 +170,7 @@ export default function ChameleonMethod() {
         </motion.p>
 
         <motion.div initial="hidden" animate="visible" custom={3} variants={reveal}>
-          <StoreBadges className="mb-5" />
+          <StoreBadges className="mb-5" chromeFirst />
           <p className="text-xs text-white/35">Free to start · No card required</p>
         </motion.div>
       </Section>
