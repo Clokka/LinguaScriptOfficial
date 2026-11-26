@@ -246,6 +246,7 @@ async function getDeckIndexCached(userId, language, accessToken, { force = false
 
 function invalidateDeckCache() {
   _deckCache = { key: null, index: null, ts: 0 };
+  _progressCache = { key: null, value: null, ts: 0 };
 }
 
 // ─── Profile ──────────────────────────────────────────────────────────────────
@@ -449,29 +450,32 @@ async function instantMeaning(text, sl, tl) {
 }
 loadPack(); // warm it when the service worker starts
 
-// ─── Ringed words: the app's common-words list ───────────────────────────────
+// ─── Ringed words: the app's common-words decks, 50 at a time ────────────────
 // core_vocabulary ranked by frequency is what the app's Common Words decks
-// (Top 50, 100, 150…) are built from. The extension rings this list's words,
-// so learners get the next most useful words from it, minus anything already
-// in their decks. Readable without logging in.
-const RING_POOL_SIZE = 500;
+// (Top 50, 100, 150…) are built from. The extension circles the words of the
+// learner's CURRENT deck only: the first block of 50 that still has a word not
+// in their decks. Once every Top 50 word is saved it moves on to Top 100, and
+// so on, like the decks on /common-words. Readable without logging in (then
+// it's always Top 50). The pop-up switch "Circle common words" (ls_rings)
+// turns it off.
+const RING_STEP = 50;
 // Rings are only for languages that are written with spaces between words, in
 // the Latin alphabet, where the frequency list's words match what the subtitles
 // are split into. Japanese, Chinese and Thai are split by Intl.Segmenter into
 // pieces that don't line up with the list yet, so they get no rings for now.
 const RING_LANGS = new Set(['fr', 'es', 'de', 'it', 'pt', 'en', 'nl', 'pl', 'sv']);
 const COMMON_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
-const _commonCache = new Map(); // language → { ts, words }
+const _commonCache = new Map(); // language → { ts, words: [{ word, rank }] }
 const SEGMENTED = new Set(['zh', 'ja', 'th']);
 
 async function getCommonWords(lang) {
   const hit = _commonCache.get(lang);
   if (hit && Date.now() - hit.ts < COMMON_CACHE_TTL_MS) return hit.words;
   const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/core_vocabulary?language=eq.${encodeURIComponent(lang)}&select=word&order=rank.asc&limit=2000`,
+    `${SUPABASE_URL}/rest/v1/core_vocabulary?language=eq.${encodeURIComponent(lang)}&select=word,rank&order=rank.asc&limit=3000`,
     { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` } }
-  );
-  if (!res.ok) return hit?.words || [];
+  ).catch(() => null);
+  if (!res?.ok) return hit?.words || [];
   const seen = new Set();
   const words = [];
   for (const row of await res.json()) {
@@ -479,9 +483,9 @@ async function getCommonWords(lang) {
     // Phrases can't match a single subtitle word; single letters are mostly noise.
     if (!w || seen.has(w) || /\s/.test(w) || (!SEGMENTED.has(lang) && w.length < 2)) continue;
     seen.add(w);
-    words.push(w);
+    words.push({ word: w, rank: Number(row.rank) || words.length + 1 });
   }
-  _commonCache.set(lang, { ts: Date.now(), words });
+  if (words.length) _commonCache.set(lang, { ts: Date.now(), words });
   return words;
 }
 
@@ -494,15 +498,110 @@ async function getRingPool(language) {
     if (!langs.languages.includes(lang)) lang = langs.language || lang;
     if (lang) deck = await getDeckIndexCached(session.user.id, lang, session.access_token);
   }
-  if (!lang || !RING_LANGS.has(lang)) return { ok: true, words: [], language: lang };
+  if (!lang || !RING_LANGS.has(lang)) return { ok: true, words: [], language: lang, band: 0, left: 0 };
   const common = await getCommonWords(lang);
-  const words = [];
-  for (const w of common) {
-    if (deck.has(w)) continue;
-    words.push(w);
-    if (words.length >= RING_POOL_SIZE) break;
+  // The current deck: the block of 50 holding the most frequent unsaved word.
+  const first = common.find((c) => !deck.has(c.word));
+  if (!first) return { ok: true, words: [], language: lang, band: 0, left: 0, done: common.length > 0 };
+  const band = Math.ceil(first.rank / RING_STEP) * RING_STEP;
+  const words = common.filter((c) => c.rank <= band && !deck.has(c.word)).map((c) => c.word);
+  return { ok: true, words, language: lang, band, left: words.length };
+}
+
+// ─── Vocabulary growth: what share of film & TV words are yours ──────────────
+// extension/dict/coverage/<lang>.json = real word counts from OpenSubtitles
+// 2018 (scripts/build-extension-coverage.mjs). A word's share = its count /
+// every word in the corpus, so "you know 58%" means 58 of every 100 words
+// spoken in films & TV are words in your green decks. Never typed numbers.
+//   known = green + gold (words you know; gold = known, due for a review)
+//   decks = every saved word, any colour (it jumps the moment you save one)
+// Growth over time comes from the database dates: a word counts as in your
+// decks from created_at, and as known from state_changed_at (when it turned
+// green), so the "in N weeks" story also covers words saved before this card.
+const COVERAGE_FILES = { fr: 'fr', es: 'es', de: 'de', it: 'it', pt: 'pt_br', en: 'en' };
+const _coverage = new Map();
+function loadCoverage(lang) {
+  const file = COVERAGE_FILES[lang];
+  if (!file) return Promise.resolve(null);
+  if (!_coverage.has(file)) {
+    _coverage.set(file, fetch(chrome.runtime.getURL(`dict/coverage/${file}.json`))
+      .then((r) => r.json())
+      .then((d) => {
+        const words = d.w.split('\n');
+        const share = new Map();
+        words.forEach((w, i) => {
+          const k = normalizeToken(w);
+          if (k) share.set(k, (share.get(k) || 0) + d.c[i] / d.total * 100);
+        });
+        return { words: words.map(normalizeToken), share, source: d.source, licence: d.licence };
+      })
+      .catch(() => { _coverage.delete(file); return null; }));
   }
-  return { ok: true, words, language: lang };
+  return _coverage.get(file);
+}
+
+let _progressCache = { key: null, value: null, ts: 0 };
+const DAY = 86400000;
+async function getProgress(language) {
+  const session = await getValidSession();
+  const { language: def, languages } = await getLanguages(session);
+  const lang = languages.includes(language) ? language : def;
+  const cov = lang ? await loadCoverage(lang) : null;
+  if (!cov) return { ok: true, language: lang, supported: false };
+  const key = `${session.user.id}:${lang}`;
+  if (_progressCache.key === key && Date.now() - _progressCache.ts < 15000) return _progressCache.value;
+
+  const rows = await fetchAllSavedWords(
+    `saved_words?user_id=eq.${session.user.id}&language=eq.${encodeURIComponent(lang)}&select=word,state,next_review,interval_days,state_changed_at,created_at`,
+    session.access_token);
+  const now = Date.now();
+  const words = new Map(); // key → { share, added, knownAt }
+  for (const row of rows) {
+    const k = normalizeToken(row.word);
+    const share = cov.share.get(k);
+    if (!share) continue; // outside the top 3,000: too rare to move the number
+    const st = deckState(row, now);
+    const added = Date.parse(row.created_at) || now;
+    const knownAt = st === 'green' || st === 'gold' ? (Date.parse(row.state_changed_at) || added) : null;
+    const w = words.get(k);
+    if (!w) words.set(k, { share, added, knownAt });
+    else { w.added = Math.min(w.added, added); if (knownAt && (!w.knownAt || knownAt < w.knownAt)) w.knownAt = knownAt; }
+  }
+  const at = (t) => {
+    let known = 0, decks = 0;
+    for (const w of words.values()) {
+      if (w.added <= t) decks += w.share;
+      if (w.knownAt && w.knownAt <= t) known += w.share;
+    }
+    return { known: Math.min(100, known), decks: Math.min(100, decks) };
+  };
+  const nowPct = at(now);
+  const start = words.size ? Math.min(...[...words.values()].map((w) => w.added)) : now;
+  // One point a week from the first saved word (at most 26), plus today.
+  const series = [];
+  const weeks = Math.max(0, Math.floor((now - start) / (7 * DAY)));
+  for (let i = Math.max(0, weeks - 25); i <= weeks; i++) series.push({ t: start + i * 7 * DAY, ...at(start + i * 7 * DAY) });
+  series.push({ t: now, ...nowPct });
+  const weekAgo = at(now - 7 * DAY);
+  // The next 10 most common words not in any deck: a quick, visible win.
+  let nextGain = 0, nextCount = 0;
+  for (const w of cov.words) {
+    if (nextCount >= 10) break;
+    if (!w || words.has(w)) continue;
+    nextGain += cov.share.get(w) || 0; nextCount++;
+  }
+  const value = {
+    ok: true, supported: true, language: lang,
+    known: nowPct.known, decks: nowPct.decks,
+    weekGain: { known: nowPct.known - weekAgo.known, decks: nowPct.decks - weekAgo.decks },
+    startedAt: start, days: Math.max(1, Math.round((now - start) / DAY)),
+    knownWords: [...words.values()].filter((w) => w.knownAt).length,
+    deckWords: words.size,
+    next: { count: nextCount, gain: nextGain },
+    series, source: cov.source, licence: cov.licence,
+  };
+  _progressCache = { key, value, ts: Date.now() };
+  return value;
 }
 
 // ─── XP ───────────────────────────────────────────────────────────────────────
@@ -765,6 +864,14 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     // The next common words to ring for this language.
     case 'GET_RING_POOL':
       return reply(getRingPool(msg.language), sendResponse);
+
+    // Vocabulary growth card (pop-up) and the "+0.4%" after a save.
+    case 'GET_PROGRESS':
+      return reply(getProgress(msg.language).then(async (p) => {
+        if (!msg.word || !p.supported) return p;
+        const cov = await loadCoverage(p.language);
+        return { ...p, wordShare: cov?.share.get(normalizeToken(msg.word)) || 0 };
+      }), sendResponse);
 
     case 'SYNC_VIDEO_SITES':
       return reply(syncVideoSites().then(() => ({ ok: true })), sendResponse);
