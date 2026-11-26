@@ -19,7 +19,9 @@ import { track } from "@/lib/analytics";
  *   selection instead.
  * The translator loads only when something is saved.
  */
-const MAX_WORDS = 6;
+// Whole subtitle lines and phrases save too (same as the extension: ≤ 200 characters).
+const MAX_WORDS = 20;
+const MAX_CHARS = 200;
 const inApp = () => !!(window as Window & { ReactNativeWebView?: unknown }).ReactNativeWebView;
 
 /** The sentence around the current selection, for the flashcard's example. */
@@ -39,7 +41,7 @@ export function SelectionSave() {
 
   const saveText = async (raw: string, context: string) => {
     const text = raw.replace(/\s+/g, " ").trim();
-    const word = normalizeToken(text).slice(0, 120);
+    const word = normalizeToken(text).slice(0, MAX_CHARS);
     if (!word) return;
     if (!learningLanguage) {
       toast("Pick the language you're learning first");
@@ -112,7 +114,7 @@ export function SelectionSave() {
     const read = () => {
       const sel = window.getSelection();
       const text = sel?.toString().replace(/\s+/g, " ").trim() || "";
-      if (!sel || sel.rangeCount === 0 || !text || text.length > 80 || text.split(" ").length > MAX_WORDS || !/\p{L}/u.test(text)) {
+      if (!sel || sel.rangeCount === 0 || !text || text.length > MAX_CHARS || text.split(" ").length > MAX_WORDS || !/\p{L}/u.test(text)) {
         setChip(null);
         return;
       }
