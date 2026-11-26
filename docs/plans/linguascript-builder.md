@@ -9,7 +9,12 @@
 - **Website = remote control.** Watching/reading happens in the **extension and the app**. The website organises flashcards, exports to Anki/Quizlet, and runs the sentence builder. The website's Watch page stays reachable by link but leaves the menu.
 - **Later:** let learners choose phrase themes (e.g. romantic phrases).
 
-## Built (this PR)
+## Update, 26 Nov (later): start simple
+- **LinguaScripts are parked.** Rowan: phrases should follow each learner's **course, goals and hobbies, in context**, not one fixed list for everyone. Until then: the extension's 🔓 phrase and ✍️ "every 5 words" chips are off (`PHRASE_PROMPTS = false` in `extension/ls-core.js`), `/build` stays reachable only by its link, and the website tabs are **Today · Words · Me** (`src/components/AppTabs.tsx`).
+- **Idea for the return:** pick phrases by the learner's goal (travel, work, exams…) and hobby, and by the video they just watched; the blueprint stays the backbone, with a `theme`/`goal` field per phrase.
+- **New homepage (Rowan liked the mockup):** visitors → `/landing7` (`src/pages/landing/MinimalLanding.tsx`; switch it on in HQ → Today by typing /landing7, or A/B test it); signed-in learners → `/home` (`src/pages/Home.tsx`: next step, real % of film & TV words via `src/lib/filmCoverage.ts`, decks, extension connected). `Index` sends onboarded learners to `/home` instead of `/discover`.
+
+## Built (first PR)
 | Piece | Where |
 |---|---|
 | Essential phrases A1–C2, es + fr (12 per level, original, function-ordered) | `packages/core/src/phrases/` · `npm run test:phrases` |
