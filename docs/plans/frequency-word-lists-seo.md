@@ -125,7 +125,7 @@ Build wave 1 of the most-common-words pages: languages es, fr, de, it, pt, en.
    top 3000 with counts, add English meanings (non-English) the same way as
    scripts/build-instant-dict.mjs, compute coverage for 100/500/1000/3000 from
    the counts, write src/data/wordlists/<lang>.json with source + licence
-   fields. Run it for all six and commit the JSON.
+   fields. Run it for all eight (es fr de it pt_br en zh_cn ja) and commit the JSON.
 2. A Vite plugin (closeBundle) that renders static HTML from that JSON into
    dist/words/index.html, dist/words/<language>/index.html (top 100),
    .../top-1000/index.html, .../top-3000/index.html, following plan section 4
@@ -161,7 +161,7 @@ No one can promise #1. Google ranks pages on three things: **is it the best answ
 - **Dataset schema** (licence, source, CSV download, date) + the FAQPage, ItemList and BreadcrumbList schemas we already had. Visible "Updated" date.
 
 ### What Rowan does (off-page: this is what moves us to page 1)
-1. **Search Console** → Sitemaps → submit `https://linguascript.co.uk/sitemap.xml`. Then URL Inspection → "Request indexing" for `/words` and the six `/words/<language>` pages.
+1. **Search Console** → Sitemaps → submit `https://linguascript.co.uk/sitemap.xml`. Then URL Inspection → "Request indexing" for `/words` and the eight `/words/<language>` pages.
 2. **Get links (most important).** 5–10 good links beat everything else:
    - Reddit (r/Spanish, r/French, r/German, r/italianlearning, r/Portuguese, r/languagelearning, r/Anki): post the **free Anki CSV** with "I measured how much of film subtitles the top 100 / 1,000 words cover". Lead with the numbers, not the app.
    - Anki shared-deck page: upload the 1,000-word decks linking back to the page as the source.
@@ -170,7 +170,7 @@ No one can promise #1. Google ranks pages on three things: **is it the best answ
 3. **Wait and watch (about 4–8 weeks).** In Search Console → Performance, look at each page's queries:
    - **Lots of impressions, few clicks** → change the title (one change at a time, wait 2 weeks).
    - **Position 8–20** → add what that query wants (e.g. "spanish verbs list" → a verbs section), and get one more link to that page.
-4. **Keep it fresh:** rebuild once a year (`node scripts/build-word-lists.mjs es fr de it pt_br en`), which updates the date.
+4. **Keep it fresh:** rebuild once a year (`node scripts/build-word-lists.mjs es fr de it pt_br en zh_cn ja`), which updates the date.
 
 ### Honest expectations
 - Big learning sites already rank for "most common spanish words". New domains usually take **3–6 months** to reach page 1 for the main phrase.

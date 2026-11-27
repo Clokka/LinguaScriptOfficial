@@ -28,7 +28,7 @@ const FAQ: [string, string][] = [
   ["Who is it for?", "Adults and teens (16+) who are beginners or feel stuck: you know some words but can't follow real people talking yet."],
   ["Do I need Netflix?", "No. YouTube is free and has videos about every hobby. Netflix, Crunchyroll and TV5MONDE work with the Chrome extension if you have them."],
   ["How long does it take each day?", "As little as 10 minutes: a few reviews and one short video."],
-  ["Which languages?", "Most-common-word lists for Spanish, French, German, Italian, Portuguese and English, and subtitles for any YouTube video that has them."],
+  ["Which languages?", "Most-common-word lists for Spanish, French, German, Italian, Portuguese, English, Chinese and Japanese, and subtitles for any YouTube video that has them."],
 ];
 
 const ONBOARDING_KEY = "ls.onboardingState.v1";

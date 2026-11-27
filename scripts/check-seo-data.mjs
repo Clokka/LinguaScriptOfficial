@@ -18,4 +18,4 @@ for (const lang of LANGS) {
 }
 assert.equal(vocabularyCoverage(JSON.parse(fs.readFileSync("src/data/wordlists/fr.json", "utf8")), 50), 46.6);
 assert.equal(new Set(wordPagePaths()).size, wordPagePaths().length);
-console.log("SEO corpus coverage and list-size rules passed for all six languages.");
+console.log(`SEO corpus coverage and list-size rules passed for all ${LANGS.length} languages.`);

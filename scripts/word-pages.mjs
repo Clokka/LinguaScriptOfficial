@@ -17,6 +17,11 @@ export const LANGS = [
   { code: "it", file: "it", slug: "italian", name: "Italian", voice: "it-IT" },
   { code: "pt", file: "pt_br", slug: "portuguese", name: "Portuguese", voice: "pt-BR", note: "Brazilian Portuguese" },
   { code: "en", file: "en", slug: "english", name: "English", voice: "en-GB" },
+  // Chinese = Simplified (Mandarin). `reading` = shows a pinyin/kana line under the word (the top 100 are
+  // hand-checked) and adds a Reading column to the CSV. `contentOnly` = the source list leaves out particles
+  // and endings (の は が です ます…), so its percentages are shares of CONTENT words and every page says so.
+  { code: "zh", file: "zh_cn", slug: "chinese", name: "Chinese", voice: "zh-CN", reading: "Pinyin" },
+  { code: "ja", file: "ja", slug: "japanese", name: "Japanese", voice: "ja-JP", reading: "Reading", contentOnly: true },
 ];
 const TIPS = {
   es: "Spanish has two verbs for “to be”: es/está, soy/estoy and son/están are all near the top. Learn which goes with which (ser for what something is, estar for how or where it is) and a big part of the list clicks at once.",
@@ -25,7 +30,11 @@ const TIPS = {
   it: "Italian films drop accents in subtitles (perche for perché, piu for più), so you'll see both. Elided words like l', c' and un' join the next word, so read them as part of a phrase.",
   pt: "This is Brazilian Portuguese: você (you) is far more common than tu, and short words like que, não and é carry a huge share of every conversation.",
   en: "English is full of contractions: don't, didn't, I'm, it's. Subtitles split them, so “don” and “didn” on this list really mean do not and did not. Learn the full forms together.",
+  zh: "This is Simplified Chinese (Mandarin). Many top words are one character, and tiny words like 的, 了, 吗 and 吧 sit at the very top. They have no English twin, so learn them inside short sentences. The pinyin under the top 100 words is the standard Mandarin reading.",
+  ja: "This Japanese list leaves out the tiny grammar words (の, は, が, を, に, です, ます), so it shows the words you put into sentences, not the glue between them. Learn those from short sentences as you watch. Verbs appear as stems (言 for 言う, 行 for 行く) because the source splits words by computer. The reading under the top 100 words is in hiragana.",
 };
+// Japanese's source leaves out particles/endings, so its percentages are shares of content words, never "all speech".
+const TAIL = (l) => (l.contentOnly ? " (particles and endings are not counted)" : "");
 const SIZES = [50, 100, 1000, 3000];
 export const GUIDE_PATH = "/words/anki-and-quizlet";
 export const wordPagePaths = () => ["/learn", ...ARTICLES.map((a) => `/learn/${a.slug}`), "/words", GUIDE_PATH, ...LANGS.flatMap((l) => SIZES.map((n) => pagePath(l, n)))];
@@ -69,7 +78,7 @@ h2{font-size:22px;margin:38px 0 12px;letter-spacing:-.01em}
 table{width:100%;border-collapse:collapse}th{text-align:left;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);padding:10px 8px;border-bottom:1px solid var(--line)}
 td{padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:middle}td.r{color:var(--faint);font-size:13px;width:52px}
 .w{font-weight:700;font-size:17px;color:var(--red);transition:color .2s}tr.known .w{color:var(--green)}
-td.m{color:var(--muted);font-size:15px}td.a{width:120px;text-align:right;white-space:nowrap}
+td.m{color:var(--muted);font-size:15px}.p{display:block;color:var(--faint);font-size:13px;font-weight:500;line-height:1.2}td.a{width:120px;text-align:right;white-space:nowrap}
 .say,.know{width:38px;height:38px;border-radius:99px;border:1px solid #2A2A30;background:transparent;color:var(--muted);cursor:pointer;font-size:16px;line-height:1;vertical-align:middle}
 .know{width:auto;padding:0 12px;font-size:13px;font-weight:600;margin-left:6px}tr.known .know{background:rgba(52,199,89,.14);border-color:rgba(52,199,89,.5);color:var(--green)}
 .say:hover,.know:hover{border-color:var(--green);color:var(--text)}
@@ -122,14 +131,14 @@ function langPage(l, data, n, cfg) {
   const title = n <= 100 ? `${n} Most Common ${l.name} Words (Free List + Audio)`
     : n === 1000 ? `1,000 Most Common ${l.name} Words: Free Frequency List`
     : `3,000 Most Common ${l.name} Words: Full Frequency List`;
-  const desc = `The ${fmt(n)} most common ${l.name} word forms cover ${cov}% of our subtitle corpus. Free frequency list, ${l.code === "en" ? "meanings" : "English meanings"}, audio and Anki CSV.`;
+  const desc = `The ${fmt(n)} most common ${l.name} ${l.contentOnly ? "content words" : "word forms"} cover ${cov}% of our subtitle corpus${TAIL(l)}. Free frequency list, ${l.code === "en" ? "meanings" : "English meanings"}, audio and Anki CSV.`;
   const csvPath = `${pagePath(l, n)}.csv`;
   const top3 = data.words.slice(0, 3);
   const q = (x) => `<strong lang="${l.code}" translate="no">${esc(x.w)}</strong>${x.m ? ` (“${esc(x.m.split(/[;,]/)[0].trim())}”)` : ""}`;
   const need = data.needFor || {};
   const faqs = [
-    [`How many ${l.name} words do I need?`, `The top 100 ${l.name} word forms cover ${data.coverage[100]}% of this subtitle corpus, the top 1,000 cover ${data.coverage[1000]}%, and the top 3,000 cover ${data.coverage[3000]}%. About ${fmt(need[80] || 0)} forms cover 80% and about ${fmt(need[90] || 0)} cover 90%. Knowing a word list is not the same as understanding a film: grammar, listening and context matter too.`],
-    ["Are these words or word forms?", `These are subtitle word forms, not dictionary headwords or word families. Inflections, contractions and elided forms may be separate entries. The percentages describe token coverage in this corpus, not your comprehension, CEFR level or fluency.`],
+    [`How many ${l.name} words do I need?`, `The top 100 ${l.name} word forms cover ${data.coverage[100]}% of this subtitle corpus${TAIL(l)}, the top 1,000 cover ${data.coverage[1000]}%, and the top 3,000 cover ${data.coverage[3000]}%. About ${fmt(need[80] || 0)} forms cover 80% and about ${fmt(need[90] || 0)} cover 90%. Knowing a word list is not the same as understanding a film: grammar, listening and context matter too.`],
+    ["Are these words or word forms?", `These are subtitle word forms, not dictionary headwords or word families. Inflections, contractions and elided forms may be separate entries. The percentages describe token coverage in this corpus, not your comprehension, CEFR level or fluency.${l.contentOnly ? " The Japanese source also leaves out particles and verb endings (の, は, が, です, ます), so these percentages are shares of the remaining content words, not of everything people say." : ""}`],
     ["Where does this list come from?", "From OpenSubtitles 2018 (millions of lines of film and TV subtitles) via the FrequencyWords project, shared under CC BY-SA 4.0. We removed abbreviations and broken fragments, and every percentage on this page is calculated from the word counts."],
   ];
   const jsonLd = [
@@ -147,21 +156,21 @@ function langPage(l, data, n, cfg) {
       inLanguage: l.code, distribution: [{ "@type": "DataDownload", encodingFormat: "text/csv", contentUrl: `${SITE}${csvPath}` }] },
     { "@context": "https://schema.org", "@type": "FAQPage", mainEntity: faqs.map(([q, a]) => ({ "@type": "Question", name: q, acceptedAnswer: { "@type": "Answer", text: a } })) },
   ];
-  const rows = words.map((x) => `<tr id="w${x.r}" data-w="${esc(x.w)}"><td class="r">${x.r}</td><td><span class="w" lang="${l.code}" translate="no">${esc(x.w)}</span></td><td class="m">${esc(x.m || "")}</td><td class="a"></td></tr>${x.r === 20 ? `<tr class="ctarow"><td colspan="4">${cta(l)}</td></tr>` : ""}`).join("");
+  const rows = words.map((x) => `<tr id="w${x.r}" data-w="${esc(x.w)}"><td class="r">${x.r}</td><td><span class="w" lang="${l.code}" translate="no">${esc(x.w)}</span>${x.p && x.p !== x.w ? `<small class="p" translate="no">${esc(x.p)}</small>` : ""}</td><td class="m">${esc(x.m || "")}</td><td class="a"></td></tr>${x.r === 20 ? `<tr class="ctarow"><td colspan="4">${cta(l)}</td></tr>` : ""}`).join("");
   const jump = n > 100 ? `<nav class="jump" aria-label="Jump to">${Array.from({ length: n / 100 }, (_, i) => `<a href="#w${i * 100 + 1}">${fmt(i * 100 + 1)}–${fmt((i + 1) * 100)}</a>`).join("")}</nav>` : "";
   const bars = SIZES.map((s) => `<div class="bar"><a href="${pagePath(l, s)}"${s === n ? ' aria-current="page"' : ""}>Top ${fmt(s)}</a><div class="track"><div class="fill" style="width:${data.coverage[s]}%;background:${s === 100 ? C.orange : s === 1000 ? C.green : C.blue}"></div></div><span>${data.coverage[s]}%</span></div>`).join("");
   return head({ title, desc, url, jsonLd }) + `
 <p class="crumbs"><a href="/words">Most common words</a> › ${n === 100 ? esc(l.name) : `<a href="${pagePath(l, 100)}">${esc(l.name)}</a> › Top ${fmt(n)}`}</p>
 <div class="chams">${chameleon("red", 54, "New word")}${chameleon("orange", 54, "Learning")}${chameleon("green", 54, "Known")}${chameleon("gold", 54, "Review due")}${chameleon("blue", 54, "100% known")}</div>
 <h1>The ${fmt(n)} most common ${esc(l.name)} words</h1>
-<p class="lead">These ${fmt(n)} word forms account for <strong>${cov}% of word occurrences in our ${esc(l.name)} film and TV subtitle corpus</strong>. Start with their meanings, then listen for them in short sentences.${l.note ? ` This list is <strong>${esc(l.note)}</strong>.` : ""}</p>
-<p class="answer">The most common ${esc(l.name)} word form in this corpus is ${q(top3[0])}, followed by ${q(top3[1])} and ${q(top3[2])}. The top ${fmt(n)} cover ${cov}% of corpus tokens. This is vocabulary coverage, not a promise to understand ${cov}% of a film.</p>
+<p class="lead">These ${fmt(n)} word forms account for <strong>${cov}% of ${l.contentOnly ? "the content words" : "word occurrences"} in our ${esc(l.name)} film and TV subtitle corpus</strong>${TAIL(l)}. Start with their meanings, then listen for them in short sentences.${l.note ? ` This list is <strong>${esc(l.note)}</strong>.` : ""}</p>
+<p class="answer">The most common ${esc(l.name)} word form in this corpus is ${q(top3[0])}, followed by ${q(top3[1])} and ${q(top3[2])}. The top ${fmt(n)} cover ${cov}% of corpus ${l.contentOnly ? "content words" : "tokens"}${TAIL(l)}. This is vocabulary coverage, not a promise to understand ${cov}% of a film.</p>
 <p class="updated"><a href="${csvPath}" download>Download CSV (works with Anki)</a> · <a href="${GUIDE_PATH}#anki">How to import it</a> · <a href="${data.sourceUrl}" rel="noopener">Corpus source and method</a></p>
 <nav class="toc" aria-label="Choose a list size">${SIZES.map((s) => `<a href="${pagePath(l, s)}"${s === n ? ' aria-current="page"' : ""}>Top ${fmt(s)}</a>`).join("")}</nav>
-<section class="card" aria-label="How much these words cover"><div class="big">${cov}%</div><div style="color:var(--muted);font-size:14px">of ${esc(l.name)} subtitle tokens in this corpus</div><div class="bars">${bars}</div>
+<section class="card" aria-label="How much these words cover"><div class="big">${cov}%</div><div style="color:var(--muted);font-size:14px">of ${esc(l.name)} ${l.contentOnly ? "content words in this corpus (no particles or endings)" : "subtitle tokens in this corpus"}</div><div class="bars">${bars}</div>
 <p style="margin:14px 0 0;font-size:14px;color:var(--muted)">Why so few words go so far: <a href="/frequent-words">Zipf's law, explained</a>.</p></section>
 <h2>How many ${esc(l.name)} words do you need?</h2>
-<table class="need"><caption class="sr">Words needed for each share of real ${esc(l.name)} speech</caption><thead><tr><th>To understand</th><th>You need about</th></tr></thead><tbody>${[50, 75, 80, 90].filter((g) => need[g]).map((g) => `<tr><td>${g}% of words you hear</td><td><strong>${fmt(need[g])}</strong> words</td></tr>`).join("")}</tbody></table>
+<table class="need"><caption class="sr">Words needed for each share of real ${esc(l.name)} speech</caption><thead><tr><th>To understand</th><th>You need about</th></tr></thead><tbody>${[50, 75, 80, 90].filter((g) => need[g]).map((g) => `<tr><td>${g}% of ${l.contentOnly ? "content words you hear" : "words you hear"}</td><td><strong>${fmt(need[g])}</strong> words</td></tr>`).join("")}</tbody></table>
 <p style="color:var(--muted);font-size:15px">After the first few hundred words, each new word adds a little less. That's why the order matters: start at the top of this list.</p>
 <h2>Tip for ${esc(l.name)} learners</h2><p style="color:var(--muted)">${esc(TIPS[l.code] || "")}</p>
 ${l.code === "fr" ? `<h2>Common French words in everyday sentences</h2><p class="body">Short grammar words have several uses. These original examples show why a single English gloss is only a starting point. Apostrophes join forms: je + ai becomes j’ai; à + le becomes au.</p><table><caption class="sr">Original French examples with English translations</caption><thead><tr><th>Word</th><th>French example</th><th>English</th></tr></thead><tbody>${FRENCH_EXAMPLES.map(([w, example, meaning]) => `<tr><td>${esc(w)}</td><td lang="fr" translate="no">${esc(example)}</td><td>${esc(meaning)}</td></tr>`).join("")}</tbody></table>` : ""}
@@ -203,8 +212,8 @@ fetch(${JSON.stringify(cfg.supabaseUrl)}+"/rest/v1/word_dictionary?select=word,t
 }
 
 function hubPage(all) {
-  const title = "Most Common Words in 6 Languages: Free Frequency Lists";
-  const desc = "Free frequency lists: the 50, 100, 1,000 and 3,000 most common Spanish, French, German, Italian, Portuguese and English word forms, with audio and CSV.";
+  const title = `Most Common Words in ${LANGS.length} Languages: Free Frequency Lists`;
+  const desc = "Free frequency lists: the 50 to 3,000 most common words in Spanish, French, German, Italian, Portuguese, English, Chinese and Japanese, with audio and CSV.";
   const jsonLd = [{ "@context": "https://schema.org", "@type": "ItemList", name: "Most common words by language",
     itemListElement: LANGS.map((l, i) => ({ "@type": "ListItem", position: i + 1, name: `${l.name} most common words`, url: `${SITE}${pagePath(l, 100)}` })) }];
   return head({ title, desc, url: "/words", jsonLd }) + `
@@ -213,7 +222,7 @@ function hubPage(all) {
 <h1>Learn the most common words first</h1>
 <p class="lead">Start with the <strong>50 or 100 most common word forms</strong>, then work towards 1,000 and 3,000. These lists are ranked by occurrences in OpenSubtitles 2018, not by dictionary order or CEFR level.</p>
 <nav class="toc" aria-label="Beginner word lists">${LANGS.map((l) => `<a href="${pagePath(l, 50)}">Top 50 ${esc(l.name)} words</a>`).join("")}</nav>
-<div class="langs">${LANGS.map((l) => { const d = all[l.file]; return `<a href="${pagePath(l, 100)}"><b>${esc(l.name)}${l.note ? ` <small>(Brazil)</small>` : ""}</b><small>Top 100 = <strong style="color:${C.green}">${d.coverage[100]}%</strong> · top 1,000 = ${d.coverage[1000]}% · top 3,000 = ${d.coverage[3000]}%</small></a>`; }).join("")}</div>
+<div class="langs">${LANGS.map((l) => { const d = all[l.file]; return `<a href="${pagePath(l, 100)}"><b>${esc(l.name)}${l.note ? ` <small>(Brazil)</small>` : ""}</b><small>Top 100 = <strong style="color:${C.green}">${d.coverage[100]}%</strong> · top 1,000 = ${d.coverage[1000]}% · top 3,000 = ${d.coverage[3000]}%${l.contentOnly ? " of content words" : ""}</small></a>`; }).join("")}</div>
 <p class="body" style="margin-top:18px">Every list downloads as a CSV for Anki or Quizlet. New to flashcards? Read <a href="${GUIDE_PATH}">how to use Anki and Quizlet to learn a language</a>.</p>
 <h2>Why this works</h2><p style="color:var(--muted)">Languages follow <a href="/frequent-words">Zipf's law</a>: the most common word appears about twice as often as the second, three times as often as the third, and so on. So a few hundred words cover most of a conversation, and LinguaScript always teaches those first.</p>
 ${cta({ name: "new", slug: "hub" }).replace("every new word", "every word").replace("Watch new videos", "Watch videos")}
@@ -255,7 +264,7 @@ function guidePage(all) {
   ];
   const step = (b, t) => `<li><b>${b}</b> ${t}</li>`;
   const tone = (t, label) => `<span style="color:${C[t]};border-color:${C[t]}55">${label}</span>`;
-  const downloads = LANGS.map((l) => `<a href="${pagePath(l, 1000)}.csv" download><b>${esc(l.name)}${l.note ? " <small>(Brazil)</small>" : ""}</b><small>Top 1,000 · CSV · <span style="color:${C.green}">${all[l.file].coverage[1000]}%</span> of real speech</small></a>`).join("");
+  const downloads = LANGS.map((l) => `<a href="${pagePath(l, 1000)}.csv" download><b>${esc(l.name)}${l.note ? " <small>(Brazil)</small>" : ""}</b><small>Top 1,000 · CSV · <span style="color:${C.green}">${all[l.file].coverage[1000]}%</span> of ${l.contentOnly ? "content words" : "real speech"}</small></a>`).join("");
   return head({ title, desc, url, jsonLd }) + `
 <p class="crumbs"><a href="/words">Most common words</a> › Anki &amp; Quizlet guide</p>
 <div class="chams">${chameleon("red", 54, "New word")}${chameleon("orange", 54, "Learning")}${chameleon("green", 54, "Known")}${chameleon("gold", 54, "Review due")}${chameleon("blue", 54, "100% known")}</div>
@@ -440,7 +449,10 @@ export function renderWordPages(distDir, root, cfg = {}) {
     // "#" lines are Anki file headers (separator + column names), so Anki imports cleanly;
     // the Source column carries the CC BY-SA credit into every shared deck.
     const src = cell(`FrequencyWords/OpenSubtitles 2018, ${all[l.file].licence} · linguascript.co.uk${pagePath(l, n)}`);
-    const csv = ["#separator:comma", "#html:false", "#columns:Rank,Word,Meaning,Count,Source", ...all[l.file].words.slice(0, n).map((x) => [x.r, cell(x.w), cell(x.m || ""), x.c, src].join(","))].join("\n") + "\n";
+    // Chinese/Japanese get a Reading column (pinyin / kana) between Word and Meaning.
+    const rd = !!l.reading;
+    const csv = ["#separator:comma", "#html:false", `#columns:Rank,Word,${rd ? `${l.reading},` : ""}Meaning,Count,Source`,
+      ...all[l.file].words.slice(0, n).map((x) => [x.r, cell(x.w), ...(rd ? [cell(x.p || "")] : []), cell(x.m || ""), x.c, src].join(","))].join("\n") + "\n";
     fs.writeFileSync(path.join(distDir, `${pagePath(l, n).slice(1)}.csv`), csv);
   }
   return wordPagePaths();
