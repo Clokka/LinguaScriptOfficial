@@ -296,6 +296,46 @@
     <priority>0.7</priority>
   </url>
   <url>
+    <loc>https://linguascript.co.uk/words/chinese/top-50</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://linguascript.co.uk/words/chinese</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://linguascript.co.uk/words/chinese/top-1000</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://linguascript.co.uk/words/chinese/top-3000</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://linguascript.co.uk/words/japanese/top-50</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://linguascript.co.uk/words/japanese</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://linguascript.co.uk/words/japanese/top-1000</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://linguascript.co.uk/words/japanese/top-3000</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
     <loc>https://linguascript.co.uk/privacy</loc>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>

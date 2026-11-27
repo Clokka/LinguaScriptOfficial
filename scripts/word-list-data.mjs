@@ -1,9 +1,11 @@
-// Denominators from FrequencyWords/OpenSubtitles 2018 *_50k.txt files.
+// Denominators from FrequencyWords/OpenSubtitles 2018 *_50k.txt files
+// (Japanese: ja_full.txt, the project has no 50k file for it).
 // The same denominator is used by build-word-lists.mjs, including filtered tokens.
 // Source: https://github.com/hermitdave/FrequencyWords/tree/master/content/2018
 export const CORPUS_TOTALS = {
   es: 413264052, fr: 312994233, de: 151705378,
   it: 241736295, pt_br: 419352664, en: 725119374,
+  zh_cn: 81775831, ja: 3794284,
 };
 
 export function vocabularyCoverage(data, size) {

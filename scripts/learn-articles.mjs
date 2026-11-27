@@ -270,7 +270,7 @@ ${L.map(([k, n, slug]) => `<tr><td><a href="/words/${slug}">${n}</a></td><td><st
 <p class="body">So the plan is: <strong>learn the high-frequency words first</strong>, because each one pays off every day, then pick up the rest <strong>in context</strong>, from the shows, videos and podcasts you enjoy, where you meet the words that matter to <i>you</i>.</p>` },
       { id: "linguascript", h2: "How LinguaScript uses high-frequency words", html: `
 <ol class="steps">
-<li><b>Free frequency lists.</b> The <a href="/words">100, 1,000 and 3,000 most common words</a> in Spanish, French, German, Italian, Portuguese and English, with meanings, audio and a CSV for Anki or Quizlet.</li>
+<li><b>Free frequency lists.</b> The <a href="/words">100, 1,000 and 3,000 most common words</a> in Spanish, French, German, Italian, Portuguese, English, Chinese and Japanese, with meanings, audio and a CSV for Anki or Quizlet.</li>
 <li><b>Videos at your level.</b> LinguaScript counts how many words of a video you already know and recommends videos where you know about 95–98%: input that's comprehensible, not overwhelming.</li>
 <li><b>Colour-coded words.</b> Every word in the subtitles is coloured by how well you know it: red (new), orange (learning), green (known), gold (review due), blue (100% known). High-frequency words turn green first, and you can watch it happen.</li>
 <li><b>Flashcards in frequency order.</b> The "most common words" deck teaches the words that unlock the most of real speech first, on a spaced review schedule.</li>
